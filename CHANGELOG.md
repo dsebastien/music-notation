@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1 (2026-10-28)
+
+- `chord` blocks that name their chord with `name: A` (instead of `symbol: A`) now mark the chord's root notes too.
+
 ## 0.1.0 (2026-10-28)
 
 First release: music notation from small text blocks, as SVG and HTML.

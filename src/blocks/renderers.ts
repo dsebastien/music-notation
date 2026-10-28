@@ -81,8 +81,13 @@ function pianoPitches(symbol: string): NoteSet {
 const renderChord: Renderer = (doc, source, options) => {
     const block = parseBlockSource(source)
     const short = shorthand(block.head)
-    const symbol = field(block, 'symbol', 'chord') ?? short.symbol
-    const title = field(block, 'title', 'name') ?? symbol
+    const name = field(block, 'name')
+    // A `name` that is a chord symbol ("name: A") also gives the root marks.
+    const symbol =
+        field(block, 'symbol', 'chord') ??
+        short.symbol ??
+        (name && parseChord(name) ? name : undefined)
+    const title = field(block, 'title') ?? name ?? symbol
     const instrument = field(block, 'instrument')?.toLowerCase()
     const pitchesText = field(block, 'pitches', 'notes')
 

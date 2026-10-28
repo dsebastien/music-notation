@@ -40,6 +40,7 @@ title: A (open)
 | `pitches`    | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                       |
 | `fingering`  | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                         |
 | `title`      | The title shown above.                                                                                                                                                                                 |
+| `name`       | Also the title; when it's a chord symbol (`name: A`), its root notes are highlighted too.                                                                                                              |
 
 A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
 

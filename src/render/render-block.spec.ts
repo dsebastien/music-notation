@@ -36,6 +36,15 @@ describe('renderBlock', () => {
         expect(h.querySelector('.mn-title')?.textContent).toBe('D (DADGAD)')
     })
 
+    it('reads a chord symbol given as the name', () => {
+        const h = host()
+        renderBlock('chord', 'name: A\nfrets: x02220\nfingers: x01230', h)
+        expect(h.querySelector('.mn-title')?.textContent).toBe('A')
+        expect(h.querySelectorAll('.mn-root')).toHaveLength(2)
+        renderBlock('chord', 'name: My shape\nfrets: x02220', h)
+        expect(h.querySelectorAll('.mn-title')[1]?.textContent).toBe('My shape')
+    })
+
     it('looks up a voicing when only the symbol is given', () => {
         const h = host()
         expect(renderBlock('chord', 'Am', h, { voicings: lookupGuitarVoicing }).ok).toBe(true)
