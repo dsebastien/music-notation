@@ -1,6 +1,6 @@
 {
     "name": "@dsebastien/music-notation",
-    "version": "0.1.3",
+    "version": "0.2.0",
     "description": "Chord diagrams, piano keyboards, fretboards and ChordPro charts rendered as SVG and HTML, with no framework. Works in Obsidian, on Obsidian Publish and on any web page.",
     "author": {
         "name": "Sébastien Dubois",
