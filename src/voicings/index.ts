@@ -1,5 +1,5 @@
 /**
- * Guitar voicings for chord symbols, from @tombatossals/chords-db (MIT, ~2,000 voicings). A
+ * Guitar voicings for chord symbols, from @tombatossals/chords-db (MIT, about 2,000 voicings, 1,800 of them by symbol). A
  * separate entry point: the data adds about 230 KB, so only consumers that want it pay for it.
  */
 import db from '@tombatossals/chords-db/lib/guitar.json'

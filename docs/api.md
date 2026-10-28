@@ -30,7 +30,7 @@ const result = renderBlock('chord', 'Am', container, { voicings: lookupGuitarVoi
 
 Options:
 
-- `voicings`: finds guitar voicings for chord blocks that only give a symbol. Pass `lookupGuitarVoicing` from `@dsebastien/music-notation/voicings` (about 2,000 voicings, ~230 KB), or your own `(symbol, index) => FrettedVoicing | null`.
+- `voicings`: finds guitar voicings for chord blocks that only give a symbol. Pass `lookupGuitarVoicing` from `@dsebastien/music-notation/voicings` (about 1,800 voicings by symbol, ~230 KB), or your own `(symbol, index) => FrettedVoicing | null`.
 - `transpose`: semitones added to `chords` blocks.
 
 Everything is created in `host.ownerDocument`, so popout windows work.
