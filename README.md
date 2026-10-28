@@ -84,11 +84,6 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
 
 The bundle renders every block, now and as you navigate, and hides a block's source only once it rendered.
 
-## Roadmap
-
-- 0.1: chord diagrams (guitar, piano), keyboards, fretboards, ChordPro charts, the Publish bundle.
-- 0.2: tabs and scores (alphaTab) with playback, imports (Guitar Pro, MusicXML, text tabs, chords over lyrics).
-
 ## Credits and licenses
 
 MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings.
