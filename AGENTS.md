@@ -29,3 +29,11 @@
 - Keep the core light: heavy data or engines (voicings, alphaTab) live behind their own entry points so consumers opt in.
 - Commits: Conventional Commits, scopes `all`, `build`, `deps`, `docs`, `lib`, `release`. Never bypass hooks. End agent commits with the session line the harness provides.
 - Hooks: `bun run setup` once per clone (config-based Git hooks: Prettier on staged files, commitlint).
+
+## Releasing
+
+1. Write the version's section in `CHANGELOG.md` (`## X.Y.Z (yyyy-mm-dd)`, plain language for users), commit, push, wait for CI to be green.
+2. `gh workflow run release.yml -f version=X.Y.Z`: bumps `package.json`, commits `chore(release): X.Y.Z`, tags, publishes to npm with provenance (trusted publishing, no token) and creates the GitHub release with the browser bundle.
+3. Publish sites pin the version in their `publish.js`: bump it there to roll out.
+
+0.1.0 was published by hand (`npm publish --access public`): trusted publishing needs the package to exist. `prepublishOnly` validates and builds.

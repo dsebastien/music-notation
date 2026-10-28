@@ -1,0 +1,88 @@
+name: Release
+
+# Publishes a version that already has its section in CHANGELOG.md:
+#   gh workflow run release.yml -f version=0.1.1
+# Bumps package.json, commits and tags on main, publishes to npm with provenance through npm
+# trusted publishing (OIDC, no token), and creates the GitHub release with the browser bundle.
+# 0.1.0 was published by hand: trusted publishing needs the package to exist first.
+
+on:
+    workflow_dispatch:
+        inputs:
+            version:
+                description: 'Version to release (e.g., 0.1.1)'
+                required: true
+                type: string
+
+permissions:
+    contents: write
+    id-token: write
+
+concurrency:
+    group: release
+    cancel-in-progress: false
+
+jobs:
+    release:
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+
+            - name: Setup Bun
+              uses: oven-sh/setup-bun@v2
+              with:
+                  bun-version-file: package.json
+
+            - name: Setup Node
+              uses: actions/setup-node@v6
+              with:
+                  node-version-file: .nvmrc
+                  registry-url: https://registry.npmjs.org
+
+            # Trusted publishing needs npm 11.5.1 or later.
+            - name: Update npm
+              run: npm install -g npm@11
+
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+
+            - name: Check the version and its changelog
+              env:
+                  VERSION: ${{ inputs.version }}
+              run: |
+                  VERSION="${VERSION#v}"
+                  [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $VERSION"; exit 1; }
+                  grep -q "^## ${VERSION} " CHANGELOG.md || { echo "CHANGELOG.md has no '## ${VERSION} (date)' section"; exit 1; }
+                  if git rev-parse -q --verify "refs/tags/${VERSION}" >/dev/null; then echo "Tag ${VERSION} exists"; exit 1; fi
+                  echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+
+            - name: Bump the version
+              run: npm version "$VERSION" --no-git-tag-version
+
+            - name: Validate and build
+              run: bun run validate && bun run build
+
+            - name: Commit and tag
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+                  git add package.json
+                  git commit -m "chore(release): ${VERSION}"
+                  git tag "${VERSION}"
+                  git push origin HEAD:main "refs/tags/${VERSION}"
+
+            - name: Publish to npm
+              run: npm publish --access public --provenance --ignore-scripts
+
+            - name: GitHub release
+              env:
+                  GH_TOKEN: ${{ github.token }}
+              run: |
+                  awk -v v="## ${VERSION} " 'index($0, v) == 1 { on = 1; next } /^## / { on = 0 } on' CHANGELOG.md > notes.md
+                  gh release create "${VERSION}" --title "${VERSION}" --notes-file notes.md \
+                      dist/music-notation.publish.min.js dist/music-notation.css dist/THIRD_PARTY_LICENSES.md
