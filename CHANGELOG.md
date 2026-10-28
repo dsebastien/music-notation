@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3 (2026-10-28)
+
+- Fixes the ES module build of 0.1.2: `import … from '@dsebastien/music-notation'` failed (the entry exported names it didn't define). The browser bundle for Obsidian Publish was not affected.
+
 ## 0.1.2 (2026-10-28)
 
 - Every common way to write a chord now draws: `CΔ7`, `Cmin6`, `CM9`, `Cø7`, `Cm(maj7)`, `C7b9`, `Cm11`… on piano, and as guitar voicings when the database has one.

@@ -33,10 +33,12 @@ const library = await Bun.build({
     entrypoints: ['src/index.ts', 'src/voicings/index.ts', 'src/publish/index.ts'],
     outdir: 'dist',
     root: 'src',
-    naming: { entry: '[dir]/[name].js', chunk: 'chunks/[name]-[hash].js' },
+    naming: { entry: '[dir]/[name].js' },
     target: 'browser',
     format: 'esm',
-    splitting: true,
+    // No code splitting: Bun 1.4 emitted an index.js that re-exported names without importing
+    // them from its chunk (0.1.2). Each entry is self-contained; check-dist.ts guards the output.
+    splitting: false,
     external,
     sourcemap: 'linked'
 })
@@ -69,3 +71,5 @@ await $`bunx tsc -p tsconfig.build.json`
 
 const size = Bun.file('dist/music-notation.publish.min.js').size
 console.log(`Publish bundle: ${(size / 1024).toFixed(0)} KB`)
+
+await $`node scripts/check-dist.mjs`

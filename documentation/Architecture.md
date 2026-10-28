@@ -15,6 +15,6 @@ src/
 ```
 
 - **Entry points**: `.` (everything but the voicing data), `./voicings`, `./publish`; `dist/music-notation.publish.min.js` (IIFE: styles, voicings, auto-render, `window.MusicNotation`); `dist/music-notation.css`.
-- **Build** (`scripts/build.ts`): Bun.build ESM with dependencies external and code splitting; a minified IIFE bundle for Publish; declarations from `tsc -p tsconfig.build.json`.
+- **Build** (`scripts/build.ts`): Bun.build ESM with dependencies external and no code splitting (each entry self-contained; `scripts/check-dist.mjs` imports every entry in Node after the build); a minified IIFE bundle for Publish; declarations from `tsc -p tsconfig.build.json`.
 - **Rendering**: renderers build SVG/HTML with `doc.createElement(NS)` from the host's document; classes prefixed `mn-`; no inline colors, so themes apply.
 - **Tests**: `bun test` with happy-dom (`src/test-setup.ts`).
