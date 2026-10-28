@@ -35,3 +35,20 @@ export function parseRange(text: string): [number, number] | null {
     const to = m[2] === undefined ? from : Number(m[2])
     return from <= to ? [from, to] : null
 }
+
+const SEPARATOR = /^\s*-{3,}\s*$/
+
+/**
+ * The parts of a block whose diagrams are separated by `---` lines, without the empty ones;
+ * null when the block has no separator.
+ */
+export function splitParts(source: string): string[] | null {
+    const lines = source.split(/\r?\n/)
+    if (!lines.some((line) => SEPARATOR.test(line))) return null
+    const parts: string[][] = [[]]
+    for (const line of lines) {
+        if (SEPARATOR.test(line)) parts.push([])
+        else parts[parts.length - 1]!.push(line)
+    }
+    return parts.map((part) => part.join('\n')).filter((part) => part.trim() !== '')
+}

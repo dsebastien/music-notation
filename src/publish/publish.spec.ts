@@ -36,6 +36,26 @@ describe('renderAll', () => {
         renderAll(document)
         expect(document.querySelectorAll('.mn-error')).toHaveLength(1)
     })
+
+    it('draws a row with a broken diagram and keeps its source visible', () => {
+        const pre = block('chord', 'G 320003\n---\nC x3201a\n---\nD xx0232')
+        document.body.append(pre)
+        expect(renderAll(document)).toBe(0)
+        expect(pre.style.display).toBe('')
+        expect(pre.dataset['mpRendered']).toBe('error')
+        expect(document.querySelectorAll('.mn-row .mn-guitar-chord')).toHaveLength(2)
+    })
+
+    it('passes the layout defaults on', () => {
+        document.body.append(block('fretboard', 'C major\nfrets: 0-3'))
+        renderAll(document, { orientation: { fretboard: 'vertical' } })
+        const [, , w, h] = document
+            .querySelector('.mn-fretboard')!
+            .getAttribute('viewBox')!
+            .split(' ')
+            .map(Number)
+        expect(h).toBeGreaterThan(w!)
+    })
 })
 
 describe('renderAll after the page changed', () => {

@@ -2,8 +2,17 @@ export {
     renderBlock,
     LANGUAGES,
     isNotationLanguage,
+    MAX_DIAGRAMS,
     type RenderResult
 } from './render/render-block.js'
+export {
+    parseOrientation,
+    parseHand,
+    layoutDefaults,
+    type Orientation,
+    type Hand,
+    type LayoutDefaults
+} from './render/layout.js'
 export type { RenderOptions, NotationLanguage } from './blocks/renderers.js'
 export { STYLES, injectStyles } from './styles.js'
 export {

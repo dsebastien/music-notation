@@ -223,6 +223,114 @@ tuning: Drop D
 frets: 0-12
 labels: none</code></pre></div>
 
+## Rows and grids
+
+A song's chords, with fingers:
+
+````markdown
+```chord
+G 320003 210003
+---
+Em 022000 023000
+---
+C x32010 x32010
+---
+D xx0232 xx0132
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">G 320003 210003
+---
+Em 022000 023000
+---
+C x32010 x32010
+---
+D xx0232 xx0132</code></pre></div>
+
+The I–IV–V in A on piano, in a grid:
+
+````markdown
+```chord
+instrument: piano
+columns: 3
+---
+A
+---
+D
+---
+E7
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">instrument: piano
+columns: 3
+---
+A
+---
+D
+---
+E7</code></pre></div>
+
+The first three positions of the A minor pentatonic, standing up:
+
+````markdown
+```fretboard
+orientation: vertical
+labels: intervals
+---
+A minor pentatonic
+frets: 5-8
+---
+A minor pentatonic
+frets: 7-10
+---
+A minor pentatonic
+frets: 9-13
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">orientation: vertical
+labels: intervals
+---
+A minor pentatonic
+frets: 5-8
+---
+A minor pentatonic
+frets: 7-10
+---
+A minor pentatonic
+frets: 9-13</code></pre></div>
+
+## Left-handed
+
+````markdown
+```chord
+hand: left
+---
+C x32010 x32010
+---
+F 133211 134211
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">hand: left
+---
+C x32010 x32010
+---
+F 133211 134211</code></pre></div>
+
+````markdown
+```fretboard
+E minor pentatonic
+frets: 0-5
+hand: left
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">E minor pentatonic
+frets: 0-5
+hand: left</code></pre></div>
+
 ## Chord charts
 
 A chart transposed up a whole step (chords and key move, spelled for the new key):

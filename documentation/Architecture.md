@@ -9,7 +9,7 @@ src/
   fretboard/   fretboard (SVG), tunings
   chords/      ChordPro parser, chart (HTML)
   voicings/    guitar voicing lookup (chords-db), own entry point
-  render/      DOM helpers, renderBlock (never throws)
+  render/      DOM helpers, layout (orientation, hand, neck frame), renderBlock (never throws; rows)
   publish/     renderAll / autoRender; auto.ts = the browser bundle
   styles.css   one stylesheet, CSS variables defaulting to Obsidian's
 ```

@@ -65,3 +65,31 @@ describe('renderFretboard', () => {
         expect(el.querySelectorAll('.mn-inlay')).toHaveLength(2)
     })
 })
+
+describe('renderFretboard orientation', () => {
+    const num = (el: Element | null | undefined, name: string) => Number(el?.getAttribute(name))
+    const scale = () => scaleNoteSet('A minor pentatonic')!
+
+    it('vertical: the nut on top, the low string on the left, names above the nut', () => {
+        const el = renderFretboard(document, scale(), { frets: [0, 5], orientation: 'vertical' })
+        const nut = el.querySelector('.mn-nut')!
+        expect(num(nut, 'y1')).toBe(num(nut, 'y2'))
+        const strings = [...el.querySelectorAll('.mn-string')]
+        // Drawn highest string first: the last one is the low E, on the left.
+        expect(num(strings[5], 'x1')).toBeLessThan(num(strings[0], 'x1'))
+        expect(num(el.querySelector('.mn-string-name'), 'y')).toBeLessThan(num(nut, 'y1'))
+        const [, , w, h] = el.getAttribute('viewBox')!.split(' ').map(Number)
+        expect(h).toBeGreaterThan(w!)
+    })
+
+    it('left-handed: the nut on the right', () => {
+        const right = renderFretboard(document, scale(), { frets: [0, 5] })
+        const left = renderFretboard(document, scale(), { frets: [0, 5], hand: 'left' })
+        const nutX = (el: Element) => num(el.querySelector('.mn-nut'), 'x1')
+        expect(nutX(left)).toBeGreaterThan(nutX(right))
+        const numbers = (el: Element) =>
+            [...el.querySelectorAll('.mn-fret-number')].map((n) => num(n, 'x'))
+        // Fret numbers grow towards the left.
+        expect(numbers(left)[0]).toBeGreaterThan(numbers(left)[4]!)
+    })
+})

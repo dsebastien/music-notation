@@ -1,5 +1,6 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
-import { svg, svgRoot, svgText } from '../render/dom.js'
+import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 
 /** Standard tuning, lowest string first. */
 export const STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
@@ -19,6 +20,10 @@ export interface GuitarDiagramOptions {
     root?: number | null
     /** Open-string pitches (MIDI), lowest first. */
     tuning?: number[]
+    /** Vertical (default): the nut on top. Horizontal: the high string on top, the nut on the left. */
+    orientation?: Orientation
+    /** Left-handed: mirrored (the low string on the right, or the nut on the right). */
+    hand?: Hand
 }
 
 /** "x02220", "x-10-12-12-11-10", "x 10 12 12 11 10" → frets; null when invalid. */
@@ -78,11 +83,15 @@ function barresOf(voicing: FrettedVoicing): Barre[] {
     return barres
 }
 
+/** Between two strings. */
 const SPACING = 18
+/** One fret. */
 const ROW = 20
-const LEFT = 30
-const TITLE = 22
+/** Room for the open and muted marks before the nut. */
 const MARKERS = 16
+/** Room beyond the low string, for the base fret. */
+const BASE = 30
+const TITLE = 22
 
 export function renderGuitarDiagram(
     doc: Document,
@@ -93,19 +102,32 @@ export function renderGuitarDiagram(
     const base = voicing.baseFret ?? baseFretOf(voicing.frets)
     const fretted = voicing.frets.filter((f): f is number => f !== null && f > 0)
     const rows = Math.max(4, fretted.length ? Math.max(...fretted) - base + 1 : 0)
-    const top = (options.title ? TITLE : 4) + MARKERS
-    const width = LEFT + (strings - 1) * SPACING + 14
-    const height = top + rows * ROW + 10
-    const x = (string: number) => LEFT + string * SPACING
-    const y = (row: number) => top + row * ROW
+    const orientation = options.orientation ?? 'vertical'
+    const vertical = orientation === 'vertical'
+    const frame = neckFrame({
+        orientation,
+        hand: options.hand ?? 'right',
+        across: (strings - 1) * SPACING,
+        along: rows * ROW,
+        before: MARKERS,
+        after: 10,
+        low: vertical || base > 1 ? BASE : 10,
+        high: vertical ? 14 : 10,
+        top: options.title ? TITLE : 4,
+        minWidth: titleWidth(options.title)
+    })
+    // Neck coordinates: strings across (lowest first), fret rows along.
+    const across = (string: number) => string * SPACING
+    const along = (row: number) => row * ROW
+    const at = (string: number, row: number) => frame.at(across(string), along(row))
 
     const label = options.title ? `${options.title} chord diagram` : 'Chord diagram'
-    const root = svgRoot(doc, width, height, 'mn-guitar-chord', label)
+    const root = svgRoot(doc, frame.width, frame.height, 'mn-guitar-chord', label)
     if (options.title) {
         root.appendChild(
             svgText(doc, options.title, {
                 'class': 'mn-title',
-                'x': width / 2,
+                'x': frame.width / 2,
                 'y': 15,
                 'text-anchor': 'middle'
             })
@@ -113,41 +135,23 @@ export function renderGuitarDiagram(
     }
 
     for (let row = 0; row <= rows; row++) {
-        root.appendChild(
-            svg(doc, 'line', {
-                class: row === 0 && base === 1 ? 'mn-nut' : 'mn-fret',
-                x1: x(0),
-                x2: x(strings - 1),
-                y1: y(row),
-                y2: y(row)
-            })
-        )
+        const cls = row === 0 && base === 1 ? 'mn-nut' : 'mn-fret'
+        root.appendChild(svgLine(doc, at(0, row), at(strings - 1, row), cls))
     }
     for (let s = 0; s < strings; s++) {
-        root.appendChild(
-            svg(doc, 'line', { class: 'mn-string', x1: x(s), x2: x(s), y1: y(0), y2: y(rows) })
-        )
+        root.appendChild(svgLine(doc, at(s, 0), at(s, rows), 'mn-string'))
     }
     if (base > 1) {
-        root.appendChild(
-            svgText(doc, `${base}fr`, {
-                'class': 'mn-base-fret',
-                'x': LEFT - 10,
-                'y': y(0.5) + 4,
-                'text-anchor': 'end'
-            })
-        )
+        // Beyond the low string, level with the first fret.
+        root.appendChild(svgLabel(doc, `${base}fr`, frame.at(-16, along(0.5)), 'mn-base-fret'))
     }
 
     for (const barre of barresOf(voicing)) {
-        const cy = y(barre.fret - base + 0.5)
+        const middle = along(barre.fret - base + 0.5)
         root.appendChild(
             svg(doc, 'rect', {
                 class: 'mn-barre',
-                x: x(barre.from) - 7,
-                y: cy - 7,
-                width: x(barre.to) - x(barre.from) + 14,
-                height: 14,
+                ...frame.box(across(barre.from) - 7, middle - 7, across(barre.to) + 7, middle + 7),
                 rx: 7
             })
         )
@@ -155,16 +159,10 @@ export function renderGuitarDiagram(
 
     const tuning = options.tuning ?? (strings === 6 ? STANDARD_TUNING : undefined)
     voicing.frets.forEach((fret, s) => {
-        const cx = x(s)
+        // Open and muted marks sit just before the nut.
+        const mark = frame.at(across(s), -8)
         if (fret === null) {
-            root.appendChild(
-                svgText(doc, '×', {
-                    'class': 'mn-muted',
-                    'x': cx,
-                    'y': top - 4,
-                    'text-anchor': 'middle'
-                })
-            )
+            root.appendChild(svgLabel(doc, '×', mark, 'mn-muted'))
             return
         }
         const open = tuning?.[s]
@@ -174,31 +172,19 @@ export function renderGuitarDiagram(
             open !== undefined &&
             (open + fret) % 12 === options.root
         if (fret === 0) {
+            const [cx, cy] = mark
             root.appendChild(
-                svg(doc, 'circle', {
-                    class: `mn-open${isRoot ? ' mn-root' : ''}`,
-                    cx,
-                    cy: top - 8,
-                    r: 4
-                })
+                svg(doc, 'circle', { class: `mn-open${isRoot ? ' mn-root' : ''}`, cx, cy, r: 4 })
             )
             return
         }
-        const cy = y(fret - base + 0.5)
+        const center = at(s, fret - base + 0.5)
+        const [cx, cy] = center
         root.appendChild(
             svg(doc, 'circle', { class: `mn-dot${isRoot ? ' mn-root' : ''}`, cx, cy, r: 7 })
         )
         const finger = voicing.fingers[s]
-        if (finger) {
-            root.appendChild(
-                svgText(doc, finger, {
-                    'class': 'mn-dot-text',
-                    'x': cx,
-                    'y': cy + 4,
-                    'text-anchor': 'middle'
-                })
-            )
-        }
+        if (finger) root.appendChild(svgLabel(doc, finger, center, 'mn-dot-text'))
     })
     return root
 }

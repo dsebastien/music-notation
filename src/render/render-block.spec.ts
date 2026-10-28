@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { isNotationLanguage, LANGUAGES, renderBlock } from './render-block.js'
+import { isNotationLanguage, LANGUAGES, MAX_DIAGRAMS, renderBlock } from './render-block.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
 
 const host = () => document.createElement('div')
@@ -169,5 +169,128 @@ describe('renderBlock', () => {
         expect(result.ok).toBe(false)
         expect(result.error).toContain(message)
         expect(h.querySelector('.mn-error .mn-error-message')?.textContent).toContain(language)
+    })
+})
+
+describe('several diagrams in one block', () => {
+    const titles = (h: HTMLElement) =>
+        [...h.querySelectorAll('.mn-title')].map((t) => t.textContent)
+
+    it('draws each part in its own cell of a row', () => {
+        const h = host()
+        const result = renderBlock('chord', 'G 320003 210003\n---\nC x32010\n---\nD xx0232', h)
+        expect(result.ok).toBe(true)
+        expect(h.querySelectorAll('.mn-row > .mn-cell')).toHaveLength(3)
+        expect(titles(h)).toEqual(['G', 'C', 'D'])
+    })
+
+    it('shares the first part when it only holds shareable keys, and a part overrides it', () => {
+        const h = host()
+        renderBlock(
+            'chord',
+            'orientation: horizontal\ncolumns: 2\n---\nG 320003\n---\nC x32010\norientation: vertical',
+            h
+        )
+        expect(h.querySelector('.mn-grid.mn-cols-2')).not.toBeNull()
+        const [g, c] = [...h.querySelectorAll('.mn-guitar-chord')]
+        // Horizontal: the nut is a vertical line.
+        const nut = (svg: Element | undefined) => svg?.querySelector('.mn-nut')
+        expect(nut(g)?.getAttribute('x1')).toBe(nut(g)?.getAttribute('x2') ?? 'none')
+        expect(nut(c)?.getAttribute('y1')).toBe(nut(c)?.getAttribute('y2') ?? 'none')
+    })
+
+    it('treats a first part with a diagram as a diagram', () => {
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nfrets: 5-8\n---\nC major\nfrets: 0-3', h)
+        expect(h.querySelectorAll('.mn-fretboard')).toHaveLength(2)
+    })
+
+    it('uses the shared tuning for every chord', () => {
+        const h = host()
+        renderBlock('chord', 'tuning: DADGAD\n---\nD 000230\n---\nG 000020', h)
+        expect(h.querySelectorAll('.mn-guitar-chord')).toHaveLength(2)
+        // D in DADGAD: the open D strings are roots.
+        expect(h.querySelectorAll('.mn-guitar-chord')[0]?.querySelectorAll('.mn-root').length).toBe(
+            3
+        )
+    })
+
+    it('shows a mistake in its cell and still draws the others', () => {
+        const h = host()
+        const result = renderBlock('chord', 'G 320003\n---\nC x3201a\n---\nD xx0232', h)
+        expect(result.ok).toBe(false)
+        expect(result.error).toBe('diagram 2: Invalid frets "x3201a": use e.g. x02220')
+        expect(h.querySelectorAll('.mn-guitar-chord')).toHaveLength(2)
+        expect(h.querySelector('.mn-cell.mn-error .mn-error-message')?.textContent).toBe(
+            'chord, diagram 2: Invalid frets "x3201a": use e.g. x02220'
+        )
+    })
+
+    it.each([
+        ['tuning: DADGAD\n---', 'Add a diagram after the shared settings'],
+        ['---\n---', 'Add a diagram'],
+        ['columns: 0\n---\nG 320003', 'columns must be a whole number from 1 to 12, got "0"'],
+        ['columns: 13\n---\nG 320003', 'from 1 to 12'],
+        ['G 320003\ncolumns: 2\n---\nC x32010', '"columns" goes in the shared settings'],
+        ['orientation: sideways\n---\nG 320003', 'Unknown orientation "sideways"']
+    ])('says what is wrong in %p', (source, message) => {
+        const result = renderBlock('chord', source, host())
+        expect(result.ok).toBe(false)
+        expect(result.error).toContain(message)
+    })
+
+    it('refuses more diagrams than the limit', () => {
+        const source = Array.from({ length: MAX_DIAGRAMS + 1 }, () => 'A x02220').join('\n---\n')
+        const result = renderBlock('chord', source, host())
+        expect(result.error).toBe(`At most ${MAX_DIAGRAMS} diagrams per block, found 33`)
+    })
+
+    it('never splits chord charts', () => {
+        const h = host()
+        const result = renderBlock('chords', '{title: Song}\n[G]One\n---\n[C]Two', h)
+        expect(result.ok).toBe(true)
+        expect(h.querySelector('.mn-row')).toBeNull()
+    })
+})
+
+describe('orientation and hand', () => {
+    const lineIsVertical = (el: Element | null) =>
+        el !== null && el.getAttribute('x1') === el.getAttribute('x2')
+
+    it('follows the defaults, unless the block says otherwise', () => {
+        const h = host()
+        const options = { orientation: { chord: 'horizontal', keyboard: 'vertical' } } as const
+        renderBlock('chord', 'A x02220', h, options)
+        renderBlock('chord', 'A x02220\norientation: vertical', h, options)
+        const [defaulted, own] = [...h.querySelectorAll('.mn-nut')]
+        expect(lineIsVertical(defaulted ?? null)).toBe(true)
+        expect(lineIsVertical(own ?? null)).toBe(false)
+    })
+
+    it('draws piano chords with the keyboards default, not the chord diagrams one', () => {
+        const h = host()
+        renderBlock('chord', 'C\ninstrument: piano', h, {
+            orientation: { chord: 'horizontal', keyboard: 'vertical' }
+        })
+        const svg = h.querySelector('.mn-keyboard')!
+        const [, , w, ht] = svg.getAttribute('viewBox')!.split(' ').map(Number)
+        expect(ht).toBeGreaterThan(w!)
+    })
+
+    it('mirrors guitar diagrams and fretboards for left-handed players, not keyboards', () => {
+        const h = host()
+        const right = renderBlock('chord', 'A x02220', h).el
+        const left = renderBlock('chord', 'A x02220', h, { hand: 'left' }).el
+        const lowX = (el: HTMLElement) => Number(el.querySelector('.mn-string')?.getAttribute('x1'))
+        expect(lowX(left)).toBeGreaterThan(lowX(right))
+        const keys = (o: { hand?: 'left' }) =>
+            renderBlock('keyboard', 'C major', host(), o).el.innerHTML
+        expect(keys({ hand: 'left' })).toBe(keys({}))
+    })
+
+    it('checks hand on keyboards too', () => {
+        expect(renderBlock('keyboard', 'C major\nhand: up', host()).error).toContain(
+            'Unknown hand "up"'
+        )
     })
 })

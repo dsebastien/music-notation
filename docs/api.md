@@ -21,23 +21,28 @@ const result = renderBlock('chord', 'Am', container, { voicings: lookupGuitarVoi
 
 `renderBlock(language, source, host, options)` appends a `div.mn-block` to `host`, never throws, and returns:
 
-| Field       | Meaning                               |
-| ----------- | ------------------------------------- |
-| `ok`        | Whether it rendered.                  |
-| `el`        | The block's container.                |
-| `error`     | The message shown when `ok` is false. |
-| `destroy()` | Removes the container.                |
+| Field       | Meaning                                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `ok`        | Whether it rendered.                                                                                                     |
+| `el`        | The block's container.                                                                                                   |
+| `error`     | The message shown when `ok` is false; for several diagrams, each failing one's (`diagram 2: …`), the others still drawn. |
+| `destroy()` | Removes the container.                                                                                                   |
 
 Options:
 
 - `voicings`: finds guitar voicings for chord blocks that only give a symbol. Pass `lookupGuitarVoicing` from `@dsebastien/music-notation/voicings` (about 1,800 voicings by symbol, ~230 KB), or your own `(symbol, index) => FrettedVoicing | null`.
 - `transpose`: semitones added to `chords` blocks.
+- `orientation`: the default per block language, `{ chord, keyboard, fretboard }`, each `'vertical'` or `'horizontal'`. Piano chords follow `keyboard`. A block's own `orientation` wins.
+- `hand`: `'left'` mirrors guitar chords and fretboards unless a block says `hand: right`.
+
+`layoutDefaults(value)` keeps only valid `orientation` and `hand` values from untrusted input (a page's settings). `MAX_DIAGRAMS` is the most diagrams one block may hold (32).
 
 Everything is created in `host.ownerDocument`, so popout windows work.
 
 ## Renderers and theory
 
-- `renderGuitarDiagram(doc, voicing, options)`, `renderKeyboard(doc, noteSet, options)`, `renderFretboard(doc, noteSet, options)`, `renderChart(doc, song, options)`.
+- `renderGuitarDiagram(doc, voicing, options)`, `renderKeyboard(doc, noteSet, options)`, `renderFretboard(doc, noteSet, options)`, `renderChart(doc, song, options)`. The diagram renderers take `orientation`, and guitar diagrams and fretboards take `hand`.
+- `parseOrientation(text)`, `parseHand(text)`: read a block's value or throw a message for the user.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).
 - `transposeChord(symbol, semitones, preferFlats?)`, `transposeKey(key, semitones)`.
@@ -49,4 +54,4 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 
 ## Browser bundle
 
-`dist/music-notation.publish.min.js` renders every notation block on the page and exposes the API (plus `lookupGuitarVoicing` and `stop()`) as `window.MusicNotation`. See [Obsidian Publish](publish.md).
+`dist/music-notation.publish.min.js` renders every notation block on the page and exposes the API (plus `lookupGuitarVoicing` and `stop()`) as `window.MusicNotation`. It reads `window.musicNotationOptions` (`orientation`, `hand`) when the page sets it before loading. See [Obsidian Publish](publish.md).

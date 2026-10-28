@@ -30,6 +30,26 @@ export function svgText(doc: Document, text: string, attrs: Attributes = {}): SV
     return el
 }
 
+/** A <text> centered on (x, y), for the 10–11px labels of diagrams. */
+export function svgLabel(
+    doc: Document,
+    text: string,
+    [x, y]: [number, number],
+    cls: string
+): SVGElement {
+    return svgText(doc, text, { 'class': cls, x, 'y': y + 4, 'text-anchor': 'middle' })
+}
+
+/** A <line> between two points. */
+export function svgLine(
+    doc: Document,
+    [x1, y1]: [number, number],
+    [x2, y2]: [number, number],
+    cls: string
+): SVGElement {
+    return svg(doc, 'line', { class: cls, x1, y1, x2, y2 })
+}
+
 /** An HTML element with a class and optional text. */
 export function html<K extends keyof HTMLElementTagNameMap>(
     doc: Document,

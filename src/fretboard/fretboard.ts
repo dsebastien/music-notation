@@ -1,5 +1,9 @@
-/** Fretboards with the notes of a scale, chord or list, as SVG. High string on top, like tabs. */
-import { svg, svgRoot, svgText } from '../render/dom.js'
+/**
+ * Fretboards with the notes of a scale, chord or list, as SVG. Horizontal by default, high string
+ * on top like tabs; vertical has the nut on top, like a chord diagram.
+ */
+import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set.js'
 import { nameOf } from '../theory/pitch.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
@@ -11,14 +15,18 @@ export interface FretboardOptions {
     frets?: [number, number]
     label?: NoteLabel
     title?: string
+    /** Horizontal (default) or vertical. */
+    orientation?: Orientation
+    /** Left-handed: mirrored (the nut on the right, or the low string on the right). */
+    hand?: Hand
 }
 
 const STRING_GAP = 20
 const FRET_W = 44
 const OPEN_W = 30
-const LEFT = 24
+/** Room beyond the low string, for the fret numbers. */
+const NUMBERS = 30
 const TITLE = 22
-const BOTTOM = 22
 const SINGLE_INLAYS = new Set([3, 5, 7, 9, 15, 17, 19, 21])
 
 export function renderFretboard(
@@ -31,20 +39,32 @@ export function renderFretboard(
     const first = Math.max(from, 1)
     const strings = tuning.length
     const label = options.label ?? 'notes'
-    const top = (options.title ? TITLE : 0) + 12
+    const orientation = options.orientation ?? 'horizontal'
+    const vertical = orientation === 'vertical'
     const openW = from === 0 ? OPEN_W : 0
-    const nutX = LEFT + openW
-    const width = nutX + (to - first + 1) * FRET_W + 8
-    const height = top + (strings - 1) * STRING_GAP + BOTTOM + 8
-    // Row 0 is the highest string.
-    const y = (row: number) => top + row * STRING_GAP
-    const wireX = (fret: number) => nutX + (fret - first + 1) * FRET_W
-    const centerX = (fret: number) => (fret === 0 ? LEFT + OPEN_W / 2 : wireX(fret) - FRET_W / 2)
+    const acrossLength = (strings - 1) * STRING_GAP
+    const frame = neckFrame({
+        orientation,
+        hand: options.hand ?? 'right',
+        across: acrossLength,
+        along: openW + (to - first + 1) * FRET_W,
+        // Room for the string names before the neck.
+        before: vertical ? 20 : 24,
+        after: 8,
+        low: NUMBERS,
+        high: 12,
+        top: options.title ? TITLE : 0,
+        minWidth: titleWidth(options.title)
+    })
+    // Neck coordinates: strings across (lowest first), from the open strings along.
+    const across = (string: number) => string * STRING_GAP
+    const wire = (fret: number) => openW + (fret - first + 1) * FRET_W
+    const center = (fret: number) => (fret === 0 ? OPEN_W / 2 : wire(fret) - FRET_W / 2)
 
     const root = svgRoot(
         doc,
-        width,
-        height,
+        frame.width,
+        frame.height,
         'mn-fretboard',
         options.title ?? `Fretboard: ${set.title}`
     )
@@ -52,103 +72,65 @@ export function renderFretboard(
         root.appendChild(
             svgText(doc, options.title, {
                 'class': 'mn-title',
-                'x': width / 2,
+                'x': frame.width / 2,
                 'y': 15,
                 'text-anchor': 'middle'
             })
         )
     }
 
-    const middle = y((strings - 1) / 2)
+    const inlay = (a: number, fret: number) => {
+        const [cx, cy] = frame.at(a, center(fret))
+        root.appendChild(svg(doc, 'circle', { class: 'mn-inlay', cx, cy, r: 4 }))
+    }
+    // The 12th fret's pair sits between the 2nd and 3rd strings from each edge.
+    const pair = (strings > 3 ? 1.5 : 0.5) * STRING_GAP
     for (let fret = first; fret <= to; fret++) {
-        const cx = wireX(fret) - FRET_W / 2
-        if (SINGLE_INLAYS.has(fret))
-            root.appendChild(svg(doc, 'circle', { class: 'mn-inlay', cx, cy: middle, r: 4 }))
+        if (SINGLE_INLAYS.has(fret)) inlay(acrossLength / 2, fret)
         if (fret % 12 === 0) {
-            root.appendChild(
-                svg(doc, 'circle', { class: 'mn-inlay', cx, cy: y(strings > 3 ? 1.5 : 0.5), r: 4 })
-            )
-            root.appendChild(
-                svg(doc, 'circle', {
-                    class: 'mn-inlay',
-                    cx,
-                    cy: y(strings > 3 ? strings - 2.5 : strings - 1.5),
-                    r: 4
-                })
-            )
+            inlay(acrossLength - pair, fret)
+            inlay(pair, fret)
         }
-        root.appendChild(
-            svgText(doc, String(fret), {
-                'class': 'mn-fret-number',
-                'x': cx,
-                'y': y(strings - 1) + BOTTOM,
-                'text-anchor': 'middle'
-            })
-        )
+        root.appendChild(svgLabel(doc, String(fret), frame.at(-18, center(fret)), 'mn-fret-number'))
     }
     root.appendChild(
-        svg(doc, 'line', {
-            class: first === 1 ? 'mn-nut' : 'mn-fret',
-            x1: nutX,
-            x2: nutX,
-            y1: y(0),
-            y2: y(strings - 1)
-        })
+        svgLine(
+            doc,
+            frame.at(0, openW),
+            frame.at(acrossLength, openW),
+            first === 1 ? 'mn-nut' : 'mn-fret'
+        )
     )
     for (let fret = first; fret <= to; fret++) {
         root.appendChild(
-            svg(doc, 'line', {
-                class: 'mn-fret',
-                x1: wireX(fret),
-                x2: wireX(fret),
-                y1: y(0),
-                y2: y(strings - 1)
-            })
+            svgLine(doc, frame.at(0, wire(fret)), frame.at(acrossLength, wire(fret)), 'mn-fret')
         )
     }
-    for (let row = 0; row < strings; row++) {
-        const open = tuning[strings - 1 - row]!
+    // Highest string first, so the document reads top to bottom in the default orientation.
+    for (let s = strings - 1; s >= 0; s--) {
+        const open = tuning[s]!
         root.appendChild(
-            svg(doc, 'line', {
-                class: 'mn-string',
-                x1: nutX - openW,
-                x2: wireX(to),
-                y1: y(row),
-                y2: y(row)
-            })
+            svgLine(doc, frame.at(across(s), 0), frame.at(across(s), wire(to)), 'mn-string')
         )
         root.appendChild(
-            svgText(doc, nameOf(open, set.preferFlats), {
-                'class': 'mn-string-name',
-                'x': LEFT - 8,
-                'y': y(row) + 4,
-                'text-anchor': 'end'
-            })
+            svgLabel(
+                doc,
+                nameOf(open, set.preferFlats),
+                frame.at(across(s), vertical ? -10 : -12),
+                'mn-string-name'
+            )
         )
         for (let fret = from; fret <= to; fret++) {
             const member = memberOf(set, open + fret)
             if (!member) continue
-            const cx = centerX(fret)
             const isRoot = set.root === member.chroma
+            const point = frame.at(across(s), center(fret))
+            const [cx, cy] = point
             root.appendChild(
-                svg(doc, 'circle', {
-                    class: `mn-dot${isRoot ? ' mn-root' : ''}`,
-                    cx,
-                    cy: y(row),
-                    r: 8
-                })
+                svg(doc, 'circle', { class: `mn-dot${isRoot ? ' mn-root' : ''}`, cx, cy, r: 8 })
             )
             const text = labelOf(member, label)
-            if (text) {
-                root.appendChild(
-                    svgText(doc, text, {
-                        'class': 'mn-dot-text',
-                        'x': cx,
-                        'y': y(row) + 4,
-                        'text-anchor': 'middle'
-                    })
-                )
-            }
+            if (text) root.appendChild(svgLabel(doc, text, point, 'mn-dot-text'))
         }
     }
     return root

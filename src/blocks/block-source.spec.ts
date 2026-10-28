@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { parseBlockSource, parseRange } from './block-source.js'
+import { parseBlockSource, parseRange, splitParts } from './block-source.js'
 
 describe('parseBlockSource', () => {
     it('reads key: value lines and a shorthand first line', () => {
@@ -27,5 +27,21 @@ describe('parseRange', () => {
         expect(parseRange('7')).toEqual([7, 7])
         expect(parseRange('8-5')).toBeNull()
         expect(parseRange('a-b')).toBeNull()
+    })
+})
+
+describe('splitParts', () => {
+    it('is null without a separator', () => {
+        expect(splitParts('A x02220\ntitle: A')).toBeNull()
+        expect(splitParts('title: a -- b')).toBeNull()
+    })
+
+    it('splits on lines of three dashes or more, dropping empty parts', () => {
+        expect(splitParts('G 320003\n---\nC x32010\r\n  -----  \n\n---\nD xx0232\n---')).toEqual([
+            'G 320003',
+            'C x32010',
+            'D xx0232'
+        ])
+        expect(splitParts('---\n---')).toEqual([])
     })
 })

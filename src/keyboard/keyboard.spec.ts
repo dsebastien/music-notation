@@ -60,3 +60,21 @@ describe('renderKeyboard', () => {
         expect(el.querySelectorAll('.mn-key-white')).toHaveLength(7)
     })
 })
+
+describe('renderKeyboard orientation', () => {
+    const num = (el: Element | null | undefined, name: string) => Number(el?.getAttribute(name))
+
+    it('vertical: low notes at the bottom, black keys on the left', () => {
+        const el = renderKeyboard(document, scaleNoteSet('C major')!, {
+            range: [60, 71],
+            orientation: 'vertical'
+        })
+        const whites = [...el.querySelectorAll('.mn-key-white')]
+        // C (the lowest) is below B (the highest).
+        expect(num(whites[0], 'y')).toBeGreaterThan(num(whites[6], 'y'))
+        const black = el.querySelector('.mn-key-black')!
+        expect(num(black, 'x')).toBe(num(whites[0], 'x'))
+        expect(num(black, 'width')).toBeLessThan(num(whites[0], 'width'))
+        expect(num(whites[0], 'height')).toBe(22)
+    })
+})

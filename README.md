@@ -37,6 +37,19 @@ labels: intervals
 ```
 ````
 
+Several diagrams side by side, separated by `---`, with shared settings first; vertical or horizontal, and left-handed:
+
+````markdown
+```chord
+orientation: horizontal
+hand: left
+---
+G 320003 210003
+---
+C x32010 x32010
+```
+````
+
 The full syntax is in the [guide](https://dsebastien.github.io/music-notation/), with [live examples](https://dsebastien.github.io/music-notation/examples.html) and a [playground](https://dsebastien.github.io/music-notation/playground.html). Mistakes show an inline message and leave the source untouched.
 
 ## Install

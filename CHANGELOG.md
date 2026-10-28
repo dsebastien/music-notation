@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2026-10-28)
+
+- Several diagrams in one block: separate them with `---` to draw a song's chords, a progression or a scale's positions side by side. Settings shared by every diagram go first; `columns: 3` draws a grid. A mistake in one diagram no longer hides the others.
+- `orientation: horizontal` turns guitar chords sideways (high string on top, as in tabs); `orientation: vertical` stands fretboards up (nut on top) and draws keyboards with their low notes at the bottom.
+- `hand: left` mirrors guitar chords and fretboards for left-handed players.
+- Apps can set the default orientation and hand (`orientation`, `hand` render options); Obsidian Publish sites through `window.musicNotationOptions`.
+- Long titles no longer get cut off on narrow diagrams.
+
 ## 0.1.3 (2026-10-28)
 
 - Fixes the ES module build of 0.1.2: `import … from '@dsebastien/music-notation'` failed (the entry exported names it didn't define). The browser bundle for Obsidian Publish was not affected.

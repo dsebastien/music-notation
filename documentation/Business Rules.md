@@ -1,6 +1,6 @@
 # Business Rules
 
-- **Block languages**: `chord`, `chords`, `keyboard`, `fretboard` (0.1); `tab` and its alias `score` (0.2). Fence names are stable API: never rename one.
+- **Block languages**: `chord`, `chords`, `keyboard`, `fretboard` (0.1); `tab` and its alias `score` (0.3). Fence names are stable API: never rename one.
 - **Block syntax**: `key: value` lines, keys case-insensitive, last value wins; an optional first line without a key is the block's shorthand. Any other line without a key is an error.
 - **Empty blocks** (only whitespace) render nothing, successfully: templates scaffold empty blocks.
 - **Errors**: a block with a mistake renders an inline message (what's wrong and what to write) and never throws. On Publish its source stays visible.
@@ -11,6 +11,8 @@
 - **Note sets** (keyboard, fretboard): from a scale, a chord, or a list; a list with octaves highlights those exact keys, otherwise every octave. A shorthand line is tried as scale, exact notes, chord, then list. The root (scales, chords) gets its own color. Degrees: a chord's interval numbers (1 3 5 7), a scale's positions. Interval labels are written the way musicians do (R, b3, 3, #4, b7). `labels: fingers` only exists for piano chords with fingering.
 - **Keyboard range**: two octaves from middle C by default; whole octaves around exact pitches; a range never starts or ends on a black key.
 - **Fretboard**: high string on top (tab convention); frets 0–12 by default; up to fret 36.
+- **Several diagrams** (`chord`, `keyboard`, `fretboard`; never `chords`): lines of only `---` (3 dashes or more) separate diagrams; empty parts are skipped. The first part holds shared settings when it has no shorthand line and only shareable keys (`orientation`, `hand`, `labels`; chord: `instrument`, `tuning`; keyboard: `range`; fretboard: `tuning`, `frets`) plus `columns` (1–12, a grid; only there). Precedence: the diagram's key, the shared one, the render options' default, the language default. A diagram with a mistake shows its message in its cell, the others draw, and the block is not ok (Publish keeps its source visible). At most 32 diagrams; shared settings with no diagram are an error.
+- **Orientation and hand**: chord diagrams are vertical by default (nut on top, low string on the left); fretboards horizontal (high string on top, nut on the left); keyboards horizontal (low notes on the left); vertical keyboards have their low notes at the bottom and black keys on the left. Piano chords follow the keyboard default. `hand: left` mirrors guitar diagrams and fretboards; keyboards ignore it (the value is still checked). Text is never rotated or mirrored. A title wider than its diagram widens and centers it.
 - **Transposition**: by whole semitones (fractions rounded, invalid values ignored); chords keep their own spelling (sharps or flats) unless a key decides; keys use their usual spelling (F♯ over G♭, D♭ over C♯, B♭m over A♯m).
 - **ChordPro**: unknown directives are ignored; `#` lines are comments; tab and grid sections are shown as written. Parsing is linear in the input (no backtracking regexes on user text).
 - **Publish re-rendering**: a block is rendered again when its source changed in place (fingerprint in `data-mp-source`) or its rendering was removed; a broken edit shows the source again. The bundle starts once per page even if loaded twice.
