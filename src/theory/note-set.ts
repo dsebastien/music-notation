@@ -4,6 +4,7 @@
  */
 import { Chord, Scale } from 'tonal'
 import { chromaOf, isFlat, midiOf, splitChordSymbol } from './pitch.js'
+import { canonicalSuffix } from './suffix.js'
 
 export type NoteLabel = 'notes' | 'degrees' | 'intervals' | 'fingers' | 'none'
 
@@ -103,7 +104,7 @@ const fromNames = (
 export function chordNoteSet(symbol: string): NoteSet | null {
     const parts = splitChordSymbol(symbol)
     if (!parts) return null
-    const chord = Chord.get(parts.root + parts.suffix)
+    const chord = Chord.get(parts.root + canonicalSuffix(parts.suffix))
     if (chord.empty) return null
     const bass = parts.bass
     const set = fromNames(symbol.trim(), chord.notes, chord.intervals, true)

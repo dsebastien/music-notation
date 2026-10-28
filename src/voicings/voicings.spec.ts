@@ -24,6 +24,10 @@ describe('lookupGuitarVoicing', () => {
         expect(lookupGuitarVoicing('C/E', 0)).not.toBeNull()
         expect(lookupGuitarVoicing('Am/G', 0)).not.toBeNull()
         expect(lookupGuitarVoicing('D/F#', 0)).toEqual(lookupGuitarVoicing('D/Gb', 0))
+        expect(lookupGuitarVoicing('Cmin6', 0)).toEqual(lookupGuitarVoicing('Cm6', 0))
+        expect(lookupGuitarVoicing('CM9', 0)).toEqual(lookupGuitarVoicing('Cmaj9', 0))
+        expect(lookupGuitarVoicing('C6/9', 0)).not.toBeNull()
+        expect(lookupGuitarVoicing('C7b9', 0)).not.toBeNull()
     })
 
     it('returns null for what it does not know', () => {

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 (2026-10-28)
+
+- Every common way to write a chord now draws: `CΔ7`, `Cmin6`, `CM9`, `Cø7`, `Cm(maj7)`, `C7b9`, `Cm11`… on piano, and as guitar voicings when the database has one.
+- An empty block (a template's placeholder) draws nothing instead of an error.
+- The guide has live examples, an examples gallery and a playground: https://dsebastien.github.io/music-notation/
+
 ## 0.1.1 (2026-10-28)
 
 - `chord` blocks that name their chord with `name: A` (instead of `symbol: A`) now mark the chord's root notes too.

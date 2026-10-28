@@ -17,6 +17,8 @@ A x02220 x01230
 ```
 ````
 
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A x02220 x01230</code></pre></div>
+
 The short form is `symbol frets fingers`. The same chord with keys:
 
 ````markdown
@@ -27,6 +29,11 @@ fingers: x01230
 title: A (open)
 ```
 ````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">symbol: A
+frets: x02220
+fingers: x01230
+title: A (open)</code></pre></div>
 
 | Key          | Meaning                                                                                                                                                                                                |
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -52,6 +59,10 @@ fingering: 5-1-2-4
 ```
 ````
 
+<div class="mn-live" markdown="0"><pre><code class="language-chord">C/G
+instrument: piano
+fingering: 5-1-2-4</code></pre></div>
+
 ## Keyboard
 
 A piano keyboard with the notes of a scale, a chord or a list.
@@ -62,6 +73,9 @@ D dorian
 labels: degrees
 ```
 ````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">D dorian
+labels: degrees</code></pre></div>
 
 | Key      | Meaning                                                                                           |
 | -------- | ------------------------------------------------------------------------------------------------- |
@@ -85,6 +99,10 @@ frets: 5-8
 labels: intervals
 ```
 ````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">scale: A minor pentatonic
+frets: 5-8
+labels: intervals</code></pre></div>
 
 | Key                       | Meaning                                                                                                                                         |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -112,6 +130,17 @@ A chord chart: chords above the lyrics, in [ChordPro](https://www.chordpro.org/)
 {end_of_chorus}
 ```
 ````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Example}
+{artist: Someone}
+{key: G}
+{capo: 2}
+
+[G]Hello [D/F#]little [Em]world
+
+{start_of_chorus}
+[C]La la [G]la
+{end_of_chorus}</code></pre></div>
 
 Supported:
 

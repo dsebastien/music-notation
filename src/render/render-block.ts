@@ -26,6 +26,12 @@ export function renderBlock(
     const doc = host.ownerDocument
     const el = html(doc, 'div', `mn-block mn-block-${language}`)
     let error: string | null = null
+    // An empty block (a template's placeholder) draws nothing rather than an error.
+    if (!source.trim()) {
+        el.classList.add('mn-empty')
+        host.appendChild(el)
+        return { ok: true, el, error: null, destroy: () => el.remove() }
+    }
     try {
         el.appendChild(RENDERERS[language](doc, source, options))
     } catch (e) {

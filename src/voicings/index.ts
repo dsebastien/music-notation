@@ -5,6 +5,7 @@
 import db from '@tombatossals/chords-db/lib/guitar.json'
 import type { FrettedVoicing } from '../chord/guitar.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
+import { canonicalSuffix } from '../theory/suffix.js'
 
 /** Finds the n-th voicing (0-based) of a chord symbol; null when unknown. */
 export type VoicingLookup = (symbol: string, index: number) => FrettedVoicing | null
@@ -15,32 +16,12 @@ const DB_KEYS = ['C', 'Csharp', 'D', 'Eb', 'E', 'F', 'Fsharp', 'G', 'Ab', 'A', '
 /** The database's bass names in slash-chord suffixes. */
 const DB_BASSES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 
-/** Chord-symbol suffix → database suffix, for the spellings the database doesn't use. */
-const SUFFIX_ALIASES: Record<string, string> = {
+/** Canonical suffix → the database's name, where they differ. */
+const DB_SUFFIXES: Record<string, string> = {
     '': 'major',
-    'M': 'major',
-    'maj': 'major',
     'm': 'minor',
-    'min': 'minor',
-    '-': 'minor',
-    '°': 'dim',
-    '°7': 'dim7',
-    '+': 'aug',
-    'sus': 'sus4',
-    'M7': 'maj7',
-    'Δ': 'maj7',
-    'Δ7': 'maj7',
-    'min7': 'm7',
-    '-7': 'm7',
-    'ø': 'm7b5',
-    'ø7': 'm7b5',
-    'm7-5': 'm7b5',
-    'add2': 'add9',
-    '6/9': '69',
-    'mM7': 'mmaj7',
     'mMaj7': 'mmaj7',
-    'm(maj7)': 'mmaj7',
-    '-(maj7)': 'mmaj7'
+    '6/9': '69'
 }
 
 export const lookupGuitarVoicing: VoicingLookup = (symbol, index) => {
@@ -48,9 +29,10 @@ export const lookupGuitarVoicing: VoicingLookup = (symbol, index) => {
     if (!parts) return null
     const chroma = chromaOf(parts.root)
     if (chroma === null) return null
-    const suffix = Object.prototype.hasOwnProperty.call(SUFFIX_ALIASES, parts.suffix)
-        ? SUFFIX_ALIASES[parts.suffix]!
-        : parts.suffix
+    const canonical = canonicalSuffix(parts.suffix)
+    const suffix = Object.prototype.hasOwnProperty.call(DB_SUFFIXES, canonical)
+        ? DB_SUFFIXES[canonical]!
+        : canonical
     // Slash chords are stored as "/E" (major) and "m/B" (minor) suffixes.
     const bassChroma = parts.bass ? chromaOf(parts.bass) : null
     const bass = bassChroma === null ? null : DB_BASSES[bassChroma]!

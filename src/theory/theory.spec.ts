@@ -83,6 +83,18 @@ describe('note sets', () => {
         ])
     })
 
+    it('reads every common spelling of a chord', () => {
+        const notes = (s: string) =>
+            chordNoteSet(s)
+                ?.members.map((m) => m.name)
+                .join(' ')
+        expect(notes('CΔ7')).toBe(notes('Cmaj7'))
+        expect(notes('Cmin6')).toBe(notes('Cm6'))
+        expect(notes('CM9')).toBe(notes('Cmaj9'))
+        expect(notes('Cø7')).toBe(notes('Cm7b5'))
+        expect(notes('Cm(maj7)')).toBe('C Eb G B')
+    })
+
     it('reads ♯ and ♭ and 6/9 chords', () => {
         expect(chordNoteSet('F♯m')!.root).toBe(6)
         expect(chordNoteSet('C6/9')!.members.map((m) => m.name)).toEqual(['C', 'E', 'G', 'A', 'D'])

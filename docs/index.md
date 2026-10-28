@@ -10,7 +10,9 @@ Chord diagrams, piano keyboards, fretboards and ChordPro charts, drawn from smal
 
 ![Chord diagrams, a piano chord, a keyboard, a fretboard and a chord chart](images/overview.png)
 
-- [Blocks](blocks.md): the syntax of each block.
+- [Blocks](blocks.md): the syntax of each block, with live results.
+- [Examples](examples.md): a gallery of chords, keyboards, fretboards and charts, drawn live.
+- [Playground](playground.md): write a block and see it drawn as you type.
 - [Obsidian Publish](publish.md): show the blocks on your Publish site.
 - [JavaScript API](api.md): render blocks from your own code.
 

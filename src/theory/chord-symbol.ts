@@ -3,6 +3,7 @@
  * ("F Sharp Minor 7"), safe for file names and wikilinks.
  */
 import { splitChordSymbol } from './pitch.js'
+import { chordNoteSet } from './note-set.js'
 
 /** Suffix → quality name. Order matters: the first match wins. */
 const QUALITY_SUFFIXES: [RegExp, string][] = [
@@ -56,6 +57,8 @@ export function parseChord(symbol: string): ParsedChord | null {
             break
         }
     }
+    // Any other chord tonal knows ("C7b9", "Cm11"): its suffix is its quality.
+    if (!quality && chordNoteSet(trimmed)) quality = suffix
     if (!quality) return null
     return {
         symbol: trimmed,

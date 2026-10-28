@@ -37,7 +37,7 @@ labels: intervals
 ```
 ````
 
-The full syntax is in the [guide](https://dsebastien.github.io/music-notation/). Mistakes show an inline message and leave the source untouched.
+The full syntax is in the [guide](https://dsebastien.github.io/music-notation/), with [live examples](https://dsebastien.github.io/music-notation/examples.html) and a [playground](https://dsebastien.github.io/music-notation/playground.html). Mistakes show an inline message and leave the source untouched.
 
 ## Install
 

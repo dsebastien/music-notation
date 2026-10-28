@@ -16,6 +16,8 @@ describe('parseChord', () => {
         expect(parseChord('F♯m')?.name).toBe('F Sharp Minor')
         expect(parseChord('C6/9')).toMatchObject({ quality: '6/9', bass: null })
         expect(parseChord('Cm(maj7)')?.quality).toBe('Minor major 7')
+        expect(parseChord('C7b9')).toMatchObject({ quality: '7b9', name: 'C 7b9' })
+        expect(parseChord('Cm11')?.quality).toBe('m11')
     })
 
     it('rejects what is not a chord symbol', () => {

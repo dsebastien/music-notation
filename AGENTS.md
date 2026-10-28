@@ -11,7 +11,7 @@
 ## Documentation surfaces
 
 - `README.md`: npm and GitHub landing page.
-- `docs/`: user guide on GitHub Pages (block syntax, Publish, API). Keep in sync with every syntax change.
+- `docs/`: user guide on GitHub Pages (block syntax, examples, playground, Publish, API). Keep in sync with every syntax change. Examples are live: after editing a ````markdown example, run `bun scripts/live-examples.ts docs/blocks.md docs/examples.md` to regenerate the raw-HTML twins the bundle draws.
 - `documentation/`: technical docs (business rules, architecture, plans, history). Plans never contain timing.
 
 ## Definition of done

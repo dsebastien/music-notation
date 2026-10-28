@@ -36,6 +36,31 @@ describe('renderBlock', () => {
         expect(h.querySelector('.mn-title')?.textContent).toBe('D (DADGAD)')
     })
 
+    it('draws nothing for an empty block', () => {
+        const h = host()
+        const result = renderBlock('chord', '  \n ', h)
+        expect(result.ok).toBe(true)
+        expect(h.querySelector('.mn-empty')?.children).toHaveLength(0)
+    })
+
+    it('draws every chord spelling the parser accepts', () => {
+        const h = host()
+        for (const symbol of [
+            'CΔ7',
+            'Cmin6',
+            'CM9',
+            'Cm7-5',
+            'Cø7',
+            'Cm(maj7)',
+            'C-(maj7)',
+            'C7b9',
+            'Cm11'
+        ]) {
+            expect(renderBlock('chord', `${symbol}\ninstrument: piano`, h).ok).toBe(true)
+            expect(renderBlock('chord', symbol, h, { voicings: lookupGuitarVoicing }).ok).toBe(true)
+        }
+    })
+
     it('reads a chord symbol given as the name', () => {
         const h = host()
         renderBlock('chord', 'name: A\nfrets: x02220\nfingers: x01230', h)
@@ -122,7 +147,7 @@ describe('renderBlock', () => {
 
     it.each([
         ['chord', 'A', 'Add "frets:" for A'],
-        ['chord', '', 'Add a chord symbol and "frets:"'],
+        ['chord', 'title: Mystery', 'Add a chord symbol and "frets:"'],
         ['chord', 'A\nfrets: x0222a', 'Invalid frets "x0222a"'],
         ['chord', 'A x02220 x0123', 'has 5 fingers for 6 strings'],
         ['chord', 'C x32010\nposition: 5', 'position 5 is above the lowest fretted note (fret 1)'],
@@ -134,7 +159,7 @@ describe('renderBlock', () => {
         ['keyboard', 'C major\nrange: C5-C4', 'Invalid range'],
         ['keyboard', 'C major\nlabels: colors', 'Unknown labels "colors"'],
         ['keyboard', 'C major\nlabels: fingers', 'use notes, degrees, intervals or none'],
-        ['fretboard', '', 'Add "scale:", "chord:" or "notes:"'],
+        ['fretboard', 'labels: notes', 'Add "scale:", "chord:" or "notes:"'],
         ['fretboard', 'C major\nfrets: 30-40', 'Frets go up to 36'],
         ['fretboard', 'C major\ntuning: XYZ', 'Unknown tuning "XYZ"'],
         ['fretboard', 'scale: C nonsense', 'Unknown scale "C nonsense"']
