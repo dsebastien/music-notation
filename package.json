@@ -1,0 +1,116 @@
+{
+    "name": "@dsebastien/music-notation",
+    "version": "0.0.0",
+    "description": "Chord diagrams, piano keyboards, fretboards and ChordPro charts rendered as SVG and HTML, with no framework. Works in Obsidian, on Obsidian Publish and on any web page.",
+    "author": {
+        "name": "Sébastien Dubois",
+        "email": "developassion.sprl@gmail.com",
+        "url": "https://dsebastien.net"
+    },
+    "keywords": [
+        "music",
+        "notation",
+        "chord",
+        "chord-diagram",
+        "guitar",
+        "piano",
+        "fretboard",
+        "chordpro",
+        "svg",
+        "obsidian"
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/dsebastien/music-notation.git"
+    },
+    "bugs": {
+        "url": "https://github.com/dsebastien/music-notation/issues"
+    },
+    "homepage": "https://github.com/dsebastien/music-notation",
+    "funding": "https://github.com/sponsors/dsebastien",
+    "type": "module",
+    "sideEffects": [
+        "./dist/music-notation.publish.min.js"
+    ],
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./voicings": {
+            "types": "./dist/voicings/index.d.ts",
+            "import": "./dist/voicings/index.js"
+        },
+        "./publish": {
+            "types": "./dist/publish/index.d.ts",
+            "import": "./dist/publish/index.js"
+        },
+        "./music-notation.css": "./dist/music-notation.css",
+        "./music-notation.publish.min.js": "./dist/music-notation.publish.min.js"
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "engines": {
+        "node": ">=20.0.0"
+    },
+    "packageManager": "bun@1.4.0",
+    "config": {
+        "commitizen": {
+            "path": "node_modules/cz-customizable"
+        },
+        "cz-customizable": {
+            "config": ".cz-config.cjs"
+        }
+    },
+    "scripts": {
+        "build": "bun run tsc && bun scripts/build.ts",
+        "setup": "git config --local --replace-all include.path ../.gitconfig",
+        "tsc": "tsc --noEmit",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "test": "bun test",
+        "test:watch": "bun test --watch",
+        "commit": "cz",
+        "cm": "cz",
+        "validate": "bun run --parallel tsc test lint"
+    },
+    "dependencies": {
+        "@tombatossals/chords-db": "0.5.1",
+        "tonal": "6.5.1"
+    },
+    "devDependencies": {
+        "@commitlint/cli": "^20.1.0",
+        "@commitlint/config-conventional": "^20.1.0",
+        "@eslint/js": "^9.36.0",
+        "@happy-dom/global-registrator": "21.0.4",
+        "@types/bun": "1.4.0",
+        "@types/node": "24.10.1",
+        "commitizen": "^4.3.1",
+        "cz-customizable": "^7.5.1",
+        "eslint": "^9.36.0",
+        "eslint-config-prettier": "^10.1.5",
+        "globals": "17.0.0",
+        "jiti": "2.6.1",
+        "prettier": "^3.6.2",
+        "typescript": "^5.9.3",
+        "typescript-eslint": "8.48.1"
+    },
+    "overrides": {
+        "fast-uri": "3.1.9",
+        "flatted": "3.4.2",
+        "js-yaml": "4.3.2",
+        "brace-expansion": "2.1.7",
+        "minimatch": "3.1.5",
+        "picomatch": "2.3.2",
+        "lodash": "4.18.1",
+        "tmp": "0.2.7"
+    }
+}

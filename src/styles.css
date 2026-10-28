@@ -1,0 +1,182 @@
+/* Music notation. Colors follow Obsidian's theme variables when present, with fallbacks for any page. */
+.mn-block {
+    --mn-fg: var(--text-normal, currentColor);
+    --mn-muted: var(--text-muted, #8a8a8a);
+    --mn-faint: var(--background-modifier-border, #d0d0d0);
+    --mn-accent: var(--interactive-accent, #7c3aed);
+    --mn-on-accent: var(--text-on-accent, #fff);
+    --mn-root: var(--color-orange, #e8590c);
+    /* Piano keys keep their real colors in every theme. */
+    --mn-key-white: #fafafa;
+    --mn-key-black: #222;
+    font-family: var(--font-interface, system-ui, sans-serif);
+    color: var(--mn-fg);
+    margin: 0.5em 0;
+    overflow-x: auto;
+}
+
+.mn-svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+.mn-svg text {
+    fill: var(--mn-fg);
+    font-size: 11px;
+}
+
+.mn-svg .mn-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.mn-svg .mn-string,
+.mn-svg .mn-fret {
+    stroke: var(--mn-muted);
+    stroke-width: 1;
+}
+
+.mn-svg .mn-nut {
+    stroke: var(--mn-fg);
+    stroke-width: 4;
+}
+
+.mn-svg .mn-dot,
+.mn-svg .mn-barre {
+    fill: var(--mn-accent);
+}
+
+.mn-svg .mn-dot.mn-root {
+    fill: var(--mn-root);
+}
+
+.mn-svg .mn-dot-text {
+    fill: var(--mn-on-accent);
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.mn-svg .mn-open {
+    fill: none;
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-open.mn-root {
+    stroke: var(--mn-root);
+}
+
+.mn-svg .mn-muted,
+.mn-svg .mn-base-fret,
+.mn-svg .mn-fret-number,
+.mn-svg .mn-string-name {
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-inlay {
+    fill: var(--mn-faint);
+}
+
+.mn-svg .mn-key-white {
+    fill: var(--mn-key-white);
+    stroke: #888;
+}
+
+.mn-svg .mn-key-black {
+    fill: var(--mn-key-black);
+    stroke: var(--mn-key-black);
+}
+
+.mn-svg .mn-key-white.mn-on,
+.mn-svg .mn-key-black.mn-on {
+    fill: var(--mn-accent);
+}
+
+.mn-svg .mn-key-white.mn-on.mn-root,
+.mn-svg .mn-key-black.mn-on.mn-root {
+    fill: var(--mn-root);
+}
+
+.mn-svg .mn-key-label {
+    font-size: 10px;
+    fill: var(--mn-on-accent);
+    font-weight: 600;
+}
+
+/* Chord charts */
+.mn-chart {
+    line-height: 1.3;
+}
+
+.mn-chart-title {
+    font-size: 1.3em;
+    font-weight: 700;
+}
+
+.mn-chart-subtitle,
+.mn-chart-meta {
+    color: var(--mn-muted);
+}
+
+.mn-chart-meta {
+    font-size: 0.9em;
+    margin-top: 0.2em;
+}
+
+.mn-section {
+    margin-top: 0.9em;
+}
+
+.mn-section-chorus {
+    border-left: 3px solid var(--mn-accent);
+    padding-left: 0.75em;
+}
+
+.mn-section-label {
+    font-weight: 600;
+    font-size: 0.85em;
+    color: var(--mn-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.mn-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    min-height: 1.3em;
+}
+
+.mn-seg {
+    display: inline-flex;
+    flex-direction: column;
+    white-space: pre;
+}
+
+.mn-chord {
+    color: var(--mn-accent);
+    font-weight: 700;
+    min-height: 1.3em;
+    padding-right: 0.4em;
+}
+
+.mn-chords-only .mn-seg {
+    margin-right: 0.6em;
+}
+
+.mn-comment {
+    font-style: italic;
+    color: var(--mn-muted);
+}
+
+.mn-pre {
+    font-family: var(--font-monospace, ui-monospace, monospace);
+    margin: 0;
+    white-space: pre;
+}
+
+.mn-error-message {
+    color: var(--text-error, #c92a2a);
+    font-size: 0.9em;
+}
