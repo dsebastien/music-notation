@@ -3,7 +3,7 @@
 import { pathToFileURL } from 'node:url'
 import { resolve } from 'node:path'
 
-const expect = {
+const expect: Record<string, string[]> = {
     'dist/index.js': [
         'renderBlock',
         'LANGUAGES',
@@ -19,7 +19,7 @@ const expect = {
 let failed = false
 for (const [file, names] of Object.entries(expect)) {
     try {
-        const mod = await import(pathToFileURL(resolve(file)).href)
+        const mod = (await import(pathToFileURL(resolve(file)).href)) as Record<string, unknown>
         const missing = names.filter((n) => mod[n] === undefined)
         if (missing.length) throw new Error(`missing exports: ${missing.join(', ')}`)
         console.log(`✓ ${file}`)
@@ -28,8 +28,10 @@ for (const [file, names] of Object.entries(expect)) {
         console.error(`✗ ${file}: ${error instanceof Error ? error.message : String(error)}`)
     }
 }
-const { lookupGuitarVoicing } = await import(pathToFileURL(resolve('dist/voicings/index.js')).href)
-if (JSON.stringify(lookupGuitarVoicing('A', 0)?.frets) !== '[null,0,2,2,2,0]') {
+const voicings = (await import(pathToFileURL(resolve('dist/voicings/index.js')).href)) as {
+    lookupGuitarVoicing: (symbol: string, index: number) => { frets: (number | null)[] } | null
+}
+if (JSON.stringify(voicings.lookupGuitarVoicing('A', 0)?.frets) !== '[null,0,2,2,2,0]') {
     failed = true
     console.error('✗ voicings: A did not resolve to x02220')
 }

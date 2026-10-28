@@ -72,4 +72,5 @@ await $`bunx tsc -p tsconfig.build.json`
 const size = Bun.file('dist/music-notation.publish.min.js').size
 console.log(`Publish bundle: ${(size / 1024).toFixed(0)} KB`)
 
-await $`node scripts/check-dist.mjs`
+// Node 24 runs TypeScript directly (type stripping), the way consumers' Node would load dist/.
+await $`node scripts/check-dist.ts`
