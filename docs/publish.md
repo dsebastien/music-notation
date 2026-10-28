@@ -9,7 +9,7 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 
 ```js
 ;(() => {
-    const VERSION = '0.2.0'
+    const VERSION = '0.1.3'
     const SELECTOR = ['chord', 'chords', 'keyboard', 'fretboard']
         .map((l) => `pre > code.language-${l}`)
         .join(', ')

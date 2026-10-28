@@ -45,7 +45,7 @@ export type DiagramLanguage = 'chord' | 'keyboard' | 'fretboard'
 
 /** Keys a row's shared settings may hold, per language (plus `columns`, for the row itself). */
 export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
-    chord: ['orientation', 'hand', 'labels', 'instrument', 'tuning'],
+    chord: ['orientation', 'hand', 'labels', 'instrument', 'tuning', 'range'],
     keyboard: ['orientation', 'hand', 'labels', 'range'],
     fretboard: ['orientation', 'hand', 'labels', 'tuning', 'frets']
 }
@@ -56,6 +56,26 @@ const field = (block: BlockSource, ...names: string[]) => {
         if (value !== undefined && value !== '') return value
     }
     return undefined
+}
+
+/** Bounds that keep one block quick to draw: a 12-string neck, a full 88-key piano. */
+const MAX_STRINGS = 12
+const MAX_KEYS = 88
+
+const tuningOf = (text: string) => {
+    const tuning = orFail(parseTuning(text), `Unknown tuning "${text}"`)
+    if (tuning.length > MAX_STRINGS) throw new Error(`At most ${MAX_STRINGS} strings`)
+    return tuning
+}
+
+const rangeOf = (text: string) =>
+    orFail(parseKeyRange(text), `Invalid range "${text}": use e.g. C3-B4`)
+
+const keyRange = (range: [number, number]): [number, number] => {
+    if (range[1] - range[0] + 1 > MAX_KEYS) {
+        throw new Error(`At most ${MAX_KEYS} keys: give a smaller range, e.g. range: C3-B5`)
+    }
+    return range
 }
 
 /** The block's orientation, else the default for that kind of diagram. */
@@ -163,9 +183,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             title,
             label: labelField(block, fingers.size ? 'fingers' : 'notes', fingers.size > 0),
             fingers,
-            range: range
-                ? orFail(parseKeyRange(range), `Invalid range "${range}": use e.g. C3-B4`)
-                : keyRangeOf(set),
+            range: keyRange(range ? rangeOf(range) : keyRangeOf(set)),
             // Piano chords follow the keyboards' default.
             orientation: orientationOf(block, options.orientation?.keyboard)
         })
@@ -178,6 +196,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     let voicing: FrettedVoicing
     if (fretsText) {
         const frets = orFail(parseFrets(fretsText), `Invalid frets "${fretsText}": use e.g. x02220`)
+        if (frets.length > MAX_STRINGS) throw new Error(`At most ${MAX_STRINGS} strings`)
         const fingersText = field(block, 'fingers') ?? short.fingers
         const fingers = fingersText ? parseFingers(fingersText) : []
         if (fingersText && fingers.length !== frets.length) {
@@ -212,9 +231,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         voicing.baseFret = base
     } else voicing.baseFret ??= baseFretOf(voicing.frets)
     const tuningText = field(block, 'tuning')
-    const tuning = tuningText
-        ? orFail(parseTuning(tuningText), `Unknown tuning "${tuningText}"`)
-        : undefined
+    const tuning = tuningText ? tuningOf(tuningText) : undefined
     if (tuning && tuning.length !== voicing.frets.length) {
         throw new Error(
             `The tuning has ${tuning.length} strings, the frets ${voicing.frets.length}`
@@ -238,9 +255,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     return renderKeyboard(doc, set, {
         title: field(block, 'title'),
         label: labelField(block, 'notes'),
-        range: range
-            ? orFail(parseKeyRange(range), `Invalid range "${range}": use e.g. C3-B4`)
-            : undefined,
+        range: keyRange(range ? rangeOf(range) : keyRangeOf(set)),
         orientation: orientationOf(block, options.orientation?.keyboard)
     })
 }
@@ -257,9 +272,7 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         title: field(block, 'title'),
         label: labelField(block, 'notes'),
         frets,
-        tuning: tuningText
-            ? orFail(parseTuning(tuningText), `Unknown tuning "${tuningText}"`)
-            : undefined,
+        tuning: tuningText ? tuningOf(tuningText) : undefined,
         orientation: orientationOf(block, options.orientation?.fretboard),
         hand: handOf(block, options)
     })

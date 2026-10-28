@@ -124,7 +124,7 @@ export function renderKeyboard(
                 rx: 2
             })
         )
-        caption(midi, at(along + WHITE_W / 2, WHITE_H - 12), false)
+        caption(midi, at(along + WHITE_W / 2, WHITE_H - 13), false)
     })
     whites.forEach((midi, i) => {
         const black = midi + 1
@@ -137,7 +137,7 @@ export function renderKeyboard(
                 rx: 2
             })
         )
-        caption(black, at(along + BLACK_W / 2, BLACK_H - 12), true)
+        caption(black, at(along + BLACK_W / 2, BLACK_H - 13), true)
     })
     return root
 }

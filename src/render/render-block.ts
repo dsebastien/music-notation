@@ -9,6 +9,7 @@ import {
 } from '../blocks/renderers.js'
 import { parseBlockSource, splitParts, type BlockSource } from '../blocks/block-source.js'
 import { html } from './dom.js'
+import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 
 export const LANGUAGES = Object.keys(RENDERERS) as NotationLanguage[]
 
@@ -37,19 +38,26 @@ export function renderBlock(
     language: NotationLanguage,
     source: string,
     host: HTMLElement,
-    options: RenderOptions = {}
+    given: RenderOptions = {}
 ): RenderResult {
     const doc = host.ownerDocument
     const el = html(doc, 'div', `mn-block mn-block-${language}`)
     let error: string | null = null
-    // An empty block (a template's placeholder) draws nothing rather than an error.
-    if (!source.trim()) {
+    // Layout defaults come from apps and pages: keep only valid values ("Left" reads as left).
+    const layout = layoutDefaults(given)
+    const options: RenderOptions = {
+        ...(given ?? {}),
+        orientation: layout.orientation ?? {},
+        hand: layout.hand ?? 'right'
+    }
+    const parts = isDiagramLanguage(language) ? splitParts(source) : null
+    // An empty block (a template's placeholder, or only separators) draws nothing, not an error.
+    if (!source.trim() || parts?.length === 0) {
         el.classList.add('mn-empty')
         host.appendChild(el)
         return { ok: true, el, error: null, destroy: () => el.remove() }
     }
     try {
-        const parts = isDiagramLanguage(language) ? splitParts(source) : null
         if (parts && isDiagramLanguage(language)) {
             error = renderRow(doc, language, parts, el, options)
         } else {
@@ -65,20 +73,55 @@ export function renderBlock(
     return { ok: error === null, el, error, destroy: () => el.remove() }
 }
 
-/** A first part with no shorthand and only shareable keys holds the row's shared settings. */
+/** A block's keys without the empty ones (`labels:` alone says nothing). */
+const filled = (block: BlockSource): BlockSource => ({
+    head: block.head,
+    fields: new Map([...block.fields].filter(([, value]) => value !== ''))
+})
+
+/**
+ * The row's shared settings: a first part with no shorthand that holds `columns` or only shareable
+ * keys. With `columns`, any other key is refused by name (a diagram can't hide there).
+ */
 function headerOf(language: DiagramLanguage, part: string | undefined): BlockSource | null {
     if (part === undefined) return null
     let block: BlockSource
     try {
-        block = parseBlockSource(part)
+        block = filled(parseBlockSource(part))
     } catch {
         return null
     }
+    if (block.head !== null) return null
     const shared = SHARED_KEYS[language]
-    return block.head === null &&
-        [...block.fields.keys()].every((key) => key === 'columns' || shared.includes(key))
-        ? block
-        : null
+    const others = [...block.fields.keys()].filter(
+        (key) => key !== 'columns' && !shared.includes(key)
+    )
+    if (!others.length) return block.fields.size ? block : null
+    if (!block.fields.has('columns')) return null
+    throw new Error(
+        `"${others[0]}" can't be shared: move it to a diagram. Shared settings: ${shared.join(', ')}, columns`
+    )
+}
+
+/** Checks the shared settings once, rather than once per diagram. */
+function checkShared(header: BlockSource): void {
+    const orientation = header.fields.get('orientation')
+    if (orientation !== undefined) parseOrientation(orientation)
+    const hand = header.fields.get('hand')
+    if (hand !== undefined) parseHand(hand)
+}
+
+/** Whether a part with no shorthand holds a shareable key (it may have been meant as settings). */
+function sharesSomething(language: DiagramLanguage, part: string): boolean {
+    try {
+        const block = parseBlockSource(part)
+        return (
+            block.head === null &&
+            [...block.fields.keys()].some((k) => SHARED_KEYS[language].includes(k))
+        )
+    } catch {
+        return false
+    }
 }
 
 function columnsOf(header: BlockSource | null): number | null {
@@ -104,11 +147,10 @@ function renderRow(
 ): string | null {
     const header = headerOf(language, parts[0])
     const diagrams = header ? parts.slice(1) : parts
-    if (!diagrams.length) {
-        throw new Error(
-            header ? 'Add a diagram after the shared settings: "---", then it' : 'Add a diagram'
-        )
+    if (header && !diagrams.length) {
+        throw new Error('Add a diagram after the shared settings: a "---" line, then the diagram')
     }
+    if (header) checkShared(header)
     if (diagrams.length > MAX_DIAGRAMS) {
         throw new Error(`At most ${MAX_DIAGRAMS} diagrams per block, found ${diagrams.length}`)
     }
@@ -119,7 +161,7 @@ function renderRow(
     diagrams.forEach((part, i) => {
         const cell = html(doc, 'div', 'mn-cell')
         try {
-            const block = parseBlockSource(part)
+            const block = filled(parseBlockSource(part))
             if (block.fields.has('columns')) {
                 throw new Error('"columns" goes in the shared settings, before the first "---"')
             }
@@ -127,7 +169,11 @@ function renderRow(
             const fields = new Map([...shared, ...block.fields])
             cell.appendChild(DIAGRAMS[language](doc, { head: block.head, fields }, options))
         } catch (e) {
-            const message = `diagram ${i + 1}: ${messageOf(e)}`
+            let message = `diagram ${i + 1}: ${messageOf(e)}`
+            // A first part meant as shared settings but holding another key draws as a diagram.
+            if (i === 0 && !header && sharesSomething(language, part)) {
+                message += ` (shared settings before the first "---" may only hold: ${SHARED_KEYS[language].join(', ')}, columns)`
+            }
             errors.push(message)
             cell.classList.add('mn-error')
             cell.appendChild(html(doc, 'div', 'mn-error-message', `${language}, ${message}`))

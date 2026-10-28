@@ -82,7 +82,14 @@ describe('neckFrame', () => {
             hand: 'right',
             minWidth: titleWidth('A very long chord name')
         })
-        expect(frame.width).toBe(184)
-        expect(frame.at(0, 0)).toEqual([50, 30])
+        const width = titleWidth('A very long chord name')
+        expect(frame.width).toBe(width)
+        expect(frame.at(0, 0)).toEqual([30 + (width - 144) / 2, 30])
+    })
+
+    it('counts capitals and wide characters wider', () => {
+        expect(titleWidth('MMMM')).toBeGreaterThan(titleWidth('mmmm'))
+        expect(titleWidth('和弦')).toBe(38)
+        expect(titleWidth('')).toBe(0)
     })
 })

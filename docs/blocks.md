@@ -141,7 +141,7 @@ D xx0232 xx0132
 ---
 Em 022000 023000</code></pre></div>
 
-Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument` and `tuning` for chords; `range` for keyboards; `tuning` and `frets` for fretboards. A diagram's own keys win over them. `columns` draws a grid with that many columns (1 to 12).
+Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning` and `range` for chords; `range` for keyboards; `tuning` and `frets` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
 
 ````markdown
 ```fretboard
@@ -165,7 +165,7 @@ A minor pentatonic
 title: A blues
 scale: A blues</code></pre></div>
 
-A mistake in one diagram is shown in its place; the others still draw. A block holds at most 32 diagrams. Chord charts (`chords`) don't split: `---` is text there.
+A mistake in one diagram is shown in its place; the others still draw. A block holds at most 32 diagrams, each at most 12 strings or 88 keys. A block with only `---` lines draws nothing, like an empty one. Chord charts (`chords`) don't split: `---` is text there.
 
 ## Orientation and left-handed diagrams
 

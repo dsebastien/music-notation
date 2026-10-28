@@ -30,14 +30,15 @@ export function svgText(doc: Document, text: string, attrs: Attributes = {}): SV
     return el
 }
 
-/** A <text> centered on (x, y), for the 10–11px labels of diagrams. */
+/** A <text> vertically centered on (x, y), for the 10–11px labels of diagrams. */
 export function svgLabel(
     doc: Document,
     text: string,
     [x, y]: [number, number],
-    cls: string
+    cls: string,
+    anchor: 'start' | 'middle' | 'end' = 'middle'
 ): SVGElement {
-    return svgText(doc, text, { 'class': cls, x, 'y': y + 4, 'text-anchor': 'middle' })
+    return svgText(doc, text, { 'class': cls, x, 'y': y + 4, 'text-anchor': anchor })
 }
 
 /** A <line> between two points. */

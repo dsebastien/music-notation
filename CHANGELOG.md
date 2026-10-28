@@ -7,6 +7,7 @@
 - `hand: left` mirrors guitar chords and fretboards for left-handed players.
 - Apps can set the default orientation and hand (`orientation`, `hand` render options); Obsidian Publish sites through `window.musicNotationOptions`.
 - Long titles no longer get cut off on narrow diagrams.
+- The 12th-fret double dot shows as two dots on 4-string fretboards (bass, ukulele).
 
 ## 0.1.3 (2026-10-28)
 

@@ -110,75 +110,84 @@
     font-weight: 600;
 }
 
-/* Several diagrams in one block: a row that wraps, or a grid with `columns`. */
-.mn-row {
+/* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that
+   also wraps on narrow screens rather than shrinking diagrams to nothing. */
+.mn-block .mn-row {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     gap: 0.75em 1.25em;
 }
 
-.mn-grid {
+.mn-block .mn-grid {
+    --mn-gap: 1.25em;
     display: grid;
     align-items: start;
-    gap: 0.75em 1.25em;
+    gap: 0.75em var(--mn-gap);
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(
+            max(110px, calc((100% - (var(--mn-columns) - 1) * var(--mn-gap)) / var(--mn-columns))),
+            1fr
+        )
+    );
 }
 
-.mn-grid .mn-cell {
+.mn-block .mn-grid .mn-cell {
     display: flex;
     justify-content: center;
 }
 
-.mn-cell {
+.mn-block .mn-cell {
     min-width: 0;
 }
 
-.mn-cols-1 {
-    grid-template-columns: repeat(1, minmax(0, 1fr));
+.mn-block .mn-cols-1 {
+    --mn-columns: 1;
 }
 
-.mn-cols-2 {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.mn-block .mn-cols-2 {
+    --mn-columns: 2;
 }
 
-.mn-cols-3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+.mn-block .mn-cols-3 {
+    --mn-columns: 3;
 }
 
-.mn-cols-4 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+.mn-block .mn-cols-4 {
+    --mn-columns: 4;
 }
 
-.mn-cols-5 {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+.mn-block .mn-cols-5 {
+    --mn-columns: 5;
 }
 
-.mn-cols-6 {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+.mn-block .mn-cols-6 {
+    --mn-columns: 6;
 }
 
-.mn-cols-7 {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+.mn-block .mn-cols-7 {
+    --mn-columns: 7;
 }
 
-.mn-cols-8 {
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+.mn-block .mn-cols-8 {
+    --mn-columns: 8;
 }
 
-.mn-cols-9 {
-    grid-template-columns: repeat(9, minmax(0, 1fr));
+.mn-block .mn-cols-9 {
+    --mn-columns: 9;
 }
 
-.mn-cols-10 {
-    grid-template-columns: repeat(10, minmax(0, 1fr));
+.mn-block .mn-cols-10 {
+    --mn-columns: 10;
 }
 
-.mn-cols-11 {
-    grid-template-columns: repeat(11, minmax(0, 1fr));
+.mn-block .mn-cols-11 {
+    --mn-columns: 11;
 }
 
-.mn-cols-12 {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
+.mn-block .mn-cols-12 {
+    --mn-columns: 12;
 }
 
 /* Chord charts */

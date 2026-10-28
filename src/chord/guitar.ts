@@ -142,8 +142,20 @@ export function renderGuitarDiagram(
         root.appendChild(svgLine(doc, at(s, 0), at(s, rows), 'mn-string'))
     }
     if (base > 1) {
-        // Beyond the low string, level with the first fret.
-        root.appendChild(svgLabel(doc, `${base}fr`, frame.at(-16, along(0.5)), 'mn-base-fret'))
+        // Beyond the low string, level with the first fret: ending next to the neck when
+        // vertical, under it when horizontal.
+        const label = `${base}fr`
+        root.appendChild(
+            vertical
+                ? svgLabel(
+                      doc,
+                      label,
+                      frame.at(-10, along(0.5)),
+                      'mn-base-fret',
+                      options.hand === 'left' ? 'start' : 'end'
+                  )
+                : svgLabel(doc, label, frame.at(-16, along(0.5)), 'mn-base-fret')
+        )
     }
 
     for (const barre of barresOf(voicing)) {

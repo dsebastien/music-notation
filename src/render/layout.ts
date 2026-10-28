@@ -31,19 +31,34 @@ export function parseHand(text: string): Hand {
 export function layoutDefaults(value: unknown): LayoutDefaults {
     const result: LayoutDefaults = {}
     if (!value || typeof value !== 'object') return result
-    const { orientation, hand } = value as Record<string, unknown>
-    if (hand === 'left' || hand === 'right') result.hand = hand
-    if (orientation && typeof orientation === 'object') {
-        for (const language of ['chord', 'keyboard', 'fretboard'] as const) {
-            const o = (orientation as Record<string, unknown>)[language]
-            if (o === 'vertical' || o === 'horizontal') (result.orientation ??= {})[language] = o
+    const word = (v: unknown) => (typeof v === 'string' ? v.trim().toLowerCase() : undefined)
+    try {
+        const { orientation, hand } = value as Record<string, unknown>
+        const h = word(hand)
+        if (h === 'left' || h === 'right') result.hand = h
+        if (orientation && typeof orientation === 'object') {
+            for (const language of ['chord', 'keyboard', 'fretboard'] as const) {
+                const o = word((orientation as Record<string, unknown>)[language])
+                if (o === 'vertical' || o === 'horizontal')
+                    (result.orientation ??= {})[language] = o
+            }
         }
+    } catch {
+        // A page's object with a throwing getter: no defaults rather than no rendering.
     }
     return result
 }
 
-/** Width a title needs (14px semi-bold), so a narrow diagram doesn't clip it. */
-export const titleWidth = (title?: string) => (title ? title.length * 8 + 8 : 0)
+/** Width a title needs (14px semi-bold), so a narrow diagram doesn't clip it. Errs on the wide side. */
+export function titleWidth(title?: string): number {
+    if (!title) return 0
+    let width = 8
+    for (const ch of title) {
+        // Wide scripts (CJK, emoji), capitals and digits, then narrow letters and punctuation.
+        width += ch.codePointAt(0)! > 0x24f ? 15 : /[A-Z0-9#♯♭]/.test(ch) ? 10.5 : 8
+    }
+    return Math.ceil(width)
+}
 
 export interface NeckLayout {
     orientation: Orientation

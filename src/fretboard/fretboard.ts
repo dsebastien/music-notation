@@ -83,8 +83,9 @@ export function renderFretboard(
         const [cx, cy] = frame.at(a, center(fret))
         root.appendChild(svg(doc, 'circle', { class: 'mn-inlay', cx, cy, r: 4 }))
     }
-    // The 12th fret's pair sits between the 2nd and 3rd strings from each edge.
-    const pair = (strings > 3 ? 1.5 : 0.5) * STRING_GAP
+    // The 12th fret's pair sits between the 2nd and 3rd strings from each edge (between the
+    // outer two on 4 strings or fewer).
+    const pair = (strings > 4 ? 1.5 : 0.5) * STRING_GAP
     for (let fret = first; fret <= to; fret++) {
         if (SINGLE_INLAYS.has(fret)) inlay(acrossLength / 2, fret)
         if (fret % 12 === 0) {
@@ -96,14 +97,14 @@ export function renderFretboard(
     root.appendChild(
         svgLine(
             doc,
-            frame.at(0, openW),
             frame.at(acrossLength, openW),
+            frame.at(0, openW),
             first === 1 ? 'mn-nut' : 'mn-fret'
         )
     )
     for (let fret = first; fret <= to; fret++) {
         root.appendChild(
-            svgLine(doc, frame.at(0, wire(fret)), frame.at(acrossLength, wire(fret)), 'mn-fret')
+            svgLine(doc, frame.at(acrossLength, wire(fret)), frame.at(0, wire(fret)), 'mn-fret')
         )
     }
     // Highest string first, so the document reads top to bottom in the default orientation.
@@ -112,13 +113,18 @@ export function renderFretboard(
         root.appendChild(
             svgLine(doc, frame.at(across(s), 0), frame.at(across(s), wire(to)), 'mn-string')
         )
+        // Before the neck: above it when vertical, ending next to it when horizontal.
+        const name = nameOf(open, set.preferFlats)
         root.appendChild(
-            svgLabel(
-                doc,
-                nameOf(open, set.preferFlats),
-                frame.at(across(s), vertical ? -10 : -12),
-                'mn-string-name'
-            )
+            vertical
+                ? svgLabel(doc, name, frame.at(across(s), -10), 'mn-string-name')
+                : svgLabel(
+                      doc,
+                      name,
+                      frame.at(across(s), -8),
+                      'mn-string-name',
+                      options.hand === 'left' ? 'start' : 'end'
+                  )
         )
         for (let fret = from; fret <= to; fret++) {
             const member = memberOf(set, open + fret)

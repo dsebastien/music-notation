@@ -228,7 +228,6 @@ describe('several diagrams in one block', () => {
 
     it.each([
         ['tuning: DADGAD\n---', 'Add a diagram after the shared settings'],
-        ['---\n---', 'Add a diagram'],
         ['columns: 0\n---\nG 320003', 'columns must be a whole number from 1 to 12, got "0"'],
         ['columns: 13\n---\nG 320003', 'from 1 to 12'],
         ['G 320003\ncolumns: 2\n---\nC x32010', '"columns" goes in the shared settings'],
@@ -293,4 +292,138 @@ describe('orientation and hand', () => {
             'Unknown hand "up"'
         )
     })
+})
+
+describe('rows after review', () => {
+    it('splits CRLF and indented separators', () => {
+        const h = host()
+        renderBlock('chord', 'G 320003\r\n  ---  \r\nC x32010', h)
+        expect(h.querySelectorAll('.mn-row .mn-guitar-chord')).toHaveLength(2)
+    })
+
+    it('draws nothing for a block of separators only', () => {
+        const h = host()
+        const result = renderBlock('chord', '---\n---', h)
+        expect(result.ok).toBe(true)
+        expect(h.querySelector('.mn-empty')).not.toBeNull()
+    })
+
+    it('refuses a fractional columns, and a key that cannot be shared next to columns', () => {
+        expect(renderBlock('chord', 'columns: 2.5\n---\nG 320003', host()).error).toContain(
+            'columns must be a whole number'
+        )
+        expect(
+            renderBlock('chord', 'columns: 2\ntitle: Song\n---\nG 320003', host()).error
+        ).toContain(`"title" can't be shared: move it to a diagram`)
+    })
+
+    it('shares range for piano chords', () => {
+        const h = host()
+        const result = renderBlock('chord', 'instrument: piano\nrange: C3-C5\n---\nC\n---\nG', h)
+        expect(result.ok).toBe(true)
+        expect(h.querySelectorAll('.mn-keyboard')).toHaveLength(2)
+    })
+
+    it('hints at the shareable keys when a first part meant as settings draws as a diagram', () => {
+        const result = renderBlock('chord', 'tuning: DADGAD\ncolums: 2\n---\nG 320003', host())
+        expect(result.error).toContain('shared settings before the first "---" may only hold')
+    })
+
+    it('lets an empty key fall back to the shared value', () => {
+        const h = host()
+        const result = renderBlock(
+            'chord',
+            'orientation: horizontal\nlabels: notes\n---\nA x02220\norientation:\nlabels:',
+            h
+        )
+        expect(result.ok).toBe(true)
+        const nut = h.querySelector('.mn-nut')!
+        expect(nut.getAttribute('x1')).toBe(nut.getAttribute('x2'))
+    })
+
+    it('reports a bad shared value once', () => {
+        const result = renderBlock(
+            'chord',
+            'orientation: diagonal\n---\nG 320003\n---\nC x32010',
+            host()
+        )
+        expect(result.error).toBe('Unknown orientation "diagonal": use vertical or horizontal')
+    })
+
+    it('ignores invalid layout options and reads them in any case', () => {
+        const h = host()
+        const bad = { orientation: { chord: 'diagonal' }, hand: 'Left' } as unknown
+        renderBlock('chord', 'A x02220', h, bad as Parameters<typeof renderBlock>[3])
+        const nut = h.querySelector('.mn-nut')!
+        // Vertical (diagonal ignored), and mirrored ("Left" read as left).
+        expect(nut.getAttribute('y1')).toBe(nut.getAttribute('y2'))
+        const strings = [...h.querySelectorAll('.mn-string')]
+        expect(Number(strings[0]?.getAttribute('x1'))).toBeGreaterThan(
+            Number(strings[5]?.getAttribute('x1'))
+        )
+    })
+
+    it.each([
+        ['chord', 'A x02220\ntuning: E A D G B E E A D G B E E', 'At most 12 strings'],
+        ['fretboard', 'C major\ntuning: E A D G B E E A D G B E E', 'At most 12 strings'],
+        ['chord', 'x0222000000000', 'At most 12 strings'],
+        ['keyboard', 'C major\nrange: C0-C8', 'At most 88 keys'],
+        ['keyboard', 'notes: C0 C8', 'At most 88 keys']
+    ] as const)('caps the size of %s blocks: %p', (language, source, message) => {
+        expect(renderBlock(language, source, host()).error).toContain(message)
+    })
+})
+
+describe('every element stays inside its diagram', () => {
+    const inside = (svg: Element) => {
+        const [, , w, h] = svg.getAttribute('viewBox')!.split(' ').map(Number)
+        const points: [number, number][] = []
+        svg.querySelectorAll('line').forEach((l) => {
+            points.push([Number(l.getAttribute('x1')), Number(l.getAttribute('y1'))])
+            points.push([Number(l.getAttribute('x2')), Number(l.getAttribute('y2'))])
+        })
+        svg.querySelectorAll('circle').forEach((c) => {
+            const r = Number(c.getAttribute('r'))
+            const [cx, cy] = [Number(c.getAttribute('cx')), Number(c.getAttribute('cy'))]
+            points.push([cx - r, cy - r], [cx + r, cy + r])
+        })
+        svg.querySelectorAll('rect').forEach((r) => {
+            const [x, y] = [Number(r.getAttribute('x')), Number(r.getAttribute('y'))]
+            points.push(
+                [x, y],
+                [x + Number(r.getAttribute('width')), y + Number(r.getAttribute('height'))]
+            )
+        })
+        svg.querySelectorAll('text').forEach((t) => {
+            points.push([Number(t.getAttribute('x')), Number(t.getAttribute('y'))])
+        })
+        return points.every(([x, y]) => x >= 0 && y >= 0 && x <= w! && y <= h!)
+    }
+
+    it.each(['vertical', 'horizontal'] as const)(
+        'in %s diagrams, for both hands',
+        (orientation) => {
+            for (const hand of ['left', 'right'] as const) {
+                const h = host()
+                for (const [language, source] of [
+                    ['chord', 'A x02220 x01230'],
+                    ['chord', 'A x-12-14-14-13-12\nfingers: x13421'],
+                    ['chord', 'C\ninstrument: piano'],
+                    ['fretboard', 'A minor pentatonic\nfrets: 0-12'],
+                    ['fretboard', 'E major\ntuning: bass'],
+                    ['keyboard', 'C major\nlabels: degrees']
+                ] as const) {
+                    renderBlock(language, source, h, {
+                        orientation: {
+                            chord: orientation,
+                            fretboard: orientation,
+                            keyboard: orientation
+                        },
+                        hand
+                    })
+                }
+                for (const svg of h.querySelectorAll('svg')) expect(inside(svg)).toBe(true)
+            }
+        }
+    )
 })
