@@ -33,7 +33,7 @@
 ## Releasing
 
 1. Write the version's section in `CHANGELOG.md` (`## X.Y.Z (yyyy-mm-dd)`, plain language for users), commit, push, wait for CI to be green.
-2. `gh workflow run release.yml -f version=X.Y.Z`: bumps `package.json`, commits `chore(release): X.Y.Z`, tags, publishes to npm with provenance (trusted publishing, no token) and creates the GitHub release with the browser bundle.
+2. `gh workflow run release.yml -f version=X.Y.Z`: bumps `package.json`, commits `chore(release): X.Y.Z` and tags locally, publishes to npm with provenance (trusted publishing, no token), then pushes the commit and tag and creates the GitHub release with the browser bundle. A failed publish leaves nothing on GitHub: fix and re-run.
 3. Publish sites pin the version in their `publish.js`: bump it there to roll out.
 
-0.1.0 was published by hand (`npm publish --access public`): trusted publishing needs the package to exist. `prepublishOnly` validates and builds.
+0.1.0 was published by hand (`npm publish --access public`): trusted publishing needs the package to exist. The npmjs.com trusted publisher is GitHub Actions, repo `dsebastien/music-notation`, workflow `release.yml`, with "npm publish" allowed (not dist-tag). `prepublishOnly` validates and builds.

@@ -2,8 +2,9 @@ name: Release
 
 # Publishes a version that already has its section in CHANGELOG.md:
 #   gh workflow run release.yml -f version=0.1.1
-# Bumps package.json, commits and tags on main, publishes to npm with provenance through npm
-# trusted publishing (OIDC, no token), and creates the GitHub release with the browser bundle.
+# Bumps package.json, commits and tags, publishes to npm with provenance through npm trusted
+# publishing (OIDC, no token; the trusted publisher only needs "npm publish"), pushes the commit
+# and tag to main, and creates the GitHub release with the browser bundle.
 # 0.1.0 was published by hand: trusted publishing needs the package to exist first.
 
 on:
@@ -67,6 +68,8 @@ jobs:
             - name: Validate and build
               run: bun run validate && bun run build
 
+            # Commit and tag locally, publish, then push: if npm refuses (no trusted publisher, a
+            # version that exists), nothing reaches GitHub and the release can simply be re-run.
             - name: Commit and tag
               run: |
                   git config user.name "github-actions[bot]"
@@ -74,10 +77,12 @@ jobs:
                   git add package.json
                   git commit -m "chore(release): ${VERSION}"
                   git tag "${VERSION}"
-                  git push origin HEAD:main "refs/tags/${VERSION}"
 
             - name: Publish to npm
               run: npm publish --access public --provenance --ignore-scripts
+
+            - name: Push the release commit and tag
+              run: git push origin HEAD:main "refs/tags/${VERSION}"
 
             - name: GitHub release
               env:
