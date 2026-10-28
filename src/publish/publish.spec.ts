@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { autoRender, renderAll } from './index'
+import { autoRender, renderAll } from './index.js'
 
 const block = (language: string, source: string) => {
     const pre = document.createElement('pre')
@@ -35,6 +35,37 @@ describe('renderAll', () => {
         expect(document.querySelector('.mn-error')).not.toBeNull()
         renderAll(document)
         expect(document.querySelectorAll('.mn-error')).toHaveLength(1)
+    })
+})
+
+describe('renderAll after the page changed', () => {
+    it('renders again when its rendering was removed', () => {
+        const pre = block('chord', 'A x02220')
+        document.body.append(pre)
+        renderAll(document)
+        document.querySelector('.mn-block')!.remove()
+        expect(renderAll(document)).toBe(1)
+        expect(document.querySelectorAll('.mn-block')).toHaveLength(1)
+    })
+
+    it('renders again when the source changed in place', () => {
+        const pre = block('chord', 'A x02220')
+        document.body.append(pre)
+        renderAll(document)
+        pre.querySelector('code')!.textContent = 'D xx0232'
+        expect(renderAll(document)).toBe(1)
+        expect(document.querySelectorAll('.mn-block')).toHaveLength(1)
+        expect(document.querySelector('.mn-title')?.textContent).toBe('D')
+    })
+
+    it('shows the source again when an edit breaks the block', () => {
+        const pre = block('chord', 'A x02220')
+        document.body.append(pre)
+        renderAll(document)
+        pre.querySelector('code')!.textContent = 'A'
+        renderAll(document)
+        expect(pre.style.display).toBe('')
+        expect(document.querySelectorAll('.mn-block')).toHaveLength(1)
     })
 })
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { isNotationLanguage, LANGUAGES, renderBlock } from './render-block'
-import { lookupGuitarVoicing } from '../voicings'
+import { isNotationLanguage, LANGUAGES, renderBlock } from './render-block.js'
+import { lookupGuitarVoicing } from '../voicings/index.js'
 
 const host = () => document.createElement('div')
 
@@ -62,6 +62,32 @@ describe('renderBlock', () => {
         ])
     })
 
+    it('accepts ♯ and ♭ and unusual symbols when frets are given', () => {
+        const h = host()
+        expect(renderBlock('chord', 'F♯m 244222', h).ok).toBe(true)
+        expect(h.querySelectorAll('.mn-root').length).toBeGreaterThan(0)
+        expect(renderBlock('chord', 'B♭ x13331', h, { voicings: lookupGuitarVoicing }).ok).toBe(
+            true
+        )
+        expect(renderBlock('chord', 'F♯m', h, { voicings: lookupGuitarVoicing }).ok).toBe(true)
+        expect(renderBlock('chord', 'Cm(maj7)', h, { voicings: lookupGuitarVoicing }).ok).toBe(true)
+        expect(renderBlock('chord', 'C7(b9) x32323', h).ok).toBe(true)
+        expect(renderBlock('chord', 'Zz x02220', h).ok).toBe(true)
+    })
+
+    it('keeps a piano bass spelled differently from the chord', () => {
+        const h = host()
+        renderBlock('chord', 'Cm/D#\ninstrument: piano', h)
+        // D# is Eb, already in the chord: still played as the bass below.
+        expect(h.querySelectorAll('.mn-on')).toHaveLength(4)
+    })
+
+    it('reads a single note with an octave as that key', () => {
+        const h = host()
+        renderBlock('keyboard', 'C4', h)
+        expect(h.querySelectorAll('.mn-on')).toHaveLength(1)
+    })
+
     it('renders piano chords from pitches', () => {
         const h = host()
         expect(renderBlock('chord', 'symbol: A\npitches: A3 C#4 E4', h).ok).toBe(true)
@@ -90,7 +116,7 @@ describe('renderBlock', () => {
         ['chord', '', 'Add a chord symbol and "frets:"'],
         ['chord', 'A\nfrets: x0222a', 'Invalid frets "x0222a"'],
         ['chord', 'A x02220 x0123', 'has 5 fingers for 6 strings'],
-        ['chord', 'Zz x02220', '"Zz" is not a chord symbol'],
+        ['chord', 'C x32010\nposition: 5', 'position 5 is above the lowest fretted note (fret 1)'],
         ['chord', 'A x02220\ntuning: DADGA', 'The tuning has 5 strings, the frets 6'],
         ['chord', 'A x02220\nposition: 0', 'position must be a whole number from 1'],
         ['chord', 'A x02220\ninstrument: banjo', 'Unknown instrument "banjo"'],
@@ -98,6 +124,7 @@ describe('renderBlock', () => {
         ['keyboard', 'chord: Hm', 'Unknown chord "Hm"'],
         ['keyboard', 'C major\nrange: C5-C4', 'Invalid range'],
         ['keyboard', 'C major\nlabels: colors', 'Unknown labels "colors"'],
+        ['keyboard', 'C major\nlabels: fingers', 'use notes, degrees, intervals or none'],
         ['fretboard', '', 'Add "scale:", "chord:" or "notes:"'],
         ['fretboard', 'C major\nfrets: 30-40', 'Frets go up to 36'],
         ['fretboard', 'C major\ntuning: XYZ', 'Unknown tuning "XYZ"'],

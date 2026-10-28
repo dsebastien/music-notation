@@ -1,5 +1,5 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
-import { svg, svgRoot, svgText } from '../render/dom'
+import { svg, svgRoot, svgText } from '../render/dom.js'
 
 /** Standard tuning, lowest string first. */
 export const STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
@@ -33,7 +33,7 @@ export function parseFrets(text: string): (number | null)[] | null {
         : null
 }
 
-/** "x01230", "x-1-3-4-2-1" → fingers; 0, x and - mean no finger. */
+/** "x01230", "x-1-3-4-2-1", "x 1 3 4 2 1" → fingers; 0 and x mean no finger. */
 export function parseFingers(text: string): (string | null)[] {
     const trimmed = text.trim()
     const tokens =

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { chromaOf, midiOf, nameOf, noteOf } from './pitch'
-import { keyPrefersFlats, transposeChord, transposeKey } from './transpose'
+import { chromaOf, midiOf, nameOf, noteOf } from './pitch.js'
+import { keyPrefersFlats, transposeChord, transposeKey } from './transpose.js'
 import {
     chordNoteSet,
     intervalLabel,
@@ -8,7 +8,7 @@ import {
     listNoteSet,
     memberOf,
     scaleNoteSet
-} from './note-set'
+} from './note-set.js'
 
 describe('pitch', () => {
     it('reads note names in ASCII and Unicode', () => {
@@ -41,6 +41,12 @@ describe('transpose', () => {
         expect(transposeChord('C', -1)).toBe('B')
         expect(transposeChord('N.C.', 3)).toBe('N.C.')
         expect(transposeChord('G', 12)).toBe('G')
+        expect(transposeChord('C6/9', 2)).toBe('D6/9')
+        expect(transposeChord('B♭', 2)).toBe('C')
+        expect(transposeChord('A', 1.4)).toBe('A#')
+        expect(transposeChord('A', 0.4)).toBe('A')
+        expect(transposeChord('A', NaN)).toBe('A')
+        expect(nameOf(NaN)).toBe('C')
     })
 
     it('knows which keys use flats', () => {
@@ -65,7 +71,21 @@ describe('note sets', () => {
         expect(set.root).toBe(0)
         expect(labelOf(set.members[1]!, 'intervals')).toBe('3')
         expect(labelOf(set.members[0]!, 'intervals')).toBe('R')
-        expect(labelOf(set.members[2]!, 'degrees')).toBe('3')
+        expect(labelOf(set.members[2]!, 'degrees')).toBe('5')
+    })
+
+    it('labels chord degrees by interval, not position', () => {
+        expect(chordNoteSet('C7')!.members.map((m) => labelOf(m, 'degrees'))).toEqual([
+            '1',
+            '3',
+            '5',
+            '7'
+        ])
+    })
+
+    it('reads ♯ and ♭ and 6/9 chords', () => {
+        expect(chordNoteSet('F♯m')!.root).toBe(6)
+        expect(chordNoteSet('C6/9')!.members.map((m) => m.name)).toEqual(['C', 'E', 'G', 'A', 'D'])
     })
 
     it('adds a slash chord bass that is not in the chord', () => {

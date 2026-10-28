@@ -1,15 +1,21 @@
 /* Music notation. Colors follow Obsidian's theme variables when present, with fallbacks for any page. */
-.mn-block {
+.mn-block,
+.mn-svg,
+.mn-chart {
     --mn-fg: var(--text-normal, currentColor);
     --mn-muted: var(--text-muted, #8a8a8a);
     --mn-faint: var(--background-modifier-border, #d0d0d0);
     --mn-accent: var(--interactive-accent, #7c3aed);
     --mn-on-accent: var(--text-on-accent, #fff);
-    --mn-root: var(--color-orange, #e8590c);
+    /* Dark enough for white labels in light and dark themes. */
+    --mn-root: #c2410c;
     /* Piano keys keep their real colors in every theme. */
     --mn-key-white: #fafafa;
     --mn-key-black: #222;
     font-family: var(--font-interface, system-ui, sans-serif);
+}
+
+.mn-block {
     color: var(--mn-fg);
     margin: 0.5em 0;
     overflow-x: auto;
@@ -151,7 +157,9 @@
 .mn-seg {
     display: inline-flex;
     flex-direction: column;
-    white-space: pre;
+    min-width: 0;
+    max-width: 100%;
+    white-space: pre-wrap;
 }
 
 .mn-chord {

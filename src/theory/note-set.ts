@@ -3,7 +3,7 @@
  * the root and each note's label (name, degree, interval).
  */
 import { Chord, Scale } from 'tonal'
-import { chromaOf, isFlat, midiOf } from './pitch'
+import { chromaOf, isFlat, midiOf, splitChordSymbol } from './pitch.js'
 
 export type NoteLabel = 'notes' | 'degrees' | 'intervals' | 'fingers' | 'none'
 
@@ -67,7 +67,12 @@ export function labelOf(member: NoteSetMember, label: NoteLabel, finger?: string
     }
 }
 
-const fromNames = (title: string, names: string[], intervals: string[] | null): NoteSet | null => {
+const fromNames = (
+    title: string,
+    names: string[],
+    intervals: string[] | null,
+    chord = false
+): NoteSet | null => {
     const members: NoteSetMember[] = []
     names.forEach((name, i) => {
         const chroma = chromaOf(name)
@@ -75,7 +80,12 @@ const fromNames = (title: string, names: string[], intervals: string[] | null): 
         members.push({
             chroma,
             name,
-            degree: intervals ? i + 1 : null,
+            // A chord's degrees are its interval numbers (1 3 5 7); a scale's, its positions.
+            degree: intervals
+                ? chord
+                    ? Number(/^\d+/.exec(intervals[i] ?? '')?.[0] ?? i + 1)
+                    : i + 1
+                : null,
             interval: intervals?.[i] ?? null
         })
     })
@@ -91,10 +101,12 @@ const fromNames = (title: string, names: string[], intervals: string[] | null): 
 
 /** Notes of a chord symbol ("Cmaj7", "C/G"); null when tonal doesn't know it. */
 export function chordNoteSet(symbol: string): NoteSet | null {
-    const [main = '', bass] = symbol.trim().split('/')
-    const chord = Chord.get(main)
+    const parts = splitChordSymbol(symbol)
+    if (!parts) return null
+    const chord = Chord.get(parts.root + parts.suffix)
     if (chord.empty) return null
-    const set = fromNames(symbol.trim(), chord.notes, chord.intervals)
+    const bass = parts.bass
+    const set = fromNames(symbol.trim(), chord.notes, chord.intervals, true)
     const bassChroma = bass ? chromaOf(bass) : null
     if (set && bass && bassChroma !== null && !memberFor(set, bassChroma)) {
         set.members.push({ chroma: bassChroma, name: bass, degree: null, interval: null })

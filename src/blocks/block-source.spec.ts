@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { parseBlockSource, parseRange } from './block-source'
+import { parseBlockSource, parseRange } from './block-source.js'
 
 describe('parseBlockSource', () => {
     it('reads key: value lines and a shorthand first line', () => {

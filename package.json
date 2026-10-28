@@ -31,25 +31,40 @@
     "funding": "https://github.com/sponsors/dsebastien",
     "type": "module",
     "sideEffects": [
-        "./dist/music-notation.publish.min.js"
+        "./dist/music-notation.publish.min.js",
+        "*.css"
     ],
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
+    "typesVersions": {
+        "*": {
+            "voicings": [
+                "./dist/voicings/index.d.ts"
+            ],
+            "publish": [
+                "./dist/publish/index.d.ts"
+            ]
+        }
+    },
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./voicings": {
             "types": "./dist/voicings/index.d.ts",
-            "import": "./dist/voicings/index.js"
+            "import": "./dist/voicings/index.js",
+            "default": "./dist/voicings/index.js"
         },
         "./publish": {
             "types": "./dist/publish/index.d.ts",
-            "import": "./dist/publish/index.js"
+            "import": "./dist/publish/index.js",
+            "default": "./dist/publish/index.js"
         },
         "./music-notation.css": "./dist/music-notation.css",
-        "./music-notation.publish.min.js": "./dist/music-notation.publish.min.js"
+        "./music-notation.publish.min.js": "./dist/music-notation.publish.min.js",
+        "./package.json": "./package.json"
     },
     "files": [
         "dist",
@@ -83,7 +98,6 @@
         "validate": "bun run --parallel tsc test lint"
     },
     "dependencies": {
-        "@tombatossals/chords-db": "0.5.1",
         "tonal": "6.5.1"
     },
     "devDependencies": {
@@ -91,6 +105,7 @@
         "@commitlint/config-conventional": "^20.1.0",
         "@eslint/js": "^9.36.0",
         "@happy-dom/global-registrator": "21.0.4",
+        "@tombatossals/chords-db": "0.5.1",
         "@types/bun": "1.4.0",
         "@types/node": "24.10.1",
         "commitizen": "^4.3.1",

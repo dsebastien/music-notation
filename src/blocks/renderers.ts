@@ -8,17 +8,18 @@ import {
     parseFrets,
     renderGuitarDiagram,
     type FrettedVoicing
-} from '../chord/guitar'
-import { parseChordPro } from '../chords/chordpro'
-import { renderChart } from '../chords/chart'
-import { renderFretboard } from '../fretboard/fretboard'
-import { parseTuning } from '../fretboard/tuning'
-import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard'
-import { chordNoteSet, listNoteSet, type NoteSet } from '../theory/note-set'
-import { parseChord } from '../theory/chord-symbol'
-import type { VoicingLookup } from '../voicings'
-import { parseBlockSource, parseRange, type BlockSource } from './block-source'
-import { labelField, noteSetOf, orFail } from './note-set-field'
+} from '../chord/guitar.js'
+import { parseChordPro } from '../chords/chordpro.js'
+import { renderChart } from '../chords/chart.js'
+import { renderFretboard } from '../fretboard/fretboard.js'
+import { parseTuning } from '../fretboard/tuning.js'
+import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.js'
+import { chordNoteSet, listNoteSet, type NoteSet } from '../theory/note-set.js'
+import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
+import { parseChord } from '../theory/chord-symbol.js'
+import type { VoicingLookup } from '../voicings/index.js'
+import { parseBlockSource, parseRange, type BlockSource } from './block-source.js'
+import { labelField, noteSetOf, orFail } from './note-set-field.js'
 
 export interface RenderOptions {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -35,6 +36,12 @@ const field = (block: BlockSource, ...names: string[]) => {
         if (value !== undefined && value !== '') return value
     }
     return undefined
+}
+
+/** The root of any symbol that starts with a note name. */
+const rootOf = (symbol: string): number | null => {
+    const parts = splitChordSymbol(symbol)
+    return parts && parseChord(symbol) ? chromaOf(parts.root) : null
 }
 
 const positiveInt = (text: string, what: string) => {
@@ -54,21 +61,20 @@ function shorthand(head: string | null) {
 /** Piano voicing of a chord: root position from octave 4, a slash chord's bass in octave 3. */
 function pianoPitches(symbol: string): NoteSet {
     const set = orFail(chordNoteSet(symbol), `Unknown chord "${symbol}"`)
-    const bass = symbol.includes('/') ? symbol.split('/')[1]!.trim() : null
+    const bassName = splitChordSymbol(symbol)?.bass
+    const bass = bassName ? chromaOf(bassName) : null
     const pitches: number[] = []
     let previous = 59
     for (const member of set.members) {
-        if (bass && member.name === bass && member.degree === null) continue
+        // A bass outside the chord only sounds below it.
+        if (bass !== null && member.chroma === bass && member.degree === null) continue
         let midi = 60 + member.chroma
         while (midi <= previous) midi += 12
         while (midi - 12 > previous) midi -= 12
         pitches.push(midi)
         previous = midi
     }
-    if (bass) {
-        const bassMember = set.members.find((m) => m.name === bass)
-        if (bassMember) pitches.unshift(48 + bassMember.chroma)
-    }
+    if (bass !== null) pitches.unshift(48 + bass)
     return { ...set, pitches }
 }
 
@@ -115,7 +121,7 @@ const renderChord: Renderer = (doc, source, options) => {
         const range = field(block, 'range')
         return renderKeyboard(doc, set, {
             title,
-            label: labelField(block, fingers.size ? 'fingers' : 'notes'),
+            label: labelField(block, fingers.size ? 'fingers' : 'notes', fingers.size > 0),
             fingers,
             range: range
                 ? orFail(parseKeyRange(range), `Invalid range "${range}": use e.g. C3-B4`)
@@ -153,8 +159,16 @@ const renderChord: Renderer = (doc, source, options) => {
         )
     }
     const position = field(block, 'position', 'base')
-    if (position) voicing.baseFret = positiveInt(position, 'position')
-    else voicing.baseFret ??= baseFretOf(voicing.frets)
+    if (position) {
+        const base = positiveInt(position, 'position')
+        const fretted = voicing.frets.filter((f): f is number => f !== null && f > 0)
+        if (fretted.length && base > Math.min(...fretted)) {
+            throw new Error(
+                `position ${base} is above the lowest fretted note (fret ${Math.min(...fretted)})`
+            )
+        }
+        voicing.baseFret = base
+    } else voicing.baseFret ??= baseFretOf(voicing.frets)
     const tuningText = field(block, 'tuning')
     const tuning = tuningText
         ? orFail(parseTuning(tuningText), `Unknown tuning "${tuningText}"`)
@@ -164,10 +178,8 @@ const renderChord: Renderer = (doc, source, options) => {
             `The tuning has ${tuning.length} strings, the frets ${voicing.frets.length}`
         )
     }
-    const root = symbol ? (chordNoteSet(symbol)?.root ?? null) : null
-    if (symbol && root === null && !parseChord(symbol)) {
-        throw new Error(`"${symbol}" is not a chord symbol`)
-    }
+    // A symbol the theory doesn't know still titles the diagram; only its root marks are lost.
+    const root = symbol ? (chordNoteSet(symbol)?.root ?? rootOf(symbol)) : null
     return renderGuitarDiagram(doc, voicing, { title, root, tuning })
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { baseFretOf, parseFingers, parseFrets, renderGuitarDiagram } from './guitar'
+import { baseFretOf, parseFingers, parseFrets, renderGuitarDiagram } from './guitar.js'
 
 describe('frets and fingers', () => {
     it('reads compact and separated frets', () => {

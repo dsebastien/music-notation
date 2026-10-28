@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { renderFretboard } from './fretboard'
-import { parseTuning } from './tuning'
-import { listNoteSet, scaleNoteSet } from '../theory/note-set'
+import { renderFretboard } from './fretboard.js'
+import { parseTuning } from './tuning.js'
+import { listNoteSet, scaleNoteSet } from '../theory/note-set.js'
 
 describe('parseTuning', () => {
     it('knows named tunings', () => {
@@ -17,7 +17,13 @@ describe('parseTuning', () => {
         expect(parseTuning('E A D G')).toEqual([40, 45, 50, 55])
     })
 
+    it('reads lowercase letters as notes, not flats', () => {
+        expect(parseTuning('eadgbe')).toEqual([40, 45, 50, 55, 59, 64])
+    })
+
     it('refuses what is not a tuning', () => {
+        expect(parseTuning('constructor')).toBeNull()
+        expect(parseTuning('__proto__')).toBeNull()
         expect(parseTuning('hello')).toBeNull()
         expect(parseTuning('E')).toBeNull()
         expect(parseTuning('EXDG')).toBeNull()

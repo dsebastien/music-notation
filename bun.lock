@@ -5,7 +5,6 @@
     "": {
       "name": "@dsebastien/music-notation",
       "dependencies": {
-        "@tombatossals/chords-db": "0.5.1",
         "tonal": "6.5.1",
       },
       "devDependencies": {
@@ -13,6 +12,7 @@
         "@commitlint/config-conventional": "^20.1.0",
         "@eslint/js": "^9.36.0",
         "@happy-dom/global-registrator": "21.0.4",
+        "@tombatossals/chords-db": "0.5.1",
         "@types/bun": "1.4.0",
         "@types/node": "24.10.1",
         "commitizen": "^4.3.1",

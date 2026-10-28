@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { lookupGuitarVoicing, voicingCount } from './index'
+import { lookupGuitarVoicing, voicingCount } from './index.js'
 
 describe('lookupGuitarVoicing', () => {
     it('finds open chords with absolute frets', () => {

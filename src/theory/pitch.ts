@@ -42,9 +42,26 @@ export function midiOf(note: string): number | null {
     return (Number(m[2]) + 1) * 12 + chroma - shift * 12
 }
 
-/** Name of a pitch class, with sharps or flats. */
+/** Name of a pitch class, with sharps or flats. Non-integers are rounded. */
 export const nameOf = (chroma: number, preferFlats = false): string =>
-    (preferFlats ? FLAT_NAMES : SHARP_NAMES)[((chroma % 12) + 12) % 12]!
+    (preferFlats ? FLAT_NAMES : SHARP_NAMES)[(((Math.round(chroma) || 0) % 12) + 12) % 12]!
+
+export interface ChordSymbolParts {
+    root: string
+    /** Everything between the root and the bass: "m7", "6/9", "". */
+    suffix: string
+    bass: string | null
+}
+
+/**
+ * "F♯m7/C#" → root F#, suffix m7, bass C#. A slash starts a bass only when a note name follows
+ * ("C6/9" has no bass). ♯ and ♭ become # and b.
+ */
+export function splitChordSymbol(symbol: string): ChordSymbolParts | null {
+    const normalized = symbol.trim().replace(/♯/g, '#').replace(/♭/g, 'b')
+    const m = /^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/.exec(normalized)
+    return m ? { root: m[1]!, suffix: m[2]!, bass: m[3] ?? null } : null
+}
 
 /** "C4" for MIDI 60. */
 export const noteOf = (midi: number, preferFlats = false): string =>

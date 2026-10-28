@@ -3,9 +3,9 @@ export {
     LANGUAGES,
     isNotationLanguage,
     type RenderResult
-} from './render/render-block'
-export type { RenderOptions, NotationLanguage } from './blocks/renderers'
-export { STYLES, injectStyles } from './styles'
+} from './render/render-block.js'
+export type { RenderOptions, NotationLanguage } from './blocks/renderers.js'
+export { STYLES, injectStyles } from './styles.js'
 export {
     renderGuitarDiagram,
     parseFrets,
@@ -14,15 +14,15 @@ export {
     STANDARD_TUNING,
     type FrettedVoicing,
     type GuitarDiagramOptions
-} from './chord/guitar'
+} from './chord/guitar.js'
 export {
     renderKeyboard,
     parseKeyRange,
     keyRangeOf,
     type KeyboardOptions
-} from './keyboard/keyboard'
-export { renderFretboard, type FretboardOptions } from './fretboard/fretboard'
-export { parseTuning } from './fretboard/tuning'
+} from './keyboard/keyboard.js'
+export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
+export { parseTuning } from './fretboard/tuning.js'
 export {
     parseChordPro,
     parseLyrics,
@@ -30,11 +30,19 @@ export {
     type Section,
     type Line,
     type Segment
-} from './chords/chordpro'
-export { renderChart, type ChartOptions } from './chords/chart'
-export { parseChord, type ParsedChord } from './theory/chord-symbol'
-export { chromaOf, midiOf, nameOf, noteOf, isFlat, SHARP_NAMES, FLAT_NAMES } from './theory/pitch'
-export { transposeChord, transposeKey, keyPrefersFlats } from './theory/transpose'
+} from './chords/chordpro.js'
+export { renderChart, type ChartOptions } from './chords/chart.js'
+export { parseChord, type ParsedChord } from './theory/chord-symbol.js'
+export {
+    chromaOf,
+    midiOf,
+    nameOf,
+    noteOf,
+    isFlat,
+    SHARP_NAMES,
+    FLAT_NAMES
+} from './theory/pitch.js'
+export { transposeChord, transposeKey, keyPrefersFlats } from './theory/transpose.js'
 export {
     chordNoteSet,
     scaleNoteSet,
@@ -45,5 +53,5 @@ export {
     type NoteSet,
     type NoteSetMember,
     type NoteLabel
-} from './theory/note-set'
-export type { VoicingLookup } from './voicings'
+} from './theory/note-set.js'
+export type { VoicingLookup } from './voicings/index.js'

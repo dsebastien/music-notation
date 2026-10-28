@@ -1,7 +1,7 @@
 /** Piano keyboards with highlighted notes, as SVG. */
-import { svg, svgRoot, svgText } from '../render/dom'
-import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set'
-import { midiOf } from '../theory/pitch'
+import { svg, svgRoot, svgText } from '../render/dom.js'
+import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set.js'
+import { midiOf } from '../theory/pitch.js'
 
 export interface KeyboardOptions {
     /** Lowest and highest MIDI pitch shown; computed from the notes when absent. */
@@ -23,7 +23,9 @@ const isBlack = (midi: number) => BLACK.has(((midi % 12) + 12) % 12)
 
 /** "C3-B4" → MIDI range; null when invalid. */
 export function parseKeyRange(text: string): [number, number] | null {
-    const [from, to] = text.split(/\s*-\s*(?=[A-Ga-g])/).map((n) => midiOf(n))
+    const parts = text.split(/\s*-\s*(?=[A-Ga-g])/)
+    if (parts.length !== 2) return null
+    const [from, to] = parts.map((n) => midiOf(n))
     return from !== undefined && from !== null && to !== undefined && to !== null && from < to
         ? [from, to]
         : null

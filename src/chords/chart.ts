@@ -1,7 +1,7 @@
 /** ChordPro songs rendered as HTML charts: chords above the lyrics, transposable. */
-import { html } from '../render/dom'
-import { keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose'
-import type { Song } from './chordpro'
+import { html } from '../render/dom.js'
+import { keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose.js'
+import type { Song } from './chordpro.js'
 
 export interface ChartOptions {
     /** Semitones added to the song's own `{transpose}`. */
@@ -16,7 +16,8 @@ const SECTION_LABELS: Record<string, string> = {
 }
 
 export function renderChart(doc: Document, song: Song, options: ChartOptions = {}): HTMLElement {
-    const semitones = song.transpose + (options.transpose ?? 0)
+    const extra = options.transpose ?? 0
+    const semitones = song.transpose + (Number.isFinite(extra) ? Math.round(extra) : 0)
     const key = song.key ? transposeKey(song.key, semitones) : null
     const flats = key ? keyPrefersFlats(key) : undefined
     const chord = (symbol: string) => transposeChord(symbol, semitones, flats)

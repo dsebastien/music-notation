@@ -73,6 +73,21 @@ export function parseLyrics(line: string): Segment[] {
     return segments
 }
 
+/**
+ * "{title: Song}", "{soc}", "{start_of_verse Verse 2}" → name and value; null when the line isn't
+ * a directive. No backtracking regex: one malformed line must never freeze the page.
+ */
+function parseDirective(line: string): { name: string; value: string } | null {
+    const trimmed = line.trim()
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return null
+    const inner = trimmed.slice(1, -1).trim()
+    const m = /^[\w-]+/.exec(inner)
+    if (!m) return null
+    const rest = inner.slice(m[0].length)
+    if (rest && !/^[\s:]/.test(rest)) return null
+    return { name: m[0].toLowerCase(), value: rest.replace(/^\s*:?/, '').trim() }
+}
+
 export function parseChordPro(source: string): Song {
     const song: Song = {
         title: null,
@@ -94,10 +109,9 @@ export function parseChordPro(source: string): Song {
     for (const raw of source.split(/\r?\n/)) {
         const line = raw.replace(/\s+$/, '')
         if (/^\s*#/.test(line)) continue
-        const directive = /^\s*\{\s*([\w-]+)\s*(?:[:\s]\s*(.*?))?\s*\}\s*$/.exec(line)
+        const directive = parseDirective(line)
         if (directive) {
-            const name = directive[1]!.toLowerCase()
-            const value = directive[2]?.trim() ?? ''
+            const { name, value } = directive
             const key = ALIASES[name] ?? name
             const start = /^start_of_(\w+)$/.exec(key)
             const end = /^end_of_(\w+)$/.exec(key)

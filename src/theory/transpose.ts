@@ -1,11 +1,9 @@
 /** Transposing chord symbols and keys by semitones. */
-import { chromaOf, isFlat, nameOf } from './pitch'
+import { chromaOf, isFlat, nameOf, splitChordSymbol } from './pitch.js'
 
 /** Keys written with flats (F♯ over G♭, D♭ over C♯): chords transposed into them use flats. */
 const FLAT_KEYS = new Set([5, 10, 3, 8, 1])
 const FLAT_MINOR_KEYS = new Set([2, 7, 0, 5, 10, 3])
-
-const CHORD = /^([A-G][#♯b♭]?)([^/]*)(?:\/([A-G][#♯b♭]?))?$/
 
 /** Whether a key ("F", "Bb", "Dm") is written with flats. */
 export function keyPrefersFlats(key: string): boolean {
@@ -28,19 +26,21 @@ const shift = (note: string, semitones: number, preferFlats: boolean): string =>
  */
 export function transposeChord(symbol: string, semitones: number, preferFlats?: boolean): string {
     const trimmed = symbol.trim()
-    const m = CHORD.exec(trimmed)
-    if (!m || semitones % 12 === 0) return trimmed
-    const flats = preferFlats ?? isFlat(m[1]!)
-    const bass = m[3] ? `/${shift(m[3], semitones, flats)}` : ''
-    return `${shift(m[1]!, semitones, flats)}${m[2]}${bass}`
+    const parts = splitChordSymbol(trimmed)
+    const steps = Math.round(semitones) || 0
+    if (!parts || steps % 12 === 0) return trimmed
+    const flats = preferFlats ?? isFlat(parts.root)
+    const bass = parts.bass ? `/${shift(parts.bass, steps, flats)}` : ''
+    return `${shift(parts.root, steps, flats)}${parts.suffix}${bass}`
 }
 
 /** Transpose a key ("Am", +3 → "Cm"), spelled the way that key is usually written. */
 export function transposeKey(key: string, semitones: number): string {
     const m = /^([A-G][#♯b♭]?)(.*)$/.exec(key.trim())
     const chroma = m ? chromaOf(m[1]!) : null
-    if (!m || chroma === null || semitones % 12 === 0) return key.trim()
-    const target = (((chroma + semitones) % 12) + 12) % 12
+    const steps = Math.round(semitones) || 0
+    if (!m || chroma === null || steps % 12 === 0) return key.trim()
+    const target = (((chroma + steps) % 12) + 12) % 12
     const minor = /^\s*(m|min|minor)\b/.test(m[2]!)
     const flats = minor ? FLAT_MINOR_KEYS.has(target) : FLAT_KEYS.has(target)
     return `${nameOf(target, flats)}${m[2]}`

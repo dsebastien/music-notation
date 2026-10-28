@@ -3,8 +3,8 @@
  * separate entry point: the data adds about 230 KB, so only consumers that want it pay for it.
  */
 import db from '@tombatossals/chords-db/lib/guitar.json'
-import type { FrettedVoicing } from '../chord/guitar'
-import { chromaOf } from '../theory/pitch'
+import type { FrettedVoicing } from '../chord/guitar.js'
+import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 
 /** Finds the n-th voicing (0-based) of a chord symbol; null when unknown. */
 export type VoicingLookup = (symbol: string, index: number) => FrettedVoicing | null
@@ -35,17 +35,24 @@ const SUFFIX_ALIASES: Record<string, string> = {
     'ø': 'm7b5',
     'ø7': 'm7b5',
     'm7-5': 'm7b5',
-    'add2': 'add9'
+    'add2': 'add9',
+    '6/9': '69',
+    'mM7': 'mmaj7',
+    'mMaj7': 'mmaj7',
+    'm(maj7)': 'mmaj7',
+    '-(maj7)': 'mmaj7'
 }
 
 export const lookupGuitarVoicing: VoicingLookup = (symbol, index) => {
-    const m = /^([A-G][#♯b♭]?)([^/]*)(?:\/([A-G][#♯b♭]?))?$/.exec(symbol.trim())
-    if (!m) return null
-    const chroma = chromaOf(m[1]!)
+    const parts = splitChordSymbol(symbol)
+    if (!parts) return null
+    const chroma = chromaOf(parts.root)
     if (chroma === null) return null
-    const suffix = SUFFIX_ALIASES[m[2]!] ?? m[2]!
+    const suffix = Object.prototype.hasOwnProperty.call(SUFFIX_ALIASES, parts.suffix)
+        ? SUFFIX_ALIASES[parts.suffix]!
+        : parts.suffix
     // Slash chords are stored as "/E" (major) and "m/B" (minor) suffixes.
-    const bassChroma = m[3] ? chromaOf(m[3]) : null
+    const bassChroma = parts.bass ? chromaOf(parts.bass) : null
     const bass = bassChroma === null ? null : DB_BASSES[bassChroma]!
     const wanted = bass
         ? `${suffix === 'major' ? '' : suffix === 'minor' ? 'm' : suffix}/${bass}`

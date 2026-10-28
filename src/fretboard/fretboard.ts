@@ -1,8 +1,8 @@
 /** Fretboards with the notes of a scale, chord or list, as SVG. High string on top, like tabs. */
-import { svg, svgRoot, svgText } from '../render/dom'
-import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set'
-import { nameOf } from '../theory/pitch'
-import { STANDARD_TUNING } from '../chord/guitar'
+import { svg, svgRoot, svgText } from '../render/dom.js'
+import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set.js'
+import { nameOf } from '../theory/pitch.js'
+import { STANDARD_TUNING } from '../chord/guitar.js'
 
 export interface FretboardOptions {
     /** Open-string pitches (MIDI), lowest string first. */

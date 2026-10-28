@@ -1,6 +1,6 @@
 /** Render a notation block into a host element. Never throws: errors render inline. */
-import { RENDERERS, type NotationLanguage, type RenderOptions } from '../blocks/renderers'
-import { html } from './dom'
+import { RENDERERS, type NotationLanguage, type RenderOptions } from '../blocks/renderers.js'
+import { html } from './dom.js'
 
 export const LANGUAGES = Object.keys(RENDERERS) as NotationLanguage[]
 

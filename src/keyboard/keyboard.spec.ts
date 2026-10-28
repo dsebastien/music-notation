@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { keyRangeOf, parseKeyRange, renderKeyboard } from './keyboard'
-import { chordNoteSet, listNoteSet, scaleNoteSet } from '../theory/note-set'
+import { keyRangeOf, parseKeyRange, renderKeyboard } from './keyboard.js'
+import { chordNoteSet, listNoteSet, scaleNoteSet } from '../theory/note-set.js'
 
 describe('keyboard ranges', () => {
     it('reads note ranges', () => {
@@ -8,6 +8,7 @@ describe('keyboard ranges', () => {
         expect(parseKeyRange('C#3 - Bb4')).toEqual([49, 70])
         expect(parseKeyRange('B4-C3')).toBeNull()
         expect(parseKeyRange('C3')).toBeNull()
+        expect(parseKeyRange('C3-B4-C6')).toBeNull()
     })
 
     it('covers whole octaves around exact pitches, two octaves otherwise', () => {

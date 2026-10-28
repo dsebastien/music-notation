@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { parseChord } from './chord-symbol'
+import { parseChord } from './chord-symbol.js'
 
 describe('parseChord', () => {
     it('spells chord symbols out in ASCII', () => {
@@ -13,6 +13,9 @@ describe('parseChord', () => {
         expect(parseChord('C/G')).toMatchObject({ bass: 'G', name: 'C Major over G' })
         expect(parseChord('E5')?.name).toBe('E 5')
         expect(parseChord('Bm7b5')?.quality).toBe('Minor 7 flat 5')
+        expect(parseChord('F♯m')?.name).toBe('F Sharp Minor')
+        expect(parseChord('C6/9')).toMatchObject({ quality: '6/9', bass: null })
+        expect(parseChord('Cm(maj7)')?.quality).toBe('Minor major 7')
     })
 
     it('rejects what is not a chord symbol', () => {

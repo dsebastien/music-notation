@@ -28,18 +28,18 @@ title: A (open)
 ```
 ````
 
-| Key          | Meaning                                                                                                        |
-| ------------ | -------------------------------------------------------------------------------------------------------------- |
-| `symbol`     | Chord symbol: `A`, `F#m7`, `C/G`. Its root notes are highlighted. Also the title, unless `title` is set.       |
-| `frets`      | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`. |
-| `fingers`    | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre.       |
-| `voicing`    | With only a symbol, the n-th voicing from the built-in database (1 = the most common).                         |
-| `position`   | The first fret shown. Computed when absent.                                                                    |
-| `tuning`     | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                |
-| `instrument` | `piano` draws a keyboard.                                                                                      |
-| `pitches`    | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                               |
-| `fingering`  | Piano: one finger per key, low to high: `5-3-1`.                                                               |
-| `title`      | The title shown above.                                                                                         |
+| Key          | Meaning                                                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `symbol`     | Chord symbol: `A`, `F#m7`, `B♭`, `C/G`, `C6/9`. Its root notes are highlighted. Also the title, unless `title` is set. A symbol the library doesn't know still works with `frets`, without root marks. |
+| `frets`      | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`.                                                                                         |
+| `fingers`    | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre.                                                                                               |
+| `voicing`    | With only a symbol, the n-th voicing from the built-in database (1 = the most common).                                                                                                                 |
+| `position`   | The first fret shown; at most the lowest fretted note. Computed when absent.                                                                                                                           |
+| `tuning`     | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                                                                                                        |
+| `instrument` | `piano` draws a keyboard.                                                                                                                                                                              |
+| `pitches`    | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                       |
+| `fingering`  | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                         |
+| `title`      | The title shown above.                                                                                                                                                                                 |
 
 A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
 
@@ -62,16 +62,16 @@ labels: degrees
 ```
 ````
 
-| Key      | Meaning                                                                                      |
-| -------- | -------------------------------------------------------------------------------------------- |
-| `scale`  | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                             |
-| `chord`  | `Cmaj7`, `G7`, `F#m7b5`…                                                                     |
-| `notes`  | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                     |
-| `range`  | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes. |
-| `labels` | `notes` (default), `degrees`, `intervals` (R, b3, 5…), `none`.                               |
-| `title`  | The title shown above.                                                                       |
+| Key      | Meaning                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------- |
+| `scale`  | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                  |
+| `chord`  | `Cmaj7`, `G7`, `F#m7b5`…                                                                          |
+| `notes`  | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                          |
+| `range`  | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.      |
+| `labels` | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`. |
+| `title`  | The title shown above.                                                                            |
 
-The short first line is tried as a scale, then a chord, then a list of notes. The root is drawn in a second color.
+The short first line is tried as a scale, then as notes with octaves (`C4` is that key), then as a chord, then as a list of notes. The root is drawn in a second color.
 
 ## Fretboard
 
@@ -118,5 +118,6 @@ Supported:
 - Sections: verse, chorus, bridge (`{start_of_verse}`, `{sov}`, `{soc}`, `{sob}`…), with an optional label (`{start_of_verse: Verse 2}`); tab and grid sections are shown as written.
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
 - `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key.
+- Long lyric lines wrap on narrow screens.
 
 Other directives are ignored.

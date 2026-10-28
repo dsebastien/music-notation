@@ -2,6 +2,7 @@
  * Chord symbols ("F#m7", "C/G") → root, quality, bass and a name spelled out in ASCII
  * ("F Sharp Minor 7"), safe for file names and wikilinks.
  */
+import { splitChordSymbol } from './pitch.js'
 
 /** Suffix → quality name. Order matters: the first match wins. */
 const QUALITY_SUFFIXES: [RegExp, string][] = [
@@ -20,6 +21,8 @@ const QUALITY_SUFFIXES: [RegExp, string][] = [
     [/^(sus4|sus)$/, 'Sus4'],
     [/^(add9|add2)$/, 'Add9'],
     [/^5$/, '5 (Power)'],
+    [/^(6\/9|69)$/, '6/9'],
+    [/^(mM7|mMaj7|mmaj7|m\(maj7\)|-\(maj7\))$/, 'Minor major 7'],
     [/^(13|11|9|7|6)$/, '$1'],
     [/^(maj|M)?$/, 'Major']
 ]
@@ -41,13 +44,13 @@ const plain = (quality: string) => quality.replace(/\s*\([^)]*\)/g, '').trim()
 
 /** Parse a chord symbol; null when it isn't one. */
 export function parseChord(symbol: string): ParsedChord | null {
+    const parts = splitChordSymbol(symbol)
+    if (!parts) return null
     const trimmed = symbol.trim()
-    const m = /^([A-G][#b]?)([^/]*)(?:\/([A-G][#b]?))?$/.exec(trimmed)
-    if (!m) return null
-    const [, root, suffix, bass] = m
+    const { root, suffix, bass } = parts
     let quality: string | null = null
     for (const [re, label] of QUALITY_SUFFIXES) {
-        const hit = re.exec(suffix!)
+        const hit = re.exec(suffix)
         if (hit) {
             quality = label.replace('$1', hit[1] ?? '')
             break
@@ -56,9 +59,9 @@ export function parseChord(symbol: string): ParsedChord | null {
     if (!quality) return null
     return {
         symbol: trimmed,
-        root: root!,
+        root,
         quality,
-        bass: bass ?? null,
-        name: `${spell(root!)} ${plain(quality)}${bass ? ` over ${spell(bass)}` : ''}`
+        bass,
+        name: `${spell(root)} ${plain(quality)}${bass ? ` over ${spell(bass)}` : ''}`
     }
 }
