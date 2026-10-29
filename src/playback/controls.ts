@@ -3,7 +3,7 @@
  * sound, at the bottom of the diagram, shown on hover (on tap on touch screens). A click on a dot
  * or a key plays that note.
  */
-import { html } from '../render/dom.js'
+import { html, svg } from '../render/dom.js'
 import {
     DEFAULT_SEQUENCE,
     lightPlayer,
@@ -31,6 +31,26 @@ export interface PlayOptions {
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
+
+/** Small icons, drawn so they look the same in every font. */
+const ICONS: Record<'play' | 'stop' | 'loop' | 'volume', string> = {
+    play: 'M4 2.5v11l9-5.5z',
+    stop: 'M4 4h8v8H4z',
+    loop: 'M3 8a5 5 0 0 1 8.5-3.5L13 6V2.5M13 8a5 5 0 0 1-8.5 3.5L3 10v3.5',
+    volume: 'M2 6h3l4-3v10l-4-3H2zM11 5.5a3.5 3.5 0 0 1 0 5'
+}
+
+function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
+    const root = svg(doc, 'svg', {
+        'class': `mn-play-icon mn-play-icon-${name}`,
+        'viewBox': '0 0 16 16',
+        'width': 12,
+        'height': 12,
+        'aria-hidden': 'true'
+    })
+    root.appendChild(svg(doc, 'path', { d: ICONS[name] }))
+    return root
+}
 
 /** The player apps passed, or one light synthesizer per window. */
 const players = new WeakMap<Window, NotePlayer>()
@@ -101,11 +121,12 @@ function barFor(
     }
     let playing: PlayHandle | null = null
 
-    const toggle = html(doc, 'button', 'mn-play-toggle', '▶')
+    const toggle = html(doc, 'button', 'mn-play-toggle')
     toggle.type = 'button'
     const show = () => {
-        toggle.textContent = playing ? '■' : '▶'
+        toggle.replaceChildren(icon(doc, playing ? 'stop' : 'play'))
         toggle.setAttribute('aria-label', playing ? 'Stop' : 'Play')
+        toggle.title = playing ? 'Stop' : 'Play'
     }
     const stop = () => {
         playing?.stop()
@@ -130,8 +151,10 @@ function barFor(
     show()
     bar.appendChild(toggle)
 
-    const loop = html(doc, 'button', 'mn-play-loop', '⟲')
+    const loop = html(doc, 'button', 'mn-play-loop')
     loop.type = 'button'
+    loop.appendChild(icon(doc, 'loop'))
+    loop.title = 'Loop'
     loop.setAttribute('aria-label', 'Loop')
     loop.setAttribute('aria-pressed', 'false')
     loop.addEventListener('click', () => {
@@ -146,29 +169,49 @@ function barFor(
         min: number,
         max: number,
         value: number,
-        set: (n: number) => void
+        set: (n: number) => void,
+        mark: string | SVGElement
     ) => {
         const field = html(doc, 'label', 'mn-play-field')
-        field.appendChild(html(doc, 'span', 'mn-play-label', label))
+        field.title = `${label}: ${value}`
+        const tag = html(doc, 'span', 'mn-play-label')
+        tag.setAttribute('aria-hidden', 'true')
+        tag.append(mark)
         const input = html(doc, 'input')
         input.type = 'range'
         input.min = String(min)
         input.max = String(max)
         input.value = String(value)
-        const out = html(doc, 'span', 'mn-play-value', String(value))
+        input.setAttribute('aria-label', label)
         input.addEventListener('input', () => {
             set(Number(input.value))
-            out.textContent = input.value
+            field.title = `${label}: ${input.value}`
         })
-        field.append(input, out)
+        field.append(tag, input)
         bar.appendChild(field)
     }
     // Speed only when several notes play: BPM for scales, the strum's spread for chords.
     if (data.pitches.length > 1) {
-        if (data.kind === 'scale') slider('BPM', 20, 240, settings.bpm, (n) => (settings.bpm = n))
-        else slider('Strum ms', 0, 200, settings.strum, (n) => (settings.strum = n))
+        if (data.kind === 'scale')
+            slider('Tempo (BPM)', 20, 240, settings.bpm, (n) => (settings.bpm = n), '♩')
+        else
+            slider(
+                'Strum (ms between strings)',
+                0,
+                200,
+                settings.strum,
+                (n) => (settings.strum = n),
+                '≋'
+            )
     }
-    slider('Vol', 0, 100, Math.round(settings.volume * 100), (n) => (settings.volume = n / 100))
+    slider(
+        'Volume',
+        0,
+        100,
+        Math.round(settings.volume * 100),
+        (n) => (settings.volume = n / 100),
+        icon(doc, 'volume')
+    )
 
     const sound = html(doc, 'select', 'mn-play-sound')
     sound.setAttribute('aria-label', 'Sound')

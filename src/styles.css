@@ -67,7 +67,8 @@
     stroke-width: 2;
 }
 
-/* Playback: a bar at the bottom of the diagram, shown on hover, keyboard focus or a tap. */
+/* Playback: a compact strip at the bottom of the diagram, shown on hover, keyboard focus or a
+   tap. Host styles (Obsidian's buttons, selects and sliders) are reset inside it. */
 .mn-playable {
     position: relative;
     display: inline-block;
@@ -76,19 +77,21 @@
 
 .mn-play {
     position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 4px 8px;
-    padding: 4px 6px;
-    font-size: 11px;
+    justify-content: center;
+    gap: 2px 6px;
+    padding: 2px 4px;
+    font-size: 10px;
+    line-height: 1;
     color: var(--mn-fg);
-    background: color-mix(in srgb, var(--mn-bg) 88%, transparent);
-    border-top: 1px solid var(--mn-faint);
-    border-radius: 0 0 6px 6px;
+    background: color-mix(in srgb, var(--mn-bg) 85%, transparent);
+    border: 1px solid var(--mn-faint);
+    border-radius: 6px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 120ms ease;
@@ -103,13 +106,25 @@
 
 .mn-play button,
 .mn-play select {
-    font: inherit;
+    all: unset;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 18px;
+    min-width: 18px;
+    padding: 0 3px;
+    font-size: 10px;
     color: inherit;
-    background: transparent;
-    border: 1px solid var(--mn-muted);
     border-radius: 4px;
-    padding: 1px 6px;
     cursor: pointer;
+}
+
+.mn-play button:hover,
+.mn-play select:hover,
+.mn-play button:focus-visible,
+.mn-play select:focus-visible {
+    background: color-mix(in srgb, var(--mn-fg) 12%, transparent);
 }
 
 .mn-play button.mn-on {
@@ -117,14 +132,61 @@
     color: var(--mn-on-accent);
 }
 
+.mn-play-icon {
+    fill: currentColor;
+    stroke: none;
+}
+
+.mn-play-icon-loop,
+.mn-play-icon-volume {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .mn-play-field {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 2px;
 }
 
-.mn-play-field input {
-    width: 64px;
+.mn-play-label {
+    display: inline-flex;
+    opacity: 0.8;
+}
+
+.mn-play input[type='range'] {
+    all: unset;
+    appearance: none;
+    width: 44px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--mn-faint);
+    cursor: pointer;
+}
+
+.mn-play input[type='range']::-webkit-slider-runnable-track {
+    height: 3px;
+}
+
+.mn-play input[type='range']::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -3px;
+    width: 9px;
+    height: 9px;
+    border: none;
+    border-radius: 50%;
+    background: var(--mn-accent);
+}
+
+.mn-play input[type='range']::-moz-range-thumb {
+    width: 9px;
+    height: 9px;
+    border: none;
+    border-radius: 50%;
+    background: var(--mn-accent);
 }
 
 .mn-playable [data-midi] {

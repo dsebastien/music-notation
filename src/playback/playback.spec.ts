@@ -71,10 +71,11 @@ describe('playback bar', () => {
         const bar = h.querySelector('.mn-play')!
         expect(bar.querySelector('.mn-play-toggle')?.getAttribute('aria-label')).toBe('Play')
         expect(bar.querySelector('.mn-play-loop')).not.toBeNull()
-        expect([...bar.querySelectorAll('.mn-play-label')].map((l) => l.textContent)).toEqual([
-            'Strum ms',
-            'Vol'
-        ])
+        expect(
+            [...bar.querySelectorAll('input[type="range"]')].map((l) =>
+                l.getAttribute('aria-label')
+            )
+        ).toEqual(['Strum (ms between strings)', 'Volume'])
         expect((bar.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('guitar')
     })
 
@@ -93,7 +94,7 @@ describe('playback bar', () => {
         expect(calls[1]!.events.map((e) => e.midi)).toEqual([
             60, 62, 64, 65, 67, 69, 71, 69, 67, 65, 64, 62, 60
         ])
-        expect([...k.querySelectorAll('.mn-play-label')].map((l) => l.textContent)).toContain('BPM')
+        expect(k.querySelector('input[aria-label="Tempo (BPM)"]')).not.toBeNull()
         k.querySelector('[data-midi="64"]')!.dispatchEvent(new Event('click', { bubbles: true }))
         expect(calls[2]!.events).toEqual([{ midi: 64, time: 0, duration: 1.5 }])
     })
