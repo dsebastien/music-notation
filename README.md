@@ -61,6 +61,8 @@ modes: C major
 ```
 ````
 
+![A Major's easiest voicings, and G triads on the three highest strings](docs/images/voicings.png)
+
 Several diagrams side by side, separated by `---`, with shared settings first; vertical or horizontal, and left-handed:
 
 ````markdown

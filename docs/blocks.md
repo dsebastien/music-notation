@@ -71,6 +71,8 @@ fingering: 5-1-2-4</code></pre></div>
 
 `voicings:` draws every playable way to play a guitar chord, easiest first, in a row. The library finds them from the chord's notes, so it works for any chord, any tuning and up to 8 strings.
 
+![A Major's easiest voicings, and G triads on the three highest strings](images/voicings.png)
+
 ````markdown
 ```chord
 A Major
