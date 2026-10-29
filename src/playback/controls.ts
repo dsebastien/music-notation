@@ -8,6 +8,7 @@ import {
     DEFAULT_SEQUENCE,
     lightPlayer,
     sequenceOf,
+    type NoteEvent,
     type NotePlayer,
     type PlayHandle,
     type PlayKind,
@@ -30,7 +31,9 @@ export interface PlayOptions {
     strum?: number
 }
 
-const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n))
+/** A number within bounds; the fallback when it isn't a number at all. */
+const clamp = (n: number | undefined, lo: number, hi: number, fallback: number) =>
+    n === undefined || !Number.isFinite(n) ? fallback : Math.min(hi, Math.max(lo, n))
 
 /** Small icons, drawn so they look the same in every font. */
 const ICONS: Record<'play' | 'stop' | 'loop' | 'volume', string> = {
@@ -52,11 +55,9 @@ function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
     return root
 }
 
-/** The player apps passed, or one light synthesizer per window. */
+/** One light synthesizer per window. */
 const players = new WeakMap<Window, NotePlayer>()
-function playerFor(win: Window, options: PlayOptions): NotePlayer {
-    const given = typeof options.player === 'function' ? options.player() : options.player
-    if (given) return given
+function lightFor(win: Window): NotePlayer {
     let player = players.get(win)
     if (!player) {
         player = lightPlayer(win)
@@ -65,8 +66,22 @@ function playerFor(win: Window, options: PlayOptions): NotePlayer {
     return player
 }
 
+/** The player apps passed (read at each play), else the light synthesizer. */
+function playerFor(win: Window, options: PlayOptions): NotePlayer {
+    const given = typeof options.player === 'function' ? options.player() : options.player
+    return given ?? lightFor(win)
+}
+
 /** The diagram's own playback data, set by its renderer. */
-function dataOf(diagram: Element): { kind: PlayKind; pitches: number[]; sound: Sound } | null {
+interface DiagramData {
+    kind: PlayKind
+    pitches: number[]
+    sound: Sound
+    /** A scale's root (chroma), for runs from root to root. */
+    root: number | null
+}
+
+function dataOf(diagram: Element): DiagramData | null {
     const pitches = (diagram.getAttribute('data-mn-pitches') ?? '')
         .split(' ')
         .filter(Boolean)
@@ -76,7 +91,10 @@ function dataOf(diagram: Element): { kind: PlayKind; pitches: number[]; sound: S
     return {
         kind: diagram.getAttribute('data-mn-play') === 'chord' ? 'chord' : 'scale',
         pitches,
-        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar'
+        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar',
+        root: Number.isInteger(Number(diagram.getAttribute('data-mn-root') ?? 'x'))
+            ? Number(diagram.getAttribute('data-mn-root'))
+            : null
     }
 }
 
@@ -101,7 +119,7 @@ function barFor(
     doc: Document,
     win: Window,
     diagram: Element,
-    data: { kind: PlayKind; pitches: number[]; sound: Sound },
+    data: DiagramData,
     options: PlayOptions
 ): () => void {
     const wrap = html(doc, 'div', 'mn-playable')
@@ -109,14 +127,16 @@ function barFor(
     wrap.appendChild(diagram)
     const bar = html(doc, 'div', 'mn-play')
     bar.setAttribute('role', 'group')
-    bar.setAttribute('aria-label', 'Playback')
+    // Named after the diagram, so a page with many bars reads clearly.
+    const name = diagram.getAttribute('aria-label')
+    bar.setAttribute('aria-label', name ? `Play ${name}` : 'Playback')
     wrap.appendChild(bar)
 
     const settings = {
         sound: options.sound ?? data.sound,
-        volume: clamp(options.volume ?? 0.8, 0, 1),
-        bpm: clamp(options.bpm ?? DEFAULT_SEQUENCE.bpm, 20, 400),
-        strum: clamp(options.strum ?? DEFAULT_SEQUENCE.strum, 0, 500),
+        volume: clamp(options.volume, 0, 1, 0.8),
+        bpm: clamp(options.bpm, 20, 240, DEFAULT_SEQUENCE.bpm),
+        strum: clamp(options.strum, 0, 200, DEFAULT_SEQUENCE.strum),
         loop: false
     }
     let playing: PlayHandle | null = null
@@ -133,17 +153,23 @@ function barFor(
         playing = null
         show()
     }
+    /** Plays notes with the app's player, or the light synthesizer when that one fails. */
+    const play = (events: NoteEvent[], onEnd: () => void): PlayHandle => {
+        const options_ = { sound: settings.sound, volume: settings.volume, onEnd }
+        try {
+            return playerFor(win, options).play(events, options_)
+        } catch {
+            return lightFor(win).play(events, options_)
+        }
+    }
     const start = () => {
         stop()
-        const events = sequenceOf(data.kind, data.pitches, settings)
-        playing = playerFor(win, options).play(events, {
-            sound: settings.sound,
-            volume: settings.volume,
-            onEnd: () => {
-                playing = null
-                if (settings.loop) start()
-                else show()
-            }
+        // A diagram no longer on the page (the block was redrawn or left) stops looping.
+        if (!wrap.isConnected) return
+        playing = play(sequenceOf(data.kind, data.pitches, settings, data.root), () => {
+            playing = null
+            if (settings.loop && wrap.isConnected) start()
+            else show()
         })
         show()
     }
@@ -228,17 +254,15 @@ function barFor(
 
     // A dot or a key plays its note.
     diagram.addEventListener('click', (event) => {
-        const target = event.target instanceof Element ? event.target.closest('[data-midi]') : null
+        // Not `instanceof Element`: nodes of a popout window have that window's Element.
+        const node = event.target as Partial<Element> | null
+        const target = typeof node?.closest === 'function' ? node.closest('[data-midi]') : null
         const midi = Number(target?.getAttribute('data-midi'))
         if (!target || !Number.isFinite(midi)) return
         stop()
-        playing = playerFor(win, options).play([{ midi, time: 0, duration: 1.5 }], {
-            sound: settings.sound,
-            volume: settings.volume,
-            onEnd: () => {
-                playing = null
-                show()
-            }
+        playing = play([{ midi, time: 0, duration: 1.5 }], () => {
+            playing = null
+            show()
         })
         show()
     })

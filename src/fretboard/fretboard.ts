@@ -154,7 +154,7 @@ export function renderFretboard(
             const hidden = options.strings !== undefined && !options.strings.includes(s)
             if (!member || hidden || (played && !played.has(`${s}:${fret}`))) {
                 // A parent scale's note missing here: a faint ring.
-                if (!member && options.marks?.ghosts?.has(chroma)) {
+                if (!member && !hidden && options.marks?.ghosts?.has(chroma)) {
                     root.appendChild(svg(doc, 'circle', { class: 'mn-ghost', cx, cy, r: 7 }))
                 }
                 continue
@@ -171,5 +171,6 @@ export function renderFretboard(
     root.setAttribute('data-mn-pitches', [...sounding].sort((a, b) => a - b).join(' '))
     root.setAttribute('data-mn-play', 'scale')
     root.setAttribute('data-mn-sound', 'guitar')
+    if (set.root !== null) root.setAttribute('data-mn-root', String(set.root))
     return root
 }

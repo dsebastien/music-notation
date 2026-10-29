@@ -3,12 +3,20 @@
  * notation. Idempotent (`data-mp-rendered`), follows the page as it changes (Publish swaps and
  * virtualises content), and hides the source only after a successful render.
  */
-import { LANGUAGES, renderBlock, resolveProperties } from '../render/render-block.js'
+import {
+    LANGUAGES,
+    renderBlock,
+    resolveProperties,
+    type RenderResult
+} from '../render/render-block.js'
 import type { NotationLanguage, RenderOptions } from '../blocks/renderers.js'
 
 const SELECTOR = LANGUAGES.map((l) => `pre > code.language-${l}`).join(', ')
 const MARK = 'mpRendered'
 const SOURCE = 'mpSource'
+
+/** What each block drew, so a rendering replaced or removed is stopped (playback, loops). */
+const results = new WeakMap<HTMLElement, RenderResult>()
 
 const languageOf = (code: Element): NotationLanguage | undefined =>
     LANGUAGES.find((l) => code.classList.contains(`language-${l}`))
@@ -50,6 +58,7 @@ export function renderAll(root: ParentNode, options: RenderOptions = {}): number
         const previous = renderingOf(pre)
         if (pre.dataset[MARK] && pre.dataset[SOURCE] === print && previous) return
         // New, edited, or its rendering was removed: (re)render from scratch.
+        results.get(pre)?.destroy()
         previous?.remove()
         pre.style.removeProperty('display')
         pre.dataset[SOURCE] = print
@@ -60,6 +69,7 @@ export function renderAll(root: ParentNode, options: RenderOptions = {}): number
             properties: (properties ?? null) as RenderOptions['properties']
         })
         pre.insertAdjacentElement('afterend', result.el)
+        results.set(pre, result)
         if (!result.ok) {
             // Leave the source visible; the error explains what's wrong.
             pre.dataset[MARK] = 'error'

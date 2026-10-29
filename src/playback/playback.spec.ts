@@ -61,7 +61,8 @@ function recorder() {
 }
 
 describe('playback bar', () => {
-    const host = () => document.createElement('div')
+    // On the page: a diagram that isn't stops playing.
+    const host = () => document.body.appendChild(document.createElement('div'))
 
     it('wraps each diagram with a bar: play, loop, speed when several notes, volume, sound', () => {
         const { player } = recorder()
@@ -99,14 +100,16 @@ describe('playback bar', () => {
         expect(calls[2]!.events).toEqual([{ midi: 64, time: 0, duration: 1.5 }])
     })
 
-    it('plays a fretboard as a scale, low to high', () => {
+    it('plays a fretboard as a scale, from root to root', () => {
         const { player, calls } = recorder()
         const h = host()
         renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: { player } })
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         const midis = calls[0]!.events.map((e) => e.midi)
+        // From the lowest A to the highest A of the box, and back.
         expect(midis[0]).toBe(45)
-        expect(midis.length).toBe(23)
+        expect(Math.max(...midis)).toBe(69)
+        expect(midis.length).toBe(21)
     })
 
     it('uses a player given later through a function', () => {
@@ -123,5 +126,41 @@ describe('playback bar', () => {
         const h = host()
         renderBlock('chord', 'A x02220', h)
         expect(h.querySelector('.mn-play')).toBeNull()
+    })
+
+    it('stops looping once the diagram is gone from the page', async () => {
+        const { player, calls } = recorder()
+        const looping: NotePlayer = {
+            play(events, options) {
+                const handle = player.play(events, options)
+                queueMicrotask(() => options.onEnd?.())
+                return handle
+            }
+        }
+        const h = host()
+        renderBlock('chord', 'A x02220', h, { play: { player: looping } })
+        ;(h.querySelector('.mn-play-loop') as HTMLButtonElement).click()
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        h.remove()
+        await new Promise((r) => setTimeout(r, 10))
+        expect(calls.length).toBeLessThanOrEqual(2)
+    })
+
+    it('falls back to the light synthesizer when the player fails', () => {
+        const failing: NotePlayer = {
+            play() {
+                throw new Error('no soundfont')
+            }
+        }
+        const h = host()
+        renderBlock('chord', 'A x02220', h, { play: { player: failing } })
+        expect(() =>
+            (h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        ).not.toThrow()
+    })
+
+    it('ignores values that are not numbers', () => {
+        const events = sequenceOf('scale', [60, 62], { bpm: Number.NaN, strum: Number.NaN })
+        expect(events[1]!.time).toBeCloseTo(60 / 90)
     })
 })

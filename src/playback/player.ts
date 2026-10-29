@@ -48,19 +48,28 @@ const RING = 2.5
 export function sequenceOf(
     kind: PlayKind,
     pitches: readonly number[],
-    options: SequenceOptions = DEFAULT_SEQUENCE
+    options: SequenceOptions = DEFAULT_SEQUENCE,
+    /** A scale's root (chroma): the run goes from the lowest root to the highest one. */
+    root: number | null = null
 ): NoteEvent[] {
     if (!pitches.length) return []
     if (kind === 'chord') {
-        const gap = Math.max(0, options.strum) / 1000
+        const strum = Number.isFinite(options.strum) ? options.strum : DEFAULT_SEQUENCE.strum
+        const gap = Math.min(200, Math.max(0, strum)) / 1000
         return pitches.map((midi, i) => ({
             midi,
             time: i * gap,
             duration: RING + (pitches.length - 1 - i) * gap
         }))
     }
-    const beat = 60 / Math.min(400, Math.max(20, options.bpm))
-    const up = [...pitches].sort((a, b) => a - b)
+    const bpm = Number.isFinite(options.bpm) ? options.bpm : DEFAULT_SEQUENCE.bpm
+    const beat = 60 / Math.min(240, Math.max(20, bpm))
+    let up = [...pitches].sort((a, b) => a - b)
+    if (root !== null) {
+        const roots = up.filter((p) => ((p % 12) + 12) % 12 === root)
+        if (roots.length >= 2)
+            up = up.filter((p) => p >= roots[0]! && p <= roots[roots.length - 1]!)
+    }
     const order = [...up, ...up.slice(0, -1).reverse()]
     return order.map((midi, i) => ({ midi, time: i * beat, duration: beat * 0.95 }))
 }
@@ -133,42 +142,82 @@ function contextFor(win: Window & { AudioContext?: AudioContextClass }): AudioCo
 }
 
 /** The light synthesizer: computed sound, a few KB, no download. */
+/** How long a guitar note's buffer lasts; each note is cut to its own length when it plays. */
+const STRING_SECONDS = 4
+
+/** The partials of the simple piano tone (fundamental first). */
+const PIANO_PARTIALS = [0, 1, 0.5, 0.3, 0.15, 0.08, 0.04]
+
 export function lightPlayer(win: Window): NotePlayer {
-    const cache = new Map<string, AudioBuffer>()
+    // One buffer per string pitch: notes of any length reuse it.
+    const strings = new Map<number, AudioBuffer>()
+    const waves = new WeakMap<AudioContext, PeriodicWave>()
+    const stringBuffer = (ctx: AudioContext, midi: number) => {
+        let buffer = strings.get(midi)
+        if (!buffer) {
+            const data = pluckedString(midi, ctx.sampleRate, STRING_SECONDS)
+            buffer = ctx.createBuffer(1, data.length, ctx.sampleRate)
+            buffer.getChannelData(0).set(data)
+            strings.set(midi, buffer)
+        }
+        return buffer
+    }
+    const pianoWave = (ctx: AudioContext) => {
+        let wave = waves.get(ctx)
+        if (!wave) {
+            const real = new Float32Array(PIANO_PARTIALS.length)
+            wave = ctx.createPeriodicWave(real, Float32Array.from(PIANO_PARTIALS))
+            waves.set(ctx, wave)
+        }
+        return wave
+    }
     return {
         play(events, { sound, volume, onEnd }) {
             const ctx = contextFor(win)
-            if (!ctx) return { stop() {} }
+            if (!ctx || !events.length) return { stop() {} }
             void ctx.resume()
+            // Buffers are made before the start time is read, so the first notes aren't late.
+            if (sound === 'guitar') for (const e of events) stringBuffer(ctx, e.midi)
             const gain = ctx.createGain()
-            gain.gain.value = Math.min(1, Math.max(0, volume))
+            gain.gain.value = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             gain.connect(ctx.destination)
             const start = ctx.currentTime + 0.05
             const sources = events.map((e) => {
-                const seconds = Math.min(4, e.duration + (sound === 'guitar' ? 0.5 : 0.3))
-                const key = `${sound}:${e.midi}:${seconds.toFixed(2)}`
-                let buffer = cache.get(key)
-                if (!buffer) {
-                    const data =
-                        sound === 'guitar'
-                            ? pluckedString(e.midi, ctx.sampleRate, seconds)
-                            : pianoTone(e.midi, ctx.sampleRate, seconds)
-                    buffer = ctx.createBuffer(1, data.length, ctx.sampleRate)
-                    buffer.getChannelData(0).set(data)
-                    cache.set(key, buffer)
-                }
-                const source = ctx.createBufferSource()
-                source.buffer = buffer
-                // Each note stops at its end, with a short fade so it doesn't click.
+                const at = start + e.time
+                const end = at + e.duration
+                // Each note fades out at its end, so it doesn't click.
                 const env = ctx.createGain()
-                env.gain.setValueAtTime(1, start + e.time + e.duration)
-                env.gain.linearRampToValueAtTime(0, start + e.time + e.duration + 0.08)
-                source.connect(env).connect(gain)
-                source.start(start + e.time)
-                source.stop(start + e.time + e.duration + 0.1)
+                env.connect(gain)
+                let source: AudioScheduledSourceNode
+                if (sound === 'guitar') {
+                    const buffer = ctx.createBufferSource()
+                    buffer.buffer = stringBuffer(ctx, e.midi)
+                    source = buffer
+                    env.gain.setValueAtTime(1, end)
+                } else {
+                    // A struck tone: a quick attack, then a decay, as a piano string.
+                    const osc = ctx.createOscillator()
+                    osc.setPeriodicWave(pianoWave(ctx))
+                    osc.frequency.value = frequency(e.midi)
+                    source = osc
+                    env.gain.setValueAtTime(0, at)
+                    env.gain.linearRampToValueAtTime(0.35, at + 0.005)
+                    env.gain.exponentialRampToValueAtTime(0.02, Math.max(at + 0.01, end))
+                }
+                env.gain.linearRampToValueAtTime(0, end + 0.08)
+                source.connect(env)
+                source.start(at)
+                source.stop(end + 0.1)
                 return source
             })
-            const timer = win.setTimeout(() => onEnd?.(), (lengthOf(events) + 0.15) * 1000)
+            const finish = () => gain.disconnect()
+            const timer = win.setTimeout(
+                () => {
+                    finish()
+                    onEnd?.()
+                },
+                (lengthOf(events) + 0.15) * 1000
+            )
             return {
                 stop() {
                     win.clearTimeout(timer)
@@ -179,7 +228,7 @@ export function lightPlayer(win: Window): NotePlayer {
                             // Already stopped.
                         }
                     }
-                    gain.disconnect()
+                    finish()
                 }
             }
         }

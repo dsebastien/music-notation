@@ -133,7 +133,7 @@ describe('renderTab', () => {
             b.getAttribute('aria-label')
         )
         expect(labels).toEqual(['Play', 'Stop', 'Loop', 'Metronome', 'Count-in'])
-        expect(h.querySelector('.mn-tab-time')?.textContent).toBe('0:00 / 0:00')
+        expect(h.querySelector('.mn-tab-time')?.textContent).toBe('')
     })
 
     it('draws a file the app finds, and says when it does not', async () => {

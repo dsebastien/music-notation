@@ -32,7 +32,8 @@
     "type": "module",
     "sideEffects": [
         "./dist/music-notation.publish.min.js",
-        "*.css"
+        "*.css",
+        "./dist/music-notation.tab.min.js"
     ],
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -140,7 +141,7 @@
         "tmp": "0.2.7"
     },
     "peerDependencies": {
-        "@coderline/alphatab": "1.8.4"
+        "@coderline/alphatab": "^1.8.4"
     },
     "peerDependenciesMeta": {
         "@coderline/alphatab": {

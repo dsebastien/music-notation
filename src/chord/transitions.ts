@@ -41,11 +41,15 @@ const FINGER_NAMES: Record<string, string> = {
 const ordinal = (n: number) =>
     `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`
 
-/** "the B string", "the low E string", "the high E string". */
+/** A slide longer than this many frets is a finger lifted and placed again. */
+const MAX_SLIDE = 3
+
+/** "the B string", "the low E string", "the high E string"; by number when three share a name. */
 function stringName(tuning: readonly number[], s: number): string {
     const name = noteOf(tuning[s]!).replace(/-?\d+$/, '')
     const same = tuning.filter((p) => noteOf(p).replace(/-?\d+$/, '') === name).length
     if (same < 2) return `the ${name} string`
+    if (same > 2) return `the ${ordinal(tuning.length - s)} string (${name})`
     const lowest = tuning.findIndex((p) => noteOf(p).replace(/-?\d+$/, '') === name)
     return `the ${s === lowest ? 'low' : 'high'} ${name} string`
 }
@@ -74,8 +78,14 @@ function move(
             anchors.push(s)
             return
         }
-        // The same finger on the same string, another fret: it slides.
-        if (before !== null && before !== undefined && before > 0 && fromFingers[s] === finger) {
+        // The same finger on the same string, a few frets away: it slides. Further, it's lifted.
+        if (
+            before !== null &&
+            before !== undefined &&
+            before > 0 &&
+            fromFingers[s] === finger &&
+            Math.abs(fret - before) <= MAX_SLIDE
+        ) {
             guides.push(s)
             movement += 0.5 + 0.1 * Math.abs(fret - before)
             return

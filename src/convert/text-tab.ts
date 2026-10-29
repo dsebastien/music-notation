@@ -6,10 +6,13 @@ import { parseTuning } from '../fretboard/tuning.js'
 import { noteOf } from '../theory/pitch.js'
 
 /** A tab line: an optional string name, then mostly dashes, frets and bar lines. */
-const STRING_LINE = /^\s*([A-Ga-g][#b]?)?\s*[|:]?[-0-9xX|hpbrsvt/\\~^().*<>\s]*$/
+const STRING_LINE = /^\s*([A-Ga-g][#b]?)?\s*[|:]?[-0-9xX|:hpbrsvt/\\~^().*<>\s]*$/
 
+/** A tab line: mostly dashes, and a bar line or a string name (a line of dashes alone is a rule). */
 const isStringLine = (line: string) =>
-    STRING_LINE.test(line) && (line.match(/-/g)?.length ?? 0) >= 4
+    STRING_LINE.test(line) &&
+    (line.match(/-/g)?.length ?? 0) >= 4 &&
+    (line.includes('|') || /^\s*[A-Ga-g][#b]?\s*[-|:]/.test(line))
 
 interface System {
     names: (string | null)[]
@@ -41,7 +44,8 @@ function barsOf(lines: string[]): { fret: number; string: number }[][][] {
     const padded = lines.map((l) => l.padEnd(width, '-'))
     const bars: { fret: number; string: number }[][][] = [[]]
     for (let col = 0; col < width; col++) {
-        if (padded.every((l) => l[col] === '|')) {
+        // Bar lines, repeat signs (|: :|) included.
+        if (padded.every((l) => l[col] === '|' || l[col] === ':')) {
             if (bars[bars.length - 1]!.length) bars.push([])
             continue
         }
@@ -54,10 +58,47 @@ function barsOf(lines: string[]): { fret: number; string: number }[][][] {
             if (two.length === 2) wide = true
             beat.push({ fret: Number(two), string: i + 1 })
         })
+        // Two-digit frets take two columns: a fret written one column right on another string
+        // (right-aligned under a 12) belongs to the same beat.
+        if (wide)
+            padded.forEach((line, i) => {
+                if (beat.some((n) => n.string === i + 1)) return
+                const c = line[col + 1] ?? ''
+                if (!/\d/.test(c) || /\d/.test(line[col] ?? '')) return
+                const two = /\d/.test(line[col + 2] ?? '') ? line.slice(col + 1, col + 3) : c
+                beat.push({ fret: Number(two), string: i + 1 })
+            })
         if (beat.length) bars[bars.length - 1]!.push(beat)
         if (wide) col++
     }
     return bars.filter((b) => b.length)
+}
+
+/** Usual tunings by string count, lowest string first (MIDI), for tabs without string names. */
+const BY_COUNT: Record<number, number[]> = {
+    4: [28, 33, 38, 43],
+    5: [23, 28, 33, 38, 43],
+    7: [35, 40, 45, 50, 55, 59, 64]
+}
+
+/** Basses tuned in fourths from E or B: an octave below a guitar. */
+const BASS = ['E A D G', 'B E A D G']
+
+/**
+ * The tuning a tab's string names say (highest string first, as tabs are written), lowest first;
+ * null for standard guitar (alphaTex's default).
+ */
+function tuningOf(names: (string | null)[]): number[] | null {
+    const strings = names.length
+    if (names.every((n) => n !== null)) {
+        const lowFirst = [...names].reverse()
+        if (strings === 6 && lowFirst.join(' ').toLowerCase() === 'e a d g b e') return null
+        const tuning = parseTuning(lowFirst.join(' '))
+        if (!tuning) return BY_COUNT[strings] ?? null
+        const bass = BASS.includes(lowFirst.map((n) => n.toUpperCase()).join(' '))
+        return bass ? tuning.map((m) => m - 12) : tuning
+    }
+    return strings === 6 ? null : (BY_COUNT[strings] ?? null)
 }
 
 /**
@@ -72,22 +113,14 @@ export function textTabToAlphaTex(text: string): string | null {
     const bars = systems.flatMap((s) => (s.lines.length === strings ? barsOf(s.lines) : []))
     if (!bars.length) return null
     const header: string[] = []
-    const standard = ['e', 'B', 'G', 'D', 'A', 'E']
-    const named = names.every((n) => n !== null)
-    const isStandard =
-        strings === 6 &&
-        (!named || names.every((n, i) => n.toLowerCase() === standard[i]!.toLowerCase()))
-    if (!isStandard && named) {
-        // Lowest string first for the tuning parser; alphaTex lists the highest first.
-        const tuning = parseTuning([...names].reverse().join(' '))
-        if (tuning)
-            header.push(
-                `\\tuning (${[...tuning]
-                    .reverse()
-                    .map((m) => noteOf(m))
-                    .join(' ')})`
-            )
-    }
+    const tuning = tuningOf(names)
+    if (tuning)
+        header.push(
+            `\\tuning (${[...tuning]
+                .reverse()
+                .map((m) => noteOf(m))
+                .join(' ')})`
+        )
     const beat = (notes: { fret: number; string: number }[]) =>
         notes.length === 1
             ? `${notes[0]!.fret}.${notes[0]!.string}`

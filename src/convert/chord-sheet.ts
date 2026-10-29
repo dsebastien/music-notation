@@ -10,8 +10,8 @@ function chordsOf(line: string): { chord: string; at: number }[] | null {
     const re = /\S+/g
     let m: RegExpExecArray | null
     while ((m = re.exec(line))) {
-        // Bar lines and repeat marks are allowed between chords.
-        if (/^[|/%x\d()-]+$/i.test(m[0]) && !/^\d/.test(m[0])) continue
+        // Bar lines, repeat marks (|: :| %), counts (2x, x2) and "no chord" between chords.
+        if (/^(\|:?|:?\||:|%|\/|-|\(?\d+x\)?|\(?x\d+\)?|n\.?c\.?)$/i.test(m[0])) continue
         if (!parseChord(m[0])) return null
         found.push({ chord: m[0], at: m.index })
     }
@@ -27,6 +27,9 @@ function sectionOf(line: string): string | null {
     return m ? m[1]!.trim() : null
 }
 
+/** A lyric line, its own brackets made round: in ChordPro, [x] is a chord. */
+const lyricsOf = (line: string) => line.trimEnd().replace(/\[/g, '(').replace(/\]/g, ')')
+
 /** ChordPro for a chord sheet: chords placed into the lyrics at their column. */
 export function chordSheetToChordPro(text: string): string {
     const lines = text.replace(/\t/g, '    ').split(/\r?\n/)
@@ -38,9 +41,17 @@ export function chordSheetToChordPro(text: string): string {
             out.push(`{comment: ${section}}`)
             continue
         }
+        // "Intro: G D Em C": a section with its chords.
+        const labelled = /^\s*([A-Za-z][\w -]{0,20}):\s+(\S.*)$/.exec(line)
+        const labelledChords = labelled ? chordsOf(labelled[2]!) : null
+        if (labelled && labelledChords) {
+            out.push(`{comment: ${labelled[1]!.trim()}}`)
+            out.push(labelledChords.map((c) => `[${c.chord}]`).join(' '))
+            continue
+        }
         const chords = chordsOf(line)
         if (!chords) {
-            out.push(line.trimEnd())
+            out.push(lyricsOf(line))
             continue
         }
         const next = lines[i + 1]
@@ -50,7 +61,7 @@ export function chordSheetToChordPro(text: string): string {
             out.push(chords.map((c) => `[${c.chord}]`).join(' '))
             continue
         }
-        let merged = next.trimEnd()
+        let merged = lyricsOf(next)
         const width = Math.max(merged.length, chords[chords.length - 1]!.at)
         merged = merged.padEnd(width, ' ')
         // From the last chord back, so earlier columns stay where they are.

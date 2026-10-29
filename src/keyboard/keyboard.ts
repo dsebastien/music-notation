@@ -158,5 +158,6 @@ export function renderKeyboard(
     root.setAttribute('data-mn-pitches', played.join(' '))
     root.setAttribute('data-mn-play', options.playAs ?? 'scale')
     root.setAttribute('data-mn-sound', 'piano')
+    if (set.root !== null) root.setAttribute('data-mn-root', String(set.root))
     return root
 }

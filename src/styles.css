@@ -205,6 +205,35 @@
     cursor: pointer;
 }
 
+/* A finger number or note name over a dot or key lets the click reach it. */
+.mn-playable .mn-svg text {
+    pointer-events: none;
+}
+
+/* The bar's empty space lets clicks through to the dots under it; its controls take them. */
+.mn-playable:hover .mn-play,
+.mn-playable:focus-within .mn-play,
+.mn-playable.mn-play-open .mn-play {
+    pointer-events: none;
+}
+
+.mn-playable:hover .mn-play > *,
+.mn-playable:focus-within .mn-play > *,
+.mn-playable.mn-play-open .mn-play > * {
+    pointer-events: auto;
+}
+
+/* Touch screens: hover sticks after a tap, so only a tap opens the bar. */
+@media (hover: none) {
+    .mn-playable:hover:not(.mn-play-open) .mn-play {
+        opacity: 0;
+    }
+
+    .mn-playable:hover:not(.mn-play-open) .mn-play > * {
+        pointer-events: none;
+    }
+}
+
 /* Tabs and scores: the player bar stays at the bottom of the screen while the score scrolls. */
 .mn-tab {
     position: relative;

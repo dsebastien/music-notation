@@ -89,8 +89,8 @@ export function renderBlock(
               modeParts(language, text) ??
               positionParts(language, text) ??
               transitionParts(language, text) ??
-              voicingParts(language, text) ??
-              triadParts(language, text))
+              triadParts(language, text) ??
+              voicingParts(language, text))
             : null
     } catch (e) {
         return failed(el, host, language, messageOf(e))
@@ -280,6 +280,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const value = block.fields.get('voicings')?.trim()
     if (value === undefined) return null
     const fields = block.fields
+    if (fields.has('triads')) throw new Error('Use triads or voicings, not both')
     const instrument = fields.get('instrument')?.toLowerCase()
     if (
         instrument === 'piano' ||
@@ -418,7 +419,7 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
     if (refused) throw new Error(`triads finds the frets itself: remove "${refused}"`)
     const instrument = fields.get('instrument')?.toLowerCase()
     if (instrument && instrument !== 'guitar' && !fields.get('tuning')) {
-        throw new Error(`triads are for guitar and other fretted instruments: give a tuning`)
+        throw new Error('triads are for guitar and other fretted instruments: give a tuning')
     }
     const tuningText = fields.get('tuning')
     const tuning = tuningText ? parseTuning(tuningText) : null
@@ -545,7 +546,15 @@ function transitionParts(language: DiagramLanguage, source: string): string[] | 
     const fields = block.fields
     const fromText = fields.get('from')
     const progressionText = fields.get('progression')
-    if (fromText === undefined && progressionText === undefined) return null
+    if (fromText === undefined && progressionText === undefined) {
+        if (fields.has('to'))
+            throw new Error('Add the chord you hold: from: C (with its frets: from: C x32010)')
+        return null
+    }
+    const instrument = fields.get('instrument')?.toLowerCase()
+    if (instrument && instrument !== 'guitar' && !fields.get('tuning')) {
+        throw new Error('Transitions are for guitar and other fretted instruments: give a tuning')
+    }
     if (fromText !== undefined && progressionText !== undefined) {
         throw new Error('Use from and to, or progression, not both')
     }
