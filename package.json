@@ -43,6 +43,9 @@
             ],
             "publish": [
                 "./dist/publish/index.d.ts"
+            ],
+            "tab": [
+                "./dist/tab/index.d.ts"
             ]
         }
     },
@@ -62,7 +65,13 @@
             "import": "./dist/publish/index.js",
             "default": "./dist/publish/index.js"
         },
+        "./tab": {
+            "types": "./dist/tab/index.d.ts",
+            "import": "./dist/tab/index.js",
+            "default": "./dist/tab/index.js"
+        },
         "./music-notation.css": "./dist/music-notation.css",
+        "./music-notation.tab.min.js": "./dist/music-notation.tab.min.js",
         "./music-notation.publish.min.js": "./dist/music-notation.publish.min.js",
         "./package.json": "./package.json"
     },
@@ -102,6 +111,7 @@
         "tonal": "6.5.1"
     },
     "devDependencies": {
+        "@coderline/alphatab": "1.8.4",
         "@commitlint/cli": "^20.1.0",
         "@commitlint/config-conventional": "^20.1.0",
         "@eslint/js": "^9.36.0",
@@ -128,5 +138,13 @@
         "picomatch": "2.3.2",
         "lodash": "4.18.1",
         "tmp": "0.2.7"
+    },
+    "peerDependencies": {
+        "@coderline/alphatab": "1.8.4"
+    },
+    "peerDependenciesMeta": {
+        "@coderline/alphatab": {
+            "optional": true
+        }
     }
 }

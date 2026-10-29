@@ -59,8 +59,15 @@ export default defineConfig([
         }
     },
     {
-        // Specs and build tooling run with a global document.
-        files: ['**/*.spec.ts', 'src/test-setup.ts', 'scripts/**', 'src/publish/auto.ts'],
+        // Specs, build tooling and the page bundles (which start on the page's own document) run
+        // with a global document.
+        files: [
+            '**/*.spec.ts',
+            'src/test-setup.ts',
+            'scripts/**',
+            'src/publish/auto.ts',
+            'src/tab/auto.ts'
+        ],
         rules: { 'no-restricted-globals': 'off' }
     }
 ])

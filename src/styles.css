@@ -193,6 +193,41 @@
     cursor: pointer;
 }
 
+/* Tabs and scores: the player bar stays at the bottom of the screen while the score scrolls. */
+.mn-tab {
+    position: relative;
+}
+
+.mn-tab .mn-tab-bar {
+    position: sticky;
+    left: auto;
+    right: auto;
+    bottom: 6px;
+    width: fit-content;
+    max-width: 100%;
+    margin: 4px auto 0;
+}
+
+.mn-tab:hover .mn-tab-bar,
+.mn-tab:focus-within .mn-tab-bar,
+.mn-tab.mn-play-open .mn-tab-bar {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mn-tab-time {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+}
+
+.mn-tab-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    left: -9999px;
+}
+
 /* Chord transitions: a finger that stays (anchor) gets a ring, one that slides (guide) a dashed
    ring, so the marks don't rest on color alone. */
 .mn-svg .mn-dot.mn-anchor {

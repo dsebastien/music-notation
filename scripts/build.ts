@@ -30,7 +30,12 @@ const BUNDLED = [
 ]
 
 const library = await Bun.build({
-    entrypoints: ['src/index.ts', 'src/voicings/index.ts', 'src/publish/index.ts'],
+    entrypoints: [
+        'src/index.ts',
+        'src/voicings/index.ts',
+        'src/publish/index.ts',
+        'src/tab/index.ts'
+    ],
     outdir: 'dist',
     root: 'src',
     naming: { entry: '[dir]/[name].js' },
@@ -58,6 +63,18 @@ const bundle = await Bun.build({
 })
 if (!bundle.success) throw new AggregateError(bundle.logs, 'Publish bundle build failed')
 
+// Tabs and scores on web pages: alphaTab itself comes from jsDelivr at run time, not this file.
+const tabBundle = await Bun.build({
+    entrypoints: ['src/tab/auto.ts'],
+    outdir: 'dist',
+    naming: 'music-notation.tab.min.js',
+    target: 'browser',
+    format: 'iife',
+    minify: true,
+    banner: `/*! @dsebastien/music-notation ${pkg.version} tab bundle | MIT | loads alphaTab (MPL-2.0) from jsDelivr */`
+})
+if (!tabBundle.success) throw new AggregateError(tabBundle.logs, 'Tab bundle build failed')
+
 await cp('src/styles.css', 'dist/music-notation.css')
 
 const notices = await Promise.all(
@@ -71,6 +88,7 @@ await $`bunx tsc -p tsconfig.build.json`
 
 const size = Bun.file('dist/music-notation.publish.min.js').size
 console.log(`Publish bundle: ${(size / 1024).toFixed(0)} KB`)
+console.log(`Tab bundle: ${(Bun.file('dist/music-notation.tab.min.js').size / 1024).toFixed(0)} KB`)
 
 // Node 24 runs TypeScript directly (type stripping), the way consumers' Node would load dist/.
 await $`node scripts/check-dist.ts`

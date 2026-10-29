@@ -13,7 +13,19 @@ const expect: Record<string, string[]> = {
         'STYLES'
     ],
     'dist/voicings/index.js': ['lookupGuitarVoicing', 'voicingCount'],
-    'dist/publish/index.js': ['renderAll', 'autoRender']
+    'dist/publish/index.js': ['renderAll', 'autoRender'],
+    'dist/tab/index.js': [
+        'renderTab',
+        'parseTabSource',
+        'soundfontPlayer',
+        'createSoundfontPlayer',
+        'scoreToAlphaTex',
+        'exportGp7',
+        'exportMidi',
+        'textTabToAlphaTex',
+        'chordSheetToChordPro',
+        'ALPHATAB_VERSION'
+    ]
 }
 
 let failed = false
