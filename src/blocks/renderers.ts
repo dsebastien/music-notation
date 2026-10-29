@@ -7,6 +7,7 @@ import {
     parseFingers,
     parseFrets,
     renderGuitarDiagram,
+    STANDARD_TUNING,
     type FrettedVoicing
 } from '../chord/guitar.js'
 import { parseChordPro } from '../chords/chordpro.js'
@@ -17,6 +18,8 @@ import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.
 import { chordNoteSet, listNoteSet, type NoteSet } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { parseChord } from '../theory/chord-symbol.js'
+import { readChord, suggestChords } from '../theory/chord-name.js'
+import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import {
     parseHand,
@@ -26,13 +29,24 @@ import {
     type Orientation
 } from '../render/layout.js'
 import { parseBlockSource, parseRange, type BlockSource } from './block-source.js'
-import { labelField, noteSetOf, orFail } from './note-set-field.js'
+import type { Instrument, PropertyNames } from './properties.js'
+import { labelField, marksOf, noteSetOf, orFail } from './note-set-field.js'
+import { positionCount, positionOf, scalePosition, type Cell } from '../fretboard/positions.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
     voicings?: VoicingLookup
     /** Semitones to transpose chord charts by. */
     transpose?: number
+    /**
+     * The note's properties (or a function returning them, read at each render): an empty
+     * `chord`, `fretboard` or `keyboard` block draws from them (see `blockFromProperties`).
+     */
+    properties?: Record<string, unknown> | (() => Record<string, unknown> | null | undefined) | null
+    /** Property names, when they differ from the defaults. */
+    propertyNames?: Partial<PropertyNames>
+    /** The note's instrument; from its tags when absent. */
+    instrument?: Instrument
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element
@@ -46,8 +60,18 @@ export type DiagramLanguage = 'chord' | 'keyboard' | 'fretboard'
 /** Keys a row's shared settings may hold, per language (plus `columns`, for the row itself). */
 export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
     chord: ['orientation', 'hand', 'labels', 'instrument', 'tuning', 'range'],
-    keyboard: ['orientation', 'hand', 'labels', 'range'],
-    fretboard: ['orientation', 'hand', 'labels', 'tuning', 'frets']
+    keyboard: ['orientation', 'hand', 'labels', 'range', 'highlight', 'compare'],
+    fretboard: [
+        'orientation',
+        'hand',
+        'labels',
+        'tuning',
+        'frets',
+        'highlight',
+        'compare',
+        'position',
+        'shape'
+    ]
 }
 
 const field = (block: BlockSource, ...names: string[]) => {
@@ -105,12 +129,30 @@ const positiveInt = (text: string, what: string) => {
     return n
 }
 
-/** Chord symbol, frets and fingers from a shorthand line ("A x02220 x01230"). */
+/** Chord (a symbol or words), frets and fingers from a shorthand line ("A Major x02220 x01230"). */
 function shorthand(head: string | null) {
     const tokens = head?.split(/\s+/).filter(Boolean) ?? []
-    const symbol = tokens[0] && !parseFrets(tokens[0]) ? tokens.shift() : undefined
-    return { symbol, frets: tokens[0], fingers: tokens[1] }
+    // The chord ends where frets may start (a word starting with x or a digit): at the longest
+    // start that reads as a chord ("A Major x02220"); else the words before the first fret-like one
+    // ("Mystery x02220" still draws, titled Mystery; "A Majr" is one unknown chord).
+    const fretLike = (t: string) => /^[xX\d]/.test(t)
+    const ends = [tokens.length, ...tokens.map((t, i) => (i > 0 && fretLike(t) ? i : -1))]
+        .filter((i) => i > 0)
+        .sort((a, b) => b - a)
+    let at = ends.find((i) => readChord(tokens.slice(0, i).join(' '))) ?? -1
+    if (at < 0) {
+        const first = tokens.findIndex(fretLike)
+        at = first < 0 ? tokens.length : tokens[0] && parseFrets(tokens[0]) ? 0 : Math.max(first, 1)
+    }
+    return {
+        symbol: tokens.slice(0, at).join(' ') || undefined,
+        frets: tokens[at],
+        fingers: tokens[at + 1]
+    }
 }
+
+const unrecognized = (written: string) =>
+    new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
 
 /** Piano voicing of a chord: root position from octave 4, a slash chord's bass in octave 3. */
 function pianoPitches(symbol: string): NoteSet {
@@ -135,12 +177,12 @@ function pianoPitches(symbol: string): NoteSet {
 const renderChord: DiagramRenderer = (doc, block, options) => {
     const short = shorthand(block.head)
     const name = field(block, 'name')
-    // A `name` that is a chord symbol ("name: A") also gives the root marks.
-    const symbol =
-        field(block, 'symbol', 'chord') ??
-        short.symbol ??
-        (name && parseChord(name) ? name : undefined)
-    const title = field(block, 'title') ?? name ?? symbol
+    // A chord written as a symbol or in words; a `name` that reads as a chord ("name: A Major")
+    // also gives the root marks. The words stay the title.
+    const written = field(block, 'symbol', 'chord') ?? short.symbol
+    const chord = written ? readChord(written) : name ? readChord(name) : null
+    let symbol = chord?.symbol ?? written
+    let title = field(block, 'title') ?? name ?? written
     const instrument = field(block, 'instrument')?.toLowerCase()
     const pitchesText = field(block, 'pitches', 'notes')
 
@@ -158,24 +200,25 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                     return midi
                 })
             }
-            const chord = symbol ? chordNoteSet(symbol) : null
-            if (chord) set.root = chord.root
+            const known = symbol ? chordNoteSet(symbol) : null
+            if (known) set.root = known.root
+            else if (!written) {
+                // No symbol: the chord the pitches play names it.
+                const detected = detectChordFromPitches(set.pitches)
+                if (detected) {
+                    symbol = detected.symbol
+                    set.root = chordNoteSet(symbol)?.root ?? set.root
+                    title ??= symbol
+                }
+            }
         } else if (symbol) {
+            if (!chord) throw unrecognized(symbol)
             set = pianoPitches(symbol)
         } else {
             throw new Error('Add a chord symbol or "pitches:"')
         }
         const fingering = field(block, 'fingering', 'fingers')
-        const fingers = new Map<number, string>()
-        if (fingering) {
-            const sorted = [...set.pitches!].sort((a, b) => a - b)
-            fingering
-                .split(/[\s,-]+/)
-                .filter(Boolean)
-                .forEach((finger, i) => {
-                    if (sorted[i] !== undefined) fingers.set(sorted[i], finger)
-                })
-        }
+        const fingers = fingering ? fingersFor(set.pitches!, fingering) : new Map<number, string>()
         const range = field(block, 'range')
         // Checked even though keyboards ignore it, so a typo doesn't go unnoticed.
         handOf(block, options)
@@ -205,6 +248,8 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             )
         }
         voicing = { frets, fingers: frets.map((_, i) => fingers[i] ?? null) }
+    } else if (written && !chord) {
+        throw unrecognized(written)
     } else if (symbol && options.voicings) {
         const n = field(block, 'voicing')
         const index = n ? positiveInt(n, 'voicing') - 1 : 0
@@ -237,6 +282,17 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             `The tuning has ${tuning.length} strings, the frets ${voicing.frets.length}`
         )
     }
+    if (!written && !chord) {
+        // No chord given: the one the frets play names it.
+        const detected = detectChordFromFrets(
+            voicing.frets,
+            tuning ?? (voicing.frets.length === 6 ? STANDARD_TUNING : [])
+        )
+        if (detected) {
+            symbol = detected.symbol
+            title ??= symbol
+        }
+    }
     // A symbol the theory doesn't know still titles the diagram; only its root marks are lost.
     const root = symbol ? (chordNoteSet(symbol)?.root ?? rootOf(symbol)) : null
     return renderGuitarDiagram(doc, voicing, {
@@ -248,31 +304,78 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     })
 }
 
+/** Finger per key, low to high ("5-3-1", "1 2 3 1 2 3 4 5"). */
+function fingersFor(pitches: number[], fingering: string): Map<number, string> {
+    const sorted = [...pitches].sort((a, b) => a - b)
+    const fingers = new Map<number, string>()
+    fingering
+        .split(/[\s,-]+/)
+        .filter(Boolean)
+        .forEach((finger, i) => {
+            if (sorted[i] !== undefined) fingers.set(sorted[i], finger)
+        })
+    return fingers
+}
+
 const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const set = noteSetOf(block)
     const range = field(block, 'range')
     handOf(block, options)
+    // A scale's fingering: one octave from the root (middle C's octave), fingers in order.
+    const fingering = field(block, 'fingering')
+    let fingers: Map<number, string> | undefined
+    if (fingering && set.root !== null && !set.pitches) {
+        const start = 60 + set.root
+        set.pitches = [
+            ...set.members.map((m) => start + ((m.chroma - set.root! + 12) % 12)),
+            start + 12
+        ]
+        fingers = fingersFor(set.pitches, fingering)
+    }
     return renderKeyboard(doc, set, {
         title: field(block, 'title'),
-        label: labelField(block, 'notes'),
-        range: keyRange(range ? rangeOf(range) : keyRangeOf(set)),
-        orientation: orientationOf(block, options.orientation?.keyboard)
+        label: labelField(block, fingers ? 'fingers' : 'notes', fingers !== undefined),
+        fingers,
+        // A fingered scale shows its octave, up to the root above.
+        range: keyRange(
+            range
+                ? rangeOf(range)
+                : fingers && set.pitches
+                  ? [set.pitches[0]!, set.pitches[set.pitches.length - 1]!]
+                  : keyRangeOf(set)
+        ),
+        orientation: orientationOf(block, options.orientation?.keyboard),
+        marks: marksOf(block, set)
     })
 }
 
 const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const set = noteSetOf(block)
+    const at = positionOf(field(block, 'position'), field(block, 'shape'))
     const fretsText = field(block, 'frets')
     const frets = fretsText
         ? orFail(parseRange(fretsText), `Invalid frets "${fretsText}": use e.g. 5-8`)
         : undefined
     if (frets && frets[1] > 36) throw new Error('Frets go up to 36')
     const tuningText = field(block, 'tuning')
+    const tuning = tuningText ? tuningOf(tuningText) : undefined
+    let cells: Cell[] | undefined
+    if (at) {
+        if (set.root === null) throw new Error('Positions need a scale: e.g. scale: A minor')
+        const count = positionCount(set, at.system)
+        const named = { 'box': 'box', 'caged': 'CAGED', '3nps': '3nps' }[at.system]
+        cells = orFail(
+            scalePosition(set, tuning ?? STANDARD_TUNING, at.system, at.n),
+            `${set.title} has ${count} ${named} positions: use position 1 to ${count}`
+        )
+    }
     return renderFretboard(doc, set, {
         title: field(block, 'title'),
         label: labelField(block, 'notes'),
         frets,
-        tuning: tuningText ? tuningOf(tuningText) : undefined,
+        cells,
+        marks: marksOf(block, set),
+        tuning,
         orientation: orientationOf(block, options.orientation?.fretboard),
         hand: handOf(block, options)
     })

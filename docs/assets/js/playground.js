@@ -4,8 +4,8 @@
 ;(() => {
     const samples = {
         chord: 'G 320003 210003\n---\nC x32010 x32010\n---\nD xx0232 xx0132\n---\nEm 022000 023000',
-        keyboard: 'D dorian\nlabels: degrees',
-        fretboard: 'scale: A minor pentatonic\nfrets: 5-8\nlabels: intervals',
+        keyboard: 'modes: C major\nrange: C4-B4\ncolumns: 4',
+        fretboard: 'A minor pentatonic\npositions: all\nlabels: intervals',
         chords: '{title: Example}\n{key: G}\n[G]Hello [D/F#]little [Em]world'
     }
     const start = () => {

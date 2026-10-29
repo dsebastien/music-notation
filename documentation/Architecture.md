@@ -2,11 +2,11 @@
 
 ```
 src/
-  theory/      pitch classes, chord symbols, transposition, note sets (tonal)
-  blocks/      block source parsing, one renderer per language (RENDERERS)
+  theory/      pitch classes, chord symbols and names in words, chord detection, scales and modes, transposition, note sets (tonal)
+  blocks/      block source parsing, one renderer per language (RENDERERS), blocks from note properties
   chord/       guitar diagram (SVG)
   keyboard/    piano keyboard (SVG)
-  fretboard/   fretboard (SVG), tunings
+  fretboard/   fretboard (SVG), tunings, scale positions
   chords/      ChordPro parser, chart (HTML)
   voicings/    guitar voicing lookup (chords-db), own entry point
   render/      DOM helpers, layout (orientation, hand, neck frame), renderBlock (never throws; rows)

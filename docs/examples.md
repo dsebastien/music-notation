@@ -107,6 +107,40 @@ fingers: 0003
 tuning: ukulele
 title: C (ukulele)</code></pre></div>
 
+## Chords in words, and chords recognized
+
+Written the way chord notes are titled:
+
+````markdown
+```chord
+F Sharp Minor 7 x-x-4-6-5-5 x-x-1-3-2-2
+---
+B Flat Major x13331 x12341
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">F Sharp Minor 7 x-x-4-6-5-5 x-x-1-3-2-2
+---
+B Flat Major x13331 x12341</code></pre></div>
+
+Only frets: the library names the chord.
+
+````markdown
+```chord
+frets: x02210
+---
+frets: xx0212
+---
+frets: 320001
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">frets: x02210
+---
+frets: xx0212
+---
+frets: 320001</code></pre></div>
+
 ## Piano chords
 
 From a symbol, in root position from middle C:
@@ -300,6 +334,76 @@ frets: 7-10
 ---
 A minor pentatonic
 frets: 9-13</code></pre></div>
+
+## Scales and modes
+
+Every mode of C major, with its characteristic note:
+
+````markdown
+```keyboard
+modes: C major
+range: C4-B4
+columns: 4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">modes: C major
+range: C4-B4
+columns: 4</code></pre></div>
+
+D dorian against D natural minor: the major sixth (B) is what changes.
+
+````markdown
+```fretboard
+D dorian
+compare: natural minor
+frets: 3-7
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">D dorian
+compare: natural minor
+frets: 3-7
+labels: intervals</code></pre></div>
+
+The five boxes of the A minor pentatonic:
+
+````markdown
+```fretboard
+A minor pentatonic
+positions: all
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">A minor pentatonic
+positions: all
+labels: intervals</code></pre></div>
+
+The C major scale in its five CAGED shapes, from the E shape up the neck:
+
+````markdown
+```fretboard
+C major
+positions: all
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">C major
+positions: all</code></pre></div>
+
+C major with its fingering, right hand:
+
+````markdown
+```keyboard
+C major
+fingering: 1 2 3 1 2 3 4 5
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">C major
+fingering: 1 2 3 1 2 3 4 5</code></pre></div>
 
 ## Left-handed
 

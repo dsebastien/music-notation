@@ -154,7 +154,7 @@ describe('renderBlock', () => {
         ['chord', 'A x02220\ntuning: DADGA', 'The tuning has 5 strings, the frets 6'],
         ['chord', 'A x02220\nposition: 0', 'position must be a whole number from 1'],
         ['chord', 'A x02220\ninstrument: banjo', 'Unknown instrument "banjo"'],
-        ['chord', 'X\ninstrument: piano', 'Unknown chord "X"'],
+        ['chord', 'X\ninstrument: piano', `Didn't recognize "X": try`],
         ['keyboard', 'chord: Hm', 'Unknown chord "Hm"'],
         ['keyboard', 'C major\nrange: C5-C4', 'Invalid range'],
         ['keyboard', 'C major\nlabels: colors', 'Unknown labels "colors"'],

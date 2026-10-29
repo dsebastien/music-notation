@@ -64,3 +64,30 @@ export {
     type NoteLabel
 } from './theory/note-set.js'
 export type { VoicingLookup } from './voicings/index.js'
+export { parseChordName, readChord, suggestChords } from './theory/chord-name.js'
+export {
+    detectChordFromFrets,
+    detectChordFromPitches,
+    type DetectedChord
+} from './theory/detect.js'
+export {
+    scaleName,
+    modesOf,
+    scaleTypes,
+    characteristicIntervals,
+    isScaleWithoutRoot
+} from './theory/scales.js'
+export {
+    scalePosition,
+    positionCount,
+    CAGED_SHAPES,
+    type Cell,
+    type PositionSystem
+} from './fretboard/positions.js'
+export {
+    blockFromProperties,
+    instrumentOf,
+    DEFAULT_PROPERTY_NAMES,
+    type PropertyNames,
+    type Instrument
+} from './blocks/properties.js'

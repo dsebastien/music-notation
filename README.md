@@ -37,6 +37,25 @@ labels: intervals
 ```
 ````
 
+Chords in words or recognized from their frets, scale positions and modes:
+
+````markdown
+```chord
+F Sharp Minor 7
+---
+frets: x02220
+```
+
+```fretboard
+A minor pentatonic
+positions: all
+```
+
+```keyboard
+modes: C major
+```
+````
+
 Several diagrams side by side, separated by `---`, with shared settings first; vertical or horizontal, and left-handed:
 
 ````markdown

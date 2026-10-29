@@ -9,6 +9,8 @@
     --mn-on-accent: var(--text-on-accent, #fff);
     /* Dark enough for white labels in light and dark themes. */
     --mn-root: #c2410c;
+    /* A mode's characteristic notes: dark enough for white labels too. */
+    --mn-char: #047857;
     /* Piano keys keep their real colors in every theme. */
     --mn-key-white: #fafafa;
     --mn-key-black: #222;
@@ -57,6 +59,32 @@
     fill: var(--mn-root);
 }
 
+.mn-svg .mn-dot.mn-char {
+    fill: var(--mn-char);
+}
+
+/* Notes that differ from a compared scale: outlined. */
+.mn-svg .mn-dot.mn-diff,
+.mn-svg .mn-key-white.mn-diff,
+.mn-svg .mn-key-black.mn-diff {
+    stroke: var(--mn-fg);
+    stroke-width: 2.5;
+}
+
+/* The compared scale's notes missing here: faint. */
+.mn-svg .mn-ghost {
+    fill: none;
+    stroke: var(--mn-muted);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 2;
+}
+
+.mn-svg .mn-key-white.mn-ghost,
+.mn-svg .mn-key-black.mn-ghost {
+    fill: var(--mn-faint);
+    stroke-dasharray: none;
+}
+
 .mn-svg .mn-dot-text {
     fill: var(--mn-on-accent);
     font-size: 10px;
@@ -102,6 +130,11 @@
 .mn-svg .mn-key-white.mn-on.mn-root,
 .mn-svg .mn-key-black.mn-on.mn-root {
     fill: var(--mn-root);
+}
+
+.mn-svg .mn-key-white.mn-on.mn-char,
+.mn-svg .mn-key-black.mn-on.mn-char {
+    fill: var(--mn-char);
 }
 
 .mn-svg .mn-key-label {

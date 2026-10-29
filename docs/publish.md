@@ -36,6 +36,14 @@ window.musicNotationOptions = {
 }
 ```
 
+- Empty blocks can draw from the page's properties ([from a note's properties](blocks.md#from-a-notes-properties)): give the library a function that returns them. On Obsidian Publish, they're in the site's cache:
+
+```js
+window.musicNotationOptions = {
+    properties: () => app.site.cache.cache[app.currentFilepath]?.frontmatter
+}
+```
+
 - Every block is drawn, including blocks on pages you navigate to later. A block's source is hidden only after it was drawn; a block with a mistake keeps its source and shows what's wrong.
 - Pin `VERSION`: a new version never changes your site until you change it.
 - Custom domains need jsDelivr allowed if your site sets a Content Security Policy.

@@ -35,6 +35,8 @@ Options:
 - `orientation`: the default per block language, `{ chord, keyboard, fretboard }`, each `'vertical'` or `'horizontal'`. Piano chords follow `keyboard`. A block's own `orientation` wins.
 - `hand`: `'left'` mirrors guitar chords and fretboards unless a block says `hand: right`.
 
+- `properties`: the note's properties, or a function returning them (read at each render): an empty `chord`, `fretboard` or `keyboard` block draws from them. `propertyNames` renames them; `instrument` (`'guitar'` or `'piano'`) overrides the one read from the tags.
+
 `layoutDefaults(value)` keeps only valid `orientation` and `hand` values from untrusted input (a page's settings). `MAX_DIAGRAMS` is the most diagrams one block may hold (32).
 
 Everything is created in `host.ownerDocument`, so popout windows work.
@@ -43,6 +45,11 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 
 - `renderGuitarDiagram(doc, voicing, options)`, `renderKeyboard(doc, noteSet, options)`, `renderFretboard(doc, noteSet, options)`, `renderChart(doc, song, options)`. The diagram renderers take `orientation`, and guitar diagrams and fretboards take `hand`.
 - `parseOrientation(text)`, `parseHand(text)`: read a block's value or throw a message for the user.
+- `parseChordName(text)`: a chord name in words (`F Sharp Minor 7`) as a parsed chord; `readChord(text)` takes a symbol or words; `suggestChords(text)` says what to write instead.
+- `detectChordFromFrets(frets, tuning?)`, `detectChordFromPitches(midis)`: the chord played, `{ symbol, readings }`.
+- `scaleName(text)` (the usual names as tonal knows them), `modesOf(scale)`, `scaleTypes()`, `characteristicIntervals(type)`.
+- `scalePosition(noteSet, tuning, 'box' | 'caged' | '3nps', n)`: the notes of one position, `{ string, fret }[]`; `positionCount(noteSet, system)`.
+- `blockFromProperties(language, properties, { names, instrument })`: a block's source from a note's properties; `DEFAULT_PROPERTY_NAMES`, `instrumentOf(properties, names)`.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).
 - `transposeChord(symbol, semitones, preferFlats?)`, `transposeKey(key, semitones)`.

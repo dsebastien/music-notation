@@ -19,7 +19,7 @@ A x02220 x01230
 
 <div class="mn-live" markdown="0"><pre><code class="language-chord">A x02220 x01230</code></pre></div>
 
-The short form is `symbol frets fingers`. The same chord with keys:
+The short form is `chord frets fingers`, the chord as a symbol or in words (`A Major x02220 x01230`). The same chord with keys:
 
 ````markdown
 ```chord
@@ -35,21 +35,23 @@ frets: x02220
 fingers: x01230
 title: A (open)</code></pre></div>
 
-| Key           | Meaning                                                                                                                                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `symbol`      | Chord symbol: `A`, `F#m7`, `B♭`, `C/G`, `C6/9`. Its root notes are highlighted. Also the title, unless `title` is set. A symbol the library doesn't know still works with `frets`, without root marks. |
-| `frets`       | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`.                                                                                         |
-| `fingers`     | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre.                                                                                               |
-| `voicing`     | With only a symbol, the n-th voicing from the built-in database (1 = the most common).                                                                                                                 |
-| `position`    | The first fret shown; at most the lowest fretted note. Computed when absent.                                                                                                                           |
-| `tuning`      | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                                                                                                        |
-| `instrument`  | `piano` draws a keyboard.                                                                                                                                                                              |
-| `pitches`     | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                       |
-| `fingering`   | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                         |
-| `title`       | The title shown above.                                                                                                                                                                                 |
-| `name`        | Also the title; when it's a chord symbol (`name: A`), its root notes are highlighted too.                                                                                                              |
-| `orientation` | `vertical` (default for guitar) or `horizontal`; piano chords are `horizontal` by default. See [orientation](#orientation-and-left-handed-diagrams).                                                   |
-| `hand`        | `left` mirrors the diagram for left-handed players.                                                                                                                                                    |
+| Key           | Meaning                                                                                                                                                                                                                                                                   |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `symbol`      | Chord symbol (`A`, `F#m7`, `B♭`, `C/G`, `C6/9`) or name in words (`A Major`, `F Sharp Minor 7`, `C Major over G`). Its root notes are highlighted. Also the title, unless `title` is set. A symbol the library doesn't know still works with `frets`, without root marks. |
+| `frets`       | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`.                                                                                                                                                            |
+| `fingers`     | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre.                                                                                                                                                                  |
+| `voicing`     | With only a symbol, the n-th voicing from the built-in database (1 = the most common).                                                                                                                                                                                    |
+| `position`    | The first fret shown; at most the lowest fretted note. Computed when absent.                                                                                                                                                                                              |
+| `tuning`      | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                                                                                                                                                                           |
+| `instrument`  | `piano` draws a keyboard.                                                                                                                                                                                                                                                 |
+| `pitches`     | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                                                                                          |
+| `fingering`   | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                                                                                            |
+| `title`       | The title shown above.                                                                                                                                                                                                                                                    |
+| `name`        | Also the title; when it reads as a chord (`name: A`, `name: A Major`), its root notes are highlighted too.                                                                                                                                                                |
+| `orientation` | `vertical` (default for guitar) or `horizontal`; piano chords are `horizontal` by default. See [orientation](#orientation-and-left-handed-diagrams).                                                                                                                      |
+| `hand`        | `left` mirrors the diagram for left-handed players.                                                                                                                                                                                                                       |
+
+Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. A chord the library doesn't recognize says what to write instead.
 
 A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
 
@@ -79,15 +81,18 @@ labels: degrees
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">D dorian
 labels: degrees</code></pre></div>
 
-| Key           | Meaning                                                                                           |
-| ------------- | ------------------------------------------------------------------------------------------------- |
-| `scale`       | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                  |
-| `chord`       | `Cmaj7`, `G7`, `F#m7b5`…                                                                          |
-| `notes`       | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                          |
-| `range`       | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.      |
-| `labels`      | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`. |
-| `title`       | The title shown above.                                                                            |
-| `orientation` | `horizontal` (default) or `vertical`: low notes at the bottom.                                    |
+| Key                    | Meaning                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `scale`                | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                  |
+| `chord`                | `Cmaj7`, `G7`, `F#m7b5`…                                                                          |
+| `notes`                | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                          |
+| `range`                | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.      |
+| `labels`               | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`. |
+| `title`                | The title shown above.                                                                            |
+| `orientation`          | `horizontal` (default) or `vertical`: low notes at the bottom.                                    |
+| `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                        |
+| `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`.                  |
+| `modes`                | `modes: C major`: every mode of the scale, side by side.                                          |     |
 
 The short first line is tried as a scale, then as notes with octaves (`C4` is that key), then as a chord, then as a list of notes. The root is drawn in a second color.
 
@@ -107,15 +112,99 @@ labels: intervals
 frets: 5-8
 labels: intervals</code></pre></div>
 
-| Key                       | Meaning                                                                                                                                         |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scale`, `chord`, `notes` | As for keyboards.                                                                                                                               |
-| `frets`                   | Frets shown: `5-8`. `0-12` by default; from `0`, open strings are shown left of the nut.                                                        |
-| `tuning`                  | `standard` (default), `Drop D`, `DADGAD`, `open G`, `open D`, `open E`, `half step down`, `bass`, `ukulele`, or notes: `DADGAD`, `E1 A1 D2 G2`. |
-| `labels`                  | `notes` (default), `degrees`, `intervals`, `none`.                                                                                              |
-| `title`                   | The title shown above.                                                                                                                          |
-| `orientation`             | `horizontal` (default, the high string on top, as in tabs) or `vertical` (the nut on top, as a chord diagram).                                  |
-| `hand`                    | `left` mirrors the neck for left-handed players.                                                                                                |
+| Key                                          | Meaning                                                                                                                                         |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scale`, `chord`, `notes`                    | As for keyboards.                                                                                                                               |
+| `frets`                                      | Frets shown: `5-8`. `0-12` by default; from `0`, open strings are shown left of the nut.                                                        |
+| `tuning`                                     | `standard` (default), `Drop D`, `DADGAD`, `open G`, `open D`, `open E`, `half step down`, `bass`, `ukulele`, or notes: `DADGAD`, `E1 A1 D2 G2`. |
+| `labels`                                     | `notes` (default), `degrees`, `intervals`, `none`.                                                                                              |
+| `title`                                      | The title shown above.                                                                                                                          |
+| `orientation`                                | `horizontal` (default, the high string on top, as in tabs) or `vertical` (the nut on top, as a chord diagram).                                  |
+| `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                |
+| `position`, `shape`                          | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
+| `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
+
+## Scales and modes
+
+Scales are written as a root and a name: `A minor pentatonic`, `D dorian`, `E phrygian dominant`. The usual names work as written too: `Natural minor`, `Major pentatonic`, `Blues`, `Whole tone`, in any case. A name without a root says so ("Add a root note: C lydian").
+
+**Characteristic notes.** Modes and blues scales mark the notes that set them apart in a third color: lydian #4, dorian 6, mixolydian b7, phrygian b2, locrian b5, aeolian b6, the blues b5. `highlight: none` turns it off, `highlight: characteristic` turns it on for any scale (harmonic minor 7, melodic minor 6 and 7…), and `highlight: b5 7` marks the intervals you list.
+
+````markdown
+```keyboard
+C lydian
+range: C4-B4
+compare: major
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">C lydian
+range: C4-B4
+compare: major</code></pre></div>
+
+**Compare.** `compare: major` (or `compare: C major`) outlines the notes that differ from the other scale and draws its notes missing here faint: above, C lydian against C major.
+
+**Positions.** On a fretboard, `position:` draws one place on the neck instead of every note, and the frets shown follow it:
+
+- 5-note scales: the five boxes, `position: 1` to `5` (box 1 starts on the root on the low string).
+- 7-note scales: the five CAGED positions, by number or by shape: `shape: E` (the root on the low string), then up the neck `D`, `C`, `A`, `G`.
+- `shape: 3nps` with `position: 1` to `7`: three notes per string, from that degree. Scales with no pentatonic inside (locrian, harmonic minor…) use it for their CAGED positions too.
+- `positions: all` (or a list, `positions: 1 3`) draws the positions side by side; with `shape: 3nps`, the 3NPS ones.
+
+````markdown
+```fretboard
+labels: intervals
+---
+A minor pentatonic
+position: 1
+---
+C major
+shape: E
+---
+G major
+shape: 3nps
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">labels: intervals
+---
+A minor pentatonic
+position: 1
+---
+C major
+shape: E
+---
+G major
+shape: 3nps</code></pre></div>
+
+**All the modes of a key.** `modes: C major` draws C ionian, D dorian, E phrygian… side by side, each with its characteristic note. Other keys in the block apply to every mode.
+
+````markdown
+```keyboard
+modes: C major
+range: C4-B4
+columns: 4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">modes: C major
+range: C4-B4
+columns: 4</code></pre></div>
+
+**Fingering** (keyboards): `fingering: 1 2 3 1 2 3 4 5` puts one finger on each note of one octave, from the root.
+
+Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, major, composite), chromatic, diminished, dorian (and #4, b2), double harmonic major, egyptian, enigmatic, flamenco, harmonic major, harmonic minor, hirajoshi, hungarian major and minor, in-sen, iwato, kumoijoshi, locrian (and #2, 6, major), lydian (and #9, augmented, dominant, minor), major, major pentatonic, melodic minor, minor, minor pentatonic, mixolydian (and b6), neapolitan major, oriental, pelog, persian, phrygian, phrygian dominant, prometheus, scriabin, spanish heptatonic, ultralocrian, whole tone, and more: every scale [tonal](https://github.com/tonaljs/tonal) knows.
+
+## From a note's properties
+
+An empty `chord`, `fretboard` or `keyboard` block can draw what the note's properties say, so a note doesn't repeat its frets or its scale in the body. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
+
+| Properties                                     | Draws                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------ |
+| `chord_symbol`, `frets`, `fingers`, `position` | A guitar chord (`position` from 1; 0 or empty: computed).                      |
+| `chord_symbol`, `pitches`, `fingering`         | A piano chord, when a tag has a `piano` segment (`type/music/piano/chord`).    |
+| `scale_root`, `scale_type`, `shape`            | A scale on a fretboard; `shape` `Box 2`, `CAGED E` or `3NPS` picks a position. |
+| `scale_root`, `scale_type`, `fingering_rh`     | A scale on a keyboard, with its fingering.                                     |
 
 ## Several diagrams
 

@@ -1,7 +1,14 @@
 /** Piano keyboards with highlighted notes, as SVG. */
 import { svg, svgLabel, svgRoot, svgText } from '../render/dom.js'
 import { titleWidth, type Orientation } from '../render/layout.js'
-import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set.js'
+import {
+    labelOf,
+    markClasses,
+    memberOf,
+    type NoteLabel,
+    type NoteMarks,
+    type NoteSet
+} from '../theory/note-set.js'
 import { midiOf } from '../theory/pitch.js'
 
 export interface KeyboardOptions {
@@ -13,6 +20,7 @@ export interface KeyboardOptions {
     title?: string
     /** Horizontal (default) or vertical: low notes at the bottom, black keys on the left. */
     orientation?: Orientation
+    marks?: NoteMarks
 }
 
 const BLACK = new Set([1, 3, 6, 8, 10])
@@ -99,10 +107,10 @@ export function renderKeyboard(
 
     const keyClass = (midi: number, black: boolean) => {
         const member = memberOf(set, midi)
-        const classes = [black ? 'mn-key-black' : 'mn-key-white']
-        if (member) classes.push('mn-on')
-        if (member && set.root === member.chroma) classes.push('mn-root')
-        return classes.join(' ')
+        const chroma = ((midi % 12) + 12) % 12
+        const base = black ? 'mn-key-black' : 'mn-key-white'
+        if (member) return `${base} mn-on${markClasses(set, member.chroma, options.marks)}`
+        return options.marks?.ghosts?.has(chroma) ? `${base} mn-ghost` : base
     }
     // Labels sit near the player's end of the key.
     const caption = (midi: number, point: [number, number], black: boolean) => {

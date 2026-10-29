@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 (2026-10-29)
+
+- **Chords in words**: `A Major`, `F Sharp Minor 7`, `C Major over G` work wherever a chord symbol does, and stay the title. A chord the library doesn't recognize says what to write instead.
+- **Chords recognized from their notes**: `frets: x02220` alone (or `pitches:`) draws an A chord, named and with its root marked.
+- **Scales and modes**: the usual names (`Natural minor`, `Blues`, `Major pentatonic`), the notes that define a mode in their own color, `compare: major` to see what changes, `modes: C major` for every mode of a key.
+- **Positions on the neck**: pentatonic boxes, CAGED shapes and three notes per string, one at a time (`position: 2`, `shape: E`, `shape: 3nps`) or all in a row (`positions: all`).
+- **Scale fingering** on keyboards: `fingering: 1 2 3 1 2 3 4 5`.
+- **Blocks from a note's properties**: an empty block draws what the note's properties say (chord symbol, frets, fingers; scale root, type and shape), in apps and on Obsidian Publish (`window.musicNotationOptions.properties`).
+
 ## 0.2.0 (2026-10-28)
 
 - Several diagrams in one block: separate them with `---` to draw a song's chords, a progression or a scale's positions side by side. Settings shared by every diagram go first; `columns: 3` draws a grid. A mistake in one diagram no longer hides the others.

@@ -5,6 +5,7 @@
 import { Chord, Scale } from 'tonal'
 import { chromaOf, isFlat, midiOf, splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
+import { scaleName } from './scales.js'
 
 export type NoteLabel = 'notes' | 'degrees' | 'intervals' | 'fingers' | 'none'
 
@@ -27,6 +28,25 @@ export interface NoteSet {
     /** Exact pitches (MIDI), when the notes were given with octaves ("C4 E4 G4"). */
     pitches: number[] | null
     preferFlats: boolean
+    /** tonal's scale type ("minor", "lydian"), for scales. */
+    scaleType?: string
+}
+
+/** Notes to set apart (chromas): a mode's characteristic notes, notes that differ from a parent
+ * scale, and the parent's notes missing here (drawn faint). */
+export interface NoteMarks {
+    characteristic?: Set<number>
+    different?: Set<number>
+    ghosts?: Set<number>
+}
+
+/** Classes for a highlighted note: root, characteristic, different. */
+export function markClasses(set: NoteSet, chroma: number, marks: NoteMarks = {}): string {
+    const classes: string[] = []
+    if (set.root === chroma) classes.push('mn-root')
+    else if (marks.characteristic?.has(chroma)) classes.push('mn-char')
+    if (marks.different?.has(chroma)) classes.push('mn-diff')
+    return classes.length ? ` ${classes.join(' ')}` : ''
 }
 
 const memberFor = (set: NoteSet, chroma: number): NoteSetMember | undefined =>
@@ -117,9 +137,11 @@ export function chordNoteSet(symbol: string): NoteSet | null {
 
 /** Notes of a scale ("A minor pentatonic", "D dorian"); null when tonal doesn't know it. */
 export function scaleNoteSet(name: string): NoteSet | null {
-    const scale = Scale.get(name.trim())
+    const scale = Scale.get(scaleName(name))
     if (scale.empty || !scale.tonic) return null
-    return fromNames(name.trim(), scale.notes, scale.intervals)
+    const set = fromNames(name.trim(), scale.notes, scale.intervals)
+    if (set) set.scaleType = scale.type
+    return set
 }
 
 /** An explicit list: "A C E" (pitch classes) or "A3 C4 E4" (exact pitches). */

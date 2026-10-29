@@ -4,7 +4,15 @@
  */
 import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
-import { labelOf, memberOf, type NoteLabel, type NoteSet } from '../theory/note-set.js'
+import {
+    labelOf,
+    markClasses,
+    memberOf,
+    type NoteLabel,
+    type NoteMarks,
+    type NoteSet
+} from '../theory/note-set.js'
+import type { Cell } from './positions.js'
 import { nameOf } from '../theory/pitch.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 
@@ -19,6 +27,9 @@ export interface FretboardOptions {
     orientation?: Orientation
     /** Left-handed: mirrored (the nut on the right, or the low string on the right). */
     hand?: Hand
+    /** Only these notes (a scale position); the frets shown follow them. */
+    cells?: Cell[]
+    marks?: NoteMarks
 }
 
 const STRING_GAP = 20
@@ -35,7 +46,11 @@ export function renderFretboard(
     options: FretboardOptions = {}
 ): SVGElement {
     const tuning = options.tuning ?? STANDARD_TUNING
-    const [from, to] = options.frets ?? [0, 12]
+    const cells = options.cells
+    const played = cells ? new Set(cells.map((c) => `${c.string}:${c.fret}`)) : null
+    const [from, to] = cells?.length
+        ? [Math.min(...cells.map((c) => c.fret)), Math.max(...cells.map((c) => c.fret))]
+        : (options.frets ?? [0, 12])
     const first = Math.max(from, 1)
     const strings = tuning.length
     const label = options.label ?? 'notes'
@@ -127,14 +142,19 @@ export function renderFretboard(
                   )
         )
         for (let fret = from; fret <= to; fret++) {
-            const member = memberOf(set, open + fret)
-            if (!member) continue
-            const isRoot = set.root === member.chroma
             const point = frame.at(across(s), center(fret))
             const [cx, cy] = point
-            root.appendChild(
-                svg(doc, 'circle', { class: `mn-dot${isRoot ? ' mn-root' : ''}`, cx, cy, r: 8 })
-            )
+            const member = memberOf(set, open + fret)
+            const chroma = (open + fret) % 12
+            if (!member || (played && !played.has(`${s}:${fret}`))) {
+                // A parent scale's note missing here: a faint ring.
+                if (!member && options.marks?.ghosts?.has(chroma)) {
+                    root.appendChild(svg(doc, 'circle', { class: 'mn-ghost', cx, cy, r: 7 }))
+                }
+                continue
+            }
+            const cls = `mn-dot${markClasses(set, member.chroma, options.marks)}`
+            root.appendChild(svg(doc, 'circle', { class: cls, cx, cy, r: 8 }))
             const text = labelOf(member, label)
             if (text) root.appendChild(svgLabel(doc, text, point, 'mn-dot-text'))
         }

@@ -10,6 +10,10 @@ import {
 import { parseBlockSource, splitParts, type BlockSource } from '../blocks/block-source.js'
 import { html } from './dom.js'
 import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
+import { blockFromProperties } from '../blocks/properties.js'
+import { modesOf } from '../theory/scales.js'
+import { scaleNoteSet } from '../theory/note-set.js'
+import { CAGED_SHAPES, positionCount } from '../fretboard/positions.js'
 
 export const LANGUAGES = Object.keys(RENDERERS) as NotationLanguage[]
 
@@ -50,9 +54,25 @@ export function renderBlock(
         orientation: layout.orientation ?? {},
         hand: layout.hand ?? 'right'
     }
-    const parts = isDiagramLanguage(language) ? splitParts(source) : null
+    let text = source
+    // An empty block in a note draws from the note's properties, when they describe one.
+    if (!text.trim() && isDiagramLanguage(language)) {
+        const fromProperties = propertiesSource(language, options)
+        if (fromProperties) {
+            text = fromProperties
+            el.classList.add('mn-from-properties')
+        }
+    }
+    let parts: string[] | null = null
+    try {
+        parts = isDiagramLanguage(language)
+            ? (splitParts(text) ?? modeParts(language, text) ?? positionParts(language, text))
+            : null
+    } catch (e) {
+        return failed(el, host, language, messageOf(e))
+    }
     // An empty block (a template's placeholder, or only separators) draws nothing, not an error.
-    if (!source.trim() || parts?.length === 0) {
+    if (!text.trim() || parts?.length === 0) {
         el.classList.add('mn-empty')
         host.appendChild(el)
         return { ok: true, el, error: null, destroy: () => el.remove() }
@@ -61,16 +81,115 @@ export function renderBlock(
         if (parts && isDiagramLanguage(language)) {
             error = renderRow(doc, language, parts, el, options)
         } else {
-            el.appendChild(RENDERERS[language](doc, source, options))
+            el.appendChild(RENDERERS[language](doc, text, options))
         }
     } catch (e) {
-        error = messageOf(e)
-        el.replaceChildren()
-        el.classList.add('mn-error')
-        el.appendChild(html(doc, 'div', 'mn-error-message', `${language}: ${error}`))
+        return failed(el, host, language, messageOf(e))
     }
     host.appendChild(el)
     return { ok: error === null, el, error, destroy: () => el.remove() }
+}
+
+/** The block as an inline error that says what's wrong. */
+function failed(el: HTMLElement, host: HTMLElement, language: string, error: string): RenderResult {
+    el.replaceChildren()
+    el.classList.add('mn-error')
+    el.appendChild(html(el.ownerDocument, 'div', 'mn-error-message', `${language}: ${error}`))
+    host.appendChild(el)
+    return { ok: false, el, error, destroy: () => el.remove() }
+}
+
+/** An empty block's source from the note's properties (an object, or a function returning one). */
+function propertiesSource(language: DiagramLanguage, options: RenderOptions): string | null {
+    let properties: unknown = options.properties
+    if (typeof properties === 'function') {
+        try {
+            properties = (properties as () => unknown)()
+        } catch {
+            return null
+        }
+    }
+    if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return null
+    return blockFromProperties(language, properties as Record<string, unknown>, {
+        ...(options.propertyNames ? { names: options.propertyNames } : {}),
+        ...(options.instrument ? { instrument: options.instrument } : {})
+    })
+}
+
+/**
+ * `positions: all` (or `1 3 5`) on a fretboard with a scale: one diagram per position, in a row.
+ * Boxes for 5-note scales, CAGED shapes for 7-note scales, or 3NPS with `shape: 3nps`. Null when
+ * the block has no `positions:`.
+ */
+function positionParts(language: DiagramLanguage, source: string): string[] | null {
+    if (language !== 'fretboard') return null
+    let block: BlockSource
+    try {
+        block = parseBlockSource(source)
+    } catch {
+        return null
+    }
+    const value = block.fields.get('positions')?.trim()
+    if (value === undefined) return null
+    const scale = block.fields.get('scale') ?? block.head
+    const set = scale ? scaleNoteSet(scale) : null
+    if (!scale || !set) throw new Error('positions needs a scale: e.g. A minor pentatonic')
+    const nps = block.fields.get('shape')?.trim().toLowerCase() === '3nps'
+    const system = nps ? '3nps' : set.members.length === 5 ? 'box' : 'caged'
+    const count = positionCount(set, system)
+    const wanted =
+        value.toLowerCase() === 'all'
+            ? Array.from({ length: count }, (_, i) => i + 1)
+            : value.split(/[\s,]+/).map(Number)
+    const bad = wanted.find((n) => !Number.isInteger(n) || n < 1 || n > count)
+    if (bad !== undefined) {
+        throw new Error(`positions: use all, or numbers from 1 to ${count} for ${set.title}`)
+    }
+    const others = [...block.fields]
+        .filter(([key]) => !['positions', 'scale', 'shape', 'position', 'title'].includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    return wanted.map((n) => {
+        const at =
+            system === 'caged'
+                ? [
+                      `shape: ${CAGED_SHAPES[n - 1]}`,
+                      `title: ${set.title}, ${CAGED_SHAPES[n - 1]} shape`
+                  ]
+                : system === '3nps'
+                  ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}`]
+                  : [`position: ${n}`, `title: ${set.title}, box ${n}`]
+        return [`scale: ${scale}`, ...at, ...others].join('\n')
+    })
+}
+
+/**
+ * `modes: C major` on a fretboard or keyboard: one diagram per mode, in a row, with the block's
+ * other keys shared. Null when the block has no `modes:`.
+ */
+function modeParts(language: DiagramLanguage, source: string): string[] | null {
+    if (language === 'chord') return null
+    let block: BlockSource
+    try {
+        block = parseBlockSource(source)
+    } catch {
+        return null
+    }
+    const value = block.fields.get('modes')
+    if (value === undefined) return null
+    const modes = modesOf(value)
+    if (!modes) throw new Error(`"${value}" has no modes: use e.g. modes: C major`)
+    const shared = SHARED_KEYS[language]
+    const others = [...block.fields].filter(([key]) => key !== 'modes')
+    const refused = others.find(([key]) => key !== 'columns' && !shared.includes(key))
+    if (refused || block.head) {
+        throw new Error(
+            `"${refused?.[0] ?? block.head}" can't be used with modes: only ${shared.join(', ')}, columns`
+        )
+    }
+    // Every mode by its own name (C ionian, A aeolian), so their characteristic notes show.
+    const named = modes.map((m) => m.replace(/ major$/, ' ionian').replace(/ minor$/, ' aeolian'))
+    const header = others.map(([key, v]) => `${key}: ${v}`).join('\n')
+    return [...(header ? [header] : []), ...named.map((m) => `scale: ${m}\ntitle: ${m}`)]
 }
 
 /** A block's keys without the empty ones (`labels:` alone says nothing). */
