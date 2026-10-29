@@ -36,6 +36,24 @@ export function parseRange(text: string): [number, number] | null {
     return from <= to ? [from, to] : null
 }
 
+/**
+ * String numbers the way guitarists count them (1 = the highest): "1-3", "1 2 3", "2,4". Throws a
+ * message for the user when one is outside 1..count.
+ */
+export function parseStrings(text: string, count: number): number[] {
+    const range = parseRange(text)
+    const numbers = range
+        ? Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i)
+        : text
+              .split(/[\s,]+/)
+              .filter(Boolean)
+              .map(Number)
+    if (!numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > count)) {
+        throw new Error(`strings: use string numbers from 1 (the highest) to ${count}, e.g. 1-4`)
+    }
+    return numbers
+}
+
 const SEPARATOR = /^\s*-{3,}\s*$/
 
 /**

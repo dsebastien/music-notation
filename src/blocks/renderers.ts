@@ -15,7 +15,7 @@ import { renderChart } from '../chords/chart.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.js'
-import { chordNoteSet, listNoteSet, type NoteSet } from '../theory/note-set.js'
+import { chordNoteSet, intervalLabel, listNoteSet, type NoteSet } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { parseChord } from '../theory/chord-symbol.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
@@ -28,7 +28,7 @@ import {
     type LayoutDefaults,
     type Orientation
 } from '../render/layout.js'
-import { parseBlockSource, parseRange, type BlockSource } from './block-source.js'
+import { parseBlockSource, parseRange, parseStrings, type BlockSource } from './block-source.js'
 import type { Instrument, PropertyNames } from './properties.js'
 import { labelField, marksOf, noteSetOf, orFail } from './note-set-field.js'
 import { positionCount, positionOf, scalePosition, type Cell } from '../fretboard/positions.js'
@@ -74,7 +74,8 @@ export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
         'highlight',
         'compare',
         'position',
-        'shape'
+        'shape',
+        'strings'
     ]
 }
 
@@ -300,12 +301,43 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     }
     // A symbol the theory doesn't know still titles the diagram; only its root marks are lost.
     const root = symbol ? (chordNoteSet(symbol)?.root ?? rootOf(symbol)) : null
+    const labels = dotLabels(field(block, 'labels'), symbol, voicing, tuning)
     return renderGuitarDiagram(doc, voicing, {
         title,
         root,
         tuning,
+        ...(labels ? { labels } : {}),
         orientation: orientationOf(block, options.orientation?.chord),
         hand: handOf(block, options)
+    })
+}
+
+/**
+ * What a guitar diagram's dots say: fingers (default), the chord's intervals (R, 3, 5, as triad
+ * charts show them), note names, or nothing. Null for fingers.
+ */
+function dotLabels(
+    text: string | undefined,
+    symbol: string | undefined,
+    voicing: FrettedVoicing,
+    tuning: number[] | undefined
+): (string | null)[] | null {
+    const value = text?.toLowerCase()
+    if (value === undefined || value === 'fingers') return null
+    if (!['intervals', 'notes', 'none'].includes(value)) {
+        throw new Error(`Unknown labels "${text}": use fingers, intervals, notes or none`)
+    }
+    if (value === 'none') return voicing.frets.map(() => null)
+    const set = symbol ? chordNoteSet(symbol) : null
+    const strings = tuning ?? (voicing.frets.length === 6 ? STANDARD_TUNING : null)
+    if (!set || !strings) throw new Error(`labels: ${value} needs a chord the library knows`)
+    return voicing.frets.map((fret, s) => {
+        if (fret === null || fret === 0) return null
+        const member = set.members.find((m) => m.chroma === (strings[s]! + fret) % 12)
+        if (!member) return null
+        return value === 'notes' || member.interval === null
+            ? member.name
+            : intervalLabel(member.interval)
     })
 }
 
@@ -376,8 +408,12 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
             `${set.title} has ${count} ${named} positions: use position 1 to ${count}`
         )
     }
+    const stringsText = field(block, 'strings')
+    const count = (tuning ?? STANDARD_TUNING).length
+    const strings = stringsText ? parseStrings(stringsText, count).map((n) => count - n) : undefined
     return renderFretboard(doc, set, {
         title: field(block, 'title'),
+        ...(strings ? { strings } : {}),
         label: labelField(block, 'notes'),
         frets,
         cells,

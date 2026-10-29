@@ -24,6 +24,8 @@ export interface GuitarDiagramOptions {
     orientation?: Orientation
     /** Left-handed: mirrored (the low string on the right, or the nut on the right). */
     hand?: Hand
+    /** Text in each string's dot instead of its finger (intervals, note names); null for none. */
+    labels?: (string | null)[]
 }
 
 /** "x02220", "x-10-12-12-11-10", "x 10 12 12 11 10" → frets; null when invalid. */
@@ -195,8 +197,8 @@ export function renderGuitarDiagram(
         root.appendChild(
             svg(doc, 'circle', { class: `mn-dot${isRoot ? ' mn-root' : ''}`, cx, cy, r: 7 })
         )
-        const finger = voicing.fingers[s]
-        if (finger) root.appendChild(svgLabel(doc, finger, center, 'mn-dot-text'))
+        const text = options.labels ? options.labels[s] : voicing.fingers[s]
+        if (text) root.appendChild(svgLabel(doc, text, center, 'mn-dot-text'))
     })
     return root
 }

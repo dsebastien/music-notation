@@ -31,6 +31,8 @@ export interface FretboardOptions {
     /** Only these notes (a scale position); the frets shown follow them. */
     cells?: Cell[]
     marks?: NoteMarks
+    /** Only notes on these strings (indexes, lowest first): triads on a string set. */
+    strings?: number[]
 }
 
 const STRING_GAP = 20
@@ -147,7 +149,8 @@ export function renderFretboard(
             const [cx, cy] = point
             const member = memberOf(set, open + fret)
             const chroma = (open + fret) % 12
-            if (!member || (played && !played.has(`${s}:${fret}`))) {
+            const hidden = options.strings !== undefined && !options.strings.includes(s)
+            if (!member || hidden || (played && !played.has(`${s}:${fret}`))) {
                 // A parent scale's note missing here: a faint ring.
                 if (!member && options.marks?.ghosts?.has(chroma)) {
                     root.appendChild(svg(doc, 'circle', { class: 'mn-ghost', cx, cy, r: 7 }))

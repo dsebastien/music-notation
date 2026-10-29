@@ -10,6 +10,7 @@ import {
 import {
     parseBlockSource,
     parseRange,
+    parseStrings,
     splitParts,
     type BlockSource
 } from '../blocks/block-source.js'
@@ -26,6 +27,7 @@ import {
     type VoicingOptions
 } from '../chord/generate.js'
 import { parseFrets } from '../chord/guitar.js'
+import { inversionName, keyTriads, triadVoicings, type Triad } from '../chord/triads.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
 
@@ -83,7 +85,8 @@ export function renderBlock(
             ? (splitParts(text) ??
               modeParts(language, text) ??
               positionParts(language, text) ??
-              voicingParts(language, text))
+              voicingParts(language, text) ??
+              triadParts(language, text))
             : null
     } catch (e) {
         return failed(el, host, language, messageOf(e))
@@ -220,20 +223,6 @@ const yes = (text: string | undefined, key: string): boolean | undefined => {
     throw new Error(`${key} must be yes or no, got "${text}"`)
 }
 
-const stringList = (text: string, count: number): number[] => {
-    const range = parseRange(text)
-    const numbers = range
-        ? Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i)
-        : text
-              .split(/[\s,]+/)
-              .filter(Boolean)
-              .map(Number)
-    if (!numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > count)) {
-        throw new Error(`strings: use string numbers from 1 (the highest) to ${count}, e.g. 1-4`)
-    }
-    return numbers
-}
-
 /** The last voicing lists, so a block drawn again (scrolling, switching views) doesn't search again. */
 const voicingCache = new Map<string, GeneratedVoicing[]>()
 
@@ -327,7 +316,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
         options.bassString = n
     }
     const strings = fields.get('strings')
-    if (strings) options.strings = stringList(strings, count)
+    if (strings) options.strings = parseStrings(strings, count)
     const inversion = fields.get('inversion')?.trim().toLowerCase()
     if (inversion) {
         const n = inversion === 'root' ? 0 : Number(inversion)
@@ -390,6 +379,113 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
         ].join('\n')
     )
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
+}
+
+/**
+ * `triads: 1-3` on a chord block: the chord's triads on that string set, up the neck (all
+ * inversions, or `inversion:`), or with `key: G major` the key's seven triads in one inversion.
+ * Dots show intervals unless `labels:` says otherwise. Null when the block has no `triads:`.
+ */
+function triadParts(language: DiagramLanguage, source: string): string[] | null {
+    if (language !== 'chord') return null
+    let block: BlockSource
+    try {
+        block = filled(parseBlockSource(source))
+    } catch {
+        return null
+    }
+    const value = block.fields.get('triads')?.trim()
+    if (value === undefined) return null
+    const fields = block.fields
+    if (fields.has('voicings')) throw new Error('Use triads or voicings, not both')
+    const refused = NOT_WITH_VOICINGS.find((key) => fields.has(key))
+    if (refused) throw new Error(`triads finds the frets itself: remove "${refused}"`)
+    const instrument = fields.get('instrument')?.toLowerCase()
+    if (instrument && instrument !== 'guitar' && !fields.get('tuning')) {
+        throw new Error(`triads are for guitar and other fretted instruments: give a tuning`)
+    }
+    const tuningText = fields.get('tuning')
+    const tuning = tuningText ? parseTuning(tuningText) : null
+    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    const count = tuning?.length ?? 6
+    const strings = parseStrings(value, count)
+    const sorted = [...strings].sort((a, b) => a - b)
+    if (sorted.length !== 3 || sorted[2]! - sorted[0]! !== 2) {
+        throw new Error(`triads: give three strings next to each other, e.g. 1-3 or 2-4`)
+    }
+    const inversionText = fields.get('inversion')?.trim().toLowerCase()
+    let inversion: number | 'any' | undefined
+    if (inversionText) {
+        const n = inversionText === 'root' ? 0 : Number(inversionText)
+        if (inversionText === 'any') inversion = 'any'
+        else if (n === 0 || n === 1 || n === 2) inversion = n
+        else
+            throw new Error(`inversion: use 0 (root position), 1, 2 or any, got "${inversionText}"`)
+    }
+    const options = { strings: sorted, ...(tuning ? { tuning } : {}) }
+    const keyText = fields.get('key')
+    let diagrams: { symbol: string; title: string; triad: Triad }[]
+    const head = fields.get('title')
+    if (keyText) {
+        if (inversion === 'any') throw new Error('With a key, pick one inversion: 0, 1 or 2')
+        const triads = keyTriads(keyText, {
+            ...options,
+            ...(inversion !== undefined ? { inversion } : {})
+        })
+        if (!triads)
+            throw new Error(`Unknown key "${keyText}": use e.g. key: G major or key: E minor`)
+        diagrams = triads.map((t) => ({
+            symbol: t.symbol,
+            title: `${t.numeral} · ${t.symbol}`,
+            triad: t.triad
+        }))
+    } else {
+        const written =
+            fields.get('symbol') ?? fields.get('chord') ?? block.head ?? fields.get('name')
+        if (!written) throw new Error('triads needs a chord (e.g. G) or a key (key: G major)')
+        const chord = readChord(written)
+        if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+        const notes = chordNoteSet(chord.symbol)?.members.filter((m) => m.interval !== null).length
+        if (notes !== 3) {
+            throw new Error(`${chord.symbol} isn't a triad (three notes): try voicings: all`)
+        }
+        const list = triadVoicings(chord.symbol, {
+            ...options,
+            ...(inversion !== undefined ? { inversion } : {})
+        })
+        diagrams = list.slice(0, MAX_DIAGRAMS).map((t) => ({
+            symbol: chord.symbol,
+            title: `${head ?? written}, ${inversionName(t.inversion)}`,
+            triad: t
+        }))
+    }
+    if (!diagrams.length) throw new Error('No triad fits on these strings: try another string set')
+    const shared = SHARED_KEYS.chord
+    const others = [...fields].filter(
+        ([key]) => !['triads', 'key', 'inversion', 'symbol', 'chord', 'name', 'title'].includes(key)
+    )
+    const header = others
+        .filter(([key]) => key === 'columns' || shared.includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    // Triad charts show which chord tone each note is.
+    if (!fields.has('labels')) header.push('labels: intervals')
+    const own = others
+        .filter(([key]) => key !== 'columns' && !shared.includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    const frets = (list: (number | null)[]) =>
+        list.some((f) => f !== null && f > 9)
+            ? list.map((f) => (f === null ? 'x' : f)).join('-')
+            : list.map((f) => (f === null ? 'x' : f)).join('')
+    const parts = diagrams.map((d) =>
+        [
+            `symbol: ${d.symbol}`,
+            `title: ${d.title}`,
+            `frets: ${frets(d.triad.frets)}`,
+            `fingers: ${d.triad.fingers.map((f) => f ?? 'x').join('')}`,
+            ...own
+        ].join('\n')
+    )
+    return [header.join('\n'), ...parts]
 }
 
 /** Why no voicing fits, saying which filter to change. */
@@ -538,7 +634,7 @@ function renderRow(
             if (block.fields.has('columns')) {
                 throw new Error('"columns" goes in the shared settings, before the first "---"')
             }
-            const directive = ['positions', 'modes', 'voicings'].find((key) =>
+            const directive = ['positions', 'modes', 'voicings', 'triads'].find((key) =>
                 block.fields.has(key)
             )
             if (directive) {

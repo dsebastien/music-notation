@@ -34,6 +34,15 @@ export {
     type VoicingShape
 } from './chord/generate.js'
 export {
+    triadVoicings,
+    keyTriads,
+    parseKey,
+    inversionName,
+    type Triad,
+    type TriadOptions,
+    type KeyTriad
+} from './chord/triads.js'
+export {
     renderKeyboard,
     parseKeyRange,
     keyRangeOf,
