@@ -7,17 +7,27 @@ import {
     type NotationLanguage,
     type RenderOptions
 } from '../blocks/renderers.js'
-import { parseBlockSource, splitParts, type BlockSource } from '../blocks/block-source.js'
+import {
+    parseBlockSource,
+    parseRange,
+    splitParts,
+    type BlockSource
+} from '../blocks/block-source.js'
 import { html } from './dom.js'
 import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
-import { scaleNoteSet } from '../theory/note-set.js'
+import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import { CAGED_SHAPES, positionCount } from '../fretboard/positions.js'
-import { generateVoicings, MAX_GENERATED_STRINGS, type VoicingOptions } from '../chord/generate.js'
+import {
+    generateVoicings,
+    MAX_GENERATED_STRINGS,
+    type GeneratedVoicing,
+    type VoicingOptions
+} from '../chord/generate.js'
+import { parseFrets } from '../chord/guitar.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
-import { parseRange } from '../blocks/block-source.js'
 
 export const LANGUAGES = Object.keys(RENDERERS) as NotationLanguage[]
 
@@ -224,6 +234,31 @@ const stringList = (text: string, count: number): number[] => {
     return numbers
 }
 
+/** The last voicing lists, so a block drawn again (scrolling, switching views) doesn't search again. */
+const voicingCache = new Map<string, GeneratedVoicing[]>()
+
+function cachedVoicings(symbol: string, options: VoicingOptions): GeneratedVoicing[] {
+    const key = JSON.stringify([symbol, options])
+    const hit = voicingCache.get(key)
+    if (hit) return hit
+    const list = generateVoicings(symbol, options)
+    voicingCache.set(key, list)
+    if (voicingCache.size > 32) voicingCache.delete(voicingCache.keys().next().value!)
+    return list
+}
+
+/** Keys `voicings:` can't use: it finds the frets itself, and only for fretted instruments. */
+const NOT_WITH_VOICINGS = [
+    'frets',
+    'fingers',
+    'voicing',
+    'position',
+    'base',
+    'pitches',
+    'notes',
+    'fingering'
+]
+
 /**
  * `voicings: all` (or a number) on a chord block: the chord's playable voicings, easiest first, in
  * a row (see generateVoicings). Filters: `area`, `root-string`, `strings`, `inversion`, `stretch`,
@@ -240,18 +275,27 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const value = block.fields.get('voicings')?.trim()
     if (value === undefined) return null
     const fields = block.fields
-    if (fields.has('frets') || fields.has('fingers') || fields.has('voicing')) {
-        throw new Error('voicings finds the frets itself: remove frets, fingers and voicing')
-    }
     const instrument = fields.get('instrument')?.toLowerCase()
-    if (instrument === 'piano' || instrument === 'keyboard' || fields.has('pitches')) {
+    if (
+        instrument === 'piano' ||
+        instrument === 'keyboard' ||
+        fields.has('pitches') ||
+        fields.has('notes')
+    ) {
         throw new Error('voicings are for guitar and other fretted instruments')
     }
+    const refused = NOT_WITH_VOICINGS.find((key) => fields.has(key))
+    if (refused) throw new Error(`voicings finds the frets itself: remove "${refused}"`)
+    const frettish = block.head?.split(/\s+/).find((t, i) => i > 0 && parseFrets(t) !== null)
+    if (frettish) throw new Error(`voicings finds the frets itself: remove "${frettish}"`)
     const written = fields.get('symbol') ?? fields.get('chord') ?? block.head ?? fields.get('name')
     if (!written) throw new Error('voicings needs a chord: e.g. A Major')
     const chord = readChord(written)
     if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
     const tuningText = fields.get('tuning')
+    if (instrument && instrument !== 'guitar' && !tuningText) {
+        throw new Error(`Unknown instrument "${instrument}": use guitar, or give a tuning`)
+    }
     const tuning = tuningText ? parseTuning(tuningText) : null
     if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
     const count = tuning?.length ?? 6
@@ -268,11 +312,11 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const area = fields.get('area')
     if (area) {
         const range = area.trim().toLowerCase() === 'open' ? 'open' : parseRange(area)
-        if (!range || (range !== 'open' && (range[0] < 1 || range[1] > 24))) {
-            throw new Error(`area: use open, or frets like 5-9 (from 1 to 24), got "${area}"`)
+        if (!range || (range !== 'open' && range[1] > 24)) {
+            throw new Error(`area: use open, or frets like 5-9 (up to 24), got "${area}"`)
         }
-        options.area = range
-        if (range !== 'open') options.maxFret = Math.max(15, range[1])
+        // Fretted notes start at fret 1: "0-3" means from the nut.
+        options.area = range === 'open' ? 'open' : [Math.max(1, range[0]), Math.max(1, range[1])]
     }
     const rootString = fields.get('root-string')
     if (rootString) {
@@ -297,12 +341,27 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     if (yes(fields.get('gaps'), 'gaps')) options.gaps = true
     // Only the strings asked for: three strings make triads.
     if (options.strings) options.minStrings = Math.min(options.strings.length, 4)
-    const voicings = generateVoicings(chord.symbol, options).slice(0, wanted)
-    if (!voicings.length) {
-        throw new Error(
-            `No playable voicing of ${written} fits: widen the area, allow open strings or add stretch: yes`
-        )
+    // Seven or eight strings have many more combinations: one widening filter at a time keeps a
+    // block quick to draw.
+    if (count > 6) {
+        if (options.inversion === 'any' && (options.strings?.length ?? count) > 6) {
+            throw new Error(
+                `On ${count} strings, inversion: any needs six strings or fewer: add e.g. strings: 1-6`
+            )
+        }
+        const wide = [
+            options.gaps ? 'gaps' : null,
+            options.maxSpan ? 'stretch' : null,
+            Array.isArray(options.area) && options.area[1] - options.area[0] > 11
+                ? 'a wide area'
+                : null
+        ].filter((w): w is string => w !== null)
+        if (wide.length > 1) {
+            throw new Error(`On ${count} strings, use one of ${wide.join(', ')} at a time`)
+        }
     }
+    const voicings = cachedVoicings(chord.symbol, options).slice(0, wanted)
+    if (!voicings.length) throw new Error(noVoicing(written, chord.symbol, options))
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
     const shared = SHARED_KEYS.chord
     const others = [...fields].filter(
@@ -319,16 +378,40 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
         list.some((f) => f !== null && f > 9)
             ? list.map((f) => (f === null ? 'x' : f)).join('-')
             : list.map((f) => (f === null ? 'x' : f)).join('')
+    // Each diagram: the block's title (or the chord as written), then the shape.
+    const title = fields.get('title') ?? written
     const diagrams = voicings.map((v) =>
         [
             `symbol: ${chord.symbol}`,
-            `title: ${written}${v.shape ? `, ${v.shape}` : ''}`,
+            `title: ${title}${v.shape ? `, ${v.shape}` : ''}`,
             `frets: ${frets(v.frets)}`,
             `fingers: ${v.fingers.map((f) => f ?? 'x').join('')}`,
             ...own
         ].join('\n')
     )
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
+}
+
+/** Why no voicing fits, saying which filter to change. */
+function noVoicing(written: string, symbol: string, options: VoicingOptions): string {
+    const strings = options.strings
+    const contiguous = strings
+        ? [...strings].sort((a, b) => a - b).every((n, i, all) => i === 0 || n === all[i - 1]! + 1)
+        : true
+    if (strings && !contiguous && !options.gaps) {
+        return `strings ${strings.join(' ')} aren't next to each other: add gaps: yes`
+    }
+    if (strings && options.bassString !== undefined && !strings.includes(options.bassString)) {
+        return `root-string ${options.bassString} isn't among strings ${strings.join(' ')}`
+    }
+    const notes = chordNoteSet(symbol)?.members.filter((m) => m.interval !== null).length ?? 0
+    if (typeof options.inversion === 'number' && options.inversion >= notes) {
+        return `${symbol} has ${notes} notes: inversion goes up to ${notes - 1}`
+    }
+    if (options.bassString !== undefined) {
+        return `No voicing of ${written} has its bass on string ${options.bassString}: try another root-string`
+    }
+    return `No playable voicing of ${written} fits: widen the area, allow open strings or add stretch: yes`
 }
 
 /**

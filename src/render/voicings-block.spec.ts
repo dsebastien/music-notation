@@ -63,7 +63,7 @@ describe('voicings blocks', () => {
         expect(error('voicings: all')).toBe('voicings needs a chord: e.g. A Major')
         expect(error('A Majr\nvoicings: all')).toContain('Didn\'t recognize "A Majr"')
         expect(error('A\nvoicings: 0')).toBe('voicings: use all, or a number from 1 to 32')
-        expect(error('A\nvoicings: all\nfrets: x02220')).toContain('remove frets')
+        expect(error('A\nvoicings: all\nfrets: x02220')).toContain('remove "frets"')
         expect(error('A\nvoicings: all\ninstrument: piano')).toContain('fretted instruments')
         expect(error('A\nvoicings: all\narea: 9-5')).toContain('area: use open')
         expect(error('A\nvoicings: all\nroot-string: 7')).toContain('root-string')
@@ -75,5 +75,50 @@ describe('voicings blocks', () => {
         expect(error('A\nvoicings: all\ntuning: E A D G B E A D G')).toContain('up to 8 strings')
         expect(error('Am7\nvoicings: all\nstrings: 1-2')).toContain('No playable voicing')
         expect(error('A\n---\nD\nvoicings: all')).toContain('draws its own row')
+    })
+
+    it('refuses keys that would fight the generated frets, and says which filter to change', () => {
+        const error = (source: string) => renderBlock('chord', source, host()).error
+        expect(error('A\nvoicings: 3\nposition: 3')).toBe(
+            'voicings finds the frets itself: remove "position"'
+        )
+        expect(error('A\nvoicings: 3\nnotes: A C# E')).toBe(
+            'voicings are for guitar and other fretted instruments'
+        )
+        expect(error('A Major x02220\nvoicings: 3')).toBe(
+            'voicings finds the frets itself: remove "x02220"'
+        )
+        expect(error('A\nvoicings: 3\ninstrument: ukulele')).toBe(
+            'Unknown instrument "ukulele": use guitar, or give a tuning'
+        )
+        expect(error('C\nvoicings: all\nstrings: 1 2 4')).toBe(
+            "strings 1 2 4 aren't next to each other: add gaps: yes"
+        )
+        expect(error('C\nvoicings: all\nstrings: 1-3\nroot-string: 6')).toBe(
+            "root-string 6 isn't among strings 1 2 3"
+        )
+        expect(error('C\nvoicings: all\ninversion: 3')).toBe(
+            'C has 3 notes: inversion goes up to 2'
+        )
+        expect(error('C\nvoicings: all\nroot-string: 1')).toContain('try another root-string')
+        expect(
+            error('C\nvoicings: all\ntuning: B1 E2 A2 D3 G3 B3 E4 A4\ninversion: any')
+        ).toContain('six strings or fewer')
+        expect(
+            error('C\nvoicings: all\ntuning: B1 E2 A2 D3 G3 B3 E4 A4\ngaps: yes\nstretch: yes')
+        ).toBe('On 8 strings, use one of gaps, stretch at a time')
+    })
+
+    it('titles the row with the block title, and reads area 0 as the nut', () => {
+        const h = host()
+        expect(renderBlock('chord', 'A\nvoicings: 2\ntitle: My A', h).ok).toBe(true)
+        expect(titles(h)[0]).toBe('My A, Open')
+        expect(renderBlock('chord', 'A\nvoicings: 2\narea: 0-3', host()).ok).toBe(true)
+    })
+
+    it('plays ukulele chords from the tuning', () => {
+        const h = host()
+        expect(renderBlock('chord', 'F\nvoicings: 1\ntuning: ukulele', h).ok).toBe(true)
+        expect(h.querySelectorAll('.mn-dot')).toHaveLength(2)
     })
 })

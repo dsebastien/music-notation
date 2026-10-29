@@ -34,8 +34,8 @@ describe('fingerVoicing', () => {
     })
 
     it("refuses what a hand can't play", () => {
-        // An open string under the barre.
-        expect(fingerVoicing(frets('101111'))).toBeNull()
+        // Five frets, five fingers.
+        expect(fingerVoicing(frets('12345x'))).toBeNull()
         expect(fingerVoicing(frets('123432'))).toBeNull()
     })
 
@@ -190,5 +190,87 @@ describe('voicingShape', () => {
     it('says nothing of shapes it does not know', () => {
         expect(voicingShape(frets('x-3-5-0-5-0'), 'C')).toBeNull()
         expect(voicingShape(frets('x32010'), 'Hm')).toBeNull()
+    })
+})
+
+describe('after the review', () => {
+    it('fingers barres held by any finger', () => {
+        expect(fingerVoicing(frets('x32333'))).toEqual(fingers('x21333'))
+        expect(fingerVoicing(frets('xx3211'))).toEqual(fingers('xx3211'))
+        expect(fingerVoicing(frets('xx0211'))).toEqual(fingers('xx0211'))
+        expect(fingerVoicing(frets('x24432'))).toEqual(fingers('x13421'))
+        for (const shape of ['x54555', 'x53555', 'x32335', 'x35555', 'x21222', 'x31333']) {
+            expect(fingerVoicing(frets(shape))).not.toBeNull()
+        }
+    })
+
+    it('never gives one finger two frets', () => {
+        for (const symbol of ['Cm7', 'Cm11', 'C7alt', 'Dm7', 'C9', 'G13', 'Fmaj7']) {
+            for (const v of generateVoicings(symbol)) {
+                const at = new Map<string, number>()
+                v.frets.forEach((f, s) => {
+                    const finger = v.fingers[s]
+                    if (!finger || !f) return
+                    expect(at.get(finger) ?? f).toBe(f)
+                    at.set(finger, f)
+                })
+            }
+        }
+    })
+
+    it('finds the standard ninth, sixth and thirteenth shapes', () => {
+        for (const [symbol, shape] of [
+            ['C9', 'x32333'],
+            ['D9', 'x54555'],
+            ['C6', 'x35555'],
+            ['C13', 'x32335']
+        ] as const) {
+            expect(generateVoicings(symbol).map((v) => show(v.frets))).toContain(shape)
+        }
+    })
+
+    it('plays the usual ukulele chords on its re-entrant tuning', () => {
+        const ukulele = parseTuning('ukulele')!
+        const first = (symbol: string) =>
+            show(generateVoicings(symbol, { tuning: ukulele })[0]!.frets)
+        expect(first('F')).toBe('2010')
+        expect(first('G')).toBe('0232')
+        expect(first('Am')).toBe('2000')
+        expect(first('A7')).toBe('0100')
+    })
+
+    it('ranks the barre chords guitarists learn above odd open-string voicings', () => {
+        for (const [symbol, barre] of [
+            ['Bm', 'x24432'],
+            ['Cm', 'x35543'],
+            ['B', 'x24442'],
+            ['Bb', 'x13331']
+        ] as const) {
+            expect(rank(symbol, barre)).toBeLessThanOrEqual(2)
+        }
+        expect(rank('Dm7', 'xx0211')).toBe(1)
+        expect(rank('Fmaj7', 'xx3210')).toBe(1)
+        expect(rank('C7', 'x32310')).toBe(1)
+    })
+
+    it('names shapes up the neck, from fret 12', () => {
+        expect(voicingShape(frets('12-14-14-13-12-12'), 'E')).toBe('E-shape barre')
+        expect(voicingShape(frets('x-12-14-14-14-12'), 'A')).toBe('A-shape barre')
+        expect(voicingShape(frets('13-15-15-14-13-13'), 'F')).toBe('E-shape barre')
+    })
+
+    it('calls three-string R 3 7 voicings shells', () => {
+        expect(voicingShape(frets('x323xx'), 'C7')).toBe('Shell')
+    })
+
+    it('reads frets past the last fret asked for, and caps the span', () => {
+        expect(generateVoicings('A', { area: [16, 20] }).length).toBeGreaterThan(0)
+        const start = performance.now()
+        generateVoicings('Em7', { maxSpan: 50 })
+        expect(performance.now() - start).toBeLessThan(1000)
+    })
+
+    it('knows altered chords', () => {
+        expect(generateVoicings('Calt').length).toBeGreaterThan(0)
     })
 })

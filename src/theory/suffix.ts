@@ -30,7 +30,8 @@ const CANONICAL = new Map<string, string>([
     ['+', 'aug'],
     ['sus', 'sus4'],
     ['add2', 'add9'],
-    ['69', '6/9']
+    ['69', '6/9'],
+    ['alt', '7alt']
 ])
 
 export const canonicalSuffix = (suffix: string): string => CANONICAL.get(suffix) ?? suffix

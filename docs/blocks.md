@@ -102,19 +102,21 @@ columns: 4</code></pre></div>
 | Key           | Meaning                                                                                                                         |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | `voicings`    | `all` (at most 32), or how many: the easiest first.                                                                             |
-| `area`        | The frets the fretted notes stay within: `5-9`, or `open` (frets 1–4).                                                          |
+| `area`        | The frets the fretted notes stay within: `5-9` (`0-3` starts at the nut), or `open` (frets 1–4).                                |
 | `root-string` | The string the bass note is on, counted the way guitarists do: 1 is the highest string, 6 the lowest. `6` gives E-shape chords. |
-| `strings`     | The strings that may sound: `1-3` (the three highest), `2-4`, or a list (`1 2 4`).                                              |
-| `inversion`   | The chord tone in the bass: `0` (root, the default), `1` (the third), `2` (the fifth), `3` (the seventh), or `any`.             |
+| `strings`     | The strings that may sound: `1-3` (the three highest), `2-4`, or a list (`1 2 3`; strings apart, like `1 2 4`, need `gaps`).    |
+| `inversion`   | The chord's note in the bass: `0` (root, the default), `1`, `2`, `3` (usually the third, fifth, seventh), or `any`.             |
 | `stretch`     | `yes`: the hand may cover five frets instead of four.                                                                           |
 | `open`        | `no`: no open strings.                                                                                                          |
 | `gaps`        | `yes`: muted strings may sit between sounding ones (jazz shells).                                                               |
 
-`tuning`, `orientation`, `hand`, `labels` and `columns` work as in any row.
+`tuning`, `orientation`, `hand`, `labels`, `columns` and `title` work as in any row (`title` replaces the chord in each diagram's title). `frets`, `fingers`, `voicing`, `position` and piano keys can't be used with `voicings:`.
 
-Each voicing must sound the root, the third (or the sus note), the seventh or sixth, altered notes and the highest extension; the perfect fifth and lower extensions may be left out. A slash chord keeps its bass lowest. Fingers are worked out: one per note when four are enough, else the index finger barres the lowest fret, and at most four fingers in all. Muted strings between sounding ones are left out unless `gaps: yes`.
+On a re-entrant tuning (a ukulele's high G string), any chord note may be lowest unless `inversion` says otherwise, so the usual shapes (F `2010`, G `0232`) come first. On 7 or 8 strings, use one of `gaps`, `stretch` and a wide `area` at a time, and `inversion: any` with six `strings` or fewer: there are many more combinations to go through.
 
-Easiest first means: fewer fingers, a smaller span, no barre or reach, the usual shapes (open chords, E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), lower on the neck. Each diagram is titled with the chord and its shape when it has a usual one.
+Each voicing must sound the root, the third (or the sus note), the seventh or sixth, altered notes and the highest extension; the perfect fifth and lower extensions may be left out. A slash chord keeps its bass lowest. Fingers are worked out: any finger can hold a note or barre a few strings on one fret, only the index can lie across strings fretted higher (a full barre), the finger numbers go up with the frets, and at most four fingers in all; the easiest way wins (a small index barre over the top strings, like F `xx3211`, counts as easy). Muted strings between sounding ones are left out unless `gaps: yes`.
+
+Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, Em, Dm, their sevenths, sus and add9 shapes), then fewer fingers, a smaller span, no full barre, reach or awkward fingering, the usual shapes (E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), no open string ringing inside a shape up the neck, lower on the neck. Each diagram is titled with the chord and its shape when it has a usual one.
 
 `voicing: 3` (singular) still picks the third voicing of the built-in database (see [Examples](examples.html)).
 
