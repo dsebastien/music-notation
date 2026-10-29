@@ -14,6 +14,10 @@ import { blockFromProperties } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { scaleNoteSet } from '../theory/note-set.js'
 import { CAGED_SHAPES, positionCount } from '../fretboard/positions.js'
+import { generateVoicings, MAX_GENERATED_STRINGS, type VoicingOptions } from '../chord/generate.js'
+import { parseTuning } from '../fretboard/tuning.js'
+import { readChord, suggestChords } from '../theory/chord-name.js'
+import { parseRange } from '../blocks/block-source.js'
 
 export const LANGUAGES = Object.keys(RENDERERS) as NotationLanguage[]
 
@@ -66,7 +70,10 @@ export function renderBlock(
     let parts: string[] | null = null
     try {
         parts = isDiagramLanguage(language)
-            ? (splitParts(text) ?? modeParts(language, text) ?? positionParts(language, text))
+            ? (splitParts(text) ??
+              modeParts(language, text) ??
+              positionParts(language, text) ??
+              voicingParts(language, text))
             : null
     } catch (e) {
         return failed(el, host, language, messageOf(e))
@@ -180,6 +187,147 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
                   : [`position: ${n}`, `title: ${set.title}, box ${n}`]
         return [`scale: ${scale}`, ...at, ...own].join('\n')
     })
+    return [...(header.length ? [header.join('\n')] : []), ...diagrams]
+}
+
+/** Keys that choose which voicings `voicings:` draws; they don't reach the diagrams. */
+const VOICING_FILTERS = [
+    'voicings',
+    'area',
+    'root-string',
+    'strings',
+    'inversion',
+    'stretch',
+    'open',
+    'gaps'
+]
+
+const yes = (text: string | undefined, key: string): boolean | undefined => {
+    if (text === undefined || text === '') return undefined
+    const value = text.trim().toLowerCase()
+    if (['yes', 'true', 'on'].includes(value)) return true
+    if (['no', 'false', 'off'].includes(value)) return false
+    throw new Error(`${key} must be yes or no, got "${text}"`)
+}
+
+const stringList = (text: string, count: number): number[] => {
+    const range = parseRange(text)
+    const numbers = range
+        ? Array.from({ length: range[1] - range[0] + 1 }, (_, i) => range[0] + i)
+        : text
+              .split(/[\s,]+/)
+              .filter(Boolean)
+              .map(Number)
+    if (!numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > count)) {
+        throw new Error(`strings: use string numbers from 1 (the highest) to ${count}, e.g. 1-4`)
+    }
+    return numbers
+}
+
+/**
+ * `voicings: all` (or a number) on a chord block: the chord's playable voicings, easiest first, in
+ * a row (see generateVoicings). Filters: `area`, `root-string`, `strings`, `inversion`, `stretch`,
+ * `open`, `gaps`. Null when the block has no `voicings:`.
+ */
+function voicingParts(language: DiagramLanguage, source: string): string[] | null {
+    if (language !== 'chord') return null
+    let block: BlockSource
+    try {
+        block = filled(parseBlockSource(source))
+    } catch {
+        return null
+    }
+    const value = block.fields.get('voicings')?.trim()
+    if (value === undefined) return null
+    const fields = block.fields
+    if (fields.has('frets') || fields.has('fingers') || fields.has('voicing')) {
+        throw new Error('voicings finds the frets itself: remove frets, fingers and voicing')
+    }
+    const instrument = fields.get('instrument')?.toLowerCase()
+    if (instrument === 'piano' || instrument === 'keyboard' || fields.has('pitches')) {
+        throw new Error('voicings are for guitar and other fretted instruments')
+    }
+    const written = fields.get('symbol') ?? fields.get('chord') ?? block.head ?? fields.get('name')
+    if (!written) throw new Error('voicings needs a chord: e.g. A Major')
+    const chord = readChord(written)
+    if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+    const tuningText = fields.get('tuning')
+    const tuning = tuningText ? parseTuning(tuningText) : null
+    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    const count = tuning?.length ?? 6
+    if (count > MAX_GENERATED_STRINGS) {
+        throw new Error(`voicings works on up to ${MAX_GENERATED_STRINGS} strings`)
+    }
+    const all = value.toLowerCase() === 'all'
+    const wanted = all ? MAX_DIAGRAMS : Number(value)
+    if (!Number.isInteger(wanted) || wanted < 1 || wanted > MAX_DIAGRAMS) {
+        throw new Error(`voicings: use all, or a number from 1 to ${MAX_DIAGRAMS}`)
+    }
+    const options: VoicingOptions = {}
+    if (tuning) options.tuning = tuning
+    const area = fields.get('area')
+    if (area) {
+        const range = area.trim().toLowerCase() === 'open' ? 'open' : parseRange(area)
+        if (!range || (range !== 'open' && (range[0] < 1 || range[1] > 24))) {
+            throw new Error(`area: use open, or frets like 5-9 (from 1 to 24), got "${area}"`)
+        }
+        options.area = range
+        if (range !== 'open') options.maxFret = Math.max(15, range[1])
+    }
+    const rootString = fields.get('root-string')
+    if (rootString) {
+        const n = Number(rootString)
+        if (!Number.isInteger(n) || n < 1 || n > count) {
+            throw new Error(`root-string: use a string number from 1 (the highest) to ${count}`)
+        }
+        options.bassString = n
+    }
+    const strings = fields.get('strings')
+    if (strings) options.strings = stringList(strings, count)
+    const inversion = fields.get('inversion')?.trim().toLowerCase()
+    if (inversion) {
+        const n = inversion === 'root' ? 0 : Number(inversion)
+        if (inversion === 'any') options.inversion = 'any'
+        else if (Number.isInteger(n) && n >= 0 && n <= 3) options.inversion = n
+        else throw new Error(`inversion: use 0 (root), 1, 2, 3 or any, got "${inversion}"`)
+    }
+    if (yes(fields.get('stretch'), 'stretch')) options.maxSpan = 5
+    const open = yes(fields.get('open'), 'open')
+    if (open === false) options.allowOpen = false
+    if (yes(fields.get('gaps'), 'gaps')) options.gaps = true
+    // Only the strings asked for: three strings make triads.
+    if (options.strings) options.minStrings = Math.min(options.strings.length, 4)
+    const voicings = generateVoicings(chord.symbol, options).slice(0, wanted)
+    if (!voicings.length) {
+        throw new Error(
+            `No playable voicing of ${written} fits: widen the area, allow open strings or add stretch: yes`
+        )
+    }
+    // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
+    const shared = SHARED_KEYS.chord
+    const others = [...fields].filter(
+        ([key]) =>
+            !VOICING_FILTERS.includes(key) && !['symbol', 'chord', 'name', 'title'].includes(key)
+    )
+    const header = others
+        .filter(([key]) => key === 'columns' || shared.includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    const own = others
+        .filter(([key]) => key !== 'columns' && !shared.includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    const frets = (list: (number | null)[]) =>
+        list.some((f) => f !== null && f > 9)
+            ? list.map((f) => (f === null ? 'x' : f)).join('-')
+            : list.map((f) => (f === null ? 'x' : f)).join('')
+    const diagrams = voicings.map((v) =>
+        [
+            `symbol: ${chord.symbol}`,
+            `title: ${written}${v.shape ? `, ${v.shape}` : ''}`,
+            `frets: ${frets(v.frets)}`,
+            `fingers: ${v.fingers.map((f) => f ?? 'x').join('')}`,
+            ...own
+        ].join('\n')
+    )
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
 }
 
@@ -307,7 +455,9 @@ function renderRow(
             if (block.fields.has('columns')) {
                 throw new Error('"columns" goes in the shared settings, before the first "---"')
             }
-            const directive = ['positions', 'modes'].find((key) => block.fields.has(key))
+            const directive = ['positions', 'modes', 'voicings'].find((key) =>
+                block.fields.has(key)
+            )
             if (directive) {
                 throw new Error(`"${directive}" draws its own row: use it in a block of its own`)
             }

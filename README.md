@@ -37,13 +37,18 @@ labels: intervals
 ```
 ````
 
-Chords in words or recognized from their frets, scale positions and modes:
+Chords in words or recognized from their frets, every way to play a chord, scale positions and modes:
 
 ````markdown
 ```chord
 F Sharp Minor 7
 ---
 frets: x02220
+```
+
+```chord
+A Major
+voicings: 6
 ```
 
 ```fretboard
@@ -88,6 +93,7 @@ if (!result.ok) console.warn(result.error)
 
 - `renderBlock(language, source, host, options)` appends the rendering to `host` and never throws. It returns `{ ok, el, error, destroy() }`.
 - `@dsebastien/music-notation/voicings` adds about 1,800 guitar voicings, found by chord symbol (`chord` blocks with only a symbol). It's a separate entry point because the data weighs about 230 KB.
+- `generateVoicings(symbol, options)` finds every playable voicing of a chord on any tuning, easiest first, with fingers and shape names; `fingerVoicing(frets)` fingers any voicing.
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
 - Styles: `injectStyles(document)`, or ship `@dsebastien/music-notation/music-notation.css`. Colors follow Obsidian's theme variables, with fallbacks for any page.
 

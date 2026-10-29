@@ -1,6 +1,6 @@
 # AGENTS.md
 
-`@dsebastien/music-notation`: parsers and renderers for music notation blocks (chord diagrams, keyboards, fretboards, ChordPro charts; tabs and scores with alphaTab in 0.4). Consumed by the Music Practice Obsidian plugin (`github.com/dsebastien/obsidian-music-practice`) through npm, and by Obsidian Publish sites through the browser bundle on jsDelivr.
+`@dsebastien/music-notation`: parsers and renderers for music notation blocks (chord diagrams, keyboards, fretboards, ChordPro charts; tabs and scores with alphaTab in 0.5). Consumed by the Music Practice Obsidian plugin (`github.com/dsebastien/obsidian-music-practice`) through npm, and by Obsidian Publish sites through the browser bundle on jsDelivr.
 
 ## Session-start checklist
 

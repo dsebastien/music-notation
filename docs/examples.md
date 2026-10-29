@@ -107,6 +107,68 @@ fingers: 0003
 tuning: ukulele
 title: C (ukulele)</code></pre></div>
 
+## All the ways to play a chord
+
+Every E minor voicing in the first position:
+
+````markdown
+```chord
+Em
+voicings: all
+area: open
+columns: 6
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">Em
+voicings: all
+area: open
+columns: 6</code></pre></div>
+
+G major triads on the three highest strings, in every inversion:
+
+````markdown
+```chord
+G
+voicings: all
+strings: 1-3
+inversion: any
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">G
+voicings: all
+strings: 1-3
+inversion: any</code></pre></div>
+
+F with the root on the A string:
+
+````markdown
+```chord
+F
+voicings: 4
+root-string: 5
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">F
+voicings: 4
+root-string: 5</code></pre></div>
+
+C on a ukulele:
+
+````markdown
+```chord
+C
+voicings: 4
+tuning: ukulele
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">C
+voicings: 4
+tuning: ukulele</code></pre></div>
+
 ## Chords in words, and chords recognized
 
 Written the way chord notes are titled:

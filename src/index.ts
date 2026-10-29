@@ -25,6 +25,15 @@ export {
     type GuitarDiagramOptions
 } from './chord/guitar.js'
 export {
+    generateVoicings,
+    fingerVoicing,
+    voicingShape,
+    MAX_GENERATED_STRINGS,
+    type GeneratedVoicing,
+    type VoicingOptions,
+    type VoicingShape
+} from './chord/generate.js'
+export {
     renderKeyboard,
     parseKeyRange,
     keyRangeOf,

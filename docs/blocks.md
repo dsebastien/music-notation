@@ -67,6 +67,57 @@ fingering: 5-1-2-4
 instrument: piano
 fingering: 5-1-2-4</code></pre></div>
 
+## All the ways to play a chord
+
+`voicings:` draws every playable way to play a guitar chord, easiest first, in a row. The library finds them from the chord's notes, so it works for any chord, any tuning and up to 8 strings.
+
+````markdown
+```chord
+A Major
+voicings: 6
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A Major
+voicings: 6</code></pre></div>
+
+Narrow them down: C between frets 3 and 9, without open strings, four columns:
+
+````markdown
+```chord
+C
+voicings: all
+area: 3-9
+open: no
+columns: 4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">C
+voicings: all
+area: 3-9
+open: no
+columns: 4</code></pre></div>
+
+| Key           | Meaning                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `voicings`    | `all` (at most 32), or how many: the easiest first.                                                                             |
+| `area`        | The frets the fretted notes stay within: `5-9`, or `open` (frets 1–4).                                                          |
+| `root-string` | The string the bass note is on, counted the way guitarists do: 1 is the highest string, 6 the lowest. `6` gives E-shape chords. |
+| `strings`     | The strings that may sound: `1-3` (the three highest), `2-4`, or a list (`1 2 4`).                                              |
+| `inversion`   | The chord tone in the bass: `0` (root, the default), `1` (the third), `2` (the fifth), `3` (the seventh), or `any`.             |
+| `stretch`     | `yes`: the hand may cover five frets instead of four.                                                                           |
+| `open`        | `no`: no open strings.                                                                                                          |
+| `gaps`        | `yes`: muted strings may sit between sounding ones (jazz shells).                                                               |
+
+`tuning`, `orientation`, `hand`, `labels` and `columns` work as in any row.
+
+Each voicing must sound the root, the third (or the sus note), the seventh or sixth, altered notes and the highest extension; the perfect fifth and lower extensions may be left out. A slash chord keeps its bass lowest. Fingers are worked out: one per note when four are enough, else the index finger barres the lowest fret, and at most four fingers in all. Muted strings between sounding ones are left out unless `gaps: yes`.
+
+Easiest first means: fewer fingers, a smaller span, no barre or reach, the usual shapes (open chords, E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), lower on the neck. Each diagram is titled with the chord and its shape when it has a usual one.
+
+`voicing: 3` (singular) still picks the third voicing of the built-in database (see [Examples](examples.html)).
+
 ## Keyboard
 
 A piano keyboard with the notes of a scale, a chord or a list.
