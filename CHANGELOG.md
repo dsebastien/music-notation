@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 (2026-10-29)
+
+- **Every way to play a chord**: `voicings: all` (or `voicings: 6`) in a `chord` block draws every playable voicing of the chord in a row, the easiest first: the open chords you learn first, then E- and A-shape barres, the CAGED shapes and the rest. Each one is fingered and titled with its shape.
+- **Narrow them down**: `area: 5-9` (or `open`), `root-string: 5`, `strings: 1-3` (triads on the top strings), `inversion: 1` (or `any`), `stretch: yes`, `open: no`, `gaps: yes`. Works on any tuning up to 8 strings: `tuning: ukulele` gives the usual ukulele shapes.
+- For apps: `generateVoicings(chord, options)`, `fingerVoicing(frets)` (fingers for any voicing) and `voicingShape(frets, chord)`.
+- `C7alt` (and `Calt`) are read as altered dominant chords.
+
 ## 0.3.0 (2026-10-29)
 
 - **Chords in words**: `A Major`, `F Sharp Minor 7`, `C Major over G` work wherever a chord symbol does, and stay the title. A chord the library doesn't recognize says what to write instead.
