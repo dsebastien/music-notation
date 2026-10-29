@@ -48,6 +48,9 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `parseChordName(text)`: a chord name in words (`F Sharp Minor 7`) as a parsed chord; `readChord(text)` takes a symbol or words; `suggestChords(text)` says what to write instead.
 - `generateVoicings(symbol, options)`: every playable voicing of a chord, easiest first: `{ frets, fingers, baseFret, bassString, inversion, shape, difficulty, reasons }`. Options: `tuning`, `area` (`[5, 9]` or `'open'`), `bassString` and `strings` (1 = the highest string), `inversion` (the chord's note in the bass, 0–3, or `'any'`; any by default on re-entrant tunings), `maxSpan` (4, at most 6), `allowOpen`, `minStrings`, `gaps`, `maxFret` (15). Up to `MAX_GENERATED_STRINGS` (8) strings.
 - `fingerVoicing(frets)`: the easiest fingers for frets (any finger may barre a few strings on one fret, only the index across strings fretted higher, at most four), null when a hand can't play them. `voicingShape(frets, symbol, tuning?)`: `Open`, `E-shape barre`, `A-shape barre`, `CAGED C`… `CAGED D`, `Power chord`, `Triad`, `Shell`, `Other barre`, or null.
+- `triadVoicings(chord, { strings, inversion, tuning })`: close triads on a string set, up the neck, with their `inversion` and `top` note (R, 3, 5); `keyTriads(key, { strings, inversion })`: a key's seven triads with their numerals; `parseKey(text)`, `inversionName(n)`.
+- `transition(fromFrets, toChord, { tuning, fromFingers })`: the next chord's voicings, easiest to reach first, with `anchors`, `guides` (string indexes), `shift`, `movement` and `tips` in plain words; `smoothProgression(chords, { tuning })`: the voicings that make a progression easiest.
+- Playback: `sequenceOf(kind, pitches, { bpm, strum })` (the notes a chord or scale plays, timed), `lightPlayer(window)` (the light synthesizer: `pluckedString`, `pianoTone`), `attachPlayback(el, options)` (the bar). The `play` render option (`true`, or `{ player, sound, volume, bpm, strum }`) adds the bar to every diagram; `player` is a `NotePlayer` or a function returning one at each play.
 - `detectChordFromFrets(frets, tuning?)`, `detectChordFromPitches(midis)`: the chord played, `{ symbol, readings }`.
 - `scaleName(text)` (the usual names as tonal knows them), `modesOf(scale)`, `scaleTypes()`, `characteristicIntervals(type)`.
 - `scalePosition(noteSet, tuning, 'box' | 'caged' | '3nps', n)`: the notes of one position, `{ string, fret }[]`; `positionCount(noteSet, system)`.
@@ -64,3 +67,28 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 ## Browser bundle
 
 `dist/music-notation.publish.min.js` renders every notation block on the page and exposes the API (plus `lookupGuitarVoicing` and `stop()`) as `window.MusicNotation`. It reads `window.musicNotationOptions` (`orientation`, `hand`) when the page sets it before loading. See [Obsidian Publish](publish.md).
+
+## Tabs and scores
+
+`@dsebastien/music-notation/tab` draws `tab and `score blocks with [alphaTab](https://alphatab.net) (MPL-2.0). alphaTab isn't bundled: pass its module (the UMD build, `window.alphaTab`), the music font and the soundfont.
+
+```ts
+import { renderTab } from '@dsebastien/music-notation/tab'
+
+const result = renderTab('tab', source, container, {
+    alphaTab: window.alphaTab,
+    assets: {
+        scriptFile: null,
+        font: 'https://…/Bravura.woff2',
+        soundFont: 'https://…/sonivox.sf3'
+    },
+    resolveFile: async (link) => bytesOf(link) // for file: [[Song.gp]]
+})
+const { ok, error } = await result.ready
+```
+
+- `scriptFile`: a same-origin URL of alphaTab's script to render and play in workers; `null` works on the main thread. `soundFont` may be bytes.
+- `parseTabSource(language, source)`: the block's `staves`, `file`, `tracks` and alphaTex.
+- `soundfontPlayer(alphaTab, () => api)`, `createSoundfontPlayer(alphaTab, assets, document)`: a `NotePlayer` for the diagrams' playback through alphaTab's soundfont.
+- `scoreToAlphaTex(alphaTab, bytes)` (Guitar Pro 3–8, MusicXML, Capella), `exportGp7(alphaTab, music)`, `exportMidi(alphaTab, music)` (alphaTex or file bytes); `textTabToAlphaTex(text)` and `chordSheetToChordPro(text)` for pasted text (also in the main entry's converters).
+- `alphaTabCdn(version)`: jsDelivr URLs of alphaTab's script, font and soundfont; `ALPHATAB_VERSION`.

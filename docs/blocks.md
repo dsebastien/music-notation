@@ -5,7 +5,7 @@ nav_order: 2
 
 # Blocks
 
-A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard` or `chords`. Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
+A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
 
 ## Chord
 
@@ -35,21 +35,23 @@ frets: x02220
 fingers: x01230
 title: A (open)</code></pre></div>
 
-| Key           | Meaning                                                                                                                                                                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `symbol`      | Chord symbol (`A`, `F#m7`, `B♭`, `C/G`, `C6/9`) or name in words (`A Major`, `F Sharp Minor 7`, `C Major over G`). Its root notes are highlighted. Also the title, unless `title` is set. A symbol the library doesn't know still works with `frets`, without root marks. |
-| `frets`       | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`.                                                                                                                                                            |
-| `fingers`     | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre.                                                                                                                                                                  |
-| `voicing`     | With only a symbol, the n-th voicing from the built-in database (1 = the most common).                                                                                                                                                                                    |
-| `position`    | The first fret shown; at most the lowest fretted note. Computed when absent.                                                                                                                                                                                              |
-| `tuning`      | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                                                                                                                                                                           |
-| `instrument`  | `piano` draws a keyboard.                                                                                                                                                                                                                                                 |
-| `pitches`     | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                                                                                          |
-| `fingering`   | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                                                                                            |
-| `title`       | The title shown above.                                                                                                                                                                                                                                                    |
-| `name`        | Also the title; when it reads as a chord (`name: A`, `name: A Major`), its root notes are highlighted too.                                                                                                                                                                |
-| `orientation` | `vertical` (default for guitar) or `horizontal`; piano chords are `horizontal` by default. See [orientation](#orientation-and-left-handed-diagrams).                                                                                                                      |
-| `hand`        | `left` mirrors the diagram for left-handed players.                                                                                                                                                                                                                       |
+| Key                 | Meaning                                                                                                                                                                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `symbol`            | Chord symbol (`A`, `F#m7`, `B♭`, `C/G`, `C6/9`) or name in words (`A Major`, `F Sharp Minor 7`, `C Major over G`). Its root notes are highlighted. Also the title, unless `title` is set. A symbol the library doesn't know still works with `frets`, without root marks. |
+| `frets`             | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`.                                                                                                                                                            |
+| `fingers`           | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre.                                                                                                                                                                  |
+| `voicing`           | With only a symbol, the n-th voicing from the built-in database (1 = the most common).                                                                                                                                                                                    |
+| `position`          | The first fret shown; at most the lowest fretted note. Computed when absent.                                                                                                                                                                                              |
+| `tuning`            | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                                                                                                                                                                           |
+| `instrument`        | `piano` draws a keyboard.                                                                                                                                                                                                                                                 |
+| `pitches`           | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                                                                                          |
+| `fingering`         | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                                                                                            |
+| `title`             | The title shown above.                                                                                                                                                                                                                                                    |
+| `name`              | Also the title; when it reads as a chord (`name: A`, `name: A Major`), its root notes are highlighted too.                                                                                                                                                                |
+| `orientation`       | `vertical` (default for guitar) or `horizontal`; piano chords are `horizontal` by default. See [orientation](#orientation-and-left-handed-diagrams).                                                                                                                      |
+| `hand`              | `left` mirrors the diagram for left-handed players.                                                                                                                                                                                                                       |
+| `labels`            | Guitar: what the dots say: `fingers` (default), `intervals` (R, 3, 5, as triad charts show them), `notes` or `none`.                                                                                                                                                      |
+| `anchors`, `guides` | Guitar: strings (1 = the highest) whose finger stays on its fret (a ring) or slides along the string (a dashed ring), as [chord transitions](#chord-transitions) mark them.                                                                                               |
 
 Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. A chord the library doesn't recognize says what to write instead.
 
@@ -122,6 +124,71 @@ Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, 
 
 `voicing: 3` (singular) still picks the third voicing of the built-in database (see [Examples](examples.html)).
 
+## Triads on string sets
+
+Triads on three strings next to each other, in their three inversions, are how guitarists learn the neck. `triads:` draws a chord's triads on a string set, up the neck, with R, 3 and 5 in the dots:
+
+````markdown
+```chord
+G
+triads: 1-3
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">G
+triads: 1-3</code></pre></div>
+
+`inversion: 0` (root position), `1` or `2` keeps one. With `key:`, the key's seven triads in one inversion, moving up the neck, titled with their numerals:
+
+````markdown
+```chord
+key: C major
+triads: 2-4
+inversion: 1
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">key: C major
+triads: 2-4
+inversion: 1</code></pre></div>
+
+| Key         | Meaning                                                                                            |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `triads`    | The string set: `1-3`, `2-4`, `3-5` or `4-6` (1 = the highest string).                             |
+| `inversion` | `0` (root position), `1`, `2`; all of them by default (one, root position by default, with a key). |
+| `key`       | `G major`, `E minor`: the key's seven triads instead of one chord's.                               |
+| `labels`    | `intervals` by default here; `fingers` or `notes` instead.                                         |
+
+Triads need a three-note chord (major, minor, diminished, augmented, sus). The shapes stay within four frets. On a fretboard, `strings: 1-3` shows a chord's notes on those strings only.
+
+## Chord transitions
+
+Changing chords cleanly is mostly about which voicing you pick and which fingers can stay down. `from:` and `to:` draw the chord you hold, then the next chord's voicings the hand reaches most easily. Fingers that stay on their fret have a ring; fingers that slide along their string have a dashed ring.
+
+````markdown
+```chord
+from: C x32010
+to: Am
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">from: C x32010
+to: Am</code></pre></div>
+
+`count: 5` shows more. Without frets (`from: C`), the chord's easiest voicing is held. For a whole progression, `progression:` picks the voicings that make it easiest overall, the shapes and the moves together:
+
+````markdown
+```chord
+progression: G D Em C
+columns: 4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">progression: G D Em C
+columns: 4</code></pre></div>
+
+Chords are separated by spaces, or by commas or bars when they're written in words (`progression: C, A Minor, F`). The library also says what to do in plain words (`transition` in the [API](api.html)): "Keep your middle finger on the D string's 2nd fret", "Slide your ring finger along the B string from fret 2 to 3".
+
 ## Keyboard
 
 A piano keyboard with the notes of a scale, a chord or a list.
@@ -171,6 +238,7 @@ labels: intervals</code></pre></div>
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | `scale`, `chord`, `notes`                    | As for keyboards.                                                                                                                               |
 | `frets`                                      | Frets shown: `5-8`. `0-12` by default; from `0`, open strings are shown left of the nut.                                                        |
+| `strings`                                    | Only the notes on these strings (1 = the highest): `1-3` shows triads on the top strings.                                                       |
 | `tuning`                                     | `standard` (default), `Drop D`, `DADGAD`, `open G`, `open D`, `open E`, `half step down`, `bass`, `ukulele`, or notes: `DADGAD`, `E1 A1 D2 G2`. |
 | `labels`                                     | `notes` (default), `degrees`, `intervals`, `none`.                                                                                              |
 | `title`                                      | The title shown above.                                                                                                                          |
@@ -365,6 +433,55 @@ A x02220 x01230
 E 022100 023100</code></pre></div>
 
 Text always stays upright. Apps using the library can set the default orientation per block and the hand (Music Practice has settings for them); on Obsidian Publish, see [Publish](publish.md).
+
+## Hear the diagrams
+
+Apps that turn playback on (Music Practice does, and Obsidian Publish pages through `publish.js`) add a small bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens):
+
+- **Play / stop**: a chord strums from the low string up, then rings; a scale goes up and back down.
+- **Loop**.
+- **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum.
+- **Volume**, and **sound**: guitar or piano.
+
+A click on a dot or a key plays that note. On web pages the sound is a small synthesizer computed in the browser (nothing to download); Music Practice plays a soundfont of recorded instruments.
+
+## Tabs and scores
+
+`tab` and `score` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction), drawn and played by [alphaTab](https://alphatab.net): tablature, standard notation, both, or a piano grand staff.
+
+````markdown
+```tab
+\title "Riff"
+\tempo 100
+.
+:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-tab">\title "Riff"
+\tempo 100
+.
+:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r</code></pre></div>
+
+````markdown
+```score
+staves: both
+:4 (0.1 1.2 0.3 2.4 3.5).2 (3.1 0.2 0.3 0.4 2.5 3.6).2
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-score">staves: both
+:4 (0.1 1.2 0.3 2.4 3.5).2 (3.1 0.2 0.3 0.4 2.5 3.6).2</code></pre></div>
+
+| Key      | Meaning                                                                                                   |
+| -------- | --------------------------------------------------------------------------------------------------------- |
+| `staves` | `tab`, `score` or `both`. `tab` blocks show tablature and `score` blocks notation by default.             |
+| `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
+| `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
+
+These keys go on the first lines; the alphaTex follows. Under the music, a player bar (on hover): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. A mistake in the alphaTex shows its line and column.
+
+On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
 ## Chords (ChordPro)
 

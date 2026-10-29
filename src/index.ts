@@ -131,3 +131,5 @@ export {
     type PropertyNames,
     type Instrument
 } from './blocks/properties.js'
+export { textTabToAlphaTex } from './convert/text-tab.js'
+export { chordSheetToChordPro } from './convert/chord-sheet.js'

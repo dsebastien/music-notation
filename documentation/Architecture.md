@@ -8,13 +8,16 @@ src/
   keyboard/    piano keyboard (SVG)
   fretboard/   fretboard (SVG), tunings, scale positions
   chords/      ChordPro parser, chart (HTML)
+  convert/     text tabs → alphaTex, chord sheets → ChordPro
+  playback/    note sequences, the light synthesizer, the playback bar
+  tab/         tab and score blocks through alphaTab (passed in), soundfont player, imports and exports; own entry point; auto.ts = the tab bundle
   voicings/    guitar voicing lookup (chords-db), own entry point
   render/      DOM helpers, layout (orientation, hand, neck frame), renderBlock (never throws; rows)
   publish/     renderAll / autoRender; auto.ts = the browser bundle
   styles.css   one stylesheet, CSS variables defaulting to Obsidian's
 ```
 
-- **Entry points**: `.` (everything but the voicing data), `./voicings`, `./publish`; `dist/music-notation.publish.min.js` (IIFE: styles, voicings, auto-render, `window.MusicNotation`); `dist/music-notation.css`.
+- **Entry points**: `.` (everything but the voicing data), `./voicings`, `./publish`, `./tab` (alphaTab types only: the app passes alphaTab's module); `dist/music-notation.publish.min.js` (IIFE: styles, voicings, auto-render, `window.MusicNotation`); `dist/music-notation.css`; `dist/music-notation.tab.min.js` (IIFE: tab and score blocks on web pages; loads alphaTab, its font and soundfont from jsDelivr when a page has such blocks).
 - **Build** (`scripts/build.ts`): Bun.build ESM with dependencies external and no code splitting (each entry self-contained; `scripts/check-dist.ts` imports every entry in Node after the build); a minified IIFE bundle for Publish; declarations from `tsc -p tsconfig.build.json`.
 - **Voicings**: `generateVoicings` searches string by string (each string's chord tones within the hand's span, pruned when a voicing can't be finished), then checks the bass, fingers it (`fingerVoicing`: a search over notes and barres per fret), names the shape (CAGED by sliding the voicing to the nut) and scores it. No data: the chord's notes come from tonal. `voicings:` blocks expand into a row in `render-block.ts`, with the last 32 lists cached.
 - **Rendering**: renderers build SVG/HTML with `doc.createElement(NS)` from the host's document; classes prefixed `mn-`; no inline colors, so themes apply.

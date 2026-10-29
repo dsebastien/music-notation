@@ -169,6 +169,88 @@ tuning: ukulele
 voicings: 4
 tuning: ukulele</code></pre></div>
 
+## Triads and transitions
+
+D major triads on the middle strings:
+
+````markdown
+```chord
+D
+triads: 2-4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">D
+triads: 2-4</code></pre></div>
+
+The seven triads of G major on the three highest strings, in first inversion:
+
+````markdown
+```chord
+key: G major
+triads: 1-3
+inversion: 1
+columns: 7
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">key: G major
+triads: 1-3
+inversion: 1
+columns: 7</code></pre></div>
+
+From G to C, the easiest voicings, then a whole progression:
+
+````markdown
+```chord
+from: G 320003
+to: C
+count: 3
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">from: G 320003
+to: C
+count: 3</code></pre></div>
+
+````markdown
+```chord
+progression: A, D, E, A
+columns: 4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">progression: A, D, E, A
+columns: 4</code></pre></div>
+
+## Tabs and scores
+
+A riff in tablature:
+
+````markdown
+```tab
+\tempo 90
+.
+:8 5.4 7.4 5.3 7.3 | 5.4 7.4 5.3 7.3 | 0.6 3.6 5.6 3.6 0.6 r r r
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-tab">\tempo 90
+.
+:8 5.4 7.4 5.3 7.3 | 5.4 7.4 5.3 7.3 | 0.6 3.6 5.6 3.6 0.6 r r r</code></pre></div>
+
+A scale in notation and tablature:
+
+````markdown
+```score
+staves: both
+:8 3.5 5.5 2.4 3.4 5.4 2.3 4.3 5.3
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-score">staves: both
+:8 3.5 5.5 2.4 3.4 5.4 2.3 4.3 5.3</code></pre></div>
+
 ## Chords in words, and chords recognized
 
 Written the way chord notes are titled:

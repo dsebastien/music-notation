@@ -37,7 +37,7 @@ labels: intervals
 ```
 ````
 
-Chords in words or recognized from their frets, every way to play a chord, scale positions and modes:
+Chords in words or recognized from their frets, every way to play a chord, triads, chord transitions, scale positions and modes:
 
 ````markdown
 ```chord
@@ -49,6 +49,16 @@ frets: x02220
 ```chord
 A Major
 voicings: 6
+```
+
+```chord
+G
+triads: 1-3
+```
+
+```chord
+from: C x32010
+to: Am
 ```
 
 ```fretboard
@@ -95,6 +105,8 @@ if (!result.ok) console.warn(result.error)
 
 - `renderBlock(language, source, host, options)` appends the rendering to `host` and never throws. It returns `{ ok, el, error, destroy() }`.
 - `@dsebastien/music-notation/voicings` adds about 1,800 guitar voicings, found by chord symbol (`chord` blocks with only a symbol). It's a separate entry point because the data weighs about 230 KB.
+- **Hear the diagrams**: with the `play` option, a playback bar on each diagram (on hover): chords strum, scales go up and down, a click plays a note.
+- **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab and `score blocks (alphaTex, or Guitar Pro and MusicXML files) with [alphaTab](https://alphatab.net), with a player; it also converts score files, text tabs and chord sheets, and exports Guitar Pro 7 and MIDI.
 - `generateVoicings(symbol, options)` finds every playable voicing of a chord on any tuning, easiest first, with fingers and shape names; `fingerVoicing(frets)` fingers any voicing.
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
 - Styles: `injectStyles(document)`, or ship `@dsebastien/music-notation/music-notation.css`. Colors follow Obsidian's theme variables, with fallbacks for any page.

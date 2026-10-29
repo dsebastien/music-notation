@@ -10,23 +10,29 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 ```js
 ;(() => {
     const VERSION = '0.4.0'
-    const SELECTOR = ['chord', 'chords', 'keyboard', 'fretboard']
-        .map((l) => `pre > code.language-${l}`)
-        .join(', ')
-    let requested = false
-    const load = () => {
-        if (requested || !document.querySelector(SELECTOR)) return
-        requested = true
+    const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
+    const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
+    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard'])
+    const TABS = selector(['tab', 'score'])
+    const requested = new Set()
+    const load = (file) => {
+        if (requested.has(file)) return
+        requested.add(file)
         const script = document.createElement('script')
-        script.src = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist/music-notation.publish.min.js`
+        script.src = `${CDN}/${file}`
         document.head.appendChild(script)
     }
-    load()
-    new MutationObserver(load).observe(document.body, { childList: true, subtree: true })
+    const check = () => {
+        if (document.querySelector(BLOCKS)) load('music-notation.publish.min.js')
+        if (document.querySelector(TABS)) load('music-notation.tab.min.js')
+    }
+    check()
+    new MutationObserver(check).observe(document.body, { childList: true, subtree: true })
 })()
 ```
 
-- The bundle is only downloaded on pages with notation blocks.
+- The bundle is only downloaded on pages with notation blocks; the tab bundle (and alphaTab, its music font and soundfont, from jsDelivr) only on pages with `tab` or `score` blocks.
+- Diagrams get a playback bar (on hover; a tap on phones), with the light synthesizer, or the soundfont once a page with tabs has loaded it. `play: false` turns it off; `play: { volume: 0.6, bpm: 80, strum: 30, sound: 'piano' }` sets the defaults.
 - Defaults for the whole site go in `window.musicNotationOptions`, set before the bundle loads (at the top of `publish.js`). A block's own `orientation` and `hand` still win.
 
 ```js

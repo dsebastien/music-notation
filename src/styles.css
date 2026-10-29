@@ -161,24 +161,34 @@
     all: unset;
     appearance: none;
     width: 44px;
-    height: 3px;
-    border-radius: 2px;
-    background: var(--mn-faint);
+    height: 12px;
+    background: transparent;
     cursor: pointer;
 }
 
 .mn-play input[type='range']::-webkit-slider-runnable-track {
     height: 3px;
+    border: none;
+    border-radius: 2px;
+    background: var(--mn-faint);
 }
 
 .mn-play input[type='range']::-webkit-slider-thumb {
     appearance: none;
-    margin-top: -3px;
     width: 9px;
     height: 9px;
+    margin-top: -3px;
     border: none;
     border-radius: 50%;
     background: var(--mn-accent);
+    box-shadow: none;
+}
+
+.mn-play input[type='range']::-moz-range-track {
+    height: 3px;
+    border: none;
+    border-radius: 2px;
+    background: var(--mn-faint);
 }
 
 .mn-play input[type='range']::-moz-range-thumb {
