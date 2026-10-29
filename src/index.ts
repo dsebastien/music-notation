@@ -34,6 +34,13 @@ export {
     type VoicingShape
 } from './chord/generate.js'
 export {
+    transition,
+    smoothProgression,
+    type TransitionStep,
+    type TransitionOptions,
+    type ProgressionStep
+} from './chord/transitions.js'
+export {
     triadVoicings,
     keyTriads,
     parseKey,

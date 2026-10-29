@@ -26,6 +26,8 @@ export interface GuitarDiagramOptions {
     hand?: Hand
     /** Text in each string's dot instead of its finger (intervals, note names); null for none. */
     labels?: (string | null)[]
+    /** Chord transitions: fingers that stay (anchor) or slide (guide), per string. */
+    marks?: ('anchor' | 'guide' | null)[]
 }
 
 /** "x02220", "x-10-12-12-11-10", "x 10 12 12 11 10" → frets; null when invalid. */
@@ -195,7 +197,12 @@ export function renderGuitarDiagram(
         const center = at(s, fret - base + 0.5)
         const [cx, cy] = center
         root.appendChild(
-            svg(doc, 'circle', { class: `mn-dot${isRoot ? ' mn-root' : ''}`, cx, cy, r: 7 })
+            svg(doc, 'circle', {
+                class: `mn-dot${isRoot ? ' mn-root' : ''}${options.marks?.[s] ? ` mn-${options.marks[s]}` : ''}`,
+                cx,
+                cy,
+                r: 7
+            })
         )
         const text = options.labels ? options.labels[s] : voicing.fingers[s]
         if (text) root.appendChild(svgLabel(doc, text, center, 'mn-dot-text'))

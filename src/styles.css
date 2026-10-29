@@ -66,6 +66,19 @@
     stroke-width: 2;
 }
 
+/* Chord transitions: a finger that stays (anchor) gets a ring, one that slides (guide) a dashed
+   ring, so the marks don't rest on color alone. */
+.mn-svg .mn-dot.mn-anchor {
+    stroke: var(--mn-fg);
+    stroke-width: 3;
+}
+
+.mn-svg .mn-dot.mn-guide {
+    stroke: var(--mn-fg);
+    stroke-width: 2.5;
+    stroke-dasharray: 3 2;
+}
+
 /* Notes that differ from a compared scale: outlined. */
 .mn-svg .mn-dot.mn-diff,
 .mn-svg .mn-key-white.mn-diff,

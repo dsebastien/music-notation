@@ -302,11 +302,23 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     // A symbol the theory doesn't know still titles the diagram; only its root marks are lost.
     const root = symbol ? (chordNoteSet(symbol)?.root ?? rootOf(symbol)) : null
     const labels = dotLabels(field(block, 'labels'), symbol, voicing, tuning)
+    // Transitions: strings whose finger stays (anchors) or slides (guides), as guitarists count.
+    const count = voicing.frets.length
+    const marked = (key: string) => {
+        const text = field(block, key)
+        return text ? parseStrings(text, count).map((n) => count - n) : []
+    }
+    const anchors = marked('anchors')
+    const guides = marked('guides')
+    const marks = voicing.frets.map((_, s) =>
+        anchors.includes(s) ? 'anchor' : guides.includes(s) ? 'guide' : null
+    )
     return renderGuitarDiagram(doc, voicing, {
         title,
         root,
         tuning,
         ...(labels ? { labels } : {}),
+        ...(anchors.length || guides.length ? { marks } : {}),
         orientation: orientationOf(block, options.orientation?.chord),
         hand: handOf(block, options)
     })

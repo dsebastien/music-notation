@@ -21,12 +21,14 @@ import { modesOf } from '../theory/scales.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import { CAGED_SHAPES, positionCount } from '../fretboard/positions.js'
 import {
+    fingerVoicing,
     generateVoicings,
     MAX_GENERATED_STRINGS,
     type GeneratedVoicing,
     type VoicingOptions
 } from '../chord/generate.js'
-import { parseFrets } from '../chord/guitar.js'
+import { parseFingers, parseFrets } from '../chord/guitar.js'
+import { smoothProgression, transition } from '../chord/transitions.js'
 import { inversionName, keyTriads, triadVoicings, type Triad } from '../chord/triads.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
@@ -85,6 +87,7 @@ export function renderBlock(
             ? (splitParts(text) ??
               modeParts(language, text) ??
               positionParts(language, text) ??
+              transitionParts(language, text) ??
               voicingParts(language, text) ??
               triadParts(language, text))
             : null
@@ -488,6 +491,148 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
     return [header.join('\n'), ...parts]
 }
 
+const fretsText = (list: readonly (number | null)[]) =>
+    list.some((f) => f !== null && f > 9)
+        ? list.map((f) => (f === null ? 'x' : f)).join('-')
+        : list.map((f) => (f === null ? 'x' : f)).join('')
+
+/** Guitarist string numbers (1 = the highest) of string indexes, for `anchors:` and `guides:`. */
+const stringNumbers = (indexes: number[], count: number) => indexes.map((s) => count - s).join(' ')
+
+/** "A x02220", "A Major x02220 x01230" or "A": the chord, and its frets and fingers when given. */
+function heldChord(text: string): {
+    written: string
+    frets: (number | null)[] | null
+    fingers: string | null
+} {
+    const tokens = text.trim().split(/\s+/)
+    const at = tokens.findIndex((t, i) => i > 0 && parseFrets(t) !== null)
+    if (at < 0) return { written: text.trim(), frets: null, fingers: null }
+    return {
+        written: tokens.slice(0, at).join(' '),
+        frets: parseFrets(tokens[at]!),
+        fingers: tokens[at + 1] ?? null
+    }
+}
+
+/**
+ * Chord transitions on a chord block: `from: A x02220` with `to: D` draws the held chord, then the
+ * next chord's voicings the hand reaches most easily (`count:`, 3 by default), anchors and guides
+ * marked; `progression: G D Em C` draws the voicings that make the whole progression easiest.
+ * Null when the block has neither.
+ */
+function transitionParts(language: DiagramLanguage, source: string): string[] | null {
+    if (language !== 'chord') return null
+    let block: BlockSource
+    try {
+        block = filled(parseBlockSource(source))
+    } catch {
+        return null
+    }
+    const fields = block.fields
+    const fromText = fields.get('from')
+    const progressionText = fields.get('progression')
+    if (fromText === undefined && progressionText === undefined) return null
+    if (fromText !== undefined && progressionText !== undefined) {
+        throw new Error('Use from and to, or progression, not both')
+    }
+    const refused = [...NOT_WITH_VOICINGS, 'voicings', 'triads'].find((key) => fields.has(key))
+    if (refused)
+        throw new Error(`"${refused}" can't be used with ${fromText ? 'from' : 'progression'}`)
+    const tuningText = fields.get('tuning')
+    const tuning = tuningText ? parseTuning(tuningText) : null
+    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    const count = tuning?.length ?? 6
+    if (count > MAX_GENERATED_STRINGS) {
+        throw new Error(`Transitions work on up to ${MAX_GENERATED_STRINGS} strings`)
+    }
+    const read = (written: string) => {
+        const chord = readChord(written)
+        if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+        return chord.symbol
+    }
+    const shared = SHARED_KEYS.chord
+    const header = [...fields]
+        .filter(([key]) => key === 'columns' || shared.includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    const diagram = (
+        symbol: string,
+        title: string,
+        frets: readonly (number | null)[],
+        fingers: readonly (string | null)[] | string | null,
+        anchors: number[] = [],
+        guides: number[] = []
+    ) =>
+        [
+            `symbol: ${symbol}`,
+            `title: ${title}`,
+            `frets: ${fretsText(frets)}`,
+            ...(fingers
+                ? [
+                      `fingers: ${typeof fingers === 'string' ? fingers : fingers.map((f) => f ?? 'x').join('')}`
+                  ]
+                : []),
+            ...(anchors.length ? [`anchors: ${stringNumbers(anchors, count)}`] : []),
+            ...(guides.length ? [`guides: ${stringNumbers(guides, count)}`] : [])
+        ].join('\n')
+    const options = tuning ? { tuning } : {}
+    if (progressionText !== undefined) {
+        const names = (
+            /[,|]/.test(progressionText)
+                ? progressionText.split(/[,|]/)
+                : progressionText.split(/\s+/)
+        )
+            .map((n) => n.trim())
+            .filter(Boolean)
+        if (names.length < 2) throw new Error('progression: give two chords or more, e.g. G D Em C')
+        if (names.length > MAX_DIAGRAMS)
+            throw new Error(`progression: at most ${MAX_DIAGRAMS} chords`)
+        const steps = smoothProgression(names.map(read), options)
+        if (!steps.length) throw new Error('No playable voicings for this progression')
+        return [
+            ...(header.length ? [header.join('\n')] : []),
+            ...steps.map((s, i) =>
+                diagram(s.chord, names[i]!, s.voicing.frets, s.voicing.fingers, s.anchors, s.guides)
+            )
+        ]
+    }
+    const toText = fields.get('to')
+    if (!toText) throw new Error('Add the next chord: to: D')
+    const held = heldChord(fromText!)
+    const fromSymbol = read(held.written)
+    const fromFrets = held.frets ?? generateVoicings(fromSymbol, options)[0]?.frets ?? null
+    if (!fromFrets) throw new Error(`No playable voicing of ${held.written}: add its frets`)
+    if (fromFrets.length !== count) {
+        throw new Error(
+            `"${fretsText(fromFrets)}" has ${fromFrets.length} strings, the tuning ${count}`
+        )
+    }
+    const fromFingers = held.fingers ? parseFingers(held.fingers) : fingerVoicing(fromFrets)
+    const howMany = Number(fields.get('count') ?? 3)
+    if (!Number.isInteger(howMany) || howMany < 1 || howMany > MAX_DIAGRAMS - 1) {
+        throw new Error(`count: use a number from 1 to ${MAX_DIAGRAMS - 1}`)
+    }
+    const steps = transition(fromFrets, read(toText), {
+        ...options,
+        ...(fromFingers ? { fromFingers } : {})
+    }).slice(0, howMany)
+    if (!steps.length) throw new Error(`No playable voicing of ${toText}`)
+    return [
+        ...(header.length ? [header.join('\n')] : []),
+        diagram(fromSymbol, held.written, fromFrets, held.fingers ?? fromFingers),
+        ...steps.map((s, i) =>
+            diagram(
+                read(toText),
+                howMany > 1 ? `${toText}, ${i + 1}` : toText,
+                s.voicing.frets,
+                s.voicing.fingers,
+                s.anchors,
+                s.guides
+            )
+        )
+    ]
+}
+
 /** Why no voicing fits, saying which filter to change. */
 function noVoicing(written: string, symbol: string, options: VoicingOptions): string {
     const strings = options.strings
@@ -634,9 +779,14 @@ function renderRow(
             if (block.fields.has('columns')) {
                 throw new Error('"columns" goes in the shared settings, before the first "---"')
             }
-            const directive = ['positions', 'modes', 'voicings', 'triads'].find((key) =>
-                block.fields.has(key)
-            )
+            const directive = [
+                'positions',
+                'modes',
+                'voicings',
+                'triads',
+                'from',
+                'progression'
+            ].find((key) => block.fields.has(key))
             if (directive) {
                 throw new Error(`"${directive}" draws its own row: use it in a block of its own`)
             }
