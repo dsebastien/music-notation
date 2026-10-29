@@ -126,6 +126,8 @@ export function renderFretboard(
         )
     }
     // Highest string first, so the document reads top to bottom in the default orientation.
+    // What playback plays: every highlighted note, low to high.
+    const sounding = new Set<number>()
     for (let s = strings - 1; s >= 0; s--) {
         const open = tuning[s]!
         root.appendChild(
@@ -158,10 +160,16 @@ export function renderFretboard(
                 continue
             }
             const cls = `mn-dot${markClasses(set, member.chroma, options.marks)}`
-            root.appendChild(svg(doc, 'circle', { class: cls, cx, cy, r: 8 }))
+            root.appendChild(
+                svg(doc, 'circle', { 'class': cls, cx, cy, 'r': 8, 'data-midi': open + fret })
+            )
+            sounding.add(open + fret)
             const text = labelOf(member, label)
             if (text) root.appendChild(svgLabel(doc, text, point, 'mn-dot-text'))
         }
     }
+    root.setAttribute('data-mn-pitches', [...sounding].sort((a, b) => a - b).join(' '))
+    root.setAttribute('data-mn-play', 'scale')
+    root.setAttribute('data-mn-sound', 'guitar')
     return root
 }

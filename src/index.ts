@@ -34,6 +34,21 @@ export {
     type VoicingShape
 } from './chord/generate.js'
 export {
+    sequenceOf,
+    lengthOf,
+    lightPlayer,
+    pluckedString,
+    pianoTone,
+    DEFAULT_SEQUENCE,
+    type NoteEvent,
+    type NotePlayer,
+    type PlayHandle,
+    type PlayKind,
+    type Sound,
+    type SequenceOptions
+} from './playback/player.js'
+export { attachPlayback, type PlayOptions } from './playback/controls.js'
+export {
     transition,
     smoothProgression,
     type TransitionStep,

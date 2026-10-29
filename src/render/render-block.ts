@@ -15,6 +15,7 @@ import {
     type BlockSource
 } from '../blocks/block-source.js'
 import { html } from './dom.js'
+import { attachPlayback } from '../playback/controls.js'
 import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
@@ -110,7 +111,19 @@ export function renderBlock(
         return failed(el, host, language, messageOf(e))
     }
     host.appendChild(el)
-    return { ok: error === null, el, error, destroy: () => el.remove() }
+    // Hear the diagrams: a playback bar on each one that has notes to play.
+    const stopPlayback = options.play
+        ? attachPlayback(el, typeof options.play === 'object' ? options.play : {})
+        : null
+    return {
+        ok: error === null,
+        el,
+        error,
+        destroy: () => {
+            stopPlayback?.()
+            el.remove()
+        }
+    }
 }
 
 /** The block as an inline error that says what's wrong. */

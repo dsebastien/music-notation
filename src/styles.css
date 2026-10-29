@@ -6,6 +6,7 @@
     --mn-muted: var(--text-muted, #8a8a8a);
     --mn-faint: var(--background-modifier-border, #d0d0d0);
     --mn-accent: var(--interactive-accent, #7c3aed);
+    --mn-bg: var(--background-primary, #fff);
     --mn-on-accent: var(--text-on-accent, #fff);
     /* Dark enough for white labels in light and dark themes. */
     --mn-root: #c2410c;
@@ -64,6 +65,70 @@
     /* A ring, so the mark doesn't rest on color alone. */
     stroke: var(--mn-on-accent);
     stroke-width: 2;
+}
+
+/* Playback: a bar at the bottom of the diagram, shown on hover, keyboard focus or a tap. */
+.mn-playable {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+}
+
+.mn-play {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 4px 6px;
+    font-size: 11px;
+    color: var(--mn-fg);
+    background: color-mix(in srgb, var(--mn-bg) 88%, transparent);
+    border-top: 1px solid var(--mn-faint);
+    border-radius: 0 0 6px 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+
+.mn-playable:hover .mn-play,
+.mn-playable:focus-within .mn-play,
+.mn-playable.mn-play-open .mn-play {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mn-play button,
+.mn-play select {
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    border: 1px solid var(--mn-muted);
+    border-radius: 4px;
+    padding: 1px 6px;
+    cursor: pointer;
+}
+
+.mn-play button.mn-on {
+    background: var(--mn-accent);
+    color: var(--mn-on-accent);
+}
+
+.mn-play-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.mn-play-field input {
+    width: 64px;
+}
+
+.mn-playable [data-midi] {
+    cursor: pointer;
 }
 
 /* Chord transitions: a finger that stays (anchor) gets a ring, one that slides (guide) a dashed

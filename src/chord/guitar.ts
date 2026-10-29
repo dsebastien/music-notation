@@ -187,10 +187,17 @@ export function renderGuitarDiagram(
             options.root !== null &&
             open !== undefined &&
             (open + fret) % 12 === options.root
+        const midi = open !== undefined ? { 'data-midi': open + fret } : {}
         if (fret === 0) {
             const [cx, cy] = mark
             root.appendChild(
-                svg(doc, 'circle', { class: `mn-open${isRoot ? ' mn-root' : ''}`, cx, cy, r: 4 })
+                svg(doc, 'circle', {
+                    class: `mn-open${isRoot ? ' mn-root' : ''}`,
+                    cx,
+                    cy,
+                    r: 4,
+                    ...midi
+                })
             )
             return
         }
@@ -201,11 +208,19 @@ export function renderGuitarDiagram(
                 class: `mn-dot${isRoot ? ' mn-root' : ''}${options.marks?.[s] ? ` mn-${options.marks[s]}` : ''}`,
                 cx,
                 cy,
-                r: 7
+                r: 7,
+                ...midi
             })
         )
         const text = options.labels ? options.labels[s] : voicing.fingers[s]
         if (text) root.appendChild(svgLabel(doc, text, center, 'mn-dot-text'))
     })
+    // What playback plays: the sounding strings, low to high (when the tuning is known).
+    if (tuning) {
+        const pitches = voicing.frets.flatMap((f, s) => (f === null ? [] : [tuning[s]! + f]))
+        root.setAttribute('data-mn-pitches', pitches.join(' '))
+        root.setAttribute('data-mn-play', 'chord')
+        root.setAttribute('data-mn-sound', 'guitar')
+    }
     return root
 }

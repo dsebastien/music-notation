@@ -22,6 +22,8 @@ export interface KeyboardOptions {
     /** Horizontal (default) or vertical: low notes at the bottom, black keys on the left. */
     orientation?: Orientation
     marks?: NoteMarks
+    /** How playback plays the highlighted keys: together (a chord) or one by one (a scale). */
+    playAs?: 'chord' | 'scale'
 }
 
 const BLACK = new Set([1, 3, 6, 8, 10])
@@ -128,9 +130,10 @@ export function renderKeyboard(
         const along = i * WHITE_W
         root.appendChild(
             svg(doc, 'rect', {
-                class: keyClass(midi, false),
+                'class': keyClass(midi, false),
                 ...key(along, WHITE_W, WHITE_H),
-                rx: 2
+                'rx': 2,
+                'data-midi': midi
             })
         )
         caption(midi, at(along + WHITE_W / 2, WHITE_H - 13), false)
@@ -141,12 +144,19 @@ export function renderKeyboard(
         const along = (i + 1) * WHITE_W - BLACK_W / 2
         root.appendChild(
             svg(doc, 'rect', {
-                class: keyClass(black, true),
+                'class': keyClass(black, true),
                 ...key(along, BLACK_W, BLACK_H),
-                rx: 2
+                'rx': 2,
+                'data-midi': black
             })
         )
         caption(black, at(along + BLACK_W / 2, BLACK_H - 13), true)
     })
+    // What playback plays: the highlighted keys, low to high.
+    const played: number[] = []
+    for (let midi = from; midi <= to; midi++) if (memberOf(set, midi)) played.push(midi)
+    root.setAttribute('data-mn-pitches', played.join(' '))
+    root.setAttribute('data-mn-play', options.playAs ?? 'scale')
+    root.setAttribute('data-mn-sound', 'piano')
     return root
 }

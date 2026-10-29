@@ -21,6 +21,7 @@ import { parseChord } from '../theory/chord-symbol.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
 import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
 import type { VoicingLookup } from '../voicings/index.js'
+import type { PlayOptions } from '../playback/controls.js'
 import {
     parseHand,
     parseOrientation,
@@ -51,6 +52,8 @@ export interface RenderOptions extends LayoutDefaults {
     propertyNames?: Partial<PropertyNames>
     /** The note's instrument; from its tags when absent. */
     instrument?: Instrument
+    /** A playback bar on chord, keyboard and fretboard diagrams (true for the defaults). */
+    play?: boolean | PlayOptions
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element
@@ -229,6 +232,8 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         // Checked even though keyboards ignore it, so a typo doesn't go unnoticed.
         handOf(block, options)
         return renderKeyboard(doc, set, {
+            // A piano chord plays together.
+            playAs: 'chord',
             title,
             label: labelField(block, fingers.size ? 'fingers' : 'notes', fingers.size > 0),
             fingers,
@@ -382,6 +387,8 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         fingers = fingersFor(set.pitches, fingering)
     }
     return renderKeyboard(doc, set, {
+        // A chord plays together; scales and lists one note at a time.
+        playAs: !set.scaleType && set.root !== null ? 'chord' : 'scale',
         title: field(block, 'title'),
         label: labelField(block, fingers ? 'fingers' : 'notes', fingers !== undefined),
         fingers,
