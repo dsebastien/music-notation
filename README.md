@@ -73,6 +73,10 @@ modes: C major
 
 ![A Major's easiest voicings, and G triads on the three highest strings](docs/images/voicings.png)
 
+![G triads on the top strings, and the easiest ways from C to Am](docs/images/triads-transitions.png)
+
+![A tab with its player](docs/images/tab.png)
+
 Several diagrams side by side, separated by `---`, with shared settings first; vertical or horizontal, and left-handed:
 
 ````markdown

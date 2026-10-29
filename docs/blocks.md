@@ -126,6 +126,8 @@ Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, 
 
 ## Triads on string sets
 
+![G triads on the top strings, and the easiest ways from C to Am](images/triads-transitions.png)
+
 Triads on three strings next to each other, in their three inversions, are how guitarists learn the neck. `triads:` draws a chord's triads on a string set, up the neck, with R, 3 and 5 in the dots:
 
 ````markdown
@@ -446,6 +448,8 @@ Apps that turn playback on (Music Practice does, and Obsidian Publish pages thro
 A click on a dot or a key plays that note. On web pages the sound is a small synthesizer computed in the browser (nothing to download); Music Practice plays a soundfont of recorded instruments.
 
 ## Tabs and scores
+
+![A tab with its player](images/tab.png)
 
 `tab` and `score` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction), drawn and played by [alphaTab](https://alphatab.net): tablature, standard notation, both, or a piano grand staff.
 

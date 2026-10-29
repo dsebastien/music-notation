@@ -161,23 +161,25 @@
     all: unset;
     appearance: none;
     width: 44px;
-    height: 12px;
-    background: transparent;
+    /* The input is the track: WebKit then centers the thumb on it. */
+    height: 3px;
+    margin: 0;
+    border-radius: 2px;
+    background: var(--mn-faint);
     cursor: pointer;
 }
 
 .mn-play input[type='range']::-webkit-slider-runnable-track {
     height: 3px;
     border: none;
-    border-radius: 2px;
-    background: var(--mn-faint);
+    background: transparent;
 }
 
 .mn-play input[type='range']::-webkit-slider-thumb {
     appearance: none;
     width: 9px;
     height: 9px;
-    margin-top: -3px;
+    margin-top: 0;
     border: none;
     border-radius: 50%;
     background: var(--mn-accent);
