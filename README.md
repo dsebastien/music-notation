@@ -103,7 +103,7 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
 
 ```js
 ;(() => {
-    const VERSION = '0.1.0'
+    const VERSION = '0.4.0'
     const SELECTOR = ['chord', 'chords', 'keyboard', 'fretboard']
         .map((l) => `pre > code.language-${l}`)
         .join(', ')
