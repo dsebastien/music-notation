@@ -63,11 +63,12 @@ export function instrumentOf(properties: Properties, names: PropertyNames): Inst
 /** "Box 2" → position 2, "CAGED E" → shape E, "3NPS" → 3nps; chord shapes ("Open") say nothing. */
 function scaleShape(shape: string | undefined): string[] {
     if (!shape) return []
-    const box = /^box\s*(\d+)$/i.exec(shape)
+    const box = /^(?:box|position)\s*(\d+)$/i.exec(shape)
     if (box) return [`position: ${box[1]}`]
-    const caged = /^caged\s*([CAGED])$/i.exec(shape)
+    const caged = /^(?:caged\s*)?([CAGED])(?:\s*shape)?$/i.exec(shape)
     if (caged) return [`shape: ${caged[1]!.toUpperCase()}`]
-    if (/^3\s*nps$/i.test(shape)) return ['shape: 3nps']
+    const nps = /^3\s*nps(?:\s*(\d+))?$/i.exec(shape)
+    if (nps) return ['shape: 3nps', ...(nps[1] ? [`position: ${nps[1]}`] : [])]
     return []
 }
 
@@ -96,10 +97,18 @@ export function blockFromProperties(
             if (fingering) lines.push(`fingering: ${fingering}`)
             return lines.join('\n')
         }
-        const frets = get(names.frets)
+        // Unquoted in YAML, "022100" is the number 22100: put the leading zeros back (6 strings).
+        const padded = (name: string, length: number) => {
+            const value = properties[name]
+            const plain = get(name)
+            return typeof value === 'number' && plain && plain.length < length
+                ? plain.padStart(length, '0')
+                : plain
+        }
+        const frets = padded(names.frets, 6)
         if (!symbol && !frets) return null
         if (frets) lines.push(`frets: ${frets}`)
-        const fingers = get(names.fingers)
+        const fingers = padded(names.fingers, frets?.length ?? 6)
         if (fingers && frets) lines.push(`fingers: ${fingers}`)
         const position = Number(get(names.position))
         if (frets && Number.isInteger(position) && position >= 1)
@@ -107,7 +116,8 @@ export function blockFromProperties(
         return lines.join('\n')
     }
     if (language === 'fretboard' || language === 'keyboard') {
-        const root = get(names.scaleRoot)
+        // "C#/Db" (a root with its other spelling): the first.
+        const root = get(names.scaleRoot)?.split('/')[0]?.trim()
         const type = get(names.scaleType)
         if (!root || !type) return null
         lines.push(`scale: ${root} ${type}`)

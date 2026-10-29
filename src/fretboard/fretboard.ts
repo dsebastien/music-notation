@@ -6,6 +6,7 @@ import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 import {
     labelOf,
+    describeMarks,
     markClasses,
     memberOf,
     type NoteLabel,
@@ -81,7 +82,7 @@ export function renderFretboard(
         frame.width,
         frame.height,
         'mn-fretboard',
-        options.title ?? `Fretboard: ${set.title}`
+        `${options.title ?? `Fretboard: ${set.title}`}${describeMarks(set, options.marks)}`
     )
     if (options.title) {
         root.appendChild(

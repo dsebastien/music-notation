@@ -82,26 +82,37 @@ export function scalePosition(
 ): Cell[] | null {
     if (set.root === null || n < 1 || n > positionCount(set, system)) return null
     const open = tuning[0]!
-    const rootFret = fretOn(open, set.root, 0)
     const chromas = chromasOf(set)
     const notes = tuning.length * 3
-
-    if (system === '3nps' || (system === 'caged' && chromas.length !== 5 && !pentatonicOf(set))) {
-        const start = fretOn(open, chromas[(n - 1) % chromas.length]!, rootFret)
-        return fill(ascending(chromas, open + start, notes), tuning, 3)
-    }
-    // Boxes, of the scale itself (5 notes) or of the pentatonic inside it (CAGED).
+    const nps =
+        system === '3nps' || (system === 'caged' && chromas.length !== 5 && !pentatonicOf(set))
     const pentatonic = chromas.length === 5 ? chromas : pentatonicOf(set)
-    if (!pentatonic) return null
-    const start = fretOn(open, pentatonic[(n - 1) % 5]!, rootFret)
-    const box = fill(ascending(pentatonic, open + start, tuning.length * 2), tuning, 2)
-    if (system === 'box' || chromas.length === 5) return box
-    return withOtherNotes(box, chromas, tuning)
+    if (!nps && !pentatonic) return null
+    const startChroma = nps ? chromas[(n - 1) % chromas.length]! : pentatonic![(n - 1) % 5]!
+    // The lowest octave where every note is on the neck (a box may reach a fret below its start).
+    for (let start = fretOn(open, startChroma, 0); start <= 36; start += 12) {
+        const cells = nps
+            ? fill(ascending(chromas, open + start, notes), tuning, 3)
+            : withOther(
+                  fill(ascending(pentatonic!, open + start, tuning.length * 2), tuning, 2),
+                  system === 'caged' && chromas.length !== 5 ? chromas : null,
+                  tuning
+              )
+        if (cells && cells.every((c) => c.fret >= 0)) return cells
+    }
+    return null
+}
+
+/** A box as is, or with the other scale notes (CAGED); null when a note falls off the neck. */
+function withOther(box: Cell[], chromas: number[] | null, tuning: number[]): Cell[] | null {
+    // `fill` drops notes below the nut: a box missing some isn't on the neck.
+    if (box.length < tuning.length * 2) return null
+    return chromas ? withOtherNotes(box, chromas, tuning) : box
 }
 
 /**
- * Adds the scale notes the pentatonic box leaves out, between its notes: on the string of the note
- * below when it stays within the box's frets (one fret of stretch), else on the string above.
+ * Adds the scale notes the pentatonic box leaves out, between its notes, on the string that keeps
+ * the hand inside the box's frets; a fret of stretch on either side only when neither string can.
  */
 function withOtherNotes(box: Cell[], chromas: number[], tuning: number[]): Cell[] {
     const pitch = (c: Cell) => tuning[c.string]! + c.fret
@@ -109,6 +120,7 @@ function withOtherNotes(box: Cell[], chromas: number[], tuning: number[]): Cell[
     const max = Math.max(...box.map((c) => c.fret))
     const out = [...box]
     const ordered = [...box].sort((a, b) => pitch(a) - pitch(b))
+    const outside = (fret: number) => (fret < min ? min - fret : fret > max ? fret - max : 0)
     for (let i = 0; i + 1 < ordered.length; i++) {
         const below = ordered[i]!
         const above = ordered[i + 1]!
@@ -116,9 +128,9 @@ function withOtherNotes(box: Cell[], chromas: number[], tuning: number[]): Cell[
             if (!chromas.includes(midi % 12)) continue
             const onBelow = midi - tuning[below.string]!
             const onAbove = midi - tuning[above.string]!
-            const fits = (fret: number) => fret >= min - 1 && fret <= max + 1
+            // The string that keeps the note closest to the box (the lower one on a tie).
             const string =
-                below.string === above.string || fits(onBelow) || !fits(onAbove)
+                below.string === above.string || onAbove < 0 || outside(onBelow) <= outside(onAbove)
                     ? below.string
                     : above.string
             out.push({ string, fret: midi - tuning[string]! })

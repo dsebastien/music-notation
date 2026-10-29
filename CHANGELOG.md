@@ -8,6 +8,7 @@
 - **Positions on the neck**: pentatonic boxes, CAGED shapes and three notes per string, one at a time (`position: 2`, `shape: E`, `shape: 3nps`) or all in a row (`positions: all`).
 - **Scale fingering** on keyboards: `fingering: 1 2 3 1 2 3 4 5`.
 - **Blocks from a note's properties**: an empty block draws what the note's properties say (chord symbol, frets, fingers; scale root, type and shape), in apps and on Obsidian Publish (`window.musicNotationOptions.properties`).
+- **Changes to existing blocks**: modes and blues scales now mark their characteristic notes (`highlight: none` turns it off); chord blocks with only frets or pitches now get a title and root marks.
 
 ## 0.2.0 (2026-10-28)
 

@@ -22,12 +22,14 @@ declare global {
 }
 
 /** The page's properties function from the page's options (`properties: () => frontmatter`). */
-function pageProperties(options: unknown): (() => Record<string, unknown> | null) | undefined {
+function pageProperties(
+    options: unknown
+): ((el: Element) => Record<string, unknown> | null) | undefined {
     try {
         const given = (options as { properties?: unknown } | null | undefined)?.properties
         if (typeof given !== 'function') return undefined
-        return () => {
-            const value: unknown = (given as () => unknown)()
+        return (el: Element) => {
+            const value: unknown = (given as (el: Element) => unknown)(el)
             return value && typeof value === 'object' ? (value as Record<string, unknown>) : null
         }
     } catch {

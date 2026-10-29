@@ -3,7 +3,7 @@
  * notation. Idempotent (`data-mp-rendered`), follows the page as it changes (Publish swaps and
  * virtualises content), and hides the source only after a successful render.
  */
-import { LANGUAGES, renderBlock } from '../render/render-block.js'
+import { LANGUAGES, renderBlock, resolveProperties } from '../render/render-block.js'
 import type { NotationLanguage, RenderOptions } from '../blocks/renderers.js'
 
 const SELECTOR = LANGUAGES.map((l) => `pre > code.language-${l}`).join(', ')
@@ -12,6 +12,16 @@ const SOURCE = 'mpSource'
 
 const languageOf = (code: Element): NotationLanguage | undefined =>
     LANGUAGES.find((l) => code.classList.contains(`language-${l}`))
+
+/** Properties as text for the fingerprint; empty when they can't be read. */
+function stamp(properties: unknown): string {
+    if (!properties || typeof properties !== 'object') return ''
+    try {
+        return JSON.stringify(properties)
+    } catch {
+        return ''
+    }
+}
 
 /** A short fingerprint of a block's source, to notice edits in place. */
 function fingerprint(text: string): string {
@@ -34,7 +44,9 @@ export function renderAll(root: ParentNode, options: RenderOptions = {}): number
         const language = languageOf(code)
         if (!pre?.parentElement || !language) return
         const source = code.textContent ?? ''
-        const print = fingerprint(source)
+        // An empty block draws from the page's properties: they're part of what it shows.
+        const properties = source.trim() ? null : resolveProperties(options.properties, code)
+        const print = fingerprint(source + '\u0000' + stamp(properties))
         const previous = renderingOf(pre)
         if (pre.dataset[MARK] && pre.dataset[SOURCE] === print && previous) return
         // New, edited, or its rendering was removed: (re)render from scratch.
@@ -43,7 +55,10 @@ export function renderAll(root: ParentNode, options: RenderOptions = {}): number
         pre.dataset[SOURCE] = print
         pre.dataset[MARK] = 'pending'
         const holder = pre.ownerDocument.createElement('div')
-        const result = renderBlock(language, source, holder, options)
+        const result = renderBlock(language, source, holder, {
+            ...options,
+            properties: (properties ?? null) as RenderOptions['properties']
+        })
         pre.insertAdjacentElement('afterend', result.el)
         if (!result.ok) {
             // Leave the source visible; the error explains what's wrong.

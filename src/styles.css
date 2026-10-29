@@ -61,6 +61,9 @@
 
 .mn-svg .mn-dot.mn-char {
     fill: var(--mn-char);
+    /* A ring, so the mark doesn't rest on color alone. */
+    stroke: var(--mn-on-accent);
+    stroke-width: 2;
 }
 
 /* Notes that differ from a compared scale: outlined. */
@@ -135,6 +138,8 @@
 .mn-svg .mn-key-white.mn-on.mn-char,
 .mn-svg .mn-key-black.mn-on.mn-char {
     fill: var(--mn-char);
+    stroke: var(--mn-fg);
+    stroke-width: 2;
 }
 
 .mn-svg .mn-key-label {

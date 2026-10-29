@@ -30,13 +30,14 @@ describe('scale positions, checked against standard charts', () => {
             '8,10',
             '8,10'
         ])
+        // The lowest octave on the neck: box 5 sits below box 1.
         expect(byString(scalePosition(set, STANDARD, 'box', 5))).toEqual([
-            '15,17',
-            '15,17',
-            '14,17',
-            '14,17',
-            '15,17',
-            '15,17'
+            '3,5',
+            '3,5',
+            '2,5',
+            '2,5',
+            '3,5',
+            '3,5'
         ])
     })
 
@@ -57,6 +58,40 @@ describe('scale positions, checked against standard charts', () => {
             '5,6,8',
             '5,7,8'
         ])
+    })
+
+    it('keeps the D shape inside its box', () => {
+        expect(byString(scalePosition(scaleNoteSet('C major')!, STANDARD, 'caged', 2))).toEqual([
+            '10,12,13',
+            '10,12',
+            '9,10,12',
+            '9,10,12',
+            '10,12,13',
+            '10,12'
+        ])
+    })
+
+    it('keeps every note on the neck in keys at the nut', () => {
+        for (const key of ['E', 'F', 'F#', 'G']) {
+            for (const [scale, system, count] of [
+                ['major pentatonic', 'box', 5],
+                ['minor pentatonic', 'box', 5],
+                ['major', 'caged', 5],
+                ['minor', 'caged', 5],
+                ['major', '3nps', 7]
+            ] as const) {
+                const set = scaleNoteSet(`${key} ${scale}`)!
+                for (let n = 1; n <= count; n++) {
+                    const cells = scalePosition(set, STANDARD, system, n)!
+                    expect(cells.every((c) => c.fret >= 0 && c.fret <= 24)).toBe(true)
+                    expect(cells.length).toBeGreaterThanOrEqual(system === 'box' ? 12 : 15)
+                }
+            }
+        }
+        // E major pentatonic box 1 reaches a fret below the root: up an octave, complete.
+        expect(
+            byString(scalePosition(scaleNoteSet('E major pentatonic')!, STANDARD, 'box', 1))
+        ).toEqual(['12,14', '11,14', '11,14', '11,13', '12,14', '12,14'])
     })
 
     it('draws three notes per string', () => {

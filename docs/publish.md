@@ -40,9 +40,15 @@ window.musicNotationOptions = {
 
 ```js
 window.musicNotationOptions = {
-    properties: () => app.site.cache.cache[app.currentFilepath]?.frontmatter
+    // The page's properties; nothing for embedded notes and hover previews (they aren't this page).
+    properties: (el) =>
+        el.closest('.markdown-embed, .popover')
+            ? null
+            : app.site.cache.cache[app.currentFilepath]?.frontmatter
 }
 ```
+
+The function gets the block's element, so it can tell the page's own blocks from embedded ones. When the properties change (you navigate to another page), the block is drawn again.
 
 - Every block is drawn, including blocks on pages you navigate to later. A block's source is hidden only after it was drawn; a block with a mistake keeps its source and shows what's wrong.
 - Pin `VERSION`: a new version never changes your site until you change it.

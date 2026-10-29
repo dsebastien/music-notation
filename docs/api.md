@@ -35,7 +35,7 @@ Options:
 - `orientation`: the default per block language, `{ chord, keyboard, fretboard }`, each `'vertical'` or `'horizontal'`. Piano chords follow `keyboard`. A block's own `orientation` wins.
 - `hand`: `'left'` mirrors guitar chords and fretboards unless a block says `hand: right`.
 
-- `properties`: the note's properties, or a function returning them (read at each render): an empty `chord`, `fretboard` or `keyboard` block draws from them. `propertyNames` renames them; `instrument` (`'guitar'` or `'piano'`) overrides the one read from the tags.
+- `properties`: the note's properties, or a function of the block's element returning them (read at each render): an empty `chord`, `fretboard` or `keyboard` block draws from them. `propertyNames` renames them; `instrument` (`'guitar'` or `'piano'`) overrides the one read from the tags.
 
 `layoutDefaults(value)` keeps only valid `orientation` and `hand` values from untrusted input (a page's settings). `MAX_DIAGRAMS` is the most diagrams one block may hold (32).
 

@@ -103,3 +103,31 @@ describe('autoRender', () => {
         expect(late.dataset['mpRendered']).toBeUndefined()
     })
 })
+
+describe('renderAll with page properties', () => {
+    it('draws empty blocks from them, and again when they change', () => {
+        const pre = block('chord', '')
+        document.body.append(pre)
+        let properties: Record<string, unknown> = { chord_symbol: 'A', frets: 'x02220' }
+        const options = { properties: () => properties }
+        expect(renderAll(document, options)).toBe(1)
+        expect(document.querySelector('.mn-title')?.textContent).toBe('A')
+        expect(renderAll(document, options)).toBe(0)
+        properties = { chord_symbol: 'D', frets: 'xx0232' }
+        expect(renderAll(document, options)).toBe(1)
+        expect(document.querySelector('.mn-title')?.textContent).toBe('D')
+    })
+
+    it('hands the block element to the properties function', () => {
+        const pre = block('chord', '')
+        document.body.append(pre)
+        const seen: Element[] = []
+        renderAll(document, {
+            properties: (el: Element) => {
+                seen.push(el)
+                return null
+            }
+        })
+        expect(seen[0]?.tagName).toBe('CODE')
+    })
+})

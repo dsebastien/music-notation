@@ -57,7 +57,7 @@ export function renderBlock(
     let text = source
     // An empty block in a note draws from the note's properties, when they describe one.
     if (!text.trim() && isDiagramLanguage(language)) {
-        const fromProperties = propertiesSource(language, options)
+        const fromProperties = propertiesSource(language, options, host)
         if (fromProperties) {
             text = fromProperties
             el.classList.add('mn-from-properties')
@@ -99,21 +99,33 @@ function failed(el: HTMLElement, host: HTMLElement, language: string, error: str
     return { ok: false, el, error, destroy: () => el.remove() }
 }
 
-/** An empty block's source from the note's properties (an object, or a function returning one). */
-function propertiesSource(language: DiagramLanguage, options: RenderOptions): string | null {
-    let properties: unknown = options.properties
-    if (typeof properties === 'function') {
-        try {
-            properties = (properties as () => unknown)()
-        } catch {
-            return null
-        }
+/** Properties as given, or what a function of the block's element returns; null when it fails. */
+export function resolveProperties(properties: unknown, el: Element): unknown {
+    if (typeof properties !== 'function') return properties
+    try {
+        return (properties as (el: Element) => unknown)(el)
+    } catch {
+        return null
     }
+}
+
+/** An empty block's source from the note's properties (an object, or a function returning one). */
+function propertiesSource(
+    language: DiagramLanguage,
+    options: RenderOptions,
+    host: Element
+): string | null {
+    const properties = resolveProperties(options.properties, host)
     if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return null
-    return blockFromProperties(language, properties as Record<string, unknown>, {
-        ...(options.propertyNames ? { names: options.propertyNames } : {}),
-        ...(options.instrument ? { instrument: options.instrument } : {})
-    })
+    // Properties come from notes and pages: a value that throws when read draws nothing.
+    try {
+        return blockFromProperties(language, properties as Record<string, unknown>, {
+            ...(options.propertyNames ? { names: options.propertyNames } : {}),
+            ...(options.instrument ? { instrument: options.instrument } : {})
+        })
+    } catch {
+        return null
+    }
 }
 
 /**
@@ -145,10 +157,18 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     if (bad !== undefined) {
         throw new Error(`positions: use all, or numbers from 1 to ${count} for ${set.title}`)
     }
-    const others = [...block.fields]
-        .filter(([key]) => !['positions', 'scale', 'shape', 'position', 'title'].includes(key))
+    // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
+    const shared = SHARED_KEYS.fretboard
+    const others = [...block.fields].filter(
+        ([key]) => !['positions', 'scale', 'shape', 'position', 'title'].includes(key)
+    )
+    const header = others
+        .filter(([key]) => key === 'columns' || shared.includes(key))
         .map(([key, v]) => `${key}: ${v}`)
-    return wanted.map((n) => {
+    const own = others
+        .filter(([key]) => key !== 'columns' && !shared.includes(key))
+        .map(([key, v]) => `${key}: ${v}`)
+    const diagrams = wanted.map((n) => {
         const at =
             system === 'caged'
                 ? [
@@ -158,8 +178,9 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
                 : system === '3nps'
                   ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}`]
                   : [`position: ${n}`, `title: ${set.title}, box ${n}`]
-        return [`scale: ${scale}`, ...at, ...others].join('\n')
+        return [`scale: ${scale}`, ...at, ...own].join('\n')
     })
+    return [...(header.length ? [header.join('\n')] : []), ...diagrams]
 }
 
 /**
@@ -187,7 +208,9 @@ function modeParts(language: DiagramLanguage, source: string): string[] | null {
         )
     }
     // Every mode by its own name (C ionian, A aeolian), so their characteristic notes show.
-    const named = modes.map((m) => m.replace(/ major$/, ' ionian').replace(/ minor$/, ' aeolian'))
+    const named = modes.map((m) =>
+        m.replace(/^(\S+) major$/, '$1 ionian').replace(/^(\S+) minor$/, '$1 aeolian')
+    )
     const header = others.map(([key, v]) => `${key}: ${v}`).join('\n')
     return [...(header ? [header] : []), ...named.map((m) => `scale: ${m}\ntitle: ${m}`)]
 }
@@ -283,6 +306,10 @@ function renderRow(
             const block = filled(parseBlockSource(part))
             if (block.fields.has('columns')) {
                 throw new Error('"columns" goes in the shared settings, before the first "---"')
+            }
+            const directive = ['positions', 'modes'].find((key) => block.fields.has(key))
+            if (directive) {
+                throw new Error(`"${directive}" draws its own row: use it in a block of its own`)
             }
             // The diagram's own keys win over the shared ones.
             const fields = new Map([...shared, ...block.fields])

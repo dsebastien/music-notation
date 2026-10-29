@@ -81,7 +81,14 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
             picked = set.members.filter((m) => intervals.includes(m.interval ?? ''))
         }
     } else if (highlight.toLowerCase() !== 'none' && highlight !== '') {
-        const labels = highlight.split(/[\s,]+/).filter(Boolean)
+        if (set.members.every((m) => m.interval === null)) {
+            throw new Error('highlight needs a scale or a chord: a list of notes has no intervals')
+        }
+        const labels = highlight
+            .replace(/♭/g, 'b')
+            .replace(/♯/g, '#')
+            .split(/[\s,]+/)
+            .filter(Boolean)
         for (const label of labels) {
             const hits = set.members.filter(
                 (m) =>

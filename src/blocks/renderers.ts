@@ -39,10 +39,14 @@ export interface RenderOptions extends LayoutDefaults {
     /** Semitones to transpose chord charts by. */
     transpose?: number
     /**
-     * The note's properties (or a function returning them, read at each render): an empty
+     * The note's properties (or a function of the block's element returning them, read at each
+     * render, so a page can tell embeds from the note itself): an empty
      * `chord`, `fretboard` or `keyboard` block draws from them (see `blockFromProperties`).
      */
-    properties?: Record<string, unknown> | (() => Record<string, unknown> | null | undefined) | null
+    properties?:
+        | Record<string, unknown>
+        | ((el: Element) => Record<string, unknown> | null | undefined)
+        | null
     /** Property names, when they differ from the defaults. */
     propertyNames?: Partial<PropertyNames>
     /** The note's instrument; from its tags when absent. */
@@ -136,8 +140,9 @@ function shorthand(head: string | null) {
     // start that reads as a chord ("A Major x02220"); else the words before the first fret-like one
     // ("Mystery x02220" still draws, titled Mystery; "A Majr" is one unknown chord).
     const fretLike = (t: string) => /^[xX\d]/.test(t)
+    // A chord is a few words: longer starts aren't tried (a long line stays quick).
     const ends = [tokens.length, ...tokens.map((t, i) => (i > 0 && fretLike(t) ? i : -1))]
-        .filter((i) => i > 0)
+        .filter((i) => i > 0 && i <= 8)
         .sort((a, b) => b - a)
     let at = ends.find((i) => readChord(tokens.slice(0, i).join(' '))) ?? -1
     if (at < 0) {
@@ -362,6 +367,8 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     let cells: Cell[] | undefined
     if (at) {
         if (set.root === null) throw new Error('Positions need a scale: e.g. scale: A minor')
+        // A numbered position of a 7-note scale is a CAGED one; boxes are for 5-note scales.
+        if (at.system === 'box' && set.members.length !== 5) at.system = 'caged'
         const count = positionCount(set, at.system)
         const named = { 'box': 'box', 'caged': 'CAGED', '3nps': '3nps' }[at.system]
         cells = orFail(

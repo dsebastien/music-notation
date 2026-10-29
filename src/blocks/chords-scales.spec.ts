@@ -165,7 +165,7 @@ describe('scales and modes', () => {
         expect(renderBlock('fretboard', 'C major\nshape: E', shape).ok).toBe(true)
         expect(count(shape, '.mn-dot')).toBe(16)
         expect(renderBlock('fretboard', 'C major\nposition: 6', host()).error).toBe(
-            'C major has 5 box positions: use position 1 to 5'
+            'C major has 5 CAGED positions: use position 1 to 5'
         )
         expect(renderBlock('fretboard', 'notes: C E G\nposition: 1', host()).error).toBe(
             'Positions need a scale: e.g. scale: A minor'
@@ -318,5 +318,116 @@ describe('blocks from properties', () => {
         })
         expect(failing.ok).toBe(true)
         expect(failing.el.classList.contains('mn-empty')).toBe(true)
+    })
+})
+
+describe('after review', () => {
+    it('reads common open shapes by their usual names', () => {
+        for (const [frets, symbol] of [
+            [[null, null, 0, 2, 3, 0], 'Dsus2'],
+            [[null, 0, 2, 2, 0, 0], 'Asus2'],
+            [[null, 0, 2, 2, 1, 2], 'Am6'],
+            [[3, 2, 0, 0, 0, 0], 'G6'],
+            [[null, 0, 2, 1, 1, 0], 'AmMaj7'],
+            [[null, 3, 2, 0, 3, 0], 'Cadd9'],
+            [[null, 3, 2, 3, 1, 0], 'C7']
+        ] as const) {
+            expect(detectChordFromFrets([...frets])?.symbol).toBe(symbol)
+        }
+        expect(detectChordFromFrets([null, 0, 2, 2, 2, 0])?.readings).not.toContain('Dsus24/A')
+    })
+
+    it('draws a numbered position of a 7-note scale as a CAGED shape, with all its notes', () => {
+        const h = host()
+        renderBlock('fretboard', 'D dorian\nposition: 2', h)
+        expect(h.querySelectorAll('.mn-dot').length).toBeGreaterThanOrEqual(15)
+    })
+
+    it('draws the modes of harmonic and melodic minor', () => {
+        for (const scale of ['C harmonic minor', 'C melodic minor']) {
+            expect(renderBlock('keyboard', `modes: ${scale}`, host()).ok).toBe(true)
+        }
+    })
+
+    it('puts columns and shared keys of positions in a shared part', () => {
+        const h = host()
+        const result = renderBlock(
+            'fretboard',
+            'scale: A minor pentatonic\npositions: all\ncolumns: 2\nlabels: intervals',
+            h
+        )
+        expect(result.ok).toBe(true)
+        expect(h.querySelector('.mn-grid.mn-cols-2')).not.toBeNull()
+        expect(h.querySelectorAll('.mn-cell')).toHaveLength(5)
+    })
+
+    it('refuses positions and modes inside a row', () => {
+        expect(
+            renderBlock('fretboard', 'tuning: DADGAD\n---\nscale: A minor\npositions: all', host())
+                .error
+        ).toContain('"positions" draws its own row')
+    })
+
+    it('puts the leading zeros back on frets stored as numbers', () => {
+        expect(
+            blockFromProperties('chord', { chord_symbol: 'E', frets: 22100, fingers: 2310 })
+        ).toBe('symbol: E\nfrets: 022100\nfingers: 002310')
+    })
+
+    it('reads more ways of writing a scale shape', () => {
+        const scale = { scale_root: 'C', scale_type: 'Major' }
+        expect(blockFromProperties('fretboard', { ...scale, shape: 'E' })).toBe(
+            'scale: C Major\nshape: E'
+        )
+        expect(blockFromProperties('fretboard', { ...scale, shape: '3NPS 4' })).toBe(
+            'scale: C Major\nshape: 3nps\nposition: 4'
+        )
+    })
+
+    it('draws nothing when a property throws when read', () => {
+        const hostile = {
+            get chord_symbol(): string {
+                throw new Error('nope')
+            }
+        }
+        const result = renderBlock('chord', '', host(), { properties: hostile })
+        expect(result.ok).toBe(true)
+        expect(result.el.classList.contains('mn-empty')).toBe(true)
+    })
+
+    it('stays quick on a very long shorthand line', () => {
+        const started = performance.now()
+        renderBlock('chord', Array.from({ length: 3000 }, () => 'x02220').join(' '), host())
+        expect(performance.now() - started).toBeLessThan(500)
+    })
+
+    it('reads more ways of writing chords in words', () => {
+        expect(readChord('C over G')?.symbol).toBe('C/G')
+        expect(readChord('B-flat major')?.symbol).toBe('Bb')
+        expect(readChord('C Major/G')?.symbol).toBe('C/G')
+        expect(readChord('A minor over g sharp')?.symbol).toBe('Am/G#')
+    })
+
+    it('offers the major chord when nothing is close', () => {
+        expect(renderBlock('chord', 'Zm', host(), { voicings: lookupGuitarVoicing }).error).toBe(
+            `Didn't recognize "Zm": try A, Am, A7 or A Major`
+        )
+    })
+
+    it('reads flats and sharps in highlights, and explains lists of notes', () => {
+        const h = host()
+        renderBlock('keyboard', 'A minor\nrange: A3-G#4\nhighlight: ♭3', h)
+        expect(h.querySelectorAll('.mn-char')).toHaveLength(1)
+        expect(renderBlock('keyboard', 'notes: C E G\nhighlight: 3', host()).error).toContain(
+            'a list of notes has no intervals'
+        )
+    })
+
+    it('names the marked notes for screen readers', () => {
+        const h = host()
+        renderBlock('keyboard', 'C lydian\nrange: C4-B4', h)
+        expect(h.querySelector('svg')?.getAttribute('aria-label')).toContain(
+            'characteristic notes: F#'
+        )
     })
 })

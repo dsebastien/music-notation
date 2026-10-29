@@ -53,24 +53,24 @@ const ACCIDENTAL: Record<string, string> = {
     '♭': 'b'
 }
 
-/** "f sharp", "Bb", "e♭" → "F#", "Bb", "Eb"; null when it isn't a note. */
+/** "f sharp", "B-flat", "Bb", "e♭" → "F#", "Bb", "Bb", "Eb"; null when it isn't a note. */
 function noteOf(text: string): string | null {
-    const m = /^([a-g])\s*(sharp|flat|#|♯|♭|b)?$/i.exec(text.trim())
+    const m = /^([a-g])[\s-]*(sharp|flat|#|♯|♭|b)?$/i.exec(text.trim())
     if (!m) return null
     return m[1]!.toUpperCase() + (m[2] ? ACCIDENTAL[m[2].toLowerCase()]! : '')
 }
 
-/** Splits "F Sharp Minor 7 over A" into root, quality words and bass. */
+const NOTE = '[a-g](?:[\\s-]*(?:sharp|flat)\\b|[#♯♭b](?![a-z]))?'
+const NAME = new RegExp(`^(${NOTE})(.*?)(?:(?:\\s+over\\s+|\\s*/\\s*)(${NOTE}))?$`, 'i')
+
+/** Splits "F Sharp Minor 7 over A" (or "… Minor 7/A") into root, quality words and bass. */
 function split(text: string): { root: string; quality: string; bass: string | null } | null {
-    const words = text.trim().replace(/\s+/g, ' ')
-    const m = /^([a-g](?:\s*(?:sharp|flat)\b|[#♯♭b](?![a-z]))?)\s*(.*?)(?:\s+over\s+(.+))?$/i.exec(
-        words
-    )
+    const m = NAME.exec(text.trim().replace(/\s+/g, ' '))
     if (!m) return null
     const root = noteOf(m[1]!)
     const bass = m[3] === undefined ? null : noteOf(m[3])
     if (!root || (m[3] !== undefined && !bass)) return null
-    return { root, quality: m[2]!.toLowerCase(), bass }
+    return { root, quality: m[2]!.trim().toLowerCase(), bass }
 }
 
 /** A chord name in words as a parsed chord ("A Major" → A); null when it isn't one. */
@@ -78,8 +78,9 @@ export function parseChordName(text: string): ParsedChord | null {
     const parts = split(text)
     if (!parts) return null
     const known = QUALITY_WORDS.get(parts.quality)
-    // Any other quality is tried as written ("C 7b9").
+    // Any other quality is tried as written ("C 7b9"), when it looks like a chord suffix.
     const suffix = known ?? parts.quality.replace(/\s+/g, '')
+    if (known === undefined && !/^[\w#+()°ø]+$/.test(suffix)) return null
     const parsed = parseChord(`${parts.root}${suffix}${parts.bass ? `/${parts.bass}` : ''}`)
     return parsed
 }
@@ -120,5 +121,8 @@ export function suggestChords(text: string): string {
     const closest = COMMON_QUALITIES.reduce((best, q) =>
         distance(quality, q.toLowerCase()) < distance(quality, best.toLowerCase()) ? q : best
     )
-    return `${root}, ${root}m, ${root}7 or ${spelled} ${closest}`
+    // Nothing close: offer the plain major chord.
+    const near =
+        quality && distance(quality, closest.toLowerCase()) <= Math.max(2, quality.length / 2)
+    return `${root}, ${root}m, ${root}7 or ${spelled} ${near ? closest : 'Major'}`
 }

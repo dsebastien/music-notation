@@ -49,6 +49,18 @@ export function markClasses(set: NoteSet, chroma: number, marks: NoteMarks = {})
     return classes.length ? ` ${classes.join(' ')}` : ''
 }
 
+/** The marks in words, for screen readers: ", characteristic notes: F#; differs: F#". */
+export function describeMarks(set: NoteSet, marks: NoteMarks = {}): string {
+    const names = (chromas?: Set<number>) =>
+        set.members.filter((m) => chromas?.has(m.chroma)).map((m) => m.name)
+    const characteristic = names(marks.characteristic)
+    const different = names(marks.different)
+    return (
+        (characteristic.length ? `, characteristic notes: ${characteristic.join(' ')}` : '') +
+        (different.length ? `, different from the compared scale: ${different.join(' ')}` : '')
+    )
+}
+
 const memberFor = (set: NoteSet, chroma: number): NoteSetMember | undefined =>
     set.members.find((m) => m.chroma === chroma)
 

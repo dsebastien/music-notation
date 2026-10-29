@@ -3,6 +3,7 @@ import { svg, svgLabel, svgRoot, svgText } from '../render/dom.js'
 import { titleWidth, type Orientation } from '../render/layout.js'
 import {
     labelOf,
+    describeMarks,
     markClasses,
     memberOf,
     type NoteLabel,
@@ -92,7 +93,7 @@ export function renderKeyboard(
         width,
         height,
         'mn-keyboard',
-        options.title ?? `Keyboard: ${set.title}`
+        `${options.title ?? `Keyboard: ${set.title}`}${describeMarks(set, options.marks)}`
     )
     if (options.title) {
         root.appendChild(
