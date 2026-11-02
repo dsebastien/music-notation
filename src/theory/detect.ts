@@ -140,7 +140,8 @@ export function detectChordFromPitches(pitches: number[]): DetectedChord | null 
     if (pitches.length < 2) return null
     const readings = new Set<string>()
     for (const flats of [false, true]) {
-        for (const symbol of Chord.detect(namesOf(pitches, flats))) {
+        // Shell voicings (root, third, seventh) are named with the fifth assumed: 3x44xx is Gmaj7.
+        for (const symbol of Chord.detect(namesOf(pitches, flats), { assumePerfectFifth: true })) {
             const normalized = normalize(symbol)
             if (normalized) readings.add(normalized)
         }

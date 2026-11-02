@@ -90,6 +90,14 @@ describe('chords recognized from their notes', () => {
         expect(detectChordFromPitches([60])).toBeNull()
     })
 
+    it('names shell voicings with the fifth assumed (#29)', () => {
+        const frets = (s: string) => [...s].map((c) => (c === 'x' ? null : Number(c)))
+        expect(detectChordFromFrets(frets('3x44xx'))?.symbol).toBe('Gmaj7')
+        expect(detectChordFromFrets(frets('x324xx'))?.symbol).toBe('Cmaj7')
+        expect(detectChordFromFrets(frets('x313xx'))?.symbol).toBe('Cm7')
+        expect(detectChordFromFrets(frets('3x34xx'))?.symbol).toBe('G7')
+    })
+
     it('titles and marks a diagram from its frets alone', () => {
         const h = host()
         renderBlock('chord', 'frets: x02220', h)
