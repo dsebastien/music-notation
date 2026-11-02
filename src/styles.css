@@ -168,16 +168,16 @@
     all: unset;
     appearance: none;
     width: 44px;
-    /* The input is the track (3px); the thumb is pulled up to its middle below. */
-    height: 3px;
+    /* As tall as the thumb, so no host or browser has to center it: the visible 3px track is a
+       centered line drawn by the background. */
+    height: 9px;
     margin: 0;
-    border-radius: 2px;
-    background: var(--mn-faint);
+    background: linear-gradient(var(--mn-faint), var(--mn-faint)) center / 100% 3px no-repeat;
     cursor: pointer;
 }
 
 .mn-play input[type='range']::-webkit-slider-runnable-track {
-    height: 3px;
+    height: 9px;
     border: none;
     background: transparent;
 }
@@ -186,10 +186,10 @@
     appearance: none;
     width: 9px;
     height: 9px;
-    /* Centered on the 3px track. Hosts may move thumbs (Obsidian: relative, top -6px). */
+    /* Hosts may move thumbs (Obsidian: relative, top -6px): the thumb fills the track instead. */
     position: static;
     top: 0;
-    margin-top: -3px;
+    margin: 0;
     border: none;
     border-radius: 50%;
     background: var(--mn-accent);
@@ -202,15 +202,15 @@
 }
 
 .mn-play input[type='range']::-moz-range-track {
-    height: 3px;
+    height: 9px;
     border: none;
-    border-radius: 2px;
-    background: var(--mn-faint);
+    background: transparent;
 }
 
 .mn-play input[type='range']::-moz-range-thumb {
     width: 9px;
     height: 9px;
+    margin: 0;
     border: none;
     border-radius: 50%;
     background: var(--mn-accent);
