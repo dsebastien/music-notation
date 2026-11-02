@@ -6,6 +6,7 @@ import { Chord } from 'tonal'
 import { parseChord } from './chord-symbol.js'
 import { chromaOf, nameOf } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
+import { keyPrefersFlats } from './transpose.js'
 
 /** Standard tuning, lowest string first (MIDI). */
 const STANDARD = [40, 45, 50, 55, 59, 64]
@@ -112,15 +113,32 @@ function normalize(symbol: string): string | null {
 const USUAL_ROOTS = new Set(['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'])
 
 /**
+ * 1 when a slash chord's bass isn't spelled as the chord would spell it: the matching chord tone
+ * (C7/Bb, not C7/A#), else with the accidentals of the chord's key (F7/Eb, D7/C#).
+ */
+function bassCost(root: string, quality: string, bass: string | undefined): number {
+    if (!bass) return 0
+    const chroma = chromaOf(bass)
+    const tone = Chord.get(`${root}${quality}`).notes.find((note) => chromaOf(note) === chroma)
+    if (tone) return tone === bass ? 0 : 1
+    const flats = keyPrefersFlats(
+        `${root}${quality.startsWith('m') && !quality.startsWith('maj') ? 'm' : ''}`
+    )
+    return bass.includes('b') === flats || !/[#b]/.test(bass) ? 0 : 1
+}
+
+/**
  * Lower is preferred: how common the quality is, a fixed cost for a slash (so Dsus2 wins over
- * Asus4/D, but C/E still wins over the rare Em#5), then the usual spelling of the root.
+ * Asus4/D, but C/E still wins over the rare Em#5), then the usual spelling of the root, then the
+ * bass spelled as the chord spells it.
  */
 const rank = (symbol: string): number => {
-    const m = /^([A-G][#b]*)(.*?)(\/[A-G][#b]*)?$/.exec(symbol)!
+    const m = /^([A-G][#b]*)(.*?)(?:\/([A-G][#b]*))?$/.exec(symbol)!
     const common = COMMON.indexOf(m[2]!)
     return (
-        ((common < 0 ? COMMON.length + 5 : common) + (m[3] ? 10 : 0)) * 2 +
-        (USUAL_ROOTS.has(m[1]!) ? 0 : 1)
+        ((common < 0 ? COMMON.length + 5 : common) + (m[3] ? 10 : 0)) * 4 +
+        (USUAL_ROOTS.has(m[1]!) ? 0 : 2) +
+        bassCost(m[1]!, m[2]!, m[3])
     )
 }
 

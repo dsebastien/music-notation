@@ -104,6 +104,11 @@ describe('chords recognized from their notes', () => {
         expect(detectChordFromFrets(frets('3x3455'))?.symbol).toBe('G13')
     })
 
+    it('spells a slash bass as the chord spells it (#31)', () => {
+        expect(detectChordFromFrets([null, 1, 2, 0, 1, 0])?.symbol).toBe('C7/Bb')
+        expect(detectChordFromPitches([46, 52, 55, 60])?.readings).not.toContain('C7/A#')
+    })
+
     it('titles and marks a diagram from its frets alone', () => {
         const h = host()
         renderBlock('chord', 'frets: x02220', h)
