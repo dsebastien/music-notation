@@ -285,6 +285,28 @@ frets: xx0212
 ---
 frets: 320001</code></pre></div>
 
+Shell voicings (no 5th), 13th grips and slash chords get a name too:
+
+````markdown
+```chord
+frets: 3x44xx
+---
+frets: x313xx
+---
+frets: 020120
+---
+frets: x12010
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">frets: 3x44xx
+---
+frets: x313xx
+---
+frets: 020120
+---
+frets: x12010</code></pre></div>
+
 ## Piano chords
 
 From a symbol, in root position from middle C:
@@ -548,6 +570,22 @@ fingering: 1 2 3 1 2 3 4 5
 
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">C major
 fingering: 1 2 3 1 2 3 4 5</code></pre></div>
+
+Degrees on the keys and the fingers in a row under them, over two octaves:
+
+````markdown
+```keyboard
+C major
+fingering: 1 2 3 1 2 3 4 5
+labels: degrees
+range: C3-B4
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">C major
+fingering: 1 2 3 1 2 3 4 5
+labels: degrees
+range: C3-B4</code></pre></div>
 
 ## Left-handed
 
