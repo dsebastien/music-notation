@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Chord symbols written the way chord sheets on the web write them now work: alterations in parentheses (`C7(b9)`, `C7(b5,#9)`) and spellings like `Cmaj7b5`, `C-5`, `Cm6/9` and `Csus2sus4` (#40).
+- A `chord` block with only a symbol no longer shows an error when the built-in voicing database doesn't have the chord. It draws the 4 easiest voicings the library finds instead (#40).
+
 ## 0.5.2 (2026-11-02)
 
 - Keyboard scale fingering (`fingering:`) no longer disappears when you add `labels:`. The labels stay on the keys, and the finger numbers get their own row under them (#28).
