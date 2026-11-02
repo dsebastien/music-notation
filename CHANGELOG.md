@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 (2026-11-02)
+
+- **Triads**: `triads: 1-3` in a `chord` block draws a chord's close triads on three strings, up the neck, with their inversion; `triads: G major` draws the seven triads of a key. `labels: intervals` writes R, 3, 5 in the dots; fretboards take `strings: 1-3` to show only those strings.
+- **Chord transitions**: `from: C x32010` and `to: Am` draw the chord you hold and the next chord's voicings your hand reaches most easily. Fingers that stay down have a ring, fingers that slide (3 frets at most) a dashed one, and the library says what to do in plain words. `progression: G D Em C` picks the voicings that make a whole progression easiest.
+- **Hear the diagrams**: with the `play` option, a bar at the bottom of each chord, keyboard and fretboard diagram (on hover, a tap on phones): play, loop, speed, volume, guitar or piano. Chords strum, scales go up and down from root to root, a click on a dot or a key plays it. A small synthesizer computed in the browser, or a soundfont the app passes.
+- **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks in alphaTex, or Guitar Pro and MusicXML files, with [alphaTab](https://alphatab.net) (passed in by the app): tablature, notation or both, the page's colors, and a player (play, loop, metronome, count-in, speed, volume) whose sound loads at the first Play. `printTab` prints a score in black on white. Works in Obsidian popout windows.
+- **Imports and exports**: score files to alphaTex, text tabs to alphaTex (bar lines, repeat signs, two-digit frets, bass and 7-string tunings), chord sheets to ChordPro (chords over lyrics, `Intro: G D Em C`, repeat marks); Guitar Pro 7 and MIDI exports.
+- **Obsidian Publish**: a second bundle, `music-notation.tab.min.js`, draws tab and score blocks; `publish.js` loads it only on pages that have them (see the guide's Publish page). Diagrams get the playback bar there too (`play: false` turns it off).
+
 ## 0.4.0 (2026-10-29)
 
 - **Every way to play a chord**: `voicings: all` (or `voicings: 6`) in a `chord` block draws every playable voicing of the chord in a row, the easiest first: the open chords you learn first, then E- and A-shape barres, the CAGED shapes and the rest. Each one is fingered and titled with its shape.

@@ -87,8 +87,11 @@ const result = renderTab('tab', source, container, {
 const { ok, error } = await result.ready
 ```
 
-- `scriptFile`: a same-origin URL of alphaTab's script to render and play in workers; `null` works on the main thread. `soundFont` may be bytes.
+- `scriptFile`: a same-origin URL of alphaTab's script to render and play in workers; `null` works on the main thread. `soundFont` may be bytes. Pass the module of the window the block is in: objects alphaTab checks with `instanceof` are made there, so popout windows work.
+- `renderTab` never throws. `ready` settles once and never rejects: `{ ok, error }` when drawn or failed (the message is also shown in the block), `{ ok: false, error: null }` when destroyed first. `result.api` is alphaTab's API once made (`onApi` is called then); `result.destroy()` frees alphaTab, its player and the element.
+- `player: false` leaves out the player bar. With the bar, the player (audio, synthesizer, soundfont) starts at the first Play; when it can't, the score stays and Play is disabled with the reason.
+- `printTab(result)`: prints a drawn score in black on white, whatever the theme (throws when it isn't drawn yet).
 - `parseTabSource(language, source)`: the block's `staves`, `file`, `tracks` and alphaTex.
-- `soundfontPlayer(alphaTab, () => api)`, `createSoundfontPlayer(alphaTab, assets, document)`: a `NotePlayer` for the diagrams' playback through alphaTab's soundfont.
-- `scoreToAlphaTex(alphaTab, bytes)` (Guitar Pro 3–8, MusicXML, Capella), `exportGp7(alphaTab, music)`, `exportMidi(alphaTab, music)` (alphaTex or file bytes); `textTabToAlphaTex(text)` and `chordSheetToChordPro(text)` for pasted text (also in the main entry's converters).
+- `soundfontPlayer(alphaTab, () => api)`, `createSoundfontPlayer(alphaTab, assets, document, fallback)`: a `NotePlayer` for the diagrams' playback through alphaTab's soundfont. `createSoundfontPlayer` makes its own hidden alphaTab instance at the first play (the first notes wait for the soundfont), plays through `fallback` (for example `lightPlayer(window)`) when the soundfont can't load, and has `destroy()`.
+- `scoreToAlphaTex(alphaTab, bytes)` (Guitar Pro 3–8, MusicXML, Capella), `exportGp7(alphaTab, music)`, `exportMidi(alphaTab, music)` (alphaTex or file bytes); `textTabToAlphaTex(text)` (null when the text has no tab; reads bar lines, repeat signs, two-digit frets, and bass, 5- and 7-string tunings) and `chordSheetToChordPro(text)` (chords over lyrics, labelled chord lines such as `Intro: G D Em C`, repeat marks and N.C.) for pasted text (also in the main entry's converters).
 - `alphaTabCdn(version)`: jsDelivr URLs of alphaTab's script, font and soundfont; `ALPHATAB_VERSION`.

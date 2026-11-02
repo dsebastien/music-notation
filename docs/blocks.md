@@ -165,7 +165,7 @@ Triads need a three-note chord (major, minor, diminished, augmented, sus). The s
 
 ## Chord transitions
 
-Changing chords cleanly is mostly about which voicing you pick and which fingers can stay down. `from:` and `to:` draw the chord you hold, then the next chord's voicings the hand reaches most easily. Fingers that stay on their fret have a ring; fingers that slide along their string have a dashed ring.
+Changing chords cleanly is mostly about which voicing you pick and which fingers can stay down. `from:` and `to:` draw the chord you hold, then the next chord's voicings the hand reaches most easily. Fingers that stay on their fret have a ring; fingers that slide along their string (3 frets at most: further, you lift the finger) have a dashed ring.
 
 ````markdown
 ```chord
@@ -440,12 +440,12 @@ Text always stays upright. Apps using the library can set the default orientatio
 
 Apps that turn playback on (Music Practice does, and Obsidian Publish pages through `publish.js`) add a small bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens):
 
-- **Play / stop**: a chord strums from the low string up, then rings; a scale goes up and back down.
+- **Play / stop**: a chord strums from the low string up, then rings; a scale goes up and back down, from its lowest root to its highest one.
 - **Loop**.
 - **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum.
 - **Volume**, and **sound**: guitar or piano.
 
-A click on a dot or a key plays that note. On web pages the sound is a small synthesizer computed in the browser (nothing to download); Music Practice plays a soundfont of recorded instruments.
+A click on a dot or a key plays that note. On web pages the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it; Music Practice plays a soundfont of recorded instruments.
 
 ## Tabs and scores
 
@@ -483,7 +483,7 @@ staves: both
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
 
-These keys go on the first lines; the alphaTex follows. Under the music, a player bar (on hover): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. A mistake in the alphaTex shows its line and column.
+These keys go on the first lines; the alphaTex follows. Under the music, a player bar (on hover; a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light; if it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
