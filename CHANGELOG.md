@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 (2026-11-02)
+
+- The volume and speed knobs of the playback bar sit on their slider in Obsidian (its own styles moved them up).
+
 ## 0.5.0 (2026-11-02)
 
 - **Triads**: `triads: 1-3` in a `chord` block draws a chord's close triads on three strings, up the neck, with their inversion; `triads: G major` draws the seven triads of a key. `labels: intervals` writes R, 3, 5 in the dots; fretboards take `strings: 1-3` to show only those strings.

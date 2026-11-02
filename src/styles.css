@@ -161,7 +161,7 @@
     all: unset;
     appearance: none;
     width: 44px;
-    /* The input is the track: WebKit then centers the thumb on it. */
+    /* The input is the track (3px); the thumb is pulled up to its middle below. */
     height: 3px;
     margin: 0;
     border-radius: 2px;
@@ -179,7 +179,10 @@
     appearance: none;
     width: 9px;
     height: 9px;
-    margin-top: 0;
+    /* Centered on the 3px track. Hosts may move thumbs (Obsidian: relative, top -6px). */
+    position: static;
+    top: 0;
+    margin-top: -3px;
     border: none;
     border-radius: 50%;
     background: var(--mn-accent);
