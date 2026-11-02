@@ -427,3 +427,24 @@ describe('every element stays inside its diagram', () => {
         }
     )
 })
+
+describe('scale fingering on keyboards (#28)', () => {
+    const texts = (h: HTMLElement, cls: string) =>
+        [...h.querySelectorAll(cls)].map((e) => e.textContent).join(' ')
+
+    it('shows fingering and labels together', () => {
+        const h = document.createElement('div')
+        renderBlock('keyboard', 'C major\nfingering: 1 2 3 1 2 3 4 5\nlabels: degrees', h)
+        expect(texts(h, '.mn-key-label')).toBe('1 2 3 4 5 6 7 1')
+        expect(texts(h, '.mn-key-finger')).toBe('1 2 3 1 2 3 4 5')
+    })
+
+    it('starts the fingering on the first root inside the range', () => {
+        const h = document.createElement('div')
+        renderBlock('keyboard', 'C major\nfingering: 1 2 3 1 2 3 4 5\nrange: C2-B3', h)
+        expect(texts(h, '.mn-key-label')).toBe('1 2 3 1 2 3 4 5')
+        expect(h.querySelector('[data-midi="36"]')?.getAttribute('class')).toContain('mn-on')
+        // Every octave in the range stays lit.
+        expect(h.querySelectorAll('.mn-on')).toHaveLength(14)
+    })
+})

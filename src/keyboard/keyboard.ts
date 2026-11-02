@@ -32,6 +32,8 @@ const WHITE_H = 104
 const BLACK_W = 14
 const BLACK_H = 64
 const TITLE = 22
+/** The row of finger numbers past the keys' near end, when the keys show other labels. */
+const FINGER_ROW = 16
 
 const isBlack = (midi: number) => BLACK.has(((midi % 12) + 12) % 12)
 
@@ -68,10 +70,18 @@ export function renderKeyboard(
     const vertical = options.orientation === 'vertical'
     const top = options.title ? TITLE : 0
     const length = whites.length * WHITE_W
-    const content = (vertical ? WHITE_H : length) + 2
+    const label = options.label ?? 'notes'
+    // Fingering and labels together: the labels stay on the keys, the fingers get their own row.
+    const fingerRow =
+        label !== 'fingers' &&
+        [...(options.fingers?.keys() ?? [])].some((midi) => midi >= from && midi <= to)
+            ? FINGER_ROW
+            : 0
+    const depth = WHITE_H + fingerRow
+    const content = (vertical ? depth : length) + 2
     const width = Math.max(content, titleWidth(options.title))
     const shift = (width - content) / 2
-    const height = top + (vertical ? length : WHITE_H) + 2
+    const height = top + (vertical ? length : depth) + 2
     // Key coordinates: `along` the keyboard from its low end, `depth` from the far edge, where
     // the black keys start. Horizontal: low notes on the left. Vertical: low notes at the bottom,
     // the far edge on the left (a piano roll).
@@ -89,7 +99,6 @@ export function renderKeyboard(
             height: Math.abs(y2 - y1)
         }
     }
-    const label = options.label ?? 'notes'
     const root = svgRoot(
         doc,
         width,
@@ -152,6 +161,19 @@ export function renderKeyboard(
         )
         caption(black, at(along + BLACK_W / 2, BLACK_H - 13), true)
     })
+    if (fingerRow) {
+        for (const [midi, finger] of options.fingers!) {
+            if (midi < from || midi > to) continue
+            // A key's middle along the keyboard: a white key's center, or the edge a black key sits on.
+            const whitesBelow = whites.filter((w) => w < midi).length
+            const along = isBlack(midi)
+                ? whitesBelow * WHITE_W
+                : whitesBelow * WHITE_W + WHITE_W / 2
+            root.appendChild(
+                svgLabel(doc, finger, at(along, WHITE_H + FINGER_ROW / 2 - 1), 'mn-key-finger')
+            )
+        }
+    }
     // What playback plays: the highlighted keys, low to high.
     const played: number[] = []
     for (let midi = from; midi <= to; midi++) if (memberOf(set, midi)) played.push(midi)

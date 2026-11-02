@@ -375,16 +375,24 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const set = noteSetOf(block)
     const range = field(block, 'range')
     handOf(block, options)
-    // A scale's fingering: one octave from the root (middle C's octave), fingers in order.
+    // A scale's fingering: one octave from the root, fingers in order. Without a range the
+    // keyboard shows that octave (middle C's); with one, every octave stays lit and the fingering
+    // starts on the first root inside it (or the lowest one).
     const fingering = field(block, 'fingering')
+    const keys = range ? rangeOf(range) : undefined
     let fingers: Map<number, string> | undefined
     if (fingering && set.root !== null && !set.pitches) {
-        const start = 60 + set.root
-        set.pitches = [
+        let start = 60 + set.root
+        if (keys) {
+            const first = keys[0] + ((((set.root - keys[0]) % 12) + 12) % 12)
+            start = first <= keys[1] ? first : keys[0] - ((((keys[0] - set.root) % 12) + 12) % 12)
+        }
+        const octave = [
             ...set.members.map((m) => start + ((m.chroma - set.root! + 12) % 12)),
             start + 12
-        ]
-        fingers = fingersFor(set.pitches, fingering)
+        ].sort((a, b) => a - b)
+        fingers = fingersFor(octave, fingering)
+        if (!keys) set.pitches = octave
     }
     return renderKeyboard(doc, set, {
         // A chord plays together; scales and lists one note at a time.
@@ -394,8 +402,8 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         fingers,
         // A fingered scale shows its octave, up to the root above.
         range: keyRange(
-            range
-                ? rangeOf(range)
+            keys
+                ? keys
                 : fingers && set.pitches
                   ? [set.pitches[0]!, set.pitches[set.pitches.length - 1]!]
                   : keyRangeOf(set)
