@@ -75,6 +75,9 @@ const TONAL_SUFFIXES = new Map<string, string>([
     ['M9', 'maj9'],
     ['M7', 'maj7'],
     ['M69', '6/9'],
+    // A 13th voicing leaves out the 9th and the 11th (E G# B D C#): tonal reads 7add6.
+    ['7add6', '13'],
+    ['m7add6', 'm13'],
     ['m69', 'm6/9'],
     ['Msus2', 'sus2'],
     ['Msus4', 'sus4'],
@@ -97,6 +100,8 @@ function normalize(symbol: string): string | null {
         bass = rest.slice(slash + 1)
         rest = rest.slice(0, slash)
     }
+    // A missing fifth is the usual omission ("G13no5" is G13), like 7no5 and 9no5 above.
+    if (!TONAL_SUFFIXES.has(rest) && rest.endsWith('no5')) rest = rest.slice(0, -3)
     const suffix = canonicalSuffix(TONAL_SUFFIXES.get(rest) ?? rest)
     if (!COMMON.includes(suffix) && !EXTENDED.has(suffix)) return null
     const out = `${m[1]}${suffix}${bass ? `/${bass}` : ''}`

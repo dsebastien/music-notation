@@ -98,6 +98,12 @@ describe('chords recognized from their notes', () => {
         expect(detectChordFromFrets(frets('3x34xx'))?.symbol).toBe('G7')
     })
 
+    it('names 13th voicings without their 5th, 9th and 11th (#30)', () => {
+        const frets = (s: string) => [...s].map((c) => (c === 'x' ? null : Number(c)))
+        expect(detectChordFromFrets(frets('020120'))?.symbol).toBe('E13')
+        expect(detectChordFromFrets(frets('3x3455'))?.symbol).toBe('G13')
+    })
+
     it('titles and marks a diagram from its frets alone', () => {
         const h = host()
         renderBlock('chord', 'frets: x02220', h)
