@@ -154,13 +154,18 @@ function barFor(
         playing = null
         show()
     }
-    /** Plays notes with the app's player, or the light synthesizer when that one fails. */
+    /**
+     * Plays notes with the app's player, or the light synthesizer when that one fails, in the
+     * window the diagram is in now: a host may move a drawn diagram to another window (Obsidian
+     * popouts), and its sound then belongs to that window.
+     */
     const play = (events: NoteEvent[], onEnd: () => void): PlayHandle => {
         const options_ = { sound: settings.sound, volume: settings.volume, onEnd }
+        const here = wrap.ownerDocument.defaultView ?? win
         try {
-            return playerFor(win, options).play(events, options_)
+            return playerFor(here, options).play(events, options_)
         } catch {
-            return lightFor(win).play(events, options_)
+            return lightFor(here).play(events, options_)
         }
     }
     const start = () => {

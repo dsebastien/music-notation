@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test'
+import { Window as HappyWindow } from 'happy-dom'
 import {
     lengthOf,
     pianoTone,
@@ -130,6 +131,28 @@ describe('playback bar', () => {
         expect(calls).toHaveLength(1)
         // The diagram's window, so popouts get a player of their own.
         expect(asked === h.ownerDocument.defaultView).toBe(true)
+    })
+
+    it('asks for the player of the window the diagram is in when it plays (moved to a popout)', () => {
+        const popout = new HappyWindow()
+        const { player } = recorder()
+        const asked: unknown[] = []
+        const h = host()
+        renderBlock('chord', 'A x02220', h, {
+            play: {
+                player: (win) => {
+                    asked.push(win)
+                    return player
+                }
+            }
+        })
+        // A host moves the drawn block into another window's document.
+        const target = popout.document as unknown as Document
+        target.body.appendChild(target.adoptNode(h))
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(asked).toHaveLength(1)
+        expect(asked[0] === (popout as unknown)).toBe(true)
+        void popout.happyDOM.close()
     })
 
     it('adds no bar without the option', () => {
