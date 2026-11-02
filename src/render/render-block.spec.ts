@@ -54,7 +54,21 @@ describe('renderBlock', () => {
             'Cm(maj7)',
             'C-(maj7)',
             'C7b9',
-            'Cm11'
+            'Cm11',
+            // Chord-sheet spellings (#40): alterations in parentheses and other names tonal knows.
+            'C7(b9)',
+            'Cm7(b5)',
+            'Cmaj9(#11)',
+            'C7(b5,#9)',
+            'Cmaj7(#5)',
+            'C(add9)',
+            'Cm(add9)',
+            'Cmaj7b5',
+            'Cm6/9',
+            'Csus2sus4',
+            'C-5',
+            'Cm6add9',
+            'Cmmaj9'
         ]) {
             expect(renderBlock('chord', `${symbol}\ninstrument: piano`, h).ok).toBe(true)
             expect(renderBlock('chord', symbol, h, { voicings: lookupGuitarVoicing }).ok).toBe(true)

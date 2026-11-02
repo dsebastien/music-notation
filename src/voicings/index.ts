@@ -4,10 +4,12 @@
  */
 import db from '@tombatossals/chords-db/lib/guitar.json'
 import type { FrettedVoicing } from '../chord/guitar.js'
+import { generateVoicings } from '../chord/generate.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { canonicalSuffix } from '../theory/suffix.js'
 
-/** Finds the n-th voicing (0-based) of a chord symbol; null when unknown. */
+/** Finds the n-th voicing (0-based) of a chord symbol; null when unknown. Chords the database
+ * doesn't have get the generator's easiest voicings. */
 export type VoicingLookup = (symbol: string, index: number) => FrettedVoicing | null
 
 /** The database's own key names: sharps for C# and F#, flats elsewhere. */
@@ -41,7 +43,9 @@ export const lookupGuitarVoicing: VoicingLookup = (symbol, index) => {
         : suffix
     const chords = db.chords[DB_KEYS[chroma]!] ?? []
     const chord = chords.find((c) => c.suffix === wanted)
-    const position = chord?.positions[index]
+    // A chord the database doesn't have (Cmaj9#11, C7b5#9, Cmaj7b5…): the generator's easiest ones.
+    if (!chord) return generated(symbol)[index] ?? null
+    const position = chord.positions[index]
     if (!position) return null
     const absolute = (f: number) => (f < 0 ? null : f === 0 ? 0 : f + position.baseFret - 1)
     return {
@@ -51,7 +55,21 @@ export const lookupGuitarVoicing: VoicingLookup = (symbol, index) => {
     }
 }
 
-/** How many voicings the database has for a symbol. */
+/** Voicings for chords the database doesn't have: the generator's easiest, like a database entry. */
+const GENERATED_PER_CHORD = 4
+const generatedCache = new Map<string, FrettedVoicing[]>()
+function generated(symbol: string): FrettedVoicing[] {
+    const hit = generatedCache.get(symbol)
+    if (hit) return hit
+    const list = generateVoicings(symbol)
+        .slice(0, GENERATED_PER_CHORD)
+        .map(({ frets, fingers, baseFret }) => ({ frets, fingers, baseFret }))
+    generatedCache.set(symbol, list)
+    if (generatedCache.size > 64) generatedCache.delete(generatedCache.keys().next().value!)
+    return list
+}
+
+/** How many voicings the database (or, for chords it doesn't have, the generator) has for a symbol. */
 export function voicingCount(symbol: string): number {
     let n = 0
     while (lookupGuitarVoicing(symbol, n)) n++
