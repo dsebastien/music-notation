@@ -69,9 +69,9 @@ const DOUBLE_ACCIDENTAL = /^[A-G](##|bb)/
 const SUPERLOCRIAN = ['1P', '2m', '3m', '4d', '5d', '6m', '7m']
 
 /**
- * A scale's notes and intervals as musicians write them, without double accidentals: the altered
- * scale switches to its superlocrian degrees when tonal's (b9 #9 3 #11) need one (G# altered), and
- * any other note on a double sharp or flat takes its simplest name (A# major's C## is D).
+ * A scale's notes and intervals as musicians write them. The altered scale switches to its
+ * superlocrian degrees when tonal's (b9 #9 3 #11) need a double accidental (G# altered). Other
+ * scales keep tonal's spelling, one letter per degree: G# harmonic minor's 7th is F##, not G.
  */
 export function scaleSpelling(scale: {
     tonic: string | null
@@ -88,10 +88,7 @@ export function scaleSpelling(scale: {
         const notes = SUPERLOCRIAN.map((interval) => Note.transpose(scale.tonic!, interval))
         if (!hasDouble(notes)) return { notes, intervals: SUPERLOCRIAN }
     }
-    return {
-        notes: scale.notes.map((n) => (DOUBLE_ACCIDENTAL.test(n) ? Note.simplify(n) : n)),
-        intervals: scale.intervals
-    }
+    return { notes: scale.notes, intervals: scale.intervals }
 }
 
 /** Scale types tonal knows, for docs and pickers. */

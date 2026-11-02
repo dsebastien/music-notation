@@ -363,7 +363,7 @@ describe('after review', () => {
         expect(h.querySelectorAll('.mn-dot').length).toBeGreaterThanOrEqual(15)
     })
 
-    it('spells scales without double accidentals (#32)', () => {
+    it('spells the altered scale without double accidentals (#32)', () => {
         const names = (scale: string) => scaleNoteSet(scale)!.members.map((m) => m.name)
         const intervals = (scale: string) =>
             scaleNoteSet(scale)!.members.map((m) => labelOf(m, 'intervals'))
@@ -372,7 +372,8 @@ describe('after review', () => {
         expect(names('B altered')).toEqual(['B', 'C', 'D', 'Eb', 'F', 'G', 'A'])
         // Without a double accidental, tonal's jazz spelling stays.
         expect(names('C altered')).toEqual(['C', 'Db', 'D#', 'E', 'F#', 'Ab', 'Bb'])
-        expect(names('A# major').some((n) => /##|bb/.test(n))).toBe(false)
+        // Other scales keep one letter per degree: G# harmonic minor's 7th is F##.
+        expect(names('G# harmonic minor')).toContain('F##')
         const h = host()
         expect(renderBlock('keyboard', 'modes: A melodic minor\nlabels: notes', h).ok).toBe(true)
         expect(h.textContent).toContain('G# altered')
