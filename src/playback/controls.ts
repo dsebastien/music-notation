@@ -18,9 +18,10 @@ import {
 export interface PlayOptions {
     /**
      * Plays the notes: a player, or a function returning one at each play (null for the default),
-     * so a soundfont loaded later is used once it's there. The light synthesizer by default.
+     * so a soundfont loaded later is used once it's there. The function gets the diagram's window
+     * (popouts have their own). The light synthesizer by default.
      */
-    player?: NotePlayer | (() => NotePlayer | null | undefined)
+    player?: NotePlayer | ((win: Window) => NotePlayer | null | undefined)
     /** Guitar or piano; by default the diagram's (piano for keyboards and piano chords). */
     sound?: Sound
     /** 0 to 1, 0.8 by default. */
@@ -68,7 +69,7 @@ function lightFor(win: Window): NotePlayer {
 
 /** The player apps passed (read at each play), else the light synthesizer. */
 function playerFor(win: Window, options: PlayOptions): NotePlayer {
-    const given = typeof options.player === 'function' ? options.player() : options.player
+    const given = typeof options.player === 'function' ? options.player(win) : options.player
     return given ?? lightFor(win)
 }
 

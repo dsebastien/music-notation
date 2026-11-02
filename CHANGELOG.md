@@ -3,6 +3,7 @@
 ## 0.5.1 (2026-11-02)
 
 - The volume and speed knobs of the playback bar sit on their slider in Obsidian (its own styles moved them up).
+- For apps: the `player` function of the `play` option gets the diagram's window, so a player can belong to the window the diagram is in (Obsidian popouts).
 
 ## 0.5.0 (2026-11-02)
 

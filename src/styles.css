@@ -189,6 +189,11 @@
     box-shadow: none;
 }
 
+/* Hosts ring a focused thumb (Obsidian): only for keyboard focus here, not after a click. */
+.mn-play input[type='range']:focus:not(:focus-visible)::-webkit-slider-thumb {
+    box-shadow: none;
+}
+
 .mn-play input[type='range']::-moz-range-track {
     height: 3px;
     border: none;

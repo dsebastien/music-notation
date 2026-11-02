@@ -116,10 +116,20 @@ describe('playback bar', () => {
         const { player, calls } = recorder()
         let ready: NotePlayer | null = null
         const h = host()
-        renderBlock('chord', 'A x02220', h, { play: { player: () => ready } })
+        let asked: Window | null = null
+        renderBlock('chord', 'A x02220', h, {
+            play: {
+                player: (win) => {
+                    asked = win
+                    return ready
+                }
+            }
+        })
         ready = player
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(calls).toHaveLength(1)
+        // The diagram's window, so popouts get a player of their own.
+        expect(asked === h.ownerDocument.defaultView).toBe(true)
     })
 
     it('adds no bar without the option', () => {
