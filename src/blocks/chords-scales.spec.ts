@@ -76,6 +76,33 @@ describe('chord names in words', () => {
     })
 })
 
+describe('chord-sheet spellings (#40)', () => {
+    it('reads alterations in parentheses like the same symbol without them', () => {
+        expect(parseChord('C7(b9)')?.name).toBe('C 7b9')
+        expect(parseChord('Cm7(b5)')?.name).toBe('C Minor 7 flat 5')
+        expect(parseChord('C(add9)')?.name).toBe('C Add9')
+        expect(parseChord('F#7(b9)/A#')?.bass).toBe('A#')
+    })
+
+    it('names the other spellings so that their names read back', () => {
+        for (const [symbol, back] of [
+            ['C-5', 'CMb5'],
+            ['C(b5)', 'CMb5'],
+            ['Cm6/9', 'Cm6/9'],
+            ['Cm6add9', 'Cm6/9'],
+            ['Cmaj9(#11)', 'Cmaj9#11'],
+            ['Csus2sus4', 'Csus2sus4']
+        ] as const) {
+            expect(readChord(parseChord(symbol)!.name)?.symbol).toBe(back)
+        }
+    })
+
+    it('keeps a flat root apart from a flat fifth', () => {
+        expect(parseChord('Cb5')?.root).toBe('Cb')
+        expect(parseChord('C(b5)')?.root).toBe('C')
+    })
+})
+
 describe('chords recognized from their notes', () => {
     it('names common shapes', () => {
         expect(detectChordFromFrets([null, 0, 2, 2, 2, 0])?.symbol).toBe('A')

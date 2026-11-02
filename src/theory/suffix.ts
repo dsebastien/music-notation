@@ -31,7 +31,25 @@ const CANONICAL = new Map<string, string>([
     ['sus', 'sus4'],
     ['add2', 'add9'],
     ['69', '6/9'],
-    ['alt', '7alt']
+    ['alt', '7alt'],
+    // Spellings chord sheets use that tonal knows under another name.
+    ['-5', 'Mb5'],
+    ['b5', 'Mb5'],
+    ['maj7b5', 'M7b5'],
+    ['mmaj9', 'mMaj9'],
+    ['m6/9', 'm69'],
+    ['m6add9', 'm69'],
+    ['sus2sus4', 'sus24']
 ])
 
-export const canonicalSuffix = (suffix: string): string => CANONICAL.get(suffix) ?? suffix
+/**
+ * The canonical suffix. Alterations and additions in parentheses read like the same symbol
+ * without them: 7(b9) = 7b9, 7(b5,#9) = 7b5#9, m(add9) = madd9 (m(maj7) has its own entry).
+ */
+export function canonicalSuffix(suffix: string): string {
+    const direct = CANONICAL.get(suffix)
+    if (direct !== undefined) return direct
+    if (!/[(),]/.test(suffix)) return suffix
+    const flat = suffix.replace(/[(),\s]/g, '')
+    return CANONICAL.get(flat) ?? flat
+}

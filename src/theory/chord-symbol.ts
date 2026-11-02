@@ -23,6 +23,8 @@ const QUALITY_SUFFIXES: [RegExp, string][] = [
     [/^(add9|add2)$/, 'Add9'],
     [/^5$/, '5 (Power)'],
     [/^(6\/9|69)$/, '6/9'],
+    [/^(m6\/9|m69|m6add9)$/, 'Minor 6/9'],
+    [/^(Mb5|b5|-5)$/, 'Major flat 5'],
     [/^(mM7|mMaj7|mmaj7|m\(maj7\)|-\(maj7\))$/, 'Minor major 7'],
     [/^(13|11|9|7|6)$/, '$1'],
     [/^(maj|M)?$/, 'Major']
@@ -48,7 +50,9 @@ export function parseChord(symbol: string): ParsedChord | null {
     const parts = splitChordSymbol(symbol)
     if (!parts) return null
     const trimmed = symbol.trim()
-    const { root, suffix, bass } = parts
+    const { root, bass } = parts
+    // Alterations in parentheses read like the same symbol without them: C7(b9) is C7b9.
+    const suffix = /[(),]/.test(parts.suffix) ? parts.suffix.replace(/[(),\s]/g, '') : parts.suffix
     let quality: string | null = null
     for (const [re, label] of QUALITY_SUFFIXES) {
         const hit = re.exec(suffix)

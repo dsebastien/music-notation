@@ -32,6 +32,8 @@ const QUALITY_WORDS = new Map<string, string>([
     ['5', '5'],
     ['power', '5'],
     ['6/9', '6/9'],
+    ['minor 6/9', 'm6/9'],
+    ['major flat 5', 'Mb5'],
     ['minor major 7', 'mMaj7'],
     ['dominant 7', '7'],
     ['13', '13'],

@@ -61,6 +61,9 @@ describe('chordSheetToChordPro, edge cases', () => {
 
     it('skips bar lines, repeats, counts and "no chord" between chords', () => {
         expect(chordSheetToChordPro('|: G D :| 2x')).toBe('[G] [D]')
+        expect(chordSheetToChordPro('C7(b9) Cm(add9) Cmaj7b5')).toBe(
+            '[C7(b9)] [Cm(add9)] [Cmaj7b5]'
+        )
         expect(chordSheetToChordPro('G  N.C.  D')).toBe('[G] [D]')
     })
 
