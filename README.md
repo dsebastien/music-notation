@@ -117,24 +117,29 @@ if (!result.ok) console.warn(result.error)
 
 ## Obsidian Publish
 
-Add this to your site's `publish.js`. It loads the bundle only on pages that have notation blocks:
+Add this to your site's `publish.js`. It loads the bundle only on pages that have notation blocks, and the tab bundle (with alphaTab) only on pages with tabs or scores:
 
 ```js
 ;(() => {
-    const VERSION = '0.4.0'
-    const SELECTOR = ['chord', 'chords', 'keyboard', 'fretboard']
-        .map((l) => `pre > code.language-${l}`)
-        .join(', ')
-    let requested = false
-    const load = () => {
-        if (requested || !document.querySelector(SELECTOR)) return
-        requested = true
+    const VERSION = '0.5.0'
+    const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
+    const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
+    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard'])
+    const TABS = selector(['tab', 'score'])
+    const requested = new Set()
+    const load = (file) => {
+        if (requested.has(file)) return
+        requested.add(file)
         const script = document.createElement('script')
-        script.src = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist/music-notation.publish.min.js`
+        script.src = `${CDN}/${file}`
         document.head.appendChild(script)
     }
-    load()
-    new MutationObserver(load).observe(document.body, { childList: true, subtree: true })
+    const check = () => {
+        if (document.querySelector(BLOCKS)) load('music-notation.publish.min.js')
+        if (document.querySelector(TABS)) load('music-notation.tab.min.js')
+    }
+    check()
+    new MutationObserver(check).observe(document.body, { childList: true, subtree: true })
 })()
 ```
 
@@ -142,7 +147,7 @@ The bundle renders every block, now and as you navigate, and hides a block's sou
 
 ## Credits and licenses
 
-MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings.
+MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings. Tabs and scores use [alphaTab](https://alphatab.net) (MPL-2.0), which the app passes in; the tab bundle loads it from jsDelivr.
 
 ## News & support
 
