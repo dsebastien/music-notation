@@ -31,8 +31,8 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 })()
 ```
 
-- The bundle is only downloaded on pages with notation blocks; the tab bundle (and alphaTab, its music font and soundfont, from jsDelivr) only on pages with `tab` or `score` blocks.
-- Diagrams get a playback bar (on hover; a tap on phones), with the light synthesizer, or the soundfont once a page with tabs has loaded it. `play: false` turns it off; `play: { volume: 0.6, bpm: 80, strum: 30, sound: 'piano' }` sets the defaults.
+- The bundle is only downloaded on pages with notation blocks. The tab bundle (and alphaTab, its music font and soundfont, from jsDelivr) is only downloaded on pages with `tab` or `score` blocks.
+- Diagrams get a playback bar (on hover, or a tap on phones). It plays with the light synthesizer, or with the soundfont once a page with tabs has loaded it. `play: false` turns it off, and `play: { volume: 0.6, bpm: 80, strum: 30, sound: 'piano' }` sets the defaults.
 - Defaults for the whole site go in `window.musicNotationOptions`, set before the bundle loads (at the top of `publish.js`). A block's own `orientation` and `hand` still win.
 
 ```js

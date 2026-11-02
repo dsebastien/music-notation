@@ -109,8 +109,8 @@ if (!result.ok) console.warn(result.error)
 
 - `renderBlock(language, source, host, options)` appends the rendering to `host` and never throws. It returns `{ ok, el, error, destroy() }`.
 - `@dsebastien/music-notation/voicings` adds about 1,800 guitar voicings, found by chord symbol (`chord` blocks with only a symbol). It's a separate entry point because the data weighs about 230 KB.
-- **Hear the diagrams**: with the `play` option, a playback bar on each diagram (on hover): chords strum, scales go up and down, a click plays a note.
-- **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab and `score blocks (alphaTex, or Guitar Pro and MusicXML files) with [alphaTab](https://alphatab.net), with a player; it also converts score files, text tabs and chord sheets, and exports Guitar Pro 7 and MIDI.
+- **Hear the diagrams**: the `play` option adds a playback bar to each diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note.
+- **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks (alphaTex, or Guitar Pro and MusicXML files) with [alphaTab](https://alphatab.net), and adds a player. It also converts score files, text tabs and chord sheets, and exports Guitar Pro 7 and MIDI.
 - `generateVoicings(symbol, options)` finds every playable voicing of a chord on any tuning, easiest first, with fingers and shape names; `fingerVoicing(frets)` fingers any voicing.
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
 - Styles: `injectStyles(document)`, or ship `@dsebastien/music-notation/music-notation.css`. Colors follow Obsidian's theme variables, with fallbacks for any page.
@@ -147,7 +147,7 @@ The bundle renders every block, now and as you navigate, and hides a block's sou
 
 ## Credits and licenses
 
-MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings. Tabs and scores use [alphaTab](https://alphatab.net) (MPL-2.0), which the app passes in; the tab bundle loads it from jsDelivr.
+MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings. Tabs and scores use [alphaTab](https://alphatab.net) (MPL-2.0), which the app passes in. The tab bundle loads it from jsDelivr.
 
 ## News & support
 

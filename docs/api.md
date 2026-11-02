@@ -70,7 +70,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 
 ## Tabs and scores
 
-`@dsebastien/music-notation/tab` draws `tab and `score blocks with [alphaTab](https://alphatab.net) (MPL-2.0). alphaTab isn't bundled: pass its module (the UMD build, `window.alphaTab`), the music font and the soundfont.
+`@dsebastien/music-notation/tab` draws `tab` and `score` blocks with [alphaTab](https://alphatab.net) (MPL-2.0). alphaTab isn't bundled: pass its module (the UMD build, `window.alphaTab`), the music font and the soundfont.
 
 ```ts
 import { renderTab } from '@dsebastien/music-notation/tab'
@@ -93,5 +93,5 @@ const { ok, error } = await result.ready
 - `printTab(result)`: prints a drawn score in black on white, whatever the theme (throws when it isn't drawn yet).
 - `parseTabSource(language, source)`: the block's `staves`, `file`, `tracks` and alphaTex.
 - `soundfontPlayer(alphaTab, () => api)`, `createSoundfontPlayer(alphaTab, assets, document, fallback)`: a `NotePlayer` for the diagrams' playback through alphaTab's soundfont. `createSoundfontPlayer` makes its own hidden alphaTab instance at the first play (the first notes wait for the soundfont), plays through `fallback` (for example `lightPlayer(window)`) when the soundfont can't load, and has `destroy()`.
-- `scoreToAlphaTex(alphaTab, bytes)` (Guitar Pro 3–8, MusicXML, Capella), `exportGp7(alphaTab, music)`, `exportMidi(alphaTab, music)` (alphaTex or file bytes); `textTabToAlphaTex(text)` (null when the text has no tab; reads bar lines, repeat signs, two-digit frets, and bass, 5- and 7-string tunings) and `chordSheetToChordPro(text)` (chords over lyrics, labelled chord lines such as `Intro: G D Em C`, repeat marks and N.C.) for pasted text (also in the main entry's converters).
+- `scoreToAlphaTex(alphaTab, bytes)` (Guitar Pro 3–8, MusicXML, Capella), `exportGp7(alphaTab, music)`, `exportMidi(alphaTab, music)` (alphaTex or file bytes); `textTabToAlphaTex(text)` (null when the text has no tab; reads bar lines, repeat signs, two-digit frets, and bass, 5- and 7-string tunings) and `chordSheetToChordPro(text)` (chords over lyrics, labeled chord lines such as `Intro: G D Em C`, repeat marks and N.C.) for pasted text (also in the main entry's converters).
 - `alphaTabCdn(version)`: jsDelivr URLs of alphaTab's script, font and soundfont; `ALPHATAB_VERSION`.

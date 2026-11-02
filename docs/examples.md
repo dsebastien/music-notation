@@ -199,7 +199,7 @@ triads: 1-3
 inversion: 1
 columns: 7</code></pre></div>
 
-From G to C, the easiest voicings, then a whole progression:
+The easiest voicings from G to C, then a whole progression:
 
 ````markdown
 ```chord

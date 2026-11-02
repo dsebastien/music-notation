@@ -2,17 +2,18 @@
 
 ## 0.5.1 (2026-11-02)
 
-- The volume and speed knobs of the playback bar sit on their slider in Obsidian (its own styles moved them up).
+- The volume and speed knobs of the playback bar now sit on their slider in Obsidian, whose own styles had moved them up.
+- After a click on a slider, its knob no longer keeps Obsidian's focus ring (keyboard focus still shows it).
 - For apps: the `player` function of the `play` option gets the diagram's window, so a player can belong to the window the diagram is in (Obsidian popouts).
 
 ## 0.5.0 (2026-11-02)
 
-- **Triads**: `triads: 1-3` in a `chord` block draws a chord's close triads on three strings, up the neck, with their inversion; `triads: G major` draws the seven triads of a key. `labels: intervals` writes R, 3, 5 in the dots; fretboards take `strings: 1-3` to show only those strings.
-- **Chord transitions**: `from: C x32010` and `to: Am` draw the chord you hold and the next chord's voicings your hand reaches most easily. Fingers that stay down have a ring, fingers that slide (3 frets at most) a dashed one, and the library says what to do in plain words. `progression: G D Em C` picks the voicings that make a whole progression easiest.
-- **Hear the diagrams**: with the `play` option, a bar at the bottom of each chord, keyboard and fretboard diagram (on hover, a tap on phones): play, loop, speed, volume, guitar or piano. Chords strum, scales go up and down from root to root, a click on a dot or a key plays it. A small synthesizer computed in the browser, or a soundfont the app passes.
-- **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks in alphaTex, or Guitar Pro and MusicXML files, with [alphaTab](https://alphatab.net) (passed in by the app): tablature, notation or both, the page's colors, and a player (play, loop, metronome, count-in, speed, volume) whose sound loads at the first Play. `printTab` prints a score in black on white. Works in Obsidian popout windows.
-- **Imports and exports**: score files to alphaTex, text tabs to alphaTex (bar lines, repeat signs, two-digit frets, bass and 7-string tunings), chord sheets to ChordPro (chords over lyrics, `Intro: G D Em C`, repeat marks); Guitar Pro 7 and MIDI exports.
-- **Obsidian Publish**: a second bundle, `music-notation.tab.min.js`, draws tab and score blocks; `publish.js` loads it only on pages that have them (see the guide's Publish page). Diagrams get the playback bar there too (`play: false` turns it off).
+- **Triads**: `triads: 1-3` in a `chord` block draws a chord's close triads on three strings, up the neck, with their inversion; `key: G major` with `triads: 1-3` draws the seven triads of a key. `labels: intervals` writes R, 3, 5 in the dots. Fretboards take `strings: 1-3` to show only those strings.
+- **Chord transitions**: `from: C x32010` and `to: Am` draw the chord you hold and the next chord's voicings your hand reaches most easily. Fingers that stay down have a ring, and fingers that slide (3 frets at most) a dashed one. The library also says what to do in plain words. `progression: G D Em C` picks the voicings that make a whole progression easiest.
+- **Hear the diagrams**: the `play` option adds a bar at the bottom of each chord, keyboard and fretboard diagram (on hover, or a tap on phones), with play, loop, speed, volume and a guitar or piano sound. Chords strum, scales go up and down from root to root, and a click on a dot or a key plays that note. The sound is a small synthesizer computed in the browser, or a soundfont the app passes in.
+- **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks in alphaTex, or Guitar Pro and MusicXML files, with [alphaTab](https://alphatab.net), which the app passes in. It shows tablature, notation or both, in the page's colors, with a player (play, loop, metronome, count-in, speed, volume) whose sound loads at the first Play. `printTab` prints a score in black on white. It works in Obsidian popout windows.
+- **Imports and exports**: converts score files to alphaTex, text tabs to alphaTex (bar lines, repeat signs, two-digit frets, bass and 7-string tunings), and chord sheets to ChordPro (chords over lyrics, `Intro: G D Em C`, repeat marks). Exports to Guitar Pro 7 and MIDI.
+- **Obsidian Publish**: a second bundle, `music-notation.tab.min.js`, draws tab and score blocks. `publish.js` loads it only on pages that have them (see the guide's Publish page). Diagrams get the playback bar there too (`play: false` turns it off).
 
 ## 0.4.0 (2026-10-29)
 

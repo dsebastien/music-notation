@@ -50,7 +50,7 @@ title: A (open)</code></pre></div>
 | `name`              | Also the title; when it reads as a chord (`name: A`, `name: A Major`), its root notes are highlighted too.                                                                                                                                                                |
 | `orientation`       | `vertical` (default for guitar) or `horizontal`; piano chords are `horizontal` by default. See [orientation](#orientation-and-left-handed-diagrams).                                                                                                                      |
 | `hand`              | `left` mirrors the diagram for left-handed players.                                                                                                                                                                                                                       |
-| `labels`            | Guitar: what the dots say: `fingers` (default), `intervals` (R, 3, 5, as triad charts show them), `notes` or `none`.                                                                                                                                                      |
+| `labels`            | Guitar: what the dots say, `fingers` (default), `intervals` (R, 3, 5, as triad charts show them), `notes` or `none`.                                                                                                                                                      |
 | `anchors`, `guides` | Guitar: strings (1 = the highest) whose finger stays on its fret (a ring) or slides along the string (a dashed ring), as [chord transitions](#chord-transitions) mark them.                                                                                               |
 
 Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. A chord the library doesn't recognize says what to write instead.
@@ -140,7 +140,7 @@ triads: 1-3
 <div class="mn-live" markdown="0"><pre><code class="language-chord">G
 triads: 1-3</code></pre></div>
 
-`inversion: 0` (root position), `1` or `2` keeps one. With `key:`, the key's seven triads in one inversion, moving up the neck, titled with their numerals:
+`inversion: 0` (root position), `1` or `2` keeps only one inversion. With `key:`, the block draws the key's seven triads in one inversion, moving up the neck, titled with their numerals:
 
 ````markdown
 ```chord
@@ -154,18 +154,18 @@ inversion: 1
 triads: 2-4
 inversion: 1</code></pre></div>
 
-| Key         | Meaning                                                                                            |
-| ----------- | -------------------------------------------------------------------------------------------------- |
-| `triads`    | The string set: `1-3`, `2-4`, `3-5` or `4-6` (1 = the highest string).                             |
-| `inversion` | `0` (root position), `1`, `2`; all of them by default (one, root position by default, with a key). |
-| `key`       | `G major`, `E minor`: the key's seven triads instead of one chord's.                               |
-| `labels`    | `intervals` by default here; `fingers` or `notes` instead.                                         |
+| Key         | Meaning                                                                                      |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `triads`    | The string set: `1-3`, `2-4`, `3-5` or `4-6` (1 = the highest string).                       |
+| `inversion` | `0` (root position), `1` or `2`. All of them by default; with a key, only the root position. |
+| `key`       | `G major`, `E minor`: the key's seven triads instead of one chord's.                         |
+| `labels`    | `intervals` by default here, or `fingers` or `notes`.                                        |
 
 Triads need a three-note chord (major, minor, diminished, augmented, sus). The shapes stay within four frets. On a fretboard, `strings: 1-3` shows a chord's notes on those strings only.
 
 ## Chord transitions
 
-Changing chords cleanly is mostly about which voicing you pick and which fingers can stay down. `from:` and `to:` draw the chord you hold, then the next chord's voicings the hand reaches most easily. Fingers that stay on their fret have a ring; fingers that slide along their string (3 frets at most: further, you lift the finger) have a dashed ring.
+Changing chords cleanly is mostly about which voicing you pick and which fingers can stay down. `from:` and `to:` draw the chord you hold, then the next chord's voicings the hand reaches most easily. Fingers that stay on their fret have a ring. Fingers that slide along their string (3 frets at most; past that, you lift the finger) have a dashed ring.
 
 ````markdown
 ```chord
@@ -177,7 +177,7 @@ to: Am
 <div class="mn-live" markdown="0"><pre><code class="language-chord">from: C x32010
 to: Am</code></pre></div>
 
-`count: 5` shows more. Without frets (`from: C`), the chord's easiest voicing is held. For a whole progression, `progression:` picks the voicings that make it easiest overall, the shapes and the moves together:
+`count: 5` shows more voicings. Without frets (`from: C`), the block starts from the chord's easiest voicing. For a whole progression, `progression:` picks the voicings that make it easiest overall, the shapes and the moves together:
 
 ````markdown
 ```chord
@@ -189,7 +189,7 @@ columns: 4
 <div class="mn-live" markdown="0"><pre><code class="language-chord">progression: G D Em C
 columns: 4</code></pre></div>
 
-Chords are separated by spaces, or by commas or bars when they're written in words (`progression: C, A Minor, F`). The library also says what to do in plain words (`transition` in the [API](api.html)): "Keep your middle finger on the D string's 2nd fret", "Slide your ring finger along the B string from fret 2 to 3".
+Separate the chords with spaces, or with commas or bars when they're written in words (`progression: C, A Minor, F`). The library also says what to do in plain words (`transition` in the [API](api.html)): "Keep your middle finger on the D string's 2nd fret", "Slide your ring finger along the B string from fret 2 to 3".
 
 ## Keyboard
 
@@ -440,18 +440,18 @@ Text always stays upright. Apps using the library can set the default orientatio
 
 Apps that turn playback on (Music Practice does, and Obsidian Publish pages through `publish.js`) add a small bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens):
 
-- **Play / stop**: a chord strums from the low string up, then rings; a scale goes up and back down, from its lowest root to its highest one.
+- **Play / stop**: a chord strums from the low string up, then rings. A scale goes up and back down, from its lowest root to its highest one.
 - **Loop**.
 - **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum.
 - **Volume**, and **sound**: guitar or piano.
 
-A click on a dot or a key plays that note. On web pages the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it; Music Practice plays a soundfont of recorded instruments.
+A click on a dot or a key plays that note. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
 
 ## Tabs and scores
 
 ![A tab with its player](images/tab.png)
 
-`tab` and `score` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction), drawn and played by [alphaTab](https://alphatab.net): tablature, standard notation, both, or a piano grand staff.
+`tab` and `score` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction), then drawn and played by [alphaTab](https://alphatab.net). They show tablature, standard notation, both, or a piano grand staff.
 
 ````markdown
 ```tab
@@ -483,7 +483,7 @@ staves: both
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
 
-These keys go on the first lines; the alphaTex follows. Under the music, a player bar (on hover; a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light; if it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
+These keys go on the first lines, and the alphaTex follows. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
