@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 (2026-11-02)
+
+- Keyboard scale fingering (`fingering:`) no longer disappears when you add `labels:`. The labels stay on the keys, and the finger numbers get their own row under them (#28).
+- With a `range:` that leaves out middle C's octave, the fingering is now drawn. It starts on the first root inside the range, and every octave in the range stays lit (#28).
+- Chords named from their frets: maj7 and m7 shell voicings without a fifth now get a name (`3x44xx` is Gmaj7, `x313xx` is Cm7) (#29).
+- 13th grips that leave out the 5th, 9th and 11th are named too (`020120` is E13, `3x3455` is G13) (#30).
+- A slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A# (#31).
+- The altered scale is spelled without double sharps: G# altered is G# A B C D E F# (R b2 b3 b4 b5 b6 b7), not G# A A## B# C## E F# (#32).
+- The options of the playback bar's sound dropdown are readable in dark themes (#36).
+- The speed and volume knobs of the playback bar sit on the middle of their slider on every page, light pages and Obsidian Publish included. 0.5.1 fixed them in Obsidian but put them below the track on light pages (#39).
+
 ## 0.5.1 (2026-11-02)
 
 - The volume and speed knobs of the playback bar now sit on their slider in Obsidian, whose own styles had moved them up.
