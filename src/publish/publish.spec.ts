@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { autoRender, renderAll } from './index.js'
 
 const block = (language: string, source: string) => {
@@ -9,6 +9,11 @@ const block = (language: string, source: string) => {
     pre.appendChild(code)
     return pre
 }
+
+// Other spec files share the document: start and end each test with an empty page.
+beforeEach(() => {
+    document.body.innerHTML = ''
+})
 
 afterEach(() => {
     document.body.innerHTML = ''
