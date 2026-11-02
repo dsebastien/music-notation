@@ -34,6 +34,7 @@ const CANONICAL = new Map<string, string>([
     ['alt', '7alt'],
     // Spellings chord sheets use that tonal knows under another name.
     ['-5', 'Mb5'],
+    ['#5', 'aug'],
     ['b5', 'Mb5'],
     ['maj7b5', 'M7b5'],
     ['mmaj9', 'mMaj9'],
@@ -43,13 +44,22 @@ const CANONICAL = new Map<string, string>([
 ])
 
 /**
- * The canonical suffix. Alterations and additions in parentheses read like the same symbol
- * without them: 7(b9) = 7b9, 7(b5,#9) = 7b5#9, m(add9) = madd9 (m(maj7) has its own entry).
+ * A suffix without its parentheses: alterations and additions in whole groups read like the same
+ * symbol without them (7(b9) = 7b9, 7(b5,#9) = 7b5#9, m(add9) = madd9). Null when the
+ * parentheses or commas don't form such groups (`C,`, `C()`, `C(b9`): that isn't a chord symbol.
  */
+export function withoutParentheses(suffix: string): string | null {
+    if (!/[(),]/.test(suffix)) return suffix
+    // Each group starts with "(", which the text between groups can't contain: linear.
+    if (!/^[^(),]*(?:\([^(),]+(?:,[^(),]+)*\)[^(),]*)+$/.test(suffix)) return null
+    return suffix.replace(/[(),\s]/g, '')
+}
+
+/** The canonical suffix (m(maj7) has its own entry; other parentheses are dropped first). */
 export function canonicalSuffix(suffix: string): string {
     const direct = CANONICAL.get(suffix)
     if (direct !== undefined) return direct
-    if (!/[(),]/.test(suffix)) return suffix
-    const flat = suffix.replace(/[(),\s]/g, '')
+    const flat = withoutParentheses(suffix)
+    if (flat === null || flat === suffix) return suffix
     return CANONICAL.get(flat) ?? flat
 }

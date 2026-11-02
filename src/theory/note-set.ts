@@ -136,7 +136,8 @@ const fromNames = (
 export function chordNoteSet(symbol: string): NoteSet | null {
     const parts = splitChordSymbol(symbol)
     if (!parts) return null
-    const chord = Chord.get(parts.root + canonicalSuffix(parts.suffix))
+    // Root and type apart: joined, C(#5) would read as C# 5.
+    const chord = Chord.getChord(canonicalSuffix(parts.suffix), parts.root)
     if (chord.empty) return null
     const bass = parts.bass
     const set = fromNames(symbol.trim(), chord.notes, chord.intervals, true)

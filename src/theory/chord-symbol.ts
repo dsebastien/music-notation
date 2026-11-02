@@ -4,6 +4,7 @@
  */
 import { splitChordSymbol } from './pitch.js'
 import { chordNoteSet } from './note-set.js'
+import { withoutParentheses } from './suffix.js'
 
 /** Suffix → quality name. Order matters: the first match wins. */
 const QUALITY_SUFFIXES: [RegExp, string][] = [
@@ -17,7 +18,7 @@ const QUALITY_SUFFIXES: [RegExp, string][] = [
     [/^(m6|min6|-6)$/, 'Minor 6'],
     [/^(m|min|-)$/, 'Minor'],
     [/^(dim|°)$/, 'Diminished'],
-    [/^(aug|\+)$/, 'Augmented'],
+    [/^(aug|\+|\+5|#5)$/, 'Augmented'],
     [/^(sus2)$/, 'Sus2'],
     [/^(sus4|sus)$/, 'Sus4'],
     [/^(add9|add2)$/, 'Add9'],
@@ -51,18 +52,25 @@ export function parseChord(symbol: string): ParsedChord | null {
     if (!parts) return null
     const trimmed = symbol.trim()
     const { root, bass } = parts
-    // Alterations in parentheses read like the same symbol without them: C7(b9) is C7b9.
-    const suffix = /[(),]/.test(parts.suffix) ? parts.suffix.replace(/[(),\s]/g, '') : parts.suffix
+    // Alterations in parentheses read like the same symbol without them: C7(b9) is C7b9. The
+    // written suffix is tried first, for spellings with their own name (C-(maj7)).
+    const suffix = withoutParentheses(parts.suffix)
     let quality: string | null = null
-    for (const [re, label] of QUALITY_SUFFIXES) {
-        const hit = re.exec(suffix)
-        if (hit) {
-            quality = label.replace('$1', hit[1] ?? '')
-            break
+    for (const written of suffix === null || suffix === parts.suffix
+        ? [parts.suffix]
+        : [parts.suffix, suffix]) {
+        for (const [re, label] of QUALITY_SUFFIXES) {
+            const hit = re.exec(written)
+            if (hit) {
+                quality = label.replace('$1', hit[1] ?? '')
+                break
+            }
         }
+        if (quality) break
     }
+    if (suffix === null && !quality) return null
     // Any other chord tonal knows ("C7b9", "Cm11"): its suffix is its quality.
-    if (!quality && chordNoteSet(trimmed)) quality = suffix
+    if (!quality && suffix !== null && chordNoteSet(trimmed)) quality = suffix
     if (!quality) return null
     return {
         symbol: trimmed,

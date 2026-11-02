@@ -5,7 +5,7 @@ import { parseChordName, readChord } from '../theory/chord-name.js'
 import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
 import { blockFromProperties, instrumentOf, DEFAULT_PROPERTY_NAMES } from './properties.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
-import { labelOf, scaleNoteSet } from '../theory/note-set.js'
+import { chordNoteSet, labelOf, scaleNoteSet } from '../theory/note-set.js'
 
 const host = () => document.createElement('div')
 const titles = (h: HTMLElement) => [...h.querySelectorAll('.mn-title')].map((t) => t.textContent)
@@ -95,6 +95,20 @@ describe('chord-sheet spellings (#40)', () => {
         ] as const) {
             expect(readChord(parseChord(symbol)!.name)?.symbol).toBe(back)
         }
+    })
+
+    it('keeps the root when the group starts with an accidental (review of #40)', () => {
+        expect(chordNoteSet('C(#5)')?.members.map((m) => m.name)).toEqual(['C', 'E', 'G#'])
+        expect(parseChord('C(#5)')?.name).toBe('C Augmented')
+        // Not a chord tonal knows on its own: no chord, rather than a C-flat 9.
+        expect(parseChord('C(b9)')).toBeNull()
+        expect(chordNoteSet('C(b9)')).toBeNull()
+    })
+
+    it('reads only whole groups in parentheses (review of #40)', () => {
+        for (const symbol of ['C,', 'C()', 'C(b9', 'Cb9)', 'G,'])
+            expect(parseChord(symbol)).toBeNull()
+        expect(parseChord('C-(maj7)')?.name).toBe('C Minor major 7')
     })
 
     it('keeps a flat root apart from a flat fifth', () => {

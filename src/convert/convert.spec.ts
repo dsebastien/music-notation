@@ -64,6 +64,8 @@ describe('chordSheetToChordPro, edge cases', () => {
         expect(chordSheetToChordPro('C7(b9) Cm(add9) Cmaj7b5')).toBe(
             '[C7(b9)] [Cm(add9)] [Cmaj7b5]'
         )
+        // Commas outside parentheses: a lyric line, not chords.
+        expect(chordSheetToChordPro('G, D, Em, C')).toBe('G, D, Em, C')
         expect(chordSheetToChordPro('G  N.C.  D')).toBe('[G] [D]')
     })
 

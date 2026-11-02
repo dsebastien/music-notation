@@ -119,7 +119,7 @@ const USUAL_ROOTS = new Set(['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A
 function bassCost(root: string, quality: string, bass: string | undefined): number {
     if (!bass) return 0
     const chroma = chromaOf(bass)
-    const tone = Chord.get(`${root}${quality}`).notes.find((note) => chromaOf(note) === chroma)
+    const tone = Chord.getChord(quality, root).notes.find((note) => chromaOf(note) === chroma)
     if (tone) return tone === bass ? 0 : 1
     const flats = keyPrefersFlats(
         `${root}${quality.startsWith('m') && !quality.startsWith('maj') ? 'm' : ''}`
