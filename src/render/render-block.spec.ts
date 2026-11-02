@@ -75,6 +75,19 @@ describe('renderBlock', () => {
         }
     })
 
+    it("takes chords-db's voicings under its own names, and hands out copies of generated ones", () => {
+        expect(lookupGuitarVoicing('Cmaj7b5', 0)?.frets).toEqual([null, 3, 2, 4, 0, 2])
+        expect(lookupGuitarVoicing('Cmmaj9', 0)?.frets).toEqual([null, 3, 1, 4, 3, null])
+        const first = lookupGuitarVoicing('Cmaj9#11', 0)!
+        const base = first.baseFret
+        renderBlock('chord', 'symbol: Cmaj9#11\nposition: 1', host(), {
+            voicings: lookupGuitarVoicing
+        })
+        first.frets[0] = 99
+        expect(lookupGuitarVoicing('Cmaj9#11', 0)?.baseFret).toBe(base)
+        expect(lookupGuitarVoicing('Cmaj9#11', 0)?.frets[0]).not.toBe(99)
+    })
+
     it('reads a chord symbol given as the name', () => {
         const h = host()
         renderBlock('chord', 'name: A\nfrets: x02220\nfingers: x01230', h)

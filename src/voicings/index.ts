@@ -23,6 +23,9 @@ const DB_SUFFIXES: Record<string, string> = {
     '': 'major',
     'm': 'minor',
     'mMaj7': 'mmaj7',
+    'mMaj9': 'mmaj9',
+    'M7b5': 'maj7b5',
+    '7alt': 'alt',
     '6/9': '69'
 }
 
@@ -44,7 +47,11 @@ export const lookupGuitarVoicing: VoicingLookup = (symbol, index) => {
     const chords = db.chords[DB_KEYS[chroma]!] ?? []
     const chord = chords.find((c) => c.suffix === wanted)
     // A chord the database doesn't have (Cmaj9#11, C7b5#9, Cmaj7b5…): the generator's easiest ones.
-    if (!chord) return generated(symbol)[index] ?? null
+    if (!chord) {
+        // A copy: callers may change it (a block's position sets its base fret).
+        const found = generated(symbol)[index]
+        return found ? { ...found, frets: [...found.frets], fingers: [...found.fingers] } : null
+    }
     const position = chord.positions[index]
     if (!position) return null
     const absolute = (f: number) => (f < 0 ? null : f === 0 ? 0 : f + position.baseFret - 1)
