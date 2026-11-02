@@ -5,7 +5,7 @@
 import { Chord, Scale } from 'tonal'
 import { chromaOf, isFlat, midiOf, splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
-import { scaleName } from './scales.js'
+import { scaleName, scaleSpelling } from './scales.js'
 
 export type NoteLabel = 'notes' | 'degrees' | 'intervals' | 'fingers' | 'none'
 
@@ -151,7 +151,8 @@ export function chordNoteSet(symbol: string): NoteSet | null {
 export function scaleNoteSet(name: string): NoteSet | null {
     const scale = Scale.get(scaleName(name))
     if (scale.empty || !scale.tonic) return null
-    const set = fromNames(name.trim(), scale.notes, scale.intervals)
+    const { notes, intervals } = scaleSpelling(scale)
+    const set = fromNames(name.trim(), notes, intervals)
     if (set) set.scaleType = scale.type
     return set
 }

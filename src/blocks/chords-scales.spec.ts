@@ -5,6 +5,7 @@ import { parseChordName, readChord } from '../theory/chord-name.js'
 import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
 import { blockFromProperties, instrumentOf, DEFAULT_PROPERTY_NAMES } from './properties.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
+import { labelOf, scaleNoteSet } from '../theory/note-set.js'
 
 const host = () => document.createElement('div')
 const titles = (h: HTMLElement) => [...h.querySelectorAll('.mn-title')].map((t) => t.textContent)
@@ -360,6 +361,22 @@ describe('after review', () => {
         const h = host()
         renderBlock('fretboard', 'D dorian\nposition: 2', h)
         expect(h.querySelectorAll('.mn-dot').length).toBeGreaterThanOrEqual(15)
+    })
+
+    it('spells scales without double accidentals (#32)', () => {
+        const names = (scale: string) => scaleNoteSet(scale)!.members.map((m) => m.name)
+        const intervals = (scale: string) =>
+            scaleNoteSet(scale)!.members.map((m) => labelOf(m, 'intervals'))
+        expect(names('G# altered')).toEqual(['G#', 'A', 'B', 'C', 'D', 'E', 'F#'])
+        expect(intervals('G# altered')).toEqual(['R', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'])
+        expect(names('B altered')).toEqual(['B', 'C', 'D', 'Eb', 'F', 'G', 'A'])
+        // Without a double accidental, tonal's jazz spelling stays.
+        expect(names('C altered')).toEqual(['C', 'Db', 'D#', 'E', 'F#', 'Ab', 'Bb'])
+        expect(names('A# major').some((n) => /##|bb/.test(n))).toBe(false)
+        const h = host()
+        expect(renderBlock('keyboard', 'modes: A melodic minor\nlabels: notes', h).ok).toBe(true)
+        expect(h.textContent).toContain('G# altered')
+        expect(h.textContent).not.toContain('##')
     })
 
     it('draws the modes of harmonic and melodic minor', () => {

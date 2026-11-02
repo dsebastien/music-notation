@@ -2,7 +2,7 @@
  * Scale names as people write them ("A Natural minor", "C Major pentatonic", "A Blues"), the notes
  * that define a mode (its characteristic notes), and the modes of a scale.
  */
-import { Scale } from 'tonal'
+import { Note, Scale } from 'tonal'
 
 /** Common names tonal spells differently (lowercase). */
 const ALIASES = new Map<string, string>([
@@ -61,6 +61,37 @@ export function modesOf(text: string): string[] | null {
     // Symmetric scales (chromatic, whole tone) only repeat themselves.
     if (new Set(modes.map(([, mode]) => mode)).size < 2) return null
     return modes.map(([tonic, mode]) => `${tonic} ${mode}`)
+}
+
+const DOUBLE_ACCIDENTAL = /^[A-G](##|bb)/
+
+/** The altered scale's superlocrian degrees (1 b2 b3 b4 b5 b6 b7): G# A B C D E F#. */
+const SUPERLOCRIAN = ['1P', '2m', '3m', '4d', '5d', '6m', '7m']
+
+/**
+ * A scale's notes and intervals as musicians write them, without double accidentals: the altered
+ * scale switches to its superlocrian degrees when tonal's (b9 #9 3 #11) need one (G# altered), and
+ * any other note on a double sharp or flat takes its simplest name (A# major's C## is D).
+ */
+export function scaleSpelling(scale: {
+    tonic: string | null
+    type: string
+    notes: string[]
+    intervals: string[]
+}): {
+    notes: string[]
+    intervals: string[]
+} {
+    const hasDouble = (notes: string[]) => notes.some((n) => DOUBLE_ACCIDENTAL.test(n))
+    if (!hasDouble(scale.notes)) return { notes: scale.notes, intervals: scale.intervals }
+    if (scale.type === 'altered' && scale.tonic) {
+        const notes = SUPERLOCRIAN.map((interval) => Note.transpose(scale.tonic!, interval))
+        if (!hasDouble(notes)) return { notes, intervals: SUPERLOCRIAN }
+    }
+    return {
+        notes: scale.notes.map((n) => (DOUBLE_ACCIDENTAL.test(n) ? Note.simplify(n) : n)),
+        intervals: scale.intervals
+    }
 }
 
 /** Scale types tonal knows, for docs and pickers. */
