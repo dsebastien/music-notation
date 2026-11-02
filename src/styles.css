@@ -120,6 +120,13 @@
     cursor: pointer;
 }
 
+/* The opened list is a native popup on the page's background, not the bar's: its options take
+   the page's colors, not the bar's inherited text color (light text on white in dark themes). */
+.mn-play select option {
+    color: var(--text-normal, #222);
+    background: var(--background-primary, #fff);
+}
+
 .mn-play button:hover,
 .mn-play select:hover,
 .mn-play button:focus-visible,
