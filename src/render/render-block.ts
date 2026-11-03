@@ -142,7 +142,11 @@ export function renderBlock(
     host.appendChild(el)
     // Hear the diagrams: a playback bar on each one that has notes to play.
     const stopPlayback = options.play
-        ? attachPlayback(el, typeof options.play === 'object' ? options.play : {})
+        ? attachPlayback(el, {
+              // Redraws for guitar follow the page's hand unless the app says (#60).
+              hand: options.hand,
+              ...(typeof options.play === 'object' ? options.play : {})
+          })
         : null
     return {
         ok: error === null,

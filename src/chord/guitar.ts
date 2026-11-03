@@ -205,6 +205,8 @@ export function renderGuitarDiagram(
     const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).replace(/^Capo/, 'capo')}` : ''}`
     const height = frame.height + (caption ? CAPTION : 0)
     const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
+    // Its hand, for a redraw that must keep it (#60).
+    root.setAttribute('data-mn-hand', options.hand ?? 'right')
     if (caption) {
         root.appendChild(
             svgText(doc, caption, {

@@ -281,6 +281,7 @@ export function renderFretboard(
     root.setAttribute('data-mn-set', set.title)
     root.setAttribute('data-mn-labels', label)
     root.setAttribute('data-mn-orientation', orientation)
+    root.setAttribute('data-mn-hand', options.hand ?? 'right')
     root.setAttribute('data-mn-frets', `${from}-${to}`)
     return root
 }
