@@ -158,6 +158,18 @@ export function chordNoteSet(symbol: string): NoteSet | null {
     return set
 }
 
+/**
+ * Notes given with a chord symbol take the chord's root and its spelling (Cdim7 over C Eb Gb A:
+ * the A is written Bbb, as the symbol spells it); notes the chord doesn't have keep theirs.
+ */
+export function respell(set: NoteSet, chord: NoteSet): void {
+    set.root = chord.root
+    for (const member of set.members) {
+        const own = memberFor(chord, member.chroma)
+        if (own) member.name = own.name
+    }
+}
+
 /** Notes of a scale ("A minor pentatonic", "D dorian"); null when tonal doesn't know it. */
 export function scaleNoteSet(name: string): NoteSet | null {
     const scale = Scale.get(scaleName(name))

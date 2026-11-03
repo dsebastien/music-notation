@@ -29,7 +29,13 @@ import {
     pianoVoicing,
     triadFingering
 } from '../keyboard/piano-chord.js'
-import { chordNoteSet, intervalLabel, listNoteSet, type NoteSet } from '../theory/note-set.js'
+import {
+    chordNoteSet,
+    intervalLabel,
+    listNoteSet,
+    respell,
+    type NoteSet
+} from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { parseChord } from '../theory/chord-symbol.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
@@ -267,10 +273,14 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                 })
             }
             const known = symbol ? chordNoteSet(symbol) : null
-            if (known) set.root = known.root
+            // A symbol spells the keys (Cdim7: Bbb, as from the symbol alone).
+            if (known) respell(set, known)
             else if (!written) {
-                // No symbol: the chord the pitches play names it.
-                const detected = detectChordFromPitches(set.pitches)
+                // No symbol: the chord the pitches play names it, spelled as they are (Db9).
+                const detected = detectChordFromPitches(
+                    set.pitches,
+                    set.members.map((m) => m.name)
+                )
                 if (detected) {
                     symbol = detected.symbol
                     set.root = chordNoteSet(symbol)?.root ?? set.root
