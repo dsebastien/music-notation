@@ -131,6 +131,14 @@ describe('the chords used row', () => {
         })
         expect(el.querySelector('.mn-chart-diagrams-caption')?.textContent).toBe('Capo 2')
         expect(rowOf(el)).toEqual(['G', 'C', 'D/F#'])
+        // The shapes play as they sound (a G shape on capo 2 is A) and have no caption each.
+        const g = el.querySelector('.mn-chart-diagrams svg[data-mn-chord="G"]')!
+        const plain = renderChart(document, parseChordPro(`{diagrams}\n${SONG}`), { voicings })
+        const gPlain = plain.querySelector('.mn-chart-diagrams svg[data-mn-chord="G"]')!
+        const pitches = (svg: Element) =>
+            svg.getAttribute('data-mn-pitches')!.split(' ').map(Number)
+        expect(pitches(g)).toEqual(pitches(gPlain).map((p) => p + 2))
+        expect(g.textContent).not.toContain('Capo')
         const piano = renderChart(document, parseChordPro(`{diagrams}\n{capo: 2}\n${SONG}`), {
             instrument: 'piano'
         })

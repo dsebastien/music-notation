@@ -4,6 +4,7 @@
  * from middle C (piano), as `chord` blocks draw a bare symbol.
  */
 import { renderGuitarDiagram, type FrettedVoicing, baseFretOf } from '../chord/guitar.js'
+import { soundingChord } from '../chord/capo.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { pianoPitches } from '../keyboard/piano-chord.js'
 import { html } from '../render/dom.js'
@@ -24,6 +25,8 @@ export interface ChordDrawing {
     voicings?: VoicingLookup
     orientation?: LayoutDefaults['orientation']
     hand?: Hand
+    /** The song's capo: guitar shapes get its bar and sound (and root marks) at it. */
+    capo?: number
 }
 
 /** At most this many diagrams in the row (as in a block of diagrams), so a page stays quick. */
@@ -152,11 +155,15 @@ export function chordDiagram(
             (defined && shifted(defined, semitones)) ??
             (known ? (drawing.voicings?.(shown, 0) ?? null) : null)
         if (!voicing) return null
+        const capo = drawing.capo && drawing.capo > 0 ? drawing.capo : 0
+        // Under a capo the shape sounds higher: root marks follow the sounding chord.
+        const sounding = capo ? soundingChord(shown, capo) : shown
         el = renderGuitarDiagram(doc, voicing, {
             title,
-            root: chordNoteSet(shown)?.root ?? null,
+            root: chordNoteSet(sounding)?.root ?? null,
             orientation: drawing.orientation?.chord,
-            hand: drawing.hand
+            hand: drawing.hand,
+            ...(capo ? { capo, caption: false } : {})
         })
     }
     el.setAttribute('data-mn-chord', shown)
@@ -207,7 +214,10 @@ export function renderChordsUsed(
         }
         let el: SVGElement | null = null
         try {
-            el = chordDiagram(doc, shown, definition, semitones, options)
+            el = chordDiagram(doc, shown, definition, semitones, {
+                ...options,
+                ...(song.capo ? { capo: song.capo } : {})
+            })
         } catch {
             el = null
         }
