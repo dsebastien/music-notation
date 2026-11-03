@@ -4,6 +4,7 @@ import { sequenceOf, type NoteEvent, type NotePlayer } from '../playback/player.
 import { noteTargets } from '../playback/follow.js'
 import { chordPitches, pretty } from './circle.js'
 import { describeBlock } from '../cli/describe.js'
+import { accessibleName } from '../render/dom.js'
 
 const host = () => document.body.appendChild(document.createElement('div'))
 
@@ -45,7 +46,7 @@ describe('circle block', () => {
                 '.mn-circle-cell[class*="mn-circle-"][class*="tonic"], .mn-circle-cell.mn-circle-neighbour, .mn-circle-cell.mn-circle-diatonic'
             )
         ).toHaveLength(7)
-        expect(h.querySelector('svg')!.getAttribute('aria-label')).toBe(
+        expect(accessibleName(h.querySelector('svg')!)).toBe(
             'Circle of fifths, G major: 1♯ (F#); chords: I G, ii Am, iii Bm, IV C, V D, vi Em, vii° F#dim'
         )
         expect(

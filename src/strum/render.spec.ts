@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderBlock } from '../render/render-block.js'
 import { describeBlock, formatDiagram } from '../cli/describe.js'
+import { accessibleName } from '../render/dom.js'
 
 const host = () => document.body.appendChild(document.createElement('div'))
 const draw = (source: string) => {
@@ -14,7 +15,7 @@ describe('strum blocks', () => {
         expect(result.ok).toBe(true)
         const svg = h.querySelector('svg.mn-strum')!
         expect(svg.getAttribute('data-mn-strum')).toBe('D - D U - U D U')
-        expect(svg.getAttribute('aria-label')).toBe('Strumming pattern D - D U - U D U, 4/4, 8ths')
+        expect(accessibleName(svg)).toBe('Strumming pattern D - D U - U D U, 4/4, 8ths')
         const slots = [...svg.querySelectorAll('[data-mn-beat]')]
         expect(slots.map((s) => s.getAttribute('data-mn-beat'))).toEqual([
             '0',
@@ -121,7 +122,7 @@ describe('strum blocks', () => {
         const svg = h.querySelector('svg')!
         expect(svg.querySelector('.mn-strum-feel')?.textContent).toBe('Swing')
         expect(Number(svg.getAttribute('data-mn-swing'))).toBeCloseTo(2 / 3)
-        expect(svg.getAttribute('aria-label')).toBe(
+        expect(accessibleName(svg)).toBe(
             'Blues: strumming pattern D - D U - U D U, 4/4, 8ths, swing'
         )
         // Under the title, over the grid.
