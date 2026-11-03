@@ -46,6 +46,7 @@ export {
 } from './chord/generate.js'
 export {
     sequenceOf,
+    scaleRun,
     lengthOf,
     lightPlayer,
     pluckedString,

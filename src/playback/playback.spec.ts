@@ -4,6 +4,7 @@ import {
     lengthOf,
     pianoTone,
     pluckedString,
+    scaleRun,
     sequenceOf,
     type NoteEvent,
     type NotePlayer
@@ -24,6 +25,20 @@ describe('sequenceOf', () => {
         expect(events.map((e) => e.midi)).toEqual([60, 62, 64, 62, 60])
         expect(events[1]!.time).toBe(0.5)
         expect(lengthOf(events)).toBeCloseTo(4 * 0.5 + 0.475)
+    })
+
+    it('runs a scale from its tonic: up to the top, down to the bottom, back to the tonic', () => {
+        // D dorian drawn from C4 to D5.
+        const drawn = [60, 62, 64, 65, 67, 69, 71, 72, 74]
+        expect(scaleRun(drawn, 2)).toEqual([
+            62, 64, 65, 67, 69, 71, 72, 74, 72, 71, 69, 67, 65, 64, 62, 60, 62
+        ])
+        // Tonic at the bottom: up and back down; no tonic drawn, or none given: from the bottom.
+        expect(scaleRun([60, 64, 67, 72], 0)).toEqual([60, 64, 67, 72, 67, 64, 60])
+        expect(scaleRun([60, 64, 67], 2)).toEqual([60, 64, 67, 64, 60])
+        expect(scaleRun([67, 60, 64])).toEqual([60, 64, 67, 64, 60])
+        expect(scaleRun([62], 2)).toEqual([62])
+        expect(sequenceOf('scale', drawn, { bpm: 60, strum: 0, root: 2 })[0]!.midi).toBe(62)
     })
 
     it('plays nothing without notes', () => {
@@ -118,9 +133,45 @@ describe('playback bar', () => {
         renderBlock('fretboard', 'A minor pentatonic\nposition: 2', h, { play: { player } })
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         const midis = calls[0]!.events.map((e) => e.midi)
-        // Box 2 has only two As (A3, A4): its 12 dots still all play.
-        expect(midis.slice(0, 12)).toEqual([48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74])
-        expect(midis.length).toBe(23)
+        // Box 2 starts on C3, below its first A (A3): the run starts on A3, goes up to the top
+        // D5, down to C3, and back up to A3. Its 12 dots all play.
+        const up = [48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74]
+        expect(midis).toEqual([...up.slice(4), ...up.slice(0, -1).reverse(), 50, 52, 55, 57])
+        expect(new Set(midis).size).toBe(12)
+    })
+
+    it('starts a keyboard scale on its tonic, and every mode on its own (#61)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'D dorian', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const midis = calls[0]!.events.map((e) => e.midi)
+        // Drawn C4 to B5: D4 up to B5, down to C4, back up to D4.
+        expect(midis[0]).toBe(62)
+        expect(midis.at(-1)).toBe(62)
+        expect(Math.max(...midis)).toBe(83)
+        expect(Math.min(...midis)).toBe(60)
+        const m = host()
+        renderBlock('keyboard', 'modes: C major\nrange: C4-B4', m, { play: { player } })
+        const firsts = [...m.querySelectorAll('.mn-play-toggle')].map((button) => {
+            ;(button as HTMLButtonElement).click()
+            const events = calls.at(-1)!.events
+            return [events[0]!.midi, events.at(-1)!.midi, events.length]
+        })
+        // C ionian, D dorian, E phrygian… each from its own tonic, back to it, all 7 notes.
+        expect(firsts.map(([first]) => first)).toEqual([60, 62, 64, 65, 67, 69, 71])
+        expect(firsts.every(([first, last]) => first === last)).toBe(true)
+        expect(new Set(calls.at(-1)!.events.map((e) => e.midi)).size).toBe(7)
+    })
+
+    it('runs an arpeggio from its root', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'arpeggio: G7\nrange: C4-B5', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const midis = calls[0]!.events.map((e) => e.midi)
+        expect(midis.slice(0, 3)).toEqual([67, 71, 74])
+        expect(midis.at(-1)).toBe(67)
     })
 
     it('uses a player given later through a function', () => {

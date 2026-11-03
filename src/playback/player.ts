@@ -45,6 +45,12 @@ export interface SequenceOptions {
     bpm: number
     /** Chords: milliseconds between two strings of the strum. */
     strum: number
+    /**
+     * Scales: the tonic's pitch class (0–11). The run starts on the lowest tonic drawn, goes up to
+     * the highest note, down to the lowest, and back up to that tonic. Without it (or when no
+     * tonic is drawn), it runs from the lowest note.
+     */
+    root?: number | null
 }
 
 export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 40 }
@@ -52,9 +58,29 @@ export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 40 }
 /** How long a strummed chord rings, in seconds. */
 const RING = 2.5
 
+/** A pitch class (0–11), also of negative numbers. */
+const chromaOf = (midi: number) => ((midi % 12) + 12) % 12
+
 /**
- * The notes a diagram plays: a chord strums low to high and rings; a scale plays every note drawn,
- * up and back down (the top note once), each note one beat long.
+ * The order a scale's notes play in, every note drawn at least once: from the lowest tonic up to
+ * the highest note, down to the lowest note, and back up to the tonic (the way teachers run a
+ * position: root, top, bottom, root). With the tonic at the bottom, that is up and back down;
+ * without a tonic, from the lowest note up and back down. The top and bottom notes play once.
+ */
+export function scaleRun(pitches: readonly number[], root?: number | null): number[] {
+    const up = [...new Set(pitches)].sort((a, b) => a - b)
+    const down = up.slice(0, -1).reverse()
+    const first =
+        root === undefined || root === null || !Number.isFinite(root)
+            ? -1
+            : up.findIndex((midi) => chromaOf(midi) === chromaOf(root))
+    if (first < 0) return [...up, ...down]
+    return [...up.slice(first), ...down, ...up.slice(1, first + 1)]
+}
+
+/**
+ * The notes a diagram plays: a chord strums low to high and rings; a scale plays every note drawn
+ * (see `scaleRun`), each note one beat long.
  */
 export function sequenceOf(
     kind: PlayKind,
@@ -73,9 +99,11 @@ export function sequenceOf(
     }
     const bpm = Number.isFinite(options.bpm) ? options.bpm : DEFAULT_SEQUENCE.bpm
     const beat = 60 / Math.min(240, Math.max(20, bpm))
-    const up = [...pitches].sort((a, b) => a - b)
-    const order = [...up, ...up.slice(0, -1).reverse()]
-    return order.map((midi, i) => ({ midi, time: i * beat, duration: beat * 0.95 }))
+    return scaleRun(pitches, options.root).map((midi, i) => ({
+        midi,
+        time: i * beat,
+        duration: beat * 0.95
+    }))
 }
 
 /** The end of a sequence, in seconds. */

@@ -97,6 +97,15 @@ interface DiagramData {
     kind: PlayKind
     pitches: number[]
     sound: Sound
+    /** The tonic's pitch class, from the root mark (scales start on it); null without one. */
+    root: number | null
+}
+
+/** The pitch class of a drawing's root mark (a root dot or key), or null. */
+function rootOf(drawing: Element): number | null {
+    const mark = drawing.querySelector('.mn-root[data-midi]')
+    const midi = Number(mark?.getAttribute('data-midi'))
+    return mark && Number.isFinite(midi) ? ((midi % 12) + 12) % 12 : null
 }
 
 function dataOf(diagram: Element): DiagramData | null {
@@ -109,7 +118,8 @@ function dataOf(diagram: Element): DiagramData | null {
     return {
         kind: diagram.getAttribute('data-mn-play') === 'chord' ? 'chord' : 'scale',
         pitches,
-        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar'
+        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar',
+        root: rootOf(diagram)
     }
 }
 
@@ -253,6 +263,8 @@ function barFor(
     // What the drawing on the page shows: a redrawn fretboard leaves out notes a guitar can't play.
     const pitchesShown = () =>
         shown === diagram ? data.pitches : (dataOf(shown)?.pitches ?? data.pitches)
+    // Its tonic: a scale's run starts on it.
+    const rootShown = () => (shown === diagram ? data.root : rootOf(shown))
 
     const toggle = html(doc, 'button', 'mn-play-toggle')
     toggle.type = 'button'
@@ -316,7 +328,7 @@ function barFor(
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        const events = sequenceOf(data.kind, pitchesShown(), settings)
+        const events = sequenceOf(data.kind, pitchesShown(), { ...settings, root: rootShown() })
         playing = play(
             events,
             () => {
