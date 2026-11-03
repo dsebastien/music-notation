@@ -12,10 +12,11 @@ import { parseTuning } from '../fretboard/tuning.js'
 import { pianoOptionsOf, pianoPitches, type PianoVoicingOptions } from '../keyboard/piano-chord.js'
 import { voiceLead, voiceLeadVoicings, type LedVoicing } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
-import { noteOf } from '../theory/pitch.js'
+import { chromaOf, noteOf } from '../theory/pitch.js'
 import { findKey } from '../theory/find.js'
 import {
     isMinorMode,
+    keyNotes,
     keyProblem,
     raisedNashville,
     readKey,
@@ -209,10 +210,16 @@ function sharedRange(pitches: (number[] | null)[]): string | null {
 }
 
 /** Each chord's piano keys as its diagram will draw them; null for one that doesn't voice. */
-function pianoKeysOf(symbols: string[], options: PianoVoicingOptions): (number[] | null)[] {
-    return symbols.map((symbol) => {
+function pianoKeysOf(
+    symbols: string[],
+    options: PianoVoicingOptions,
+    key: readonly number[]
+): (number[] | null)[] {
+    return symbols.map((symbol, i) => {
         try {
-            return pianoPitches(symbol, options).pitches
+            const next = symbols[i + 1]
+            return pianoPitches(symbol, { ...options, key, ...(next ? { resolvesTo: next } : {}) })
+                .pitches
         } catch {
             return null
         }
@@ -287,6 +294,8 @@ function renderSection(
     }
     // A value that can't be read is the block's mistake, not each chord's.
     const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
+    // Rootless voicings take the key's 9ths and 13ths (G7 in C minor: Ab and Eb).
+    const keyChromas = keyNotes(section.key).map((n) => chromaOf(n)!)
     // Shell and rootless voicings move least from chord to chord unless voice-leading: no (#63):
     // the forms alternate (rootless A and B, shells R-3 and R-7) around middle C.
     const styled =
@@ -318,7 +327,8 @@ function renderSection(
                       ? { form: (pianoOptions.rootless ?? pianoOptions.shell)! }
                       : {}),
                   ...(pianoOptions.octave !== undefined ? { octave: pianoOptions.octave } : {}),
-                  ...(pianoOptions.hands ? { hands: pianoOptions.hands } : {})
+                  ...(pianoOptions.hands ? { hands: pianoOptions.hands } : {}),
+                  key: keyChromas
               })
             : null
     // Piano keyboards of a row share one range, so they have the same width.
@@ -327,7 +337,7 @@ function renderSection(
             ? sharedRange(
                   pitches ??
                       voiced?.map((v) => v?.pitches ?? null) ??
-                      pianoKeysOf(symbols, pianoOptions)
+                      pianoKeysOf(symbols, pianoOptions, keyChromas)
               )
             : null
     const row = html(doc, 'div', 'mn-row mn-progression-chords')
@@ -353,6 +363,10 @@ function renderSection(
                 ]
                 if (piano) {
                     lines.push(['instrument', 'piano'])
+                    // Rootless voicings in the key, a dominant knowing where it goes.
+                    lines.push(['key', section.key.name])
+                    const next = chords[i + 1]?.symbol
+                    if (next) lines.push(['resolves-to', next])
                     const led = voiced?.[i]?.options
                     if (led) {
                         // The form and octave voice leading chose, as the chord block reads them.

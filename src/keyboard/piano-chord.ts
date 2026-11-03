@@ -14,7 +14,10 @@
  *   9th or 5th when the symbol has one. Half-diminished chords keep their b5 and take the natural
  *   9th (locrian #2): Bm7b5 A is D F A C#. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A)
  *   E G B D. Dominant sus chords put the 4th in the 3rd's place and keep the 5th (the 13th when
- *   the symbol names it): G7sus4 A is C D F A, B is F A C D.
+ *   the symbol names it): G7sus4 A is C D F A, B is F A C D. A major or minor triad is voiced as
+ *   its 6/9 chord (C: E G A D). In a key, a dominant's 9th and 13th and a half-diminished
+ *   chord's 9th are the key's notes, and a dominant resolving to a minor chord takes the b13 (see
+ *   rootlessOf).
  *
  * The lowest right-hand note is in `octave` (4 by default: middle C's; 3 for rootless voicings, so
  * they sit in the usual comping range, C3 to C5), a slash chord's bass an octave below it.
@@ -29,6 +32,7 @@
  */
 import { Note } from 'tonal'
 import { orFail } from '../blocks/note-set-field.js'
+import { keyNotes, readKey } from '../theory/keys.js'
 import { chordNoteSet, type NoteSet } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 
@@ -50,6 +54,14 @@ export interface PianoVoicingOptions {
     shell?: ShellForm
     /** Which hand plays what; unset draws no hands. */
     hands?: PianoHands
+    /**
+     * Rootless voicings in a key: its pitch classes (C = 0). A dominant's 9th and 13th and a
+     * half-diminished chord's 9th are the key's (G7 in C minor: Ab and Eb), natural when it has
+     * neither.
+     */
+    key?: readonly number[]
+    /** Rootless voicings: the chord a dominant resolves to (a fifth below): a minor one flattens its 13th. */
+    resolvesTo?: string
 }
 
 export interface PianoVoicing {
@@ -113,31 +125,64 @@ function shellOf(symbol: string, tones: Tone[], form: ShellForm): number[] {
 /**
  * Rootless form A (3 5 7 9) or B (7 9 3 5), with a dominant's 13th for its 5th. A dominant sus
  * chord (C7sus4, C9sus4, C13sus4) puts its 4th in the 3rd's place: A 4 5 b7 9, B b7 9 4 5 (Bb D F
- * G over C: the Bb/C sound), its 13th for the 5th when it names one.
+ * G over C: the Bb/C sound), its 13th for the 5th when it names one. A major or minor triad is
+ * voiced as the tonic jazz pianists play for it, its 6/9 chord: C is E G A D (A), A D E G (B); Cm
+ * is Eb G A D. In a key (`key`), a dominant's unnamed 9th and 13th and a half-diminished chord's
+ * 9th are the key's notes (natural when the key has neither): G7 in C minor is B Eb F Ab (A), C7 in
+ * Eb major E Ab Bb D, Bm7b5 in A minor D F A C. A dominant resolving to a minor chord a fifth
+ * below (`resolvesTo`) takes the b13 (G7 to Cm: Eb).
  */
-function rootlessOf(symbol: string, tones: Tone[], form: RootlessForm): number[] {
+function rootlessOf(
+    symbol: string,
+    tones: Tone[],
+    form: RootlessForm,
+    key?: readonly number[],
+    resolvesTo?: string
+): number[] {
     const root = tones[0]!.chroma
     const at = (semitones: number) => (root + semitones) % 12
     const seventh = find(tones, '7m', '7M')
     const sus = seventh?.interval === '7m' && !find(tones, '3M', '3m')
     const third = sus ? find(tones, '4P', '11P') : find(tones, '3M', '3m')
-    // A sixth chord's sixth takes the seventh's place: 3 5 6 9.
-    const sixth = seventh ? undefined : find(tones, '6M', '13M')
+    // A sixth chord's sixth takes the seventh's place: 3 5 6 9. A plain major or minor triad
+    // is its 6/9 chord.
+    const triad =
+        !seventh &&
+        tones.length === 3 &&
+        third !== undefined &&
+        find(tones, '5P') !== undefined &&
+        !sus
+    const sixth = seventh
+        ? undefined
+        : (find(tones, '6M', '13M') ?? (triad ? { chroma: at(9), interval: '6M' } : undefined))
     // A diminished seventh has no seventh to keep (7d): it isn't voiced rootless.
     if (!third || !(seventh ?? sixth)) {
         throw new Error(
-            `Rootless voicings are for major, minor, dominant (sus4 too) and half-diminished seventh or sixth chords (Cmaj7, Cm7, C7, C7sus4, Cm7b5, C6): not ${symbol}`
+            `Rootless voicings are for major, minor, dominant (sus4 too) and half-diminished seventh or sixth chords and major or minor triads (Cmaj7, Cm7, C7, C7sus4, Cm7b5, C6, C, Cm): not ${symbol}`
         )
     }
     const sevenChroma = (seventh ?? sixth)!.chroma
     const dominant = third.interval === '3M' && seventh?.interval === '7m'
-    const ninth = find(tones, '9m', '9A', '9M', '2m', '2A', '2M')?.chroma ?? at(2)
+    const halfDiminished =
+        third.interval === '3m' && seventh?.interval === '7m' && find(tones, '5d') !== undefined
+    // The key's note among the natural and the flat one; the natural without a key.
+    const keyed = (natural: number) =>
+        key && !key.includes(at(natural)) && key.includes(at(natural - 1))
+            ? at(natural - 1)
+            : at(natural)
+    const named9 = find(tones, '9m', '9A', '9M', '2m', '2A', '2M')?.chroma
+    const ninth = named9 ?? (dominant || halfDiminished ? keyed(2) : at(2))
+    // A dominant to a minor chord a fifth below: the b13 (G7 to Cm takes Eb, not E).
+    const target = resolvesTo ? chordNoteSet(resolvesTo) : null
+    const toMinor =
+        target !== null && target.root === at(5) && target.members.some((m) => m.interval === '3m')
     // Dominants: the 13th (or the altered 5th) for the 5th; sus chords keep their 5th unless
     // they name a 13th.
     const fifth = sus
         ? (find(tones, '13M', '6M')?.chroma ?? at(7))
         : dominant
-          ? (find(tones, '13M', '13m', '6M', '6m', '5d', '5A')?.chroma ?? at(9))
+          ? (find(tones, '13M', '13m', '6M', '6m', '5d', '5A')?.chroma ??
+            (toMinor ? at(8) : keyed(9)))
           : (find(tones, '5P', '5A', '5d')?.chroma ?? at(7))
     return form === 'A'
         ? [third.chroma, fifth, sevenChroma, ninth]
@@ -184,8 +229,15 @@ export function pianoVoicing(
     }
     let chromas: number[]
     if (style === 'shell') chromas = shellOf(symbol, tones, options.shell ?? 'R-3')
-    else if (style === 'rootless') chromas = rootlessOf(symbol, tones, options.rootless ?? 'A')
-    else {
+    else if (style === 'rootless') {
+        chromas = rootlessOf(
+            symbol,
+            tones,
+            options.rootless ?? 'A',
+            options.key,
+            options.resolvesTo
+        )
+    } else {
         // The inversion's note lowest, the others in order above it (a slash chord's bass outside
         // the chord isn't among them: it sounds only below).
         const order = [...tones.slice(inversion), ...tones.slice(0, inversion)]
@@ -313,10 +365,13 @@ export function pianoPitches(symbol: string, options: PianoVoicingOptions = {}):
     // (lit, spelled and labeled from the root: G7's A is 9, its E 13).
     const members = [...set.members]
     const root = members[0]!
+    // A triad voiced as its 6/9 chord adds a 6th, not a 13th.
+    const seventh = members.some((m) => m.interval?.startsWith('7'))
     for (const pitch of pitches) {
         const chroma = pitch % 12
         if (members.some((m) => m.chroma === chroma)) continue
-        const interval = ADDED[(chroma - root.chroma + 12) % 12]!
+        const semitones = (chroma - root.chroma + 12) % 12
+        const interval = !seventh && semitones === 9 ? '6M' : ADDED[semitones]!
         members.push({
             chroma,
             name: Note.pitchClass(Note.transpose(root.name, interval)),
@@ -379,6 +434,19 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
         options.voicing = m[1] as PianoVoicingStyle
         if (form && m[1] === 'rootless') options.rootless = form as RootlessForm
         if (form && m[1] === 'shell') options.shell = `R-${form[1]}` as ShellForm
+    }
+    const keyText = get('key')?.trim()
+    if (keyText) {
+        const key = readKey(keyText)
+        if (!key) throw new Error(`Unknown key "${keyText}": use e.g. key: C minor or key: Eb`)
+        options.key = keyNotes(key).map((n) => chromaOf(n)!)
+    }
+    const resolvesTo = get('resolves-to')?.trim()
+    if (resolvesTo) {
+        if (!chordNoteSet(resolvesTo)) {
+            throw new Error(`resolves-to: write a chord, e.g. resolves-to: Cm, got "${resolvesTo}"`)
+        }
+        options.resolvesTo = resolvesTo
     }
     const hands = get('hands')?.trim().toLowerCase().replace(/\s+/g, '')
     if (hands) {

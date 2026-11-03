@@ -252,6 +252,34 @@ describe('progression block', () => {
         )
         expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 52 55 59 62'])
         expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)
+        // Rootless in a minor key: the dominant takes b9 and b13, the half-diminished chord the
+        // key's 9th, and a triad tonic its 6/9 chord (ii-V-i in C minor: Dm7b5 F Ab C Eb, G7 F
+        // Ab B Eb, Cm Eb G A D). A major tonic too (ii7 V7 I in F ends A C D G).
+        const minor = host()
+        renderBlock(
+            'progression',
+            'iiø7 V7 i\nkey: C minor\ninstrument: piano\nvoicing: rootless A',
+            minor
+        )
+        expect(minor.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(minor)).toEqual(['53 56 60 63', '53 56 59 63', '51 55 57 62'])
+        const major = host()
+        renderBlock('progression', 'ii7 V7 I\nkey: F\ninstrument: piano\nvoicing: rootless', major)
+        expect(major.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(major)[2]).toBe('57 60 62 67')
+        // VI7 going to ii in Eb: C7 takes the key's 9th (D) and the b13 (Ab): E Ab Bb D.
+        const six = host()
+        renderBlock(
+            'progression',
+            'Imaj7 VI7 ii7 V7\nkey: Eb\ninstrument: piano\nvoicing: rootless',
+            six
+        )
+        expect(
+            pitches(six)[1]!
+                .split(' ')
+                .map((p) => Number(p) % 12)
+                .sort((a, b) => a - b)
+        ).toEqual([2, 4, 8, 10])
         // A 7sus4 chord takes the voicing too (rootless 4 5 b7 9 or b7 9 4 5; shell R 4 7).
         for (const voicing of ['rootless', 'shell']) {
             const sus = host()

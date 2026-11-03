@@ -107,7 +107,8 @@ describe('voiceLeadVoicings', () => {
         // A minor ii-V-i, with the half-diminished voicing.
         expect(forms(['Dm7b5', 'G7b9', 'Cm6'], { voicing: 'rootless' })).toEqual([
             'A F3 Ab3 C4 E4',
-            'B F3 Ab3 B3 E4',
+            // G7b9 going to Cm6 takes the b13.
+            'B F3 Ab3 B3 Eb4',
             'A Eb3 G3 A3 D4'
         ])
         // The first chord takes the form asked for.

@@ -151,6 +151,8 @@ export interface VoiceLeadOptions {
     /** Moves the range by octaves: 3 (the default) keeps it around middle C. */
     octave?: number
     hands?: PianoHands
+    /** The key's pitch classes, for rootless voicings' 9ths and 13ths (see pianoVoicing). */
+    key?: readonly number[]
 }
 
 export interface LedVoicing {
@@ -230,9 +232,16 @@ export function voiceLeadVoicings(
     const forms: (RootlessForm | ShellForm)[] = shell ? ['R-3', 'R-7'] : ['A', 'B']
     const shift = ((options.octave ?? 3) - 3) * 12
     const formKey = shell ? 'shell' : 'rootless'
+    // Rootless voicings take the key's 9ths and 13ths, and a dominant knows the chord after it.
+    let context: PianoVoicingOptions = {}
     const voiced = (symbol: string, form: RootlessForm | ShellForm, octave: number) => {
         try {
-            return pianoVoicing(symbol, { voicing: options.voicing, [formKey]: form, octave })
+            return pianoVoicing(symbol, {
+                voicing: options.voicing,
+                [formKey]: form,
+                octave,
+                ...context
+            })
         } catch {
             return null
         }
@@ -244,7 +253,8 @@ export function voiceLeadVoicings(
         voicing: options.voicing,
         [formKey]: form,
         octave: octave + (both ? 1 : 0),
-        ...(options.hands ? { hands: options.hands } : {})
+        ...(options.hands ? { hands: options.hands } : {}),
+        ...context
     })
     // The keys as they are played (with the hands), or null when they don't fit the piano.
     const played = (symbol: string, form: RootlessForm | ShellForm, octave: number) => {
@@ -257,7 +267,12 @@ export function voiceLeadVoicings(
     // The notes that lead: shells' third and seventh, every note of a rootless voicing.
     const leading = (pitches: number[]) => (shell ? pitches.slice(1) : pitches)
     let previous: number[] | null = null
-    return symbols.map((symbol) => {
+    return symbols.map((symbol, i) => {
+        const next = symbols[i + 1]
+        context = {
+            ...(options.key && !shell ? { key: options.key } : {}),
+            ...(next && !shell ? { resolvesTo: next } : {})
+        }
         type Candidate = Scored<{ form: RootlessForm | ShellForm; octave: number }> & {
             outside: number
             muddy: boolean

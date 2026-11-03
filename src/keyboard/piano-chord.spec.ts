@@ -93,7 +93,44 @@ describe('pianoVoicing', () => {
         expect(voiced('G13sus4', { voicing: 'rootless', rootless: 'B' })).toBe('F3 A3 C4 E4')
         // Shells take the sus note for the third: R 4 7.
         expect(voiced('G7sus4', { voicing: 'shell' })).toBe('G4 C5 F5')
-        expect(() => pianoVoicing('C', { voicing: 'rootless' })).toThrow('not C')
+        // A triad is voiced as its 6/9 chord, the tonic jazz pianists play: C (A) E G A D.
+        expect(voiced('C', { voicing: 'rootless' })).toBe('E3 G3 A3 D4')
+        expect(voiced('C', { voicing: 'rootless', rootless: 'B' })).toBe('A3 D4 E4 G4')
+        expect(voiced('Cm', { voicing: 'rootless' }, true)).toBe('Eb3 G3 A3 D4')
+        expect(() => pianoVoicing('Cdim', { voicing: 'rootless' })).toThrow('not Cdim')
+    })
+
+    it('voices rootless dominants and half-diminished chords in their key', () => {
+        const cMinor = [0, 2, 3, 5, 7, 8, 10]
+        const aMinor = [9, 11, 0, 2, 4, 5, 7]
+        const ebMajor = [3, 5, 7, 8, 10, 0, 2]
+        // G7 in C minor: b9 and b13 (B form F Ab B Eb); E7 in A minor, C7 in Eb (9, b13).
+        expect(voiced('G7', { voicing: 'rootless', rootless: 'B', key: cMinor }, true)).toBe(
+            'F3 Ab3 B3 Eb4'
+        )
+        expect(voiced('E7', { voicing: 'rootless', rootless: 'B', key: aMinor })).toBe(
+            'D3 F3 G#3 C4'
+        )
+        expect(voiced('C7', { voicing: 'rootless', key: ebMajor }, true)).toBe('E3 Ab3 Bb3 D4')
+        // The half-diminished 9th from the key: Bm7b5 in A minor is D F A C.
+        expect(voiced('Bm7b5', { voicing: 'rootless', key: aMinor })).toBe('D3 F3 A3 C4')
+        // A named alteration stays; other chords keep the natural 9th.
+        expect(voiced('G7#9', { voicing: 'rootless', key: cMinor })).toBe('B3 D#4 F4 A#4')
+        expect(voiced('Dm7', { voicing: 'rootless', key: [0, 2, 4, 5, 7, 9, 11] })).toBe(
+            'F3 A3 C4 E4'
+        )
+        // A dominant going to a minor chord a fifth below takes the b13, in any key.
+        expect(voiced('G7', { voicing: 'rootless', resolvesTo: 'Cm' }, true)).toBe('B3 Eb4 F4 A4')
+        expect(voiced('G7', { voicing: 'rootless', resolvesTo: 'C' })).toBe('B3 E4 F4 A4')
+        expect(voiced('G7', { voicing: 'rootless', resolvesTo: 'Am' })).toBe('B3 E4 F4 A4')
+        // Read from a chord block's keys.
+        expect(pianoOptionsOf((k) => ({ 'key': 'C minor', 'resolves-to': 'Cm7' })[k])).toEqual({
+            key: [0, 2, 3, 5, 7, 8, 10],
+            resolvesTo: 'Cm7'
+        })
+        expect(() => pianoOptionsOf((k) => (k === 'key' ? 'H' : undefined))).toThrow(
+            'Unknown key "H"'
+        )
     })
 
     it('splits the hands: the bass in the left hand', () => {
