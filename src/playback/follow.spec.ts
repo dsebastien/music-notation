@@ -175,7 +175,8 @@ describe('followNotes', () => {
         const events = sequenceOf('scale', [60, 62, 64], { bpm: 60, strum: 40 })
         followNotes(win, s, noteTargets(s, events, 'scale'), events, Infinity).heard()
         s.closest('div')!.remove()
-        advance(1000)
+        // Notes are legato: the next boundary is the second note, at 1 s.
+        advance(1005)
         expect(litOf(s)).toEqual([])
         expect(pending()).toBe(0)
     })
@@ -188,7 +189,8 @@ describe('the light player says when its notes start', () => {
             value: 0,
             setValueAtTime() {},
             linearRampToValueAtTime() {},
-            exponentialRampToValueAtTime() {}
+            exponentialRampToValueAtTime() {},
+            setTargetAtTime() {}
         })
         const node = () => ({ gain: param(), connect() {}, disconnect() {} })
         class Ctx {

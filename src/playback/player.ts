@@ -93,7 +93,7 @@ export function scaleRun(pitches: readonly number[], root?: number | null): numb
 
 /**
  * The notes a diagram plays: a chord strums low to high and rings; a scale plays every note drawn
- * (see `scaleRun`), each note one beat long.
+ * (see `scaleRun`), each note one beat long, legato.
  */
 export function sequenceOf(
     kind: PlayKind,
@@ -122,7 +122,8 @@ export function sequenceOf(
     return scaleRun(pitches, root).map((midi, i) => ({
         midi,
         time: i * beat,
-        duration: beat * 0.95,
+        // Legato: each note lasts until the next; players add a short release after it.
+        duration: beat,
         velocity: runVelocity(i, chromaOf(midi), root, tones)
     }))
 }
@@ -264,6 +265,22 @@ const PIANO_PARTIALS = [0, 1, 0.5, 0.3, 0.15, 0.08, 0.04]
 const PLUCKS = 4
 
 /**
+ * Seconds a note takes to fade after its end (a finger lifting off a string, a piano's damper),
+ * at most half the note (a muted strum stays short).
+ */
+export const RELEASE: Readonly<Record<Sound, number>> = { guitar: 0.15, piano: 0.3 }
+
+/** The release of a note of `duration` seconds. */
+export const releaseOf = (sound: Sound, duration: number): number =>
+    Math.min(RELEASE[sound], Math.max(0.03, duration / 2))
+
+/**
+ * How long (s) a light piano note takes to fall to about a third: lower notes ring longer, as on
+ * a piano.
+ */
+const pianoDecay = (midi: number) => Math.min(2.5, Math.max(0.35, Math.pow(2, (60 - midi) / 24)))
+
+/**
  * The light synthesizer: computed sound, a few KB, no download. No two notes sound quite the
  * same: each guitar note takes one of a few plucks of its string (brightness, pick position,
  * decay), and every note varies a little in pitch (a few cents) and level. `random` (0–1) is
@@ -310,7 +327,8 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
             const touches = events.map(() => ({
                 pluck: Math.min(PLUCKS - 1, Math.floor(random() * PLUCKS)),
                 cents: between(-4, 4),
-                level: between(0.93, 1.07)
+                level: between(0.93, 1.07),
+                decay: between(0.9, 1.1)
             }))
             if (sound === 'guitar')
                 events.forEach((e, i) => stringBuffer(ctx, e.midi, touches[i]!.pluck))
@@ -322,7 +340,8 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 const touch = touches[i]!
                 const at = start + e.time
                 const end = at + e.duration
-                // Each note fades out at its end, so it doesn't click.
+                const release = releaseOf(sound, e.duration)
+                // Each note fades out after its end, so it doesn't stop dead (or click).
                 const env = ctx.createGain()
                 env.connect(gain)
                 // Velocity scales the note's level (100, the default, is the level as computed).
@@ -346,16 +365,15 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                     osc.detune.value = touch.cents
                     source = osc
                     env.gain.setValueAtTime(0, at)
-                    env.gain.linearRampToValueAtTime(0.35 * level || 0.0001, at + 0.005)
-                    env.gain.exponentialRampToValueAtTime(
-                        0.02 * level || 0.0001,
-                        Math.max(at + 0.01, end)
-                    )
+                    env.gain.linearRampToValueAtTime(0.35 * level, at + 0.005)
+                    // The string decays at its own pace, whatever the note's length.
+                    env.gain.setTargetAtTime(0, at + 0.005, pianoDecay(e.midi) * touch.decay)
                 }
-                env.gain.linearRampToValueAtTime(0, end + 0.08)
+                // The release: about 98% gone at its end.
+                env.gain.setTargetAtTime(0, Math.max(at + 0.006, end), release / 4)
                 source.connect(env)
                 source.start(at)
-                source.stop(end + 0.1)
+                source.stop(Math.max(at + 0.006, end) + release)
                 return source
             })
             const finish = () => gain.disconnect()
@@ -374,26 +392,32 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 )
             }
             if (onStart) void Promise.resolve(resumed).then(announce, announce)
-            const timer = win.setTimeout(
-                () => {
-                    finish()
-                    onEnd?.()
-                },
-                (lengthOf(events) + 0.15) * 1000
+            // The notes are over at their end (a loop starts again then); their releases still
+            // ring a little while, then the sound is let go.
+            const timer = win.setTimeout(() => onEnd?.(), (lengthOf(events) + 0.15) * 1000)
+            const tails = events.reduce(
+                (end, e) => Math.max(end, e.time + e.duration + releaseOf(sound, e.duration)),
+                0
             )
+            let cleanup = win.setTimeout(finish, (tails + 0.15) * 1000)
             return {
                 stop() {
+                    if (stopped) return
                     stopped = true
                     win.clearTimeout(timer)
                     win.clearTimeout(heard)
+                    win.clearTimeout(cleanup)
+                    // A quick fade, not a click.
+                    const now = ctx.currentTime
+                    gain.gain.setTargetAtTime(0, now, 0.01)
                     for (const s of sources) {
                         try {
-                            s.stop()
+                            s.stop(now + 0.05)
                         } catch {
                             // Already stopped.
                         }
                     }
-                    finish()
+                    cleanup = win.setTimeout(finish, 80)
                 }
             }
         }

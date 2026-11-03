@@ -347,6 +347,23 @@ describe('soundfontPlayer', () => {
             [67, 127]
         ])
     })
+
+    it('lets the last notes ring: the song ends half a second after them (#59)', () => {
+        type Event = { tick: number; constructor: { name: string } }
+        let played: { division: number; tracks: { events: Event[] }[] } | null = null
+        const api = {
+            masterVolume: 1,
+            playbackSpeed: 1,
+            player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
+        }
+        const player = soundfontPlayer(alphaTab as AlphaTabModule, () => api as never)
+        player.play([{ midi: 60, time: 0, duration: 1 }], { sound: 'piano', volume: 1 }).stop()
+        const events = played!.tracks.flatMap((t) => t.events)
+        const last = Math.max(...events.map((e) => e.tick))
+        const noteOff = events.find((e) => e.constructor.name === 'NoteOffEvent')!
+        expect(noteOff.tick).toBe(played!.division)
+        expect(last).toBe(played!.division * 1.5)
+    })
 })
 
 describe('renderTab, drums (#37)', () => {

@@ -20,11 +20,13 @@ describe('sequenceOf', () => {
         expect(new Set(events.map((e) => +(e.time + e.duration).toFixed(6))).size).toBe(1)
     })
 
-    it('plays a scale up and back down, one beat per note', () => {
+    it('plays a scale up and back down, one beat per note, legato', () => {
         const events = sequenceOf('scale', [64, 60, 62], { bpm: 120, strum: 40 })
         expect(events.map((e) => e.midi)).toEqual([60, 62, 64, 62, 60])
         expect(events[1]!.time).toBe(0.5)
-        expect(lengthOf(events)).toBeCloseTo(4 * 0.5 + 0.475)
+        // Each note lasts until the next (no hard stop before it).
+        expect(events.every((e) => e.duration === 0.5)).toBe(true)
+        expect(lengthOf(events)).toBeCloseTo(5 * 0.5)
     })
 
     it('runs a scale from its tonic: up to the top, down to the bottom, back to the tonic', () => {
@@ -521,6 +523,9 @@ describe('light player velocity', () => {
             exponentialRampToValueAtTime(v: number) {
                 this.set.push(v)
             }
+            setTargetAtTime(v: number) {
+                this.set.push(v)
+            }
         }
         const node = () => ({ connect() {}, disconnect() {} })
         class FakeContext {
@@ -588,6 +593,117 @@ describe('light player velocity', () => {
         expect(new Set(peaks).size).toBe(8)
         // Several plucks of the string, not one recording.
         expect(new Set(sources.map((s) => s.buffer)).size).toBeGreaterThan(1)
+    })
+})
+
+describe('light player release (#59)', () => {
+    /** An audio context that records what each note and the volume are told, with times. */
+    function timedWindow() {
+        const calls: string[][] = []
+        const timers: { ms: number; run: () => void }[] = []
+        const param = (name: string) => {
+            const log: string[] = []
+            calls.push(log)
+            const at =
+                (kind: string) =>
+                (...args: number[]) =>
+                    log.push(`${name} ${kind} ${args.map((n) => +n.toFixed(4)).join(' ')}`)
+            return {
+                value: 1,
+                setValueAtTime: at('set'),
+                linearRampToValueAtTime: at('ramp'),
+                exponentialRampToValueAtTime: at('exp'),
+                setTargetAtTime: at('target')
+            }
+        }
+        const node = () => ({ connect() {}, disconnect() {} })
+        const stops: number[] = []
+        class Ctx {
+            currentTime = 1
+            sampleRate = 8000
+            destination = node()
+            resume = () => Promise.resolve()
+            createGain = () => ({ ...node(), gain: param('gain') })
+            createBuffer = (_: number, length: number) => ({
+                getChannelData: () => new Float32Array(length)
+            })
+            createBufferSource = () => ({
+                ...node(),
+                buffer: null,
+                playbackRate: param('rate'),
+                start() {},
+                stop: (t: number) => stops.push(+t.toFixed(4))
+            })
+            createOscillator = () => ({
+                ...node(),
+                frequency: param('frequency'),
+                detune: param('detune'),
+                setPeriodicWave() {},
+                start() {},
+                stop: (t: number) => stops.push(+t.toFixed(4))
+            })
+            createPeriodicWave = () => ({})
+        }
+        const win = {
+            AudioContext: Ctx,
+            setTimeout: (run: () => void, ms: number) => timers.push({ ms, run }),
+            clearTimeout: (t: number) => {
+                if (timers[t - 1]) timers[t - 1]!.ms = -1
+            }
+        } as unknown as Window
+        return { win, calls, stops, timers }
+    }
+
+    it('lets a guitar note fade after its end, not stop dead', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, calls, stops, timers } = timedWindow()
+        let ended = 0
+        lightPlayer(win, () => 0.5).play([{ midi: 60, time: 0, duration: 1 }], {
+            sound: 'guitar',
+            volume: 1,
+            onEnd: () => ended++
+        })
+        // Starts at 1.05 on the audio clock, ends at 2.05, fades over 0.15 s.
+        expect(calls.flat()).toContain('gain target 0 2.05 0.0375')
+        expect(stops).toEqual([2.2])
+        // The end (a loop's next pass) comes at the notes' end; the sound is let go after the tail.
+        expect(timers.map((t) => Math.round(t.ms))).toEqual([1150, 1300])
+        timers[0]!.run()
+        expect(ended).toBe(1)
+    })
+
+    it('decays a piano note at its own pace, then releases it', async () => {
+        const { lightPlayer, releaseOf } = await import('./player.js')
+        const { win, calls, stops } = timedWindow()
+        lightPlayer(win, () => 0.5).play(
+            [
+                { midi: 60, time: 0, duration: 1 },
+                { midi: 36, time: 0, duration: 0.04 }
+            ],
+            { sound: 'piano', volume: 1 }
+        )
+        const flat = calls.flat()
+        // Middle C falls to about a third in 1 s; C2 rings longer.
+        expect(flat).toContain('gain target 0 1.055 1')
+        expect(flat).toContain('gain target 0 1.055 2')
+        // The damper: 0.3 s for a long note, half a short one (at least 30 ms).
+        expect(flat).toContain('gain target 0 2.05 0.075')
+        expect(releaseOf('piano', 0.04)).toBe(0.03)
+        expect(stops).toEqual([2.35, 1.12])
+    })
+
+    it('fades quickly on stop', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, calls, stops, timers } = timedWindow()
+        const handle = lightPlayer(win, () => 0.5).play([{ midi: 60, time: 0, duration: 2 }], {
+            sound: 'guitar',
+            volume: 1
+        })
+        handle.stop()
+        // The volume (the first gain) falls in about 10 ms; the notes stop 50 ms later.
+        expect(calls[0]).toEqual(['gain target 0 1 0.01'])
+        expect(stops.slice(-1)).toEqual([1.05])
+        expect(timers.filter((t) => t.ms >= 0).map((t) => t.ms)).toEqual([80])
     })
 })
 
