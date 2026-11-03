@@ -33,6 +33,9 @@ const SHARED = [
     'instrument',
     'diagrams',
     'voice-leading',
+    'voicing',
+    'octave',
+    'hands',
     'tuning',
     'orientation',
     'hand',
@@ -173,6 +176,14 @@ function renderSection(
         throw new Error(`numerals: use roman, nashville or none, got "${style}"`)
     }
     if (led && !piano) throw new Error('voice-leading is for piano: add instrument: piano')
+    // Piano voicings (#16) for every chord: a style, an octave, hands.
+    const pianoKeys = (['voicing', 'octave', 'hands'] as const).filter((k) => field(block, k))
+    if (pianoKeys.length && !piano) {
+        throw new Error(`${pianoKeys[0]} is for piano chords: add instrument: piano`)
+    }
+    if (pianoKeys.length && led) {
+        throw new Error(`Use voice-leading or ${pianoKeys[0]}, not both`)
+    }
     const symbols = chords.map((c) => c.symbol)
     const guitar = diagrams && !piano ? guitarVoicings(symbols, field(block, 'tuning')) : null
     const pitches = diagrams && piano && led ? voiceLead(symbols) : null
@@ -199,6 +210,7 @@ function renderSection(
                 ]
                 if (piano) {
                     lines.push(['instrument', 'piano'])
+                    for (const key of pianoKeys) lines.push([key, field(block, key)!])
                     const midi = pitches?.[i]
                     if (midi) {
                         const set = chordNoteSet(chord.symbol)

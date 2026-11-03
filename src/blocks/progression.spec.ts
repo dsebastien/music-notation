@@ -96,6 +96,25 @@ describe('progression block', () => {
         ).not.toBeNull()
     })
 
+    it('passes piano voicings to every chord', () => {
+        const h = host()
+        const result = renderBlock(
+            'progression',
+            'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: shell',
+            h
+        )
+        expect(result.error).toBeNull()
+        // Shells: root, third, seventh.
+        expect(h.querySelectorAll('svg.mn-keyboard')[0]!.getAttribute('data-mn-pitches')).toBe(
+            '62 65 72'
+        )
+        const error = (source: string) => renderBlock('progression', source, host()).error
+        expect(error('I V\nkey: C\nvoicing: shell')).toContain('instrument: piano')
+        expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\noctave: 3')).toContain(
+            'not both'
+        )
+    })
+
     it('takes the piano from the note’s instrument', () => {
         const h = host()
         renderBlock('progression', 'I V\nkey: C', h, { instrument: 'piano' })

@@ -65,6 +65,52 @@ describe('a chord over a scale', () => {
         ])
     })
 
+    it('marks the chord tones inside a scale position, and in every position of a row', () => {
+        const h = host()
+        const one = renderBlock(
+            'fretboard',
+            'scale: A minor pentatonic\nchord: Am7\nposition: 1',
+            h
+        )
+        expect(one.error).toBeNull()
+        expect(h.querySelector('svg')!.getAttribute('data-mn-frets')).toBe('5-8')
+        expect(h.querySelectorAll('.mn-tone').length).toBeGreaterThan(0)
+        expect(h.querySelectorAll('.mn-passing').length).toBeGreaterThan(0)
+        const row = host()
+        const result = renderBlock(
+            'fretboard',
+            'scale: A minor pentatonic\nchord: Am7\npositions: all',
+            row
+        )
+        expect(result.error).toBeNull()
+        const diagrams = [...row.querySelectorAll('svg')]
+        expect(diagrams).toHaveLength(5)
+        for (const d of diagrams) {
+            expect(d.getAttribute('data-mn-set')).toBe('A minor pentatonic')
+            expect(d.querySelector('.mn-dot.mn-passing')).not.toBeNull()
+        }
+    })
+
+    it('leaves chord and arpeggio positions without a scale alone (#20)', () => {
+        const h = host()
+        const result = renderBlock('fretboard', 'chord: Am7\nposition: 1', h)
+        expect(result.error).toBeNull()
+        expect(h.querySelector('.mn-tone, .mn-passing')).toBeNull()
+        const row = host()
+        renderBlock('fretboard', 'arpeggio: Am7\npositions: all', row)
+        expect(row.querySelectorAll('svg')).toHaveLength(5)
+        expect(row.querySelector('.mn-tone, .mn-passing')).toBeNull()
+        expect(row.querySelector('.mn-title')?.textContent).toContain('arpeggio')
+    })
+
+    it('reads arpeggio: with scale: as the chord over the scale', () => {
+        const h = host()
+        renderBlock('fretboard', 'scale: C major\narpeggio: G7\nfrets: 0-5', h)
+        expect(h.querySelector('svg')!.getAttribute('data-mn-set')).toBe('C major')
+        expect(classesOf(h, 'F')[0]).toContain('mn-tone')
+        expect(classesOf(h, 'E')[0]).toContain('mn-passing')
+    })
+
     it('says when the chord does not read', () => {
         expect(renderBlock('keyboard', 'scale: C major\nchord: Hm', host()).error).toBe(
             'Unknown chord "Hm": use e.g. chord: Am7'

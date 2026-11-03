@@ -157,7 +157,7 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
  * of a compared scale).
  */
 function chordOverScale(block: BlockSource, set: NoteSet, marks: NoteMarks): void {
-    const text = block.fields.get('chord')?.trim()
+    const text = (block.fields.get('chord') ?? block.fields.get('arpeggio'))?.trim()
     if (!text || block.fields.get('scale') === undefined || !set.scaleType) return
     const chord = orFail(chordNoteSet(text), `Unknown chord "${text}": use e.g. chord: Am7`)
     const inScale = new Set(set.members.map((m) => m.chroma))
