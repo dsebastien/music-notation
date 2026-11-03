@@ -164,6 +164,18 @@ describe('playback bar', () => {
         expect(new Set(calls.at(-1)!.events.map((e) => e.midi)).size).toBe(7)
     })
 
+    it('plays one voicing of a keyboard chord, the keys it lights (#61)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'chord: G7', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // Root position from G4, not the 8 lit keys from D4.
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual([67, 71, 74, 77])
+        // Every lit key still plays on a click.
+        h.querySelector('[data-midi="62"]')!.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(calls[1]!.events.map((e) => e.midi)).toEqual([62])
+    })
+
     it('runs an arpeggio from its root', () => {
         const { player, calls } = recorder()
         const h = host()
