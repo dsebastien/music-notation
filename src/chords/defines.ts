@@ -5,6 +5,7 @@
  *     {define: Am7 copy Am7 frets x 0 2 0 1 3}
  *     {define: Am keys 0 3 7}
  *     {define: As display "A flat" base-fret 4 frets 1 3 3 2 1 1 diagram off}
+ *     {define: G 1 3 2 0 0 0 3}   (the older form: a base fret, then the frets)
  *
  * Frets are relative to the base fret (with base-fret 4, fret 1 is the 4th fret); `x`, `X`, `N`
  * or `-1` mute a string. Fingers are 1–9 or A–Z; any other value means no finger. Keys (keyboard)
@@ -149,6 +150,16 @@ export function parseDefinition(
         let end = i + 1
         while (end < tokens.length && !KEYWORDS.has(tokens[end]!.toLowerCase())) end++
         return tokens.slice(i + 1, end)
+    }
+    // The older form without keywords: a base fret, then the frets ("{define: G 1 3 2 0 0 0 3}").
+    const lead = valuesAfter(-1)
+    if (
+        lead.length >= 3 &&
+        /^\d{1,2}$/.test(lead[0]!) &&
+        lead.slice(1).every((t) => /^(\d{1,2}|x|X|N|-1|-)$/.test(t))
+    ) {
+        const frets = lead.slice(1).map((t) => (t === '-' ? 'x' : t))
+        tokens.splice(0, lead.length, 'base-fret', lead[0]!, 'frets', ...frets)
     }
     let wroteFingers = false
     let i = 0

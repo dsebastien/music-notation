@@ -200,9 +200,10 @@ export function parseChordPro(source: string): Song {
                 if (placement) song.diagrams = placement
                 else song.warnings.push(`{diagrams: ${value}}: use on, off, top or bottom`)
             } else if (key === 'instrument') {
-                const instrument = INSTRUMENTS.get(value.toLowerCase())
+                // Other instruments (ukulele, banjo) aren't drawn: the chart keeps its default
+                // instrument, quietly (notes written for other tools still draw).
+                const instrument = INSTRUMENTS.get(value.trim().toLowerCase())
                 if (instrument) song.instrument = instrument
-                else song.warnings.push(`{instrument: ${value}}: use guitar or piano`)
             }
             continue
         }

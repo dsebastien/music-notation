@@ -46,7 +46,15 @@ describe('parseChordPro directives for diagrams', () => {
         expect(parseChordPro('{diagrams: on}').diagrams).toBe('top')
         expect(parseChordPro('{diagrams: off}').diagrams).toBe('off')
         expect(parseChordPro('{diagrams: constructor}').warnings[0]).toContain('use on, off, top')
-        expect(parseChordPro('{instrument: banjo}').warnings[0]).toContain('use guitar or piano')
+        // Instruments the chart doesn't draw are ignored: the default instrument draws.
+        const uke = parseChordPro('{instrument: ukulele}\n{diagrams}\n[C]a')
+        expect(uke).toMatchObject({ instrument: null, warnings: [] })
+        const host = document.createElement('div')
+        const result = renderBlock('chords', '{instrument: ukulele}\n{diagrams}\n[C]a', host, {
+            voicings
+        })
+        expect(result.ok).toBe(true)
+        expect(result.el.querySelector('.mn-chart-row .mn-guitar-chord')).not.toBeNull()
     })
 })
 
@@ -256,6 +264,19 @@ describe('renderBlock with a chart', () => {
         })
         expect(result.ok).toBe(true)
         expect(result.el.querySelectorAll('.mn-chart-row .mn-keyboard')).toHaveLength(2)
+    })
+
+    it('draws older notes: a define without keywords, an instrument it does not draw', () => {
+        const host = document.createElement('div')
+        const result = renderBlock(
+            'chords',
+            '{define G 1 3 2 0 0 0 3}\n{instrument: ukulele}\n{diagrams}\n[G]Hello',
+            host,
+            { voicings }
+        )
+        // (Not toMatchObject on the result: a failing diff of its element never ends.)
+        expect([result.ok, result.error]).toEqual([true, null])
+        expect(fretsOf(result.el.querySelector('.mn-chart-row svg'))).toBe('320003')
     })
 
     it('is not ok when a {chord} has no diagram, and still draws the chart', () => {

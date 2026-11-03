@@ -825,7 +825,7 @@ Other directives are ignored.
 
 - `{diagrams}` or `{diagrams: on}` puts the row on top, `{diagrams: bottom}` under the song, `{diagrams: off}` hides it. The row is off by default; apps can turn it on for every chart (`chartDiagrams` option).
 - Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
-- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice.
+- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice. Other instruments (`{instrument: ukulele}`) are ignored: the chart draws guitar diagrams.
 - `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
 - With `{capo: 2}`, guitar diagrams show the shapes you play (the names above the lyrics), with the capo drawn; `{chord}` diagrams too. The chart's top line already says "Capo 2", so a row on top doesn't repeat it; a row at the bottom says it again, since the top line is far away. A piano has no capo: piano diagrams show the chord that sounds, titled "G (sounds A)".
 - Chords the chart can't draw are listed under the row, with what to write.
@@ -838,6 +838,7 @@ Other directives are ignored.
 - `fingers 0 0 2 3 1 0`: one value per string, `1` to `9` or a letter (`T` for the thumb). Anything else (`0`, `-`, `x`) means no finger.
 - `keys 0 3 7`: piano keys, in semitones above the root (0 is the root, 7 the fifth).
 - `display "A flat"`: the name shown on the diagram.
+- The older form without keywords also works: `{define: G 1 3 2 0 0 0 3}` is the base fret, then the frets.
 - `copy Am`: start from another chord's shape (an earlier `{define}`, or the database), then change it with the other keywords. `copyall` also copies the display name.
 - `diagram off`: leave that chord out of the row.
 
