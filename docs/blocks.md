@@ -5,7 +5,7 @@ nav_order: 2
 
 # Blocks
 
-A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, `strum` ([strumming patterns](#strumming-patterns)), `progression` ([progressions](#progressions)), `circle` ([circle of fifths](#circle-of-fifths)), or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
+A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, `strum` ([strumming patterns](#strumming-patterns)), `picking` ([picking patterns](#picking-patterns)), `progression` ([progressions](#progressions)), `circle` ([circle of fifths](#circle-of-fifths)), or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
 
 ## Chord
 
@@ -205,7 +205,18 @@ On a re-entrant tuning (a ukulele's high G string), any chord note may be lowest
 
 Each voicing must sound the root, the third (or the sus note), the seventh or sixth, altered notes and the highest extension; the perfect fifth and lower extensions may be left out. A slash chord keeps its bass lowest. No pitch sounds on two strings at once (except on a ukulele's re-entrant tuning). Fingers are worked out: any finger can hold a note, the index or the ring finger can barre a few strings on one fret (the pinky never, in generated voicings), only the index can lie across strings fretted higher (a full barre), the finger numbers go up with the frets, and at most four fingers in all; the easiest way wins (a small index barre over the top strings, like F `xx3211`, counts as easy). Muted strings between sounding ones are left out unless `gaps: yes`, except the jazz grips players use that way: the Hendrix grip (C7#9 x3234x), m7b5 (F#m7b5 2x221x) and dim7 (Gdim7 3x232x) from the low E, and the 13 (G13 3x345x).
 
-Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, Em, Dm, their sevenths, sus and add9 shapes), then fewer fingers, a smaller span, no full barre, reach or awkward fingering, the usual shapes (E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), no open string ringing inside a shape up the neck, lower on the neck. Each diagram is titled with the chord and its shape when it has a usual one: Open, C shape, A shape, G shape, E shape, D shape (with a barre or not), Power chord, Triad or Shell (three notes: the root lowest, then the third and the seventh or sixth, as x3x45x).
+Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, Em, Dm, their sevenths, sus and add9 shapes), then fewer fingers, a smaller span, no full barre, reach or awkward fingering, the usual shapes (E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), no open string ringing inside a shape up the neck, lower on the neck.
+
+Each diagram is titled with the chord and its shape: Open (open strings and frets 1 to 4, on four strings or more, the top string sounding or not: Bb x1033x), C shape, A shape, G shape, E shape, D shape (with a barre or not), Power chord, Triad or Shell (three notes: the root lowest, then the third and the seventh or sixth, as x3x45x). Other voicings get a name too, the first that fits:
+
+- Hendrix chord: the 7#9 grip with its root on the A string (C7#9 x3234x).
+- The strings of a CAGED shape: F xx3211 is "E shape (strings 1-4)".
+- Drop 2 or Drop 3: four notes, each note of the chord once. F#m7b5 2x221x is "Drop 3 (strings 2-4, 6)".
+- Open bass: only the lowest string that sounds is open (D xx0775).
+- Open strings: open strings ring with notes up the neck (Bdim 780707).
+- Else the strings the voicing sounds: "Strings 3-6".
+
+Dim, aug and sus2 triads on the four highest strings are "Strings 1-4": there is no open chord of these kinds to take a CAGED shape from. The names don't change the order of the list.
 
 `voicing: 3` (singular) still picks the third voicing of the built-in database (see [Examples](examples.html)). In the database, the first voicing of a chord is one you can strum. A grip with a muted string inside the shape comes after the others (Bdim starts with x2343x, not x20x01), except the jazz grips that mute the A string under a root on the low E.
 
@@ -347,6 +358,7 @@ labels: intervals</code></pre></div>
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                                                                                                                                  |
 | `capo`, `frets-from`                         | A capo; `frets` and positions count from it. See [capo](#capo).                                                                                                                                                                                             |
 | `arpeggio`                                   | A chord's notes, labeled with intervals; with `position` or `positions`, its CAGED shapes. See [arpeggios](#arpeggios).                                                                                                                                     |
+| `exercise`, `rhythm`, `tempo`                | With one position: the run as a tab under the diagram. See [tab exercises](#tab-exercises).                                                                                                                                                                 |
 
 **A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists: in a `chord` block, it's an error that says so.
 
@@ -515,6 +527,32 @@ columns: 3
 positions: all
 columns: 3</code></pre></div>
 
+## Tab exercises
+
+Add `exercise:` to a fretboard with a scale or an arpeggio and one position, and the block draws the run as a tab under the diagram. Play it in time with the tab's player bar: count-in, metronome and speed.
+
+- `exercise: up`, `down` or `up-down`. `up-down` plays the notes in the order the diagram plays them: from the lowest root up to the highest note, down to the lowest note, and back up to the root.
+- `rhythm: 8ths` (the default), `triplets` or `16ths`, in 4/4: the metronome clicks the quarters. The last bar ends with rests.
+- `tempo: 80` (or `bpm:`), from 20 to 240. Without it, the app's tempo, else 60.
+- A note the position has on two strings plays once, on the lower string.
+- `strings:` and `frets:` work as usual. One position per block: `exercise:` doesn't go with `positions:`, a capo or `---`.
+
+````markdown
+```fretboard
+scale: A minor pentatonic
+position: 1
+exercise: up-down
+rhythm: 8ths
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">scale: A minor pentatonic
+position: 1
+exercise: up-down
+rhythm: 8ths</code></pre></div>
+
+Apps draw the tab with alphaTab (the `tab` option of the [JavaScript API](api.md)). On web pages, the [tab bundle](publish.md) draws it. Without either, the tab's alphaTex shows under the diagram, as a `tab` block holds it.
+
 ## Which scale fits
 
 **Scales for chords.** On a keyboard or a fretboard, `scales-for:` with the chords of a song draws the scale that fits them best. The title names the scale, and any chord notes outside it. `scales-for-notes:` does the same for a list of notes. Other keys (`frets`, `labels`, `position`, `positions`, `range`…) work as for `scale:`.
@@ -576,6 +614,7 @@ functions: yes</code></pre></div>
 | `voicing`, `octave`, `hands` | Piano voicings for every chord, as in [piano voicings](#piano-voicings): `voicing: rootless` or `voicing: shell` for a ii-V-I.                                                                                     |
 | `tuning`                     | For guitar diagrams, as for chords.                                                                                                                                                                                |
 | `title`                      | A title above the progression.                                                                                                                                                                                     |
+| `time`, `tempo`, `strum`     | How the progression plays in time. See [play a progression in time](#play-a-progression-in-time).                                                                                                                  |
 
 The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
 
@@ -631,6 +670,32 @@ key: C minor
 instrument: piano
 voicing: rootless</code></pre></div>
 
+### Play a progression in time
+
+With playback on, a `progression` block has a bar above its chords. It plays the progression in time, one chord a bar, so you can practice the changes or solo over them. The bar has Play, Loop, Count-in (one bar of clicks first), Click (a metronome click on each beat, on by default), the tempo, the volume, the strum (how each chord is played) and the sound. The chord that plays lights up.
+
+- `time:` the time signature, 4/4 by default. 6/8, 9/8 and 12/8 count dotted quarters.
+- `tempo:` (or `bpm:`) the tempo, 20 to 240 beats a minute. Without it, the app's tempo.
+- `strum:` how each chord is played: `beats` (a down strum on each beat, the default), `bar` (one strum that rings through the bar), `arpeggio` (eighth notes: the bass, then up the strings and back down), or a strumming pattern such as `D - D U - U D U` (played in every bar, in the block's time).
+
+Every section plays in turn, and the first section's `time`, `tempo` and `strum` apply to all of them. A piano progression plays on piano.
+
+````markdown
+```progression
+I vi IV V
+key: G
+time: 4/4
+tempo: 80
+strum: D - D U - U D U
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">I vi IV V
+key: G
+time: 4/4
+tempo: 80
+strum: D - D U - U D U</code></pre></div>
+
 ## Circle of fifths
 
 A `circle` block draws the circle of fifths: the 12 major keys, their relative minors and the diminished chords, with each key signature around the outside. The chosen key's chords are tinted, with their numerals; its tonic and its IV and V (iv and V in minor: the dominant of the harmonic minor, as cadences play it; `dominant: minor` marks v instead) stand out. A row of the key's chords sits under the wheel.
@@ -658,7 +723,7 @@ With playback on, a click on a key or a chord plays it, and the play button play
 
 ## From a note's properties
 
-An empty `chord`, `fretboard`, `keyboard` or `strum` block can draw what the note's properties say, so a note doesn't repeat its frets, its scale, its arpeggio or its strumming pattern in the body. The kind of note comes from its type tag (`type/music/guitar/arpeggio`), as in Music Practice, so a note draws the same in Obsidian and on Publish. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
+An empty `chord`, `fretboard`, `keyboard`, `strum` or `picking` block can draw what the note's properties say, so a note doesn't repeat its frets, its scale, its arpeggio or its strumming or picking pattern in the body. The kind of note comes from its type tag (`type/music/guitar/arpeggio`), as in Music Practice, so a note draws the same in Obsidian and on Publish. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
 
 | Properties                                                                     | Draws                                                                                                                                                                                       |
 | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -669,6 +734,7 @@ An empty `chord`, `fretboard`, `keyboard` or `strum` block can draw what the not
 | `chord_symbol`, `shape` (arpeggio note)                                        | An arpeggio on a fretboard (a keyboard on piano), when a tag is `type/music/<instrument>/arpeggio`. A CAGED `shape` (`E`, `CAGED E`, `E shape`) picks it; other shapes draw the whole neck. |
 | `chord_symbol`, `shape` (guitar chord note)                                    | In an empty fretboard: the chord's arpeggio, in its CAGED `shape` when it has one.                                                                                                          |
 | `strum_pattern`, `time_signature`, `strum_feel`, `chord_symbol`, `bpm_current` | A strumming pattern: one bar per list item. A feel of `swing` or `shuffle` swings, `60%` sets the ratio, and `bpm_current` from 20 to 240 is the tempo.                                     |
+| `picking_pattern`, `time_signature`, `chord_symbol`, `bpm_current`             | A fingerpicking pattern in an empty `picking` block: a pattern name, or the pattern, one bar per list item. `bpm_current` from 20 to 240 is the tempo.                                      |
 
 ## Several diagrams
 
@@ -870,6 +936,8 @@ Supported:
 
 Other directives are ignored.
 
+With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped. A piano chart (`{instrument: piano}`) plays on piano. The chord that plays lights up in the lyrics.
+
 ### Chord diagrams in a chart
 
 `{diagrams}` draws every chord the chart uses, in the order they first appear, as a row of diagrams above the song. The row wraps on narrow screens.
@@ -1008,3 +1076,56 @@ The tempo counts the beat you tap your foot to: a quarter in 4/4 and 3/4, a dott
 Swing and shuffle: `swing: yes` plays the second 8th of each beat on the third triplet, the way swing and blues are played; the pattern is still written in 8ths. A percentage from 50 (straight) to 75 sets how late it comes: `swing: 60%` is a light swing. With `subdivision: 16ths`, the 16ths swing. Swing doesn't go with 6/8 (it already has three 8ths a beat) or with triplets. `subdivision: triplets` with `D - U` on each beat is the same shuffle, written out.
 
 In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), volume and sound. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low. Up strums are softer than down strums, the beats are stressed (beat 1 most; 1 and 4 in 6/8), and each strum varies a little, as a player's hand does. Accents are louder, ghost strums soft, muted strums a percussive chuck (dead strings). The count-in is a bar of clicks (each 8th in 6/8, 1 and 4 stronger). Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the loop's next pass.
+
+## Picking patterns
+
+A `picking` block draws a fingerpicking pattern as a small tab: each note's fret on its string, the finger under each slot, and the counts. With playback on, a bar under the pattern plays it over its chord, or one chord a bar: play / stop, loop, count-in, click (a metronome click on each beat, off by default), tempo, volume and sound. The slot that plays is lit.
+
+````markdown
+```picking
+pattern: travis
+chords: C Am F G
+tempo: 80
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-picking">pattern: travis
+chords: C Am F G
+tempo: 80</code></pre></div>
+
+````markdown
+```picking
+p i m a p' i m a
+chord: G
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-picking">p i m a p' i m a
+chord: G</code></pre></div>
+
+Write one token a slot:
+
+- `p`: the thumb on the bass (the lowest string the chord sounds).
+- `p'`: the thumb on the alternate bass: the chord's fifth, on a bass string next to the bass. C alternates with G on string 6 (fret 3), G with D on string 4, D with A on string 5, Am with E on string 4.
+- `i`, `m`, `a`: the fingers, on strings 3, 2 and 1.
+- A string number, from 1 (the highest): `5`, `3`.
+- Notes picked together (a pinch): `p+a`, or letters glued together: `pa`.
+- `-` (or `.`, `_`) for a rest, `|` for a bar line. A line of counts (`1 & 2 &`) is skipped.
+
+Each bar has as many slots as the time and the subdivision give (8 in 4/4 with 8ths). A bar with another count is a mistake, and the message says how many slots to write. A pattern holds up to 16 bars.
+
+Named patterns fill a bar for you: `pattern: travis` (`p m p' i p m p' i`), `pattern: alternate bass` (`p i m i p' i m i`) and `pattern: 1-2-3-4` (`p i m a p i m a`, also `arpeggio`).
+
+| Key           | Meaning                                                                                             |
+| ------------- | --------------------------------------------------------------------------------------------------- |
+| `pattern`     | A named pattern, or the pattern as a key.                                                           |
+| `chord`       | The chord picked. E minor when none (on a standard guitar).                                         |
+| `chords`      | One chord a bar, the pattern repeating over them: `C Am F G`. Also `progression:`. Up to 32 chords. |
+| `time`        | The time signature, `4/4` by default, as for strumming patterns.                                    |
+| `subdivision` | `8ths` (default), `16ths` or `triplets`.                                                            |
+| `swing`       | `yes` or `60%`, as for strumming patterns.                                                          |
+| `tempo`       | Beats a minute for playback, 20–240 (or `bpm:`). Without it, the app's tempo.                       |
+| `tuning`      | The open strings, as for strumming patterns.                                                        |
+| `title`       | A title above the pattern. A named pattern is titled with its name.                                 |
+
+An empty `picking` block in a fingerpicking pattern note draws the note's `picking_pattern` (see [from a note's properties](#from-a-notes-properties)).

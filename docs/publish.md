@@ -9,7 +9,7 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 
 ```js
 ;(() => {
-    const VERSION = '0.8.0'
+    const VERSION = '0.11.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
     const BLOCKS = selector([
@@ -18,6 +18,7 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
         'keyboard',
         'fretboard',
         'strum',
+        'picking',
         'progression',
         'circle'
     ])
@@ -40,6 +41,8 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 ```
 
 - The bundle is only downloaded on pages with notation blocks. The tab bundle (and alphaTab, its music font and soundfont, from jsDelivr) is only downloaded on pages with `tab` or `score` blocks.
+- List `picking` too (0.11.0), so pages with only picking patterns load the bundle. A snippet from an older version doesn't have it.
+- A fretboard with [`exercise:`](blocks.md#tab-exercises) puts its tab under the diagram as a `tab` block's source. The snippet then loads the tab bundle, which draws it.
 - Diagrams get a playback bar (on hover, or a tap on phones). It plays with the light synthesizer, or with the soundfont once a page with tabs has loaded it. `play: false` turns it off, and `play: { volume: 0.6, bpm: 80, strum: 30, sound: 'piano' }` sets the defaults (`strum: 30` is the guitar's; `strum: { guitar: 30, piano: 20 }` also spreads piano chords).
 - Defaults for the whole site go in `window.musicNotationOptions`, set before the bundle loads (at the top of `publish.js`). A block's own `orientation` and `hand` still win.
 
@@ -50,7 +53,7 @@ window.musicNotationOptions = {
 }
 ```
 
-- Empty blocks can draw from the page's properties ([from a note's properties](blocks.md#from-a-notes-properties)): give the library a function that returns them. This covers chord, scale, arpeggio and strumming pattern notes. On Obsidian Publish, they're in the site's cache:
+- Empty blocks can draw from the page's properties ([from a note's properties](blocks.md#from-a-notes-properties)): give the library a function that returns them. This covers chord, scale, arpeggio, strumming pattern and fingerpicking pattern notes. On Obsidian Publish, they're in the site's cache:
 
 ```js
 window.musicNotationOptions = {
