@@ -71,6 +71,14 @@ modes: C major
 ```
 ````
 
+The scale that fits a song's chords:
+
+````markdown
+```fretboard
+scales-for: G D Em C
+```
+````
+
 ![A Major's easiest voicings, and G triads on the three highest strings](docs/images/voicings.png)
 
 ![G triads on the top strings, and the easiest ways from C to Am](docs/images/triads-transitions.png)

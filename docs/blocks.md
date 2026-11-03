@@ -218,6 +218,7 @@ labels: degrees</code></pre></div>
 | `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                                                                                               |
 | `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`. For a list of notes: one finger per note, in the order written. It works with `labels` and `range` too. |
 | `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                                                                                 |     |
+| `scales-for`           | `scales-for: G D Em C`: the scale that fits these chords. See [which scale fits](#which-scale-fits).                                                                                     |
 
 The short first line is tried as a scale, then as notes with octaves (`C4` is that key), then as a chord, then as a list of notes. The root is drawn in a second color.
 
@@ -380,6 +381,22 @@ fingering: 1 2 3 4 5</code></pre></div>
 The altered scale is spelled without double sharps. When its usual jazz spelling would need them, it takes the superlocrian spelling instead: G# altered is G# A B C D E F# (R b2 b3 b4 b5 b6 b7), not G# A A## B# C## E F#.
 
 Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, major, composite), chromatic, diminished, dorian (and #4, b2), double harmonic major, egyptian, enigmatic, flamenco, harmonic major, harmonic minor, hirajoshi, hungarian major and minor, in-sen, iwato, kumoijoshi, locrian (and #2, 6, major), lydian (and #9, augmented, dominant, minor), major, major pentatonic, melodic minor, minor, minor pentatonic, mixolydian (and b6), neapolitan major, oriental, pelog, persian, phrygian, phrygian dominant, prometheus, scriabin, spanish heptatonic, ultralocrian, whole tone, and more: every scale [tonal](https://github.com/tonaljs/tonal) knows.
+
+## Which scale fits
+
+**Scales for chords.** On a keyboard or a fretboard, `scales-for:` with the chords of a song draws the scale that fits them best. The title names the scale, and any chord notes outside it. `scales-for-notes:` does the same for a list of notes. Other keys (`frets`, `labels`, `position`, `range`…) work as for `scale:`.
+
+````markdown
+```fretboard
+scales-for: G D Em C
+frets: 0-5
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">scales-for: G D Em C
+frets: 0-5</code></pre></div>
+
+The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note.
 
 ## From a note's properties
 

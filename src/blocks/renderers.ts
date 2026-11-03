@@ -40,6 +40,7 @@ import {
     scalePosition,
     type Cell
 } from '../fretboard/positions.js'
+import { withScalesFor } from './scales-for.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -532,8 +533,8 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
 /** Diagram languages and their renderers. */
 export const DIAGRAMS: Record<DiagramLanguage, DiagramRenderer> = {
     chord: renderChord,
-    keyboard: renderKeyboardBlock,
-    fretboard: renderFretboardBlock
+    keyboard: withScalesFor(renderKeyboardBlock),
+    fretboard: withScalesFor(renderFretboardBlock)
 }
 
 const fromSource =
@@ -548,8 +549,8 @@ const renderChordsBlock: Renderer = (doc, source, options) =>
 export const RENDERERS = {
     chord: fromSource(renderChord),
     chords: renderChordsBlock,
-    keyboard: fromSource(renderKeyboardBlock),
-    fretboard: fromSource(renderFretboardBlock)
+    keyboard: fromSource(DIAGRAMS.keyboard),
+    fretboard: fromSource(DIAGRAMS.fretboard)
 } satisfies Record<string, Renderer>
 
 export type NotationLanguage = keyof typeof RENDERERS

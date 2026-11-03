@@ -137,3 +137,25 @@ export {
 } from './blocks/properties.js'
 export { textTabToAlphaTex } from './convert/text-tab.js'
 export { chordSheetToChordPro } from './convert/chord-sheet.js'
+export {
+    findScales,
+    findKey,
+    inKey,
+    type ScaleMatch,
+    type FindScalesOptions,
+    type KeyCandidate,
+    type FoundKey
+} from './theory/find.js'
+export {
+    readKey,
+    keyNotes,
+    keySignature,
+    keyChords,
+    parentMajor,
+    signatureText,
+    MODES,
+    type Mode,
+    type MusicalKey,
+    type KeySignature,
+    type KeyChord
+} from './theory/keys.js'
