@@ -505,6 +505,8 @@ Apps that turn playback on (Music Practice does, and Obsidian Publish pages thro
 - **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum.
 - **Volume**, and **sound**: guitar or piano.
 
+Choosing the other sound also redraws the diagram for that instrument, with the same notes. A guitar chord or a fretboard becomes a keyboard with those exact keys. A keyboard becomes a fretboard, frets 0 to 12 (up to 24 for high notes); notes below the low E or past fret 24 are left out. The title and the root come along, and so do note, degree and interval labels; finger numbers turn into note names. Choose the diagram's own instrument to get its drawing back. A click on a note plays it on either drawing.
+
 A click on a dot or a key plays that note. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
 
 ## Tabs and scores
