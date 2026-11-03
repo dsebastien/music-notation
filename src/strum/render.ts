@@ -5,7 +5,7 @@
  * colors, like the other diagrams. Each slot is a `g[data-mn-beat]` (its index from 0), so a page
  * can light the strum that plays.
  */
-import { svg, svgLabel, svgLine, svgRoot } from '../render/dom.js'
+import { html, svg, svgLabel, svgLine, svgRoot } from '../render/dom.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import type { RenderOptions } from '../blocks/renderers.js'
 import { countOf, formatStrum, parseStrum, type StrumPattern, type StrumSlot } from './pattern.js'
@@ -246,11 +246,7 @@ export function renderStrum(
  * option's on a standard guitar, else generated ones, for the block's `tuning:`). Throws a
  * message for the user.
  */
-export function renderStrumBlock(
-    doc: Document,
-    source: string,
-    options: RenderOptions
-): SVGElement {
+export function renderStrumBlock(doc: Document, source: string, options: RenderOptions): Element {
     const pattern = parseStrum(source)
     const tuning = pattern.tuning ? parseTuning(pattern.tuning) : undefined
     if (tuning === null)
@@ -264,8 +260,13 @@ export function renderStrumBlock(
         pattern.compound,
         pattern.beatUnit
     )
-    return renderStrum(doc, pattern, {
+    const drawn = renderStrum(doc, pattern, {
         voicing: (chord) => strumVoicing(chord, tuning, options.voicings),
         ...(bpm !== undefined && Number.isFinite(bpm) ? { bpm } : {})
     })
+    if (!pattern.note) return drawn
+    // How strums written alone were placed, under the grid: a note, not an error (#73).
+    const wrap = html(doc, 'div', 'mn-strum-block')
+    wrap.append(drawn, html(doc, 'p', 'mn-strum-note', pattern.note))
+    return wrap
 }

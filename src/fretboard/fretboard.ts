@@ -2,7 +2,7 @@
  * Fretboards with the notes of a scale, chord or list, as SVG. Horizontal by default, high string
  * on top like tabs; vertical has the nut on top, like a chord diagram.
  */
-import { playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 import {
     labelOf,
@@ -268,7 +268,7 @@ export function renderFretboard(
                         'data-mn-fret': fret,
                         'data-mn-note': member.name
                     }),
-                    ...(text ? [svgLabel(doc, text, point, 'mn-dot-text')] : [])
+                    ...(text ? [dotLabel(doc, text, point, DOT_R)] : [])
                 )
             )
             sounding.add(open + fret)
@@ -281,6 +281,7 @@ export function renderFretboard(
     root.setAttribute('data-mn-set', set.title)
     root.setAttribute('data-mn-labels', label)
     root.setAttribute('data-mn-orientation', orientation)
+    root.setAttribute('data-mn-hand', options.hand ?? 'right')
     root.setAttribute('data-mn-frets', `${from}-${to}`)
     return root
 }

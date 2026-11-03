@@ -393,6 +393,10 @@
     font-weight: 600;
 }
 
+.mn-svg .mn-dot-text.mn-dot-text-long {
+    font-size: 8px;
+}
+
 .mn-svg .mn-open {
     fill: none;
     stroke: var(--mn-fg);
@@ -694,6 +698,12 @@
 .mn-error-message {
     color: var(--text-error, #c92a2a);
     font-size: 0.9em;
+}
+
+.mn-strum-note {
+    margin: 0.3em 0 0;
+    color: var(--mn-muted);
+    font-size: 0.85em;
 }
 
 /* Strumming patterns: arrows and counts in the text color, accents and chords in the accent

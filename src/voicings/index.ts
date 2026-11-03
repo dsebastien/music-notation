@@ -12,7 +12,7 @@ import { baseFretOf, type FrettedVoicing } from '../chord/guitar.js'
 import { chordInfo, fingerVoicing, generateVoicings } from '../chord/generate.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { canonicalSuffix } from '../theory/suffix.js'
-import { fingeringProblem, voicingProblem } from './check.js'
+import { fingeringProblem, strummable, voicingProblem } from './check.js'
 import { CURATED } from './curated.js'
 
 /** Finds the n-th voicing (0-based) of a chord symbol; null when unknown. Chords the database
@@ -168,8 +168,13 @@ function checked(
             add({ frets: v.frets, fingers: v.fingers, baseFret: v.baseFret })
         }
     }
-    checkedCache.set(key, list)
-    return list
+    // A strummable voicing first: one with a muted string inside the shape goes after the others,
+    // unless it's curated (the Hendrix grip) (#72).
+    const curated = new Set((CURATED[key] ?? []).map((e) => compact(parseFrets(e.split(' ')[0]!))))
+    const first = (v: FrettedVoicing) => curated.has(compact(v.frets)) || strummable(v.frets)
+    const ordered = [...list.filter(first), ...list.filter((v) => !first(v))]
+    checkedCache.set(key, ordered)
+    return ordered
 }
 
 const generatedCache = new Map<string, FrettedVoicing[]>()

@@ -9,6 +9,18 @@ describe('parseTuning', () => {
         expect(parseTuning('Drop D')).toEqual([38, 45, 50, 55, 59, 64])
     })
 
+    it('knows the drop, open and lowered tunings (#54)', () => {
+        expect(parseTuning('Drop C')).toEqual([36, 43, 48, 53, 57, 62]) // C G C F A D
+        expect(parseTuning('Drop B')).toEqual([35, 42, 47, 52, 56, 61]) // B F# B E G# C#
+        expect(parseTuning('Drop A')).toEqual([33, 40, 45, 50, 54, 59]) // A E A D F# B
+        expect(parseTuning('Double Drop D')).toEqual([38, 45, 50, 55, 59, 62]) // D A D G B D
+        expect(parseTuning('Open C')).toEqual([36, 43, 48, 55, 60, 64]) // C G C G C E
+        expect(parseTuning('Open A')).toEqual([40, 45, 52, 57, 61, 64]) // E A E A C# E
+        expect(parseTuning('Whole step down')).toEqual([38, 43, 48, 53, 57, 62]) // D G C F A D
+        expect(parseTuning('Modal C6')).toEqual([36, 45, 48, 55, 60, 64]) // C A C G C E
+        expect(parseTuning('C6')).toEqual(parseTuning('Modal C6'))
+    })
+
     it('reads explicit pitches and letters', () => {
         expect(parseTuning('E2 A2 D3 G3 B3 E4')).toEqual([40, 45, 50, 55, 59, 64])
         expect(parseTuning('DADGAD')).toEqual([38, 45, 50, 55, 57, 62])

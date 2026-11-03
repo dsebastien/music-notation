@@ -54,6 +54,7 @@ import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { parseChord } from '../theory/chord-symbol.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
 import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
+import { fingerVoicing } from '../chord/generate.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import {
@@ -73,8 +74,10 @@ import {
     numberingOf,
     positionCount,
     positionOf,
+    relativeMinorOf,
     scalePosition,
-    type Cell
+    type Cell,
+    type PositionSystem
 } from '../fretboard/positions.js'
 import { withScalesFor } from './scales-for.js'
 import { renderProgression } from './progression.js'
@@ -476,7 +479,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             ...(capo ? { capo, fretsFrom: fromNut ? 'nut' : 'capo' } : {}),
             ...(capo && sounds ? { sounds } : {}),
             orientation: orientationOf(block, options.orientation?.chord),
-            hand: handOf(block, options)
+            hand: handOf(block, options),
+            // Frets written without fingers still show a full barre's bar (#73).
+            ...(voicing.fingers.some((f) => f)
+                ? {}
+                : { barreFingers: fingerVoicing(voicing.frets) })
         }),
         symbol
     )
@@ -764,9 +771,9 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const stringsText = field(block, 'strings')
     const count = (tuning ?? STANDARD_TUNING).length
     const strings = stringsText ? parseStrings(stringsText, count).map((n) => count - n) : undefined
-    // A single arpeggio shape is titled like the diagrams of `positions:` ("G7 arpeggio, A shape").
-    const shapeTitle =
-        arpeggio && at ? `${set.title} arpeggio, ${CAGED_SHAPES[at.n - 1]} shape` : undefined
+    // A single position is titled like the diagrams of `positions:` ("G major, E shape",
+    // "A minor pentatonic, box 2", "G7 arpeggio, A shape") (#73).
+    const shapeTitle = at ? positionTitle(set, at, arpeggio, field(block, 'numbering')) : undefined
     return renderFretboard(doc, set, {
         title: field(block, 'title') ?? shapeTitle,
         ...(strings ? { strings } : {}),
@@ -780,6 +787,21 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         orientation: orientationOf(block, options.orientation?.fretboard),
         hand: handOf(block, options)
     })
+}
+
+/** A single position's title, as `positions:` titles each of its diagrams. */
+function positionTitle(
+    set: NoteSet,
+    at: { system: PositionSystem; n: number },
+    arpeggio: boolean,
+    numbering: string | undefined
+): string {
+    const name = arpeggio ? `${set.title} arpeggio` : set.title
+    const from =
+        numberingOf(numbering, set, at.system) === 'minor' ? ` (from ${relativeMinorOf(set)}m)` : ''
+    if (at.system === 'caged') return `${name}, ${CAGED_SHAPES[at.n - 1]} shape`
+    if (at.system === '3nps') return `${name}, 3nps ${at.n}${from}`
+    return `${name}, box ${at.n}${from}`
 }
 
 /** Diagram languages and their renderers. */

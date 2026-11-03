@@ -1,5 +1,5 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
-import { playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 import { chromaOf, nameOf } from '../theory/pitch.js'
 
@@ -34,6 +34,11 @@ export interface GuitarDiagramOptions {
     orientation?: Orientation
     /** Left-handed: mirrored (the low string on the right, or the nut on the right). */
     hand?: Hand
+    /**
+     * Fingers worked out for a voicing written without any (`fingerVoicing`): only its full
+     * barres are drawn from them (F 133211 keeps its bar); its dots stay without numbers (#73).
+     */
+    barreFingers?: readonly (string | null)[] | null
     /** Text in each string's dot instead of its finger (intervals, note names); null for none. */
     labels?: (string | null)[]
     /** Chord transitions: fingers that stay (anchor) or slide (guide), per string. */
@@ -205,6 +210,14 @@ export function renderGuitarDiagram(
     const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).replace(/^Capo/, 'capo')}` : ''}`
     const height = frame.height + (caption ? CAPTION : 0)
     const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
+    // Its hand, for a redraw that must keep it (#60).
+    root.setAttribute('data-mn-hand', options.hand ?? 'right')
+    // The frets as written (x02220, x-12-14-14-14-12 past fret 9), for tools that read diagrams.
+    const fretText = voicing.frets.map((f) => (f === null ? 'x' : String(f)))
+    root.setAttribute(
+        'data-mn-voicing',
+        fretText.some((f) => f.length > 1) ? fretText.join('-') : fretText.join('')
+    )
     if (caption) {
         root.appendChild(
             svgText(doc, caption, {
@@ -276,7 +289,15 @@ export function renderGuitarDiagram(
     const textOf = (s: number) => (options.labels ? options.labels[s] : voicing.fingers[s]) ?? null
     // Strings whose text the barre's one label stands for.
     const quiet = new Set<number>()
-    for (const barre of barresOf(voicing, capoFret)) {
+    const fingered = voicing.fingers.some((f) => f)
+    const barres = fingered
+        ? barresOf(voicing, capoFret)
+        : options.barreFingers
+          ? barresOf({ frets: voicing.frets, fingers: [...options.barreFingers] }, capoFret).filter(
+                (b) => b.full
+            )
+          : []
+    for (const barre of barres) {
         const texts = new Set(barre.strings.map(textOf))
         if (texts.size === 1) {
             // One finger number for the whole bar, on its lowest string.
@@ -389,7 +410,7 @@ export function renderGuitarDiagram(
                 r: 7,
                 ...midi
             }),
-            ...(text ? [svgLabel(doc, text, center, 'mn-dot-text')] : [])
+            ...(text ? [dotLabel(doc, text, center, 7)] : [])
         )
     })
     // What playback plays: the sounding strings, low to high (when the tuning is known).

@@ -23,6 +23,75 @@ describe('renderBlock', () => {
         expect(isNotationLanguage('toString')).toBe(false)
     })
 
+    it('draws the full barre of frets written without fingers (#73)', () => {
+        const h = host()
+        renderBlock('chord', 'F 133211', h)
+        const bars = h.querySelectorAll('.mn-barre')
+        expect(bars).toHaveLength(1)
+        expect(bars[0]!.getAttribute('data-mn-fret')).toBe('1')
+        // No finger numbers appear: none were written.
+        expect([...h.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)).toEqual([])
+        // An A-shape barre too; an open chord or a small grip gets none.
+        const bm = host()
+        renderBlock('chord', 'Bm7 x24232', bm)
+        expect(bm.querySelectorAll('.mn-barre')).toHaveLength(1)
+        const open = host()
+        renderBlock('chord', 'A x02220', open)
+        expect(open.querySelectorAll('.mn-barre')).toHaveLength(0)
+        const small = host()
+        renderBlock('chord', 'F xx3211', small)
+        expect(small.querySelectorAll('.mn-barre')).toHaveLength(0)
+    })
+
+    it('fits a three-character label inside its dot (#73)', () => {
+        const h = host()
+        renderBlock('chord', 'Cdim7 x3424x\nlabels: intervals', h)
+        const long = [...h.querySelectorAll('.mn-dot-text')].find((t) => t.textContent === 'bb7')!
+        expect(long).toBeDefined()
+        expect(long.classList.contains('mn-dot-text-long')).toBe(true)
+        // Squeezed to the dot's width (r = 7): the text never passes its edge.
+        expect(Number(long.getAttribute('textLength'))).toBeLessThanOrEqual(12)
+        expect(long.getAttribute('lengthAdjust')).toBe('spacingAndGlyphs')
+        // Short labels keep their size.
+        const r = [...h.querySelectorAll('.mn-dot-text')].find((t) => t.textContent === 'R')!
+        expect(r.classList.contains('mn-dot-text-long')).toBe(false)
+        expect(r.getAttribute('textLength')).toBeNull()
+        // Fretboards too.
+        const f = host()
+        renderBlock('fretboard', 'chord: Cdim7\nlabels: intervals', f)
+        const fl = [...f.querySelectorAll('.mn-dot-text')].find((t) => t.textContent === 'bb7')
+        expect(fl?.classList.contains('mn-dot-text-long')).toBe(true)
+    })
+
+    it('shows how a strum pattern placed by the hand was read (#73)', () => {
+        const h = host()
+        const result = renderBlock('strum', 'D U D U\nsubdivision: triplets', h)
+        // A note, not an error: the pattern draws and plays.
+        expect(result.ok).toBe(true)
+        expect(h.querySelector('svg.mn-strum')).not.toBeNull()
+        expect(h.querySelector('.mn-strum-note')?.textContent).toContain('Read as D - U D - U')
+        const plain = host()
+        renderBlock('strum', 'D DU UDU', plain)
+        expect(plain.querySelector('.mn-strum-note')).toBeNull()
+    })
+
+    it('titles a single scale position like the diagrams of positions: all (#73)', () => {
+        const title = (source: string) => {
+            const h = host()
+            renderBlock('fretboard', source, h)
+            return h.querySelector('.mn-title')?.textContent
+        }
+        expect(title('scale: G major\nshape: E')).toBe('G major, E shape')
+        expect(title('scale: A minor pentatonic\nposition: 2')).toBe('A minor pentatonic, box 2')
+        expect(title('scale: C major\nshape: 3nps\nposition: 1')).toBe('C major, 3nps 1')
+        expect(title('scale: A major pentatonic\nposition: 1\nnumbering: minor')).toBe(
+            'A major pentatonic, box 1 (from F#m)'
+        )
+        expect(title('arpeggio: G7\nshape: A')).toBe('G7 arpeggio, A shape')
+        // A title given wins.
+        expect(title('scale: G major\nshape: E\ntitle: Mine')).toBe('Mine')
+    })
+
     it('renders a guitar chord from the shorthand', () => {
         const h = host()
         const result = renderBlock('chord', 'A x02220 x01230', h)

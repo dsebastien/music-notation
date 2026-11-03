@@ -6,6 +6,7 @@
 import { accessibleName, html, setAccessibleName, svg } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
+import type { Hand } from '../render/layout.js'
 import { chartNoteName, renderGuitarDiagram, STANDARD_TUNING } from '../chord/guitar.js'
 import { generateVoicings } from '../chord/generate.js'
 import {
@@ -56,6 +57,11 @@ export interface PlayOptions {
      * is the guitar's (piano chords stay a block); `{ guitar, piano }` sets each instrument's.
      */
     strum?: number | { guitar?: number; piano?: number }
+    /**
+     * The hand of the page or app (its layout default): a diagram redrawn for guitar from one that
+     * has no hand (a keyboard, a piano chord) is drawn for it. Right by default (#60).
+     */
+    hand?: Hand
 }
 
 /** A number within bounds; the fallback when it isn't a number at all. */
@@ -168,7 +174,15 @@ function spelledNote(name: string, midi: number): string {
  * and root otherwise. With the title, the labels and the orientation (between fretboards and
  * keyboards); null when nothing can be drawn (no note within a guitar's range).
  */
-function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element | null {
+function redrawFor(
+    doc: Document,
+    diagram: Element,
+    data: DiagramData,
+    pageHand: Hand = 'right'
+): Element | null {
+    // A guitar drawing keeps the diagram's own hand, else the page's (a keyboard has none).
+    const own = diagram.getAttribute('data-mn-hand')
+    const hand: Hand = own === 'left' || own === 'right' ? own : pageHand
     // A guitar can't play below its low E (MIDI 40) or past fret 24 of the high E (88).
     const toGuitar = data.sound === 'piano'
     const pitches = [...new Set(data.pitches)]
@@ -249,6 +263,7 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
                   ? grip.frets.map(() => null)
                   : null
         const drawn = renderGuitarDiagram(doc, grip, {
+            hand,
             ...(title ? { title } : {}),
             root: chordSet.root,
             ...(labels ? { labels } : {})
@@ -265,6 +280,7 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
     const drawn = toGuitar
         ? renderFretboard(doc, set, {
               label,
+              hand,
               ...(title ? { title } : {}),
               ...(orientation ? { orientation } : {}),
               frets: [0, Math.max(12, Math.min(24, pitches[pitches.length - 1]! - 64))]
@@ -515,7 +531,7 @@ function barFor(
     const redraws = diagram.getAttribute('data-mn-redraw') !== 'no'
     const drawFor = () => {
         if (!redraws) return
-        if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data)
+        if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data, options.hand)
         const next = settings.sound === data.sound ? diagram : (other ?? diagram)
         // Only while the host leaves the drawing in its wrapper.
         if (next !== shown && shown.parentNode === wrap) {

@@ -369,9 +369,13 @@ function shapeOf(
     if (info.members.length === 2 && info.tones.every((t) => t.number === 1 || t.number === 5)) {
         return 'Power chord'
     }
-    // Root, third and seventh (or sixth) only, on three or four strings.
+    // Root, third and seventh (or sixth): three notes on three strings, the root lowest (x3x45x,
+    // 3x34xx). A doubled root or third (Cmaj7 x3250x) is not a shell (#72).
+    const lowest = (tuning[sounding[0]!]! + frets[sounding[0]!]!) % 12
     const shell =
-        sounding.length <= 4 &&
+        sounding.length === 3 &&
+        chromas.size === 3 &&
+        lowest === info.root &&
         info.tones.some((t) => t.number === 7 || t.number === 6) &&
         [...chromas].every((c) =>
             info.tones.some((t) => t.chroma === c && [1, 3, 6, 7].includes(t.number))
@@ -434,6 +438,64 @@ const KNOWN_SHAPES = new Set<VoicingShape>([
     'D shape',
     'Power chord'
 ])
+
+/**
+ * Jazz grips with muted strings, in standard tuning: each string's fret from the root's (null:
+ * muted), lowest string first. The Hendrix grip (7#9, x3234x for C), m7b5 and dim7 from the low
+ * E (2x221x for F#m7b5, 3x232x for Gdim7) and the 13 (3x345x for G13). Players use them though
+ * they mute strings inside the shape, so generated lists add them and rank them with the known
+ * shapes (#72).
+ */
+const JAZZ_GRIPS: readonly { rootString: number; offsets: readonly (number | null)[] }[] = [
+    { rootString: 1, offsets: [null, 0, -1, 0, 1, null] },
+    { rootString: 0, offsets: [0, null, 0, 0, -1, null] },
+    { rootString: 0, offsets: [0, null, -1, 0, -1, null] },
+    { rootString: 0, offsets: [0, null, 0, 1, 2, null] }
+]
+
+/**
+ * One voicing per shape: leaves out a voicing that is another one of the list with its highest
+ * strings muted (A x0222x and 57765x, copies of x02220 and 577655), then draws the rest up the neck (lowest
+ * fretted note; ties keep the list's order, the easiest first). `count` voicings are kept, the
+ * easiest ones, before they are put in neck order (#72).
+ */
+export function distinctShapes<T extends { frets: readonly (number | null)[] }>(
+    voicings: readonly T[],
+    count = voicings.length
+): T[] {
+    const sounding = (v: T) => v.frets.flatMap((f, s) => (f === null ? [] : [s]))
+    // The same grip with its highest strings muted: its strings are the other's lowest ones.
+    // A different bass (xx7-9-10-9 against x07-9-10-9) is another voicing.
+    const copyOf = (v: T, w: T) => {
+        const mine = sounding(v)
+        const theirs = sounding(w)
+        return (
+            mine.length < theirs.length &&
+            v.frets.length === w.frets.length &&
+            mine.every((s, i) => theirs[i] === s && w.frets[s] === v.frets[s])
+        )
+    }
+    const kept = voicings.filter((v) => !voicings.some((w) => w !== v && copyOf(v, w)))
+    const lowest = (v: T) => {
+        const fretted = v.frets.filter((f): f is number => f !== null && f > 0)
+        return fretted.length ? Math.min(...fretted) : 0
+    }
+    return kept
+        .slice(0, count)
+        .map((v, rank) => ({ v, rank }))
+        .sort((a, b) => lowest(a.v) - lowest(b.v) || a.rank - b.rank)
+        .map(({ v }) => v)
+}
+
+/** Whether standard-tuning frets are one of the known jazz grips, at any fret (#72). */
+export function isJazzGrip(frets: readonly (number | null)[]): boolean {
+    if (frets.length !== 6) return false
+    return JAZZ_GRIPS.some(({ rootString, offsets }) => {
+        const root = frets[rootString]
+        if (root === null || root === undefined || root < 1) return false
+        return offsets.every((o, s) => (o === null ? frets[s] === null : frets[s] === root + o))
+    })
+}
 
 /** Guitarist string number (1 = highest) ↔ index (0 = lowest). */
 const indexOf = (number: number, count: number) => count - number
@@ -582,7 +644,14 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
             difficulty += 0.5
             reasons.push('no fifth')
         }
+        // A jazz grip mutes strings on purpose: no cost for them, and a known shape's bonus.
+        const jazz = standard && isJazzGrip(candidate)
+        if (jazz) {
+            difficulty -= 2 * inner + strings.filter((s) => s > last).length * 1.5
+            reasons.push('jazz grip')
+        }
         if (usual) difficulty -= 3
+        else if (jazz) difficulty -= 1.5
         else if (isBarreShape(shape) && barre) difficulty -= 2
         else if (shape && KNOWN_SHAPES.has(shape)) difficulty -= 1.5
         const lowChroma = low % 12
@@ -645,6 +714,27 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
     }
 
     visit(0, Infinity, -Infinity, 0, 0, false)
+    // The jazz grips the search skips (a muted string inside the shape), when they play the chord.
+    if (standard && !options.gaps) {
+        for (const { rootString, offsets } of JAZZ_GRIPS) {
+            if (!allowed.has(rootString)) continue
+            const rootFret = (((info.root - tuning[rootString]!) % 12) + 12) % 12
+            for (const at of [rootFret, rootFret + 12]) {
+                const candidate = offsets.map((o) => (o === null ? null : at + o))
+                if (candidate.some((f, s) => f !== null && (f < 1 || !choices[s]!.includes(f))))
+                    continue
+                const have = candidate.reduce<number>(
+                    (mask, f, s) => (f === null ? mask : mask | (1 << ((tuning[s]! + f) % 12))),
+                    0
+                )
+                if ((required & ~have) !== 0) continue
+                const key = candidate.join(',')
+                if (results.has(key)) continue
+                const voicing = evaluate(candidate)
+                if (voicing) results.set(key, voicing)
+            }
+        }
+    }
     const sounding = (v: GeneratedVoicing) => v.frets.filter((f) => f !== null).length
     return [...results.values()].sort(
         (a, b) =>

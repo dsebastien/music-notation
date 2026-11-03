@@ -609,6 +609,33 @@ describe('choosing the other instrument redraws the diagram', () => {
         s.remove()
     })
 
+    it('redraws for guitar with the hand of the page (#60)', () => {
+        // A keyboard has no hand: the redrawn fretboard and grip follow the layout default.
+        const k = host()
+        renderBlock('keyboard', 'scale: A minor pentatonic', k, { play: {}, hand: 'left' })
+        choose(k, 'guitar')
+        expect(k.querySelector('svg.mn-fretboard')?.getAttribute('data-mn-hand')).toBe('left')
+        k.remove()
+        const c = host()
+        renderBlock('chord', 'C\ninstrument: piano', c, { play: {}, hand: 'left' })
+        choose(c, 'guitar')
+        expect(c.querySelector('svg.mn-guitar-chord')?.getAttribute('data-mn-hand')).toBe('left')
+        c.remove()
+        // Right-handed pages stay right-handed.
+        const r = host()
+        renderBlock('keyboard', 'scale: A minor pentatonic', r, { play: {} })
+        choose(r, 'guitar')
+        expect(r.querySelector('svg.mn-fretboard')?.getAttribute('data-mn-hand')).toBe('right')
+        r.remove()
+        // A left-handed fretboard redrawn as a keyboard and back is its own drawing again.
+        const f = host()
+        renderBlock('fretboard', 'scale: A minor pentatonic\nhand: left', f, { play: {} })
+        choose(f, 'piano')
+        choose(f, 'guitar')
+        expect(f.querySelector('svg.mn-fretboard')?.getAttribute('data-mn-hand')).toBe('left')
+        f.remove()
+    })
+
     it('draws a keyboard as a fretboard on guitar, and a click there plays its note', () => {
         const h = host()
         const calls: number[] = []
