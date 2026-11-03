@@ -127,8 +127,17 @@ describe('renderChart', () => {
             'A#7'
         ])
         expect(chords('{key: A}\n[A]a [D]b [E7]c', 1)).toEqual(['Bb', 'Eb', 'F7'])
-        // Without a key, each chord keeps its own spelling.
-        expect(chords('[G]a [Bb]b', 1)).toEqual(['G#', 'B'])
+        // Without a key, the key the chords are likeliest in: one spelling direction.
+        expect(chords('[C]a [F]b [G7]c [Am]d [E7]e [Bb]f', 1)).toEqual([
+            'Db',
+            'Gb',
+            'Ab7',
+            'Bbm',
+            'F7',
+            'Cb'
+        ])
+        expect(chords('[Am]a [Dm]b [E7]c', 2)).toEqual(['Bm', 'Em', 'F#7'])
+        expect(chords('[A]a [D]b [E7]c [F#m]d', -1)).toEqual(['Ab', 'Db', 'Eb7', 'Fm'])
     })
 
     it('spells the chords used row like the lyrics', () => {

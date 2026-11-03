@@ -4,8 +4,12 @@ import { keyMove, keyPrefersFlats, transposeChord, transposeKey } from '../theor
 import type { Song } from './chordpro.js'
 import type { Hand, LayoutDefaults } from '../render/layout.js'
 import type { VoicingLookup } from '../voicings/index.js'
+import { findKey } from '../theory/find.js'
+import { parseChord } from '../theory/chord-symbol.js'
+import { chordNoteSet } from '../theory/note-set.js'
 import {
     chordDiagram,
+    chordsUsed,
     missingMessage,
     renderChordsUsed,
     type ChartInstrument,
@@ -39,13 +43,23 @@ const SECTION_LABELS: Record<string, string> = {
     grid: 'Grid'
 }
 
+/** The key a song's chords are likeliest in ("C", "Am"); null when none reads. */
+function guessedKey(song: Song): string | null {
+    const chords = chordsUsed(song).filter((c) => parseChord(c) && chordNoteSet(c))
+    const found = chords.length ? findKey(chords) : null
+    return found ? `${found.tonic}${found.mode === 'minor' ? 'm' : ''}` : null
+}
+
 export function renderChart(doc: Document, song: Song, options: ChartOptions = {}): HTMLElement {
     const extra = options.transpose ?? 0
     const semitones = song.transpose + (Number.isFinite(extra) ? Math.round(extra) : 0)
     const key = song.key ? transposeKey(song.key, semitones) : null
     const flats = key ? keyPrefersFlats(key) : undefined
-    // With a key, chords move by the interval between the keys (letters kept: G → F#, C → B).
-    const move = song.key ? keyMove(song.key, semitones) : null
+    // Chords move by the interval between the keys (letters kept: G → F#, C → B). Without a
+    // {key}, the key the chords are likeliest in, so every chord moves the same way (C F G7 Bb up
+    // 1: Db Gb Ab7 Cb, not C# F# G#7 B).
+    const from = song.key ?? (semitones % 12 ? guessedKey(song) : null)
+    const move = from ? keyMove(from, semitones) : null
     const spelling = move ?? flats
     const chord = (symbol: string) => transposeChord(symbol, semitones, spelling)
     const drawing: ChordDrawing = {
