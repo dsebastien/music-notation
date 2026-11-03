@@ -202,5 +202,11 @@ describe('progression block', () => {
         expect(error('I IV V\nkey: C\ninstrument: piano\nhands: three')).toContain('hands: use')
         expect(error(`${Array(33).fill('I').join(' ')}\nkey: C`)).toContain('At most 32 chords')
         expect(error('G Dxyz')).toContain('Didn\'t read "Dxyz"')
+        // Counted before reading: 800 chords (and one that doesn't read) fail fast on the count.
+        const start = performance.now()
+        expect(error(`${Array(800).fill('G').join(' ')} Xyz`)).toBe(
+            'At most 32 chords per block, found 801'
+        )
+        expect(performance.now() - start).toBeLessThan(100)
     })
 })

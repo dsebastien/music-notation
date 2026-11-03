@@ -93,9 +93,13 @@ interface Section {
     block: BlockSource
 }
 
+/** A section's chords as written. */
+const chordsText = (block: BlockSource): string | undefined =>
+    block.head ?? field(block, 'progression') ?? field(block, 'chords')
+
 /** One section's chords in its key, transposed. */
 function sectionOf(block: BlockSource): Section {
-    const text = block.head ?? field(block, 'progression') ?? field(block, 'chords')
+    const text = chordsText(block)
     if (!text) {
         throw new Error('Add the chords: e.g. I V vi IV with key: G, 1 5 6m 4, or G D Em C')
     }
@@ -276,12 +280,12 @@ export function renderProgression(
     const shared = sharedOnly ? first.fields : new Map<string, string>()
     const own = sharedOnly ? blocks.slice(1) : blocks
     if (!own.length) throw new Error('Add the chords after the shared settings, after a "---" line')
-    const sections = own.map((b) =>
-        sectionOf({ head: b.head, fields: new Map([...shared, ...b.fields]) })
-    )
-    const count = sections.reduce((n, s) => n + s.chords.length, 0)
+    const merged = own.map((b) => ({ head: b.head, fields: new Map([...shared, ...b.fields]) }))
+    // Counted before any chord is read: finding the key of hundreds of chords takes a while.
+    const count = merged.reduce((n, b) => n + progressionTokens(chordsText(b) ?? '').length, 0)
     if (count > MAX_CHORDS)
         throw new Error(`At most ${MAX_CHORDS} chords per block, found ${count}`)
+    const sections = merged.map(sectionOf)
     const el = html(doc, 'div', 'mn-progression')
     // One title for the block (shared, or a single section's); else each section's own.
     const blockTitle =
