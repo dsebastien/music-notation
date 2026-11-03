@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.1 (2026-11-03)
+
+- **Arpeggio and strumming pattern notes on Obsidian Publish**: empty blocks in arpeggio notes, in guitar chord notes (the fretboard) and in strumming pattern notes now draw from the page's properties. They draw the same as in Music Practice 0.11. An arpeggio note's fretboard (a keyboard on piano) draws its chord's arpeggio, in its CAGED `shape` when it has one. A strumming pattern note's `strum` block draws `strum_pattern`, with `time_signature`, `strum_feel`, `chord_symbol` and `bpm_current` as the tempo. The kind of note comes from its type tag (`type/music/guitar/arpeggio`). Before, these blocks stayed empty on Publish (Music Practice #56, #58).
+- **Guitar chord notes draw their arpeggio**: this changes what your pages show. The empty `fretboard` block of a guitar chord note now draws the chord's arpeggio, in Obsidian and on Publish, as in Music Practice. Before, it stayed empty. A chord note page you already published can now show a fretboard where it showed nothing (Music Practice #56).
+- **Long text tab lines are fast again**: a text tab line with no bar lines converts in linear time again. Since 0.10.0, a palm mute (PM) or slide line over a very long bar got slower with its length: 499 ms for a palm mute line of 50,000 columns. It now takes 64 ms. The output does not change. Real tabs (about 100 columns) were not affected in practice.
+- For apps: `blockFromProperties` and `renderBlock` with `properties` draw these notes too, and `renderBlock` now sends an empty `strum` block through the properties. `PropertyNames` has four new names: `strumPattern`, `timeSignature`, `strumFeel` and `bpmCurrent` (`strum_pattern`, `time_signature`, `strum_feel` and `bpm_current` in `DEFAULT_PROPERTY_NAMES`).
+
 ## 0.10.0 (2026-11-03)
 
 - **Voicing lists, one diagram per shape**: `voicings:` now draws one diagram per shape: the easiest ones, put in a row up the neck. Before, it drew every voicing, easiest first. A shape with its highest strings muted is the same shape, so it is left out. A `voicings:` block you already wrote can draw other diagrams, in another order. A now gets its D shape `x-x-7-9-10-9` and its C shape (#72).
