@@ -50,7 +50,7 @@ window.musicNotationOptions = {
 }
 ```
 
-- Empty blocks can draw from the page's properties ([from a note's properties](blocks.md#from-a-notes-properties)): give the library a function that returns them. On Obsidian Publish, they're in the site's cache:
+- Empty blocks can draw from the page's properties ([from a note's properties](blocks.md#from-a-notes-properties)): give the library a function that returns them. This covers chord, scale, arpeggio and strumming pattern notes. On Obsidian Publish, they're in the site's cache:
 
 ```js
 window.musicNotationOptions = {

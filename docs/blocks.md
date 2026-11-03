@@ -658,14 +658,17 @@ With playback on, a click on a key or a chord plays it, and the play button play
 
 ## From a note's properties
 
-An empty `chord`, `fretboard` or `keyboard` block can draw what the note's properties say, so a note doesn't repeat its frets or its scale in the body. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
+An empty `chord`, `fretboard`, `keyboard` or `strum` block can draw what the note's properties say, so a note doesn't repeat its frets, its scale, its arpeggio or its strumming pattern in the body. The kind of note comes from its type tag (`type/music/guitar/arpeggio`), as in Music Practice, so a note draws the same in Obsidian and on Publish. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
 
-| Properties                                     | Draws                                                                          |
-| ---------------------------------------------- | ------------------------------------------------------------------------------ |
-| `chord_symbol`, `frets`, `fingers`, `position` | A guitar chord (`position` from 1; 0 or empty: computed).                      |
-| `chord_symbol`, `pitches`, `fingering`         | A piano chord, when a tag has a `piano` segment (`type/music/piano/chord`).    |
-| `scale_root`, `scale_type`, `shape`            | A scale on a fretboard; `shape` `Box 2`, `CAGED E` or `3NPS` picks a position. |
-| `scale_root`, `scale_type`, `fingering_rh`     | A scale on a keyboard, with its fingering.                                     |
+| Properties                                                                     | Draws                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `chord_symbol`, `frets`, `fingers`, `position`                                 | A guitar chord (`position` from 1; 0 or empty: computed).                                                                                                                                   |
+| `chord_symbol`, `pitches`, `fingering`                                         | A piano chord, when a tag has a `piano` segment (`type/music/piano/chord`).                                                                                                                 |
+| `scale_root`, `scale_type`, `shape`                                            | A scale on a fretboard; `shape` `Box 2`, `CAGED E` or `3NPS` picks a position.                                                                                                              |
+| `scale_root`, `scale_type`, `fingering_rh`                                     | A scale on a keyboard, with its fingering.                                                                                                                                                  |
+| `chord_symbol`, `shape` (arpeggio note)                                        | An arpeggio on a fretboard (a keyboard on piano), when a tag is `type/music/<instrument>/arpeggio`. A CAGED `shape` (`E`, `CAGED E`, `E shape`) picks it; other shapes draw the whole neck. |
+| `chord_symbol`, `shape` (guitar chord note)                                    | In an empty fretboard: the chord's arpeggio, in its CAGED `shape` when it has one.                                                                                                          |
+| `strum_pattern`, `time_signature`, `strum_feel`, `chord_symbol`, `bpm_current` | A strumming pattern: one bar per list item. A feel of `swing` or `shuffle` swings, `60%` sets the ratio, and `bpm_current` from 20 to 240 is the tempo.                                     |
 
 ## Several diagrams
 
