@@ -533,13 +533,20 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
             let score = 0
             const outside: string[] = []
             const isBlues = mode === 'major' && chroma === bluesChroma
+            const degrees = keyChromas(key)[0]!
+            const onDegree = (symbol: string) => {
+                const root = chordNoteSet(symbol)?.root
+                return root !== null && root !== undefined && degrees.has(root)
+            }
             items.forEach((item, i) => {
                 if (inKey(item, key) || (isBlues && bluesChord(item, key))) score += 2
                 else {
                     outside.push(item)
                     const next = items[i + 1]
-                    // A secondary dominant resolving to the next chord, or a borrowed chord.
-                    if (next && resolves(item, next) && inKey(next, key)) score += 1
+                    // A secondary dominant resolving to the next chord, whose root is a degree of
+                    // the key (E7 A7 in C: V7/vi, though A7 isn't C's), or a borrowed chord.
+                    if (next && resolves(item, next) && (inKey(next, key) || onDegree(next)))
+                        score += 1
                     // A minor key's major IV (dorian: Am D) is common; other borrowed chords less.
                     else if (mode === 'minor' && dorianFour(item, key)) score += 1
                     else if (inKey(item, parallel)) score += 0.5
@@ -554,6 +561,12 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
                     score += (isDominant(item) ? 1.5 : 1) + (final ? 1 : 0)
                 }
             })
+            // A turnaround: the last chord a dominant of the first, the tonic (All of Me ends on
+            // G7 to start again on C).
+            const last = items[items.length - 1]!
+            if (items.length > 2 && isTonic(items[0]!, key) && resolves(last, items[0]!)) {
+                score += isDominant(last) ? 1.5 : 1
+            }
             candidates.push({ ...key, score, outside })
         }
     }
@@ -562,9 +575,11 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
     const [best, runnerUp] = candidates as [KeyCandidate, KeyCandidate]
     // The other keys: those that hold the most chords first (Am F C G: C major before G major),
     // then by score. The best key stays the best score (C Bb F C is C major with a borrowed bVII).
+    // Only keys that hold as many of the chords as the best one (Am F C G: not G major, which
+    // lacks F).
     const others = candidates
         .slice(1)
-        .filter((c) => c.score > 0)
+        .filter((c) => c.score > 0 && c.outside.length <= best.outside.length)
         .sort((a, b) => a.outside.length - b.outside.length || b.score - a.score)
     const top = [best, ...others.slice(0, 4)]
     const isBlues = best.mode === 'major' && chromaOf(best.tonic) === bluesChroma

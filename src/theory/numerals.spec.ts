@@ -278,3 +278,40 @@ describe('progressionChords', () => {
         ])
     })
 })
+
+describe('withTonicizations', () => {
+    const analysis = (chords: string, key: string) =>
+        progressionChords(chords, key)!.map((c) => `${c.numeral} ${c.function}`)
+
+    it('reads a ii-V-I to a chord outside the key as a tonicization', () => {
+        // Blue Bossa: Ebm7 Ab7 Dbmaj7 is a ii-V-I in Db, not a chromatic run to a Neapolitan.
+        expect(analysis('Cm7 Ebm7 Ab7 Dbmaj7 Dm7b5 G7 Cm7', 'C minor')).toEqual([
+            'i7 tonic',
+            'ii7/bII tonicization',
+            'V7/bII secondary dominant',
+            'bIImaj7 tonicization',
+            'iiø7 subdominant',
+            'V7 dominant',
+            'i7 tonic'
+        ])
+    })
+
+    it('reads a dominant of the key going to its chord a fifth below as that chord’s V7', () => {
+        // Fly Me to the Moon in A minor: G7 to Cmaj7 is V7/bIII, not bVII7.
+        expect(analysis('Am7 Dm7 G7 Cmaj7', 'A minor')).toEqual([
+            'i7 tonic',
+            'iv7 subdominant',
+            'V7/bIII secondary dominant',
+            'bIIImaj7 tonic'
+        ])
+        // G7 not resolving stays bVII7; V7 to the tonic stays V7; E7 A7 in C stays V7/vi.
+        expect(analysis('Am G7 Am', 'A minor')[1]).toBe('bVII7 subdominant')
+        expect(analysis('Dm7 G7 C', 'C')[1]).toBe('V7 dominant')
+        expect(analysis('C E7 A7 Dm7', 'C').slice(1, 3)).toEqual([
+            'V7/vi secondary dominant',
+            'V7/ii secondary dominant'
+        ])
+        // Written numerals keep their text; the function follows the move.
+        expect(analysis('bVII7 bIII', 'A minor')[0]).toBe('bVII7 secondary dominant')
+    })
+})

@@ -27,6 +27,7 @@ import {
     numeralOf,
     progressionChord,
     progressionTokens,
+    withTonicizations,
     type NumeralOptions,
     type ProgressionChord
 } from '../theory/numerals.js'
@@ -188,7 +189,8 @@ function sectionOf(block: BlockSource): Section {
         chords.map((c) => c.symbol),
         to
     )
-    if (blues) chords = read({ blues })
+    // Else local ii-V-I moves read from each chord and the next (Ebm7 Ab7 Dbmaj7: ii-V-I in Db).
+    chords = blues ? read({ blues }) : withTonicizations(chords, to)
     others = blues ? [] : others.map((name) => (shift ? transposed(keyOf(name), shift).name : name))
     return { key: to, others, chords, blues, block }
 }

@@ -127,7 +127,7 @@ describe('progression block', () => {
         expect(texts(h, 'mn-progression-numeral')).toEqual(['I', 'V', 'vi', 'IV'])
         const unclear = host()
         renderBlock('progression', 'Am F C G\ndiagrams: no', unclear)
-        expect(texts(unclear, 'mn-progression-key')).toEqual(['Key: A minor (or C major, G major)'])
+        expect(texts(unclear, 'mn-progression-key')).toEqual(['Key: A minor (or C major)'])
     })
 
     it('transposes numerals and chord names, spelled for the new key', () => {

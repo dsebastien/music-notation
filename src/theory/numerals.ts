@@ -29,6 +29,7 @@ export type HarmonicFunction =
     | 'neapolitan'
     | 'borrowed'
     | 'chromatic'
+    | 'tonicization'
 
 /** How to read the chords of a progression. */
 export interface NumeralOptions {
@@ -391,14 +392,97 @@ export function progressionChords(
         return out
     }
     const chords = read({})
+    if (!chords) return null
     // A blues on the key's tonic reads its I7 and IV7 as the key's own.
-    return chords &&
-        isBluesIn(
-            chords.map((c) => c.symbol),
-            k
-        )
-        ? read({ blues: true })
-        : chords
+    const blues = isBluesIn(
+        chords.map((c) => c.symbol),
+        k
+    )
+    return blues ? read({ blues: true }) : withTonicizations(chords, k)
+}
+
+/** A dominant seventh chord's quality: a major third and a minor seventh, no sus. */
+function isDominantSeventh(symbol: string): boolean {
+    const members = chordNoteSet(symbol)?.members ?? []
+    return members.some((m) => m.interval === '3M') && members.some((m) => m.interval === '7m')
+}
+
+/** A major or minor chord (a perfect fifth over a third): a chord a dominant can tonicize. */
+function isTonicizable(symbol: string): boolean {
+    const members = chordNoteSet(symbol)?.members ?? []
+    return (
+        members.some((m) => m.interval === '3M' || m.interval === '3m') &&
+        members.some((m) => m.interval === '5P')
+    )
+}
+
+/** A minor seventh or half-diminished chord: the ii of a ii-V. */
+function isTwo(symbol: string): boolean {
+    const members = chordNoteSet(symbol)?.members ?? []
+    return members.some((m) => m.interval === '3m') && members.some((m) => m.interval === '7m')
+}
+
+/**
+ * Local tonicizations, read from each chord and the next: a dominant seventh going to a major or
+ * minor chord a fifth below, other than the tonic, is that chord's V7 (secondary dominant), even
+ * when the key has it (G7 to C in A minor: V7/bIII, not bVII7) or the chord it goes to is outside
+ * the key (Ab7 to Dbmaj7 in C minor: V7/bII). A minor seventh or half-diminished chord outside the
+ * key right before it is its ii (Ebm7 Ab7 Dbmaj7 in C minor: ii7/bII V7/bII), and a chord outside
+ * the key that is tonicized so is a tonicization (not neapolitan or chromatic). Numerals change only
+ * for chord names (a written numeral stays as written); a dominant the key already reads as a
+ * secondary dominant keeps its numeral (E7 A7 in C: V7/vi). A blues is left alone.
+ */
+export function withTonicizations(
+    chords: readonly ProgressionChord[],
+    key: MusicalKey,
+    options: NumeralOptions = {}
+): ProgressionChord[] {
+    const out = chords.map((c) => ({ ...c }))
+    if (options.blues) return out
+    const tonic = chromaOf(key.tonic)
+    const rootOf = (symbol: string) => chordNoteSet(symbol)?.root ?? null
+    const named = (c: ProgressionChord) => /^[A-G]/.test(c.written)
+    out.forEach((chord, i) => {
+        const next = out[i + 1]
+        if (!next || chord.function === 'secondary dominant') return
+        const root = rootOf(chord.symbol)
+        const target = rootOf(next.symbol)
+        if (root === null || target === null || target === tonic) return
+        if (!isDominantSeventh(chord.symbol) || !isTonicizable(next.symbol)) return
+        if ((root - target + 12) % 12 !== 7) return
+        if (splitChordSymbol(chord.symbol)?.bass || splitChordSymbol(next.symbol)?.bass) return
+        // The chord it goes to, as a triad: Dbmaj7 is bII, Am7 vi.
+        const parts = partsIn(next.symbol, key)
+        const minorTarget = chordNoteSet(next.symbol)!.members.some((m) => m.interval === '3m')
+        const targetNumeral = parts
+            ? numeralOf(`${parts.root}${minorTarget ? 'm' : ''}`, key)
+            : null
+        if (!targetNumeral) return
+        const suffix = partsOf(chord.symbol)!.suffix
+        chord.function = 'secondary dominant'
+        if (named(chord))
+            chord.numeral = `${romanText({ number: 5, accidental: '' }, suffix)}/${targetNumeral}`
+        const outside = (c: ProgressionChord) =>
+            ['chromatic', 'neapolitan', 'borrowed'].includes(c.function)
+        if (outside(next)) next.function = 'tonicization'
+        const two = out[i - 1]
+        const twoRoot = two ? rootOf(two.symbol) : null
+        if (
+            two &&
+            twoRoot !== null &&
+            (twoRoot - root + 12) % 12 === 7 &&
+            isTwo(two.symbol) &&
+            !splitChordSymbol(two.symbol)?.bass &&
+            outside(two)
+        ) {
+            two.function = 'tonicization'
+            if (named(two)) {
+                const twoSuffix = partsOf(two.symbol)!.suffix
+                two.numeral = `${romanText({ number: 2, accidental: '' }, twoSuffix)}/${targetNumeral}`
+            }
+        }
+    })
+    return out
 }
 
 /** Whether chords are a dominant-seventh blues on a major key's tonic (A7 D7 E7 in A). */
