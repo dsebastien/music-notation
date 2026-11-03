@@ -466,6 +466,7 @@ Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, m
 - `position: 1` to `5`, or `shape: E`, `D`, `C`, `A`, `G`: the chord tones of that CAGED shape. Each shape is the CAGED position of the root's major scale (natural minor for chords with a minor third), keeping only the chord's notes. Chord notes outside that scale (G7's F, Caug's G#) are added on the string that keeps the hand in place.
 - `positions: all` (or a list, `positions: 1 3`) draws the shapes side by side in neck order, each one at or above the one before; `frets:` with one position draws it in the lowest octave inside those frets. These are the same rules as for scale positions.
 - A chord with a position is an arpeggio too (`chord: G7` with `shape: A`), unless the block also has a `scale:` (see [a chord over a scale](#which-scale-fits)). `labels:` works as usual. Arpeggios have no 3NPS positions.
+- One arpeggio shape is titled with the chord and its shape ("G7 arpeggio, A shape"), like the diagrams of `positions:`; `title:` replaces it.
 - On a keyboard, `arpeggio:` plays the notes one at a time.
 - Use `arpeggio:` or `chord:`, not both.
 
