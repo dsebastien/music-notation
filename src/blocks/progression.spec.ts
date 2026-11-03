@@ -58,6 +58,46 @@ describe('progression block', () => {
         expect(h.querySelector('svg')).toBeNull()
     })
 
+    it('raises a typed Nashville seventh: 57 shows 5⁷', () => {
+        const h = host()
+        renderBlock('progression', '1 47 57 2m7 5/3\nkey: C\ndiagrams: no', h)
+        expect(texts(h, 'mn-progression-numeral')).toEqual(['1', '4⁷', '5⁷', '2m7', '5/3'])
+        expect(texts(h, 'mn-progression-name')).toEqual(['C', 'F7', 'G7', 'Dm7', 'G/E'])
+    })
+
+    it('reads a blues in its key: I7 IV7 V7', () => {
+        const found = host()
+        renderBlock('progression', 'A7 D7 E7 A7\nfunctions: yes\ndiagrams: no', found)
+        expect(texts(found, 'mn-progression-key')).toEqual(['Key: A major (blues)'])
+        expect(texts(found, 'mn-progression-numeral')).toEqual(['I7', 'IV7', 'V7', 'I7'])
+        expect(texts(found, 'mn-progression-function')).toEqual([
+            'tonic',
+            'subdominant',
+            'dominant',
+            'tonic'
+        ])
+        const typed = host()
+        renderBlock('progression', 'I7 IV7 V7\nkey: A\nfunctions: yes\ndiagrams: no', typed)
+        expect(texts(typed, 'mn-progression-key')).toEqual(['Key: A major (blues)'])
+        expect(texts(typed, 'mn-progression-function')).toEqual([
+            'tonic',
+            'subdominant',
+            'dominant'
+        ])
+    })
+
+    it('names the mode chord names play in', () => {
+        const h = host()
+        renderBlock('progression', 'Dm C G\ndiagrams: no\nfunctions: yes', h)
+        expect(texts(h, 'mn-progression-key')[0]).toMatch(/^Key: D dorian/)
+        expect(texts(h, 'mn-progression-numeral')).toEqual(['i', 'bVII', 'IV'])
+        expect(texts(h, 'mn-progression-function')).toEqual(['tonic', 'subdominant', 'subdominant'])
+        const moved = host()
+        renderBlock('progression', 'Dm C G\ntranspose: 2\ndiagrams: no', moved)
+        expect(texts(moved, 'mn-progression-key')[0]).toMatch(/^Key: E dorian/)
+        expect(texts(moved, 'mn-progression-name')).toEqual(['Em', 'D', 'A'])
+    })
+
     it('switches numeral styles', () => {
         const h = host()
         renderBlock('progression', 'I V/V V7\nkey: C\nnumerals: nashville\ndiagrams: no', h)
