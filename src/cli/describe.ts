@@ -34,6 +34,16 @@ export interface GuitarChordDiagram {
     fretsFrom?: 'capo' | 'nut'
     /** The chord the shape sounds with the capo ("B" for an A shape with a capo on 2). */
     sounds?: string
+    /** Barres drawn: the finger, its fret, the strings it covers (from the lowest, 6 to 1). */
+    barres?: GuitarBarre[]
+}
+
+export interface GuitarBarre {
+    finger: string
+    fret: number
+    /** As guitarists count them: the lowest string under the bar, then the highest. */
+    from: number
+    to: number
 }
 
 export interface FretboardDot {
@@ -197,6 +207,12 @@ function guitarChord(svg: Element): GuitarChordDiagram {
     const base = parseInt(text(svg.querySelector('.mn-base-fret')) ?? '1', 10)
     const rows = svg.querySelectorAll('line.mn-fret, line.mn-nut').length - 1
     const frets = strings.map((s) => (s.fret === null ? 'x' : String(s.fret)))
+    const barres = [...svg.querySelectorAll('.mn-barre')].map((el): GuitarBarre => ({
+        finger: el.getAttribute('data-mn-finger') ?? '',
+        fret: Number(el.getAttribute('data-mn-fret')),
+        from: Number(el.getAttribute('data-mn-from')),
+        to: Number(el.getAttribute('data-mn-to'))
+    }))
     return {
         type: 'guitar-chord',
         title: text(svg.querySelector('.mn-title')),
@@ -205,7 +221,8 @@ function guitarChord(svg: Element): GuitarChordDiagram {
         fretRange: [base, base + rows - 1],
         strings,
         ...capoOf(svg),
-        ...(sounds ? { sounds } : {})
+        ...(sounds ? { sounds } : {}),
+        ...(barres.length ? { barres } : {})
     }
 }
 
@@ -409,7 +426,10 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                     d.capo !== undefined && capoText(d.capo, d.fretsFrom),
                     d.sounds !== undefined && `sounds ${d.sounds}`,
                     `frets ${d.fretRange[0]}-${d.fretRange[1]}`,
-                    d.frets
+                    d.frets,
+                    ...(d.barres ?? []).map(
+                        (b) => `barre ${b.finger} at fret ${b.fret}, strings ${b.from} to ${b.to}`
+                    )
                 ])}`,
                 `${pad}strings: ${strings.join(' | ')}`
             ]

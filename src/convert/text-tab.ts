@@ -612,7 +612,9 @@ function fit(
         const exact = (col - origin) / step
         const k = Math.round(exact)
         const off = Math.abs(exact - k) * step
-        if (k < 0 || k >= n || off > slack || (at.length && k * (16 / n) <= at.at(-1)!)) return null
+        // A column off is 1.0000000000000004 off once divided and multiplied back.
+        if (k < 0 || k >= n || off > slack + 1e-9 || (at.length && k * (16 / n) <= at.at(-1)!))
+            return null
         error = Math.max(error, off)
         at.push(k * (16 / n))
     }
@@ -651,22 +653,50 @@ export function positionsOf(cols: number[], width: number, pad: number): number[
 }
 
 /** A bar's events: a beat (its index) or a rest (-1), and its length in sixteenths. */
-type Rhythm = { beat: number; sixteenths: number }[]
+export type Rhythm = { beat: number; sixteenths: number }[]
+
+/** Rests from `at` sixteenths to the end of a 4/4 bar, showing the beats (r8 r4, not r4.). */
+function restsFrom(at: number): Rhythm {
+    const out: Rhythm = []
+    for (let p = at; p < 16;) {
+        const length = p % 2 ? 1 : p % 4 ? 2 : p % 8 === 0 && p <= 8 ? 8 : 4
+        out.push({ beat: -1, sixteenths: length })
+        p += length
+    }
+    return out
+}
 
 /**
- * A bar's rhythm from its columns (see positionsOf); when none fits, every beat an eighth (a
- * sixteenth past 8 beats, so the bar isn't twice too long).
+ * A bar's rhythm when no grid fits its columns (see positionsOf): the bar's most frequent gap
+ * between beats is an eighth (a sixteenth when eighths overrun the bar), other gaps a whole number
+ * of them (one at least), the last beat one, and rests fill the rest of the 4/4 bar. Every beat a
+ * sixteenth when even that is too long.
  */
-function rhythmOf(bar: Bar, pad: number): Rhythm {
-    const at = positionsOf(
-        bar.beats.map((b) => b.col - bar.start),
-        bar.end - bar.start,
-        pad
-    )
-    if (!at) {
-        const sixteenths = bar.beats.length > 8 ? 1 : 2
-        return bar.beats.map((_, beat) => ({ beat, sixteenths }))
+export function sketchRhythmOf(cols: number[]): Rhythm {
+    const gaps = cols.slice(1).map((c, i) => c - cols[i]!)
+    const counts = new Map<number, number>()
+    for (const g of gaps) counts.set(g, (counts.get(g) ?? 0) + 1)
+    // The most frequent gap, the narrowest when two are as frequent.
+    const unit = [...counts].reduce<[number, number] | null>(
+        (best, e) => (!best || e[1] > best[1] || (e[1] === best[1] && e[0] < best[0]) ? e : best),
+        null
+    )?.[0]
+    for (const eighth of [2, 1]) {
+        const lengths = cols.map(
+            (_, i) => eighth * (i < gaps.length ? Math.max(1, Math.round(gaps[i]! / unit!)) : 1)
+        )
+        const total = lengths.reduce((a, b) => a + b, 0)
+        if (total > 16) continue
+        return [...lengths.map((sixteenths, beat) => ({ beat, sixteenths })), ...restsFrom(total)]
     }
+    return cols.map((_, beat) => ({ beat, sixteenths: 1 }))
+}
+
+/** A bar's rhythm from its columns (see positionsOf), else a sketch's (see sketchRhythmOf). */
+function rhythmOf(bar: Bar, pad: number): Rhythm {
+    const cols = bar.beats.map((b) => b.col - bar.start)
+    const at = positionsOf(cols, bar.end - bar.start, pad)
+    if (!at) return sketchRhythmOf(cols)
     const out: Rhythm = at[0]! > 0 ? [{ beat: -1, sixteenths: at[0]! }] : []
     at.forEach((p, beat) => out.push({ beat, sixteenths: (at[beat + 1] ?? 16) - p }))
     return out

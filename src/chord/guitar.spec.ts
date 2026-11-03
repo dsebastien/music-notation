@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { baseFretOf, parseFingers, parseFrets, renderGuitarDiagram } from './guitar.js'
+import {
+    barreKind,
+    baseFretOf,
+    isBarreVoicing,
+    parseFingers,
+    parseFrets,
+    renderGuitarDiagram
+} from './guitar.js'
 import { titleWidth } from '../render/layout.js'
 
 describe('frets and fingers', () => {
@@ -91,6 +98,60 @@ describe('barres', () => {
         )
         expect(triad.querySelectorAll('.mn-barre')).toHaveLength(0)
         expect(texts(triad)).toEqual(['5', 'R', '3'])
+    })
+
+    it('keeps a full barre with labels that differ, each dot labelled on the bar', () => {
+        // F 133211 with notes: the index holds F, F, C, F.
+        const f = renderGuitarDiagram(
+            document,
+            { frets: [1, 3, 3, 2, 1, 1], fingers: ['1', '3', '4', '2', '1', '1'] },
+            { labels: ['F', 'C', 'F', 'A', 'C', 'F'] }
+        )
+        expect(f.querySelectorAll('.mn-barre')).toHaveLength(1)
+        expect(texts(f)).toEqual(['F', 'C', 'F', 'A', 'C', 'F'])
+        // The bar is drawn first, so the dots and their labels sit on it.
+        const kids = [...f.children]
+        const bar = kids.indexOf(f.querySelector('.mn-barre')!)
+        const firstDot = kids.findIndex((k) => k.querySelector('.mn-dot'))
+        expect(bar).toBeLessThan(firstDot)
+        // Bm7 x24232 with intervals: the index lies over strings fretted higher.
+        const bm7 = renderGuitarDiagram(
+            document,
+            { frets: [null, 2, 4, 2, 3, 2], fingers: [null, '1', '3', '1', '2', '1'] },
+            { labels: [null, 'R', '5', 'b7', 'b3', '5'] }
+        )
+        expect(bm7.querySelectorAll('.mn-barre')).toHaveLength(1)
+        expect(texts(bm7)).toEqual(['R', '5', 'b7', 'b3', '5'])
+        // A small barre over the top strings (F xx3211) labelled differently stays two dots.
+        const small = renderGuitarDiagram(
+            document,
+            { frets: [null, null, 3, 2, 1, 1], fingers: [null, null, '3', '2', '1', '1'] },
+            { labels: [null, null, 'F', 'A', 'C', 'F'] }
+        )
+        expect(small.querySelectorAll('.mn-barre')).toHaveLength(0)
+    })
+
+    it('tells a full barre from a partial one', () => {
+        const kind = (frets: (number | null)[], fingers: (string | null)[]) =>
+            barreKind({ frets, fingers })
+        expect(kind([1, 3, 3, 2, 1, 1], ['1', '3', '4', '2', '1', '1'])).toBe('full')
+        expect(kind([null, 2, 4, 2, 3, 2], [null, '1', '3', '1', '2', '1'])).toBe('full')
+        expect(kind([null, null, 3, 2, 1, 1], [null, null, '3', '2', '1', '1'])).toBe('partial')
+        expect(kind([null, 3, 5, 5, 5, null], [null, '1', '3', '3', '3', null])).toBe('partial')
+        expect(kind([null, null, null, 5, 5, 3], [null, null, null, '3', '3', '1'])).toBe('partial')
+        expect(kind([null, 3, 2, 0, 1, 0], [null, '3', '2', null, '1', null])).toBeNull()
+        expect(
+            isBarreVoicing({
+                frets: [1, 3, 3, 2, null, null],
+                fingers: ['1', '3', '4', '2', null, null]
+            })
+        ).toBe(false)
+        expect(
+            isBarreVoicing({
+                frets: [null, 3, 5, 5, 5, null],
+                fingers: [null, '1', '3', '3', '3', null]
+            })
+        ).toBe(true)
     })
 
     it('keeps the bar when dots show nothing', () => {

@@ -28,7 +28,7 @@ The last line of the output counts the blocks. **Empty** blocks have nothing in 
 
 ## What a block draws
 
-`--describe` prints what every block draws: titles, chord names, the note and label of each dot or key, and the frets or keys shown. Use it to check that a diagram shows what the text says.
+`--describe` prints what every block draws: titles, chord names, the note and label of each dot or key, the frets or keys shown, and each barre of a chord diagram (`barre 1 at fret 1, strings 6 to 1`). Use it to check that a diagram shows what the text says.
 
 ```text
 notes/Pentatonic.md:69: fretboard: ok

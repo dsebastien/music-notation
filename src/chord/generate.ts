@@ -196,8 +196,11 @@ function fingerChoices(count: number): number[][] {
     return out
 }
 
-/** The easiest fingering of a voicing; null when a hand can't play it. */
-function bestFingering(frets: readonly (number | null)[]): Fingering | null {
+/**
+ * The easiest fingering of a voicing; null when a hand can't play it. `pinkyBarre`: the pinky may
+ * barre the two highest strings, as in standard 6/9 grips (E6/9 022122, Cm6/9 x31233), at a cost.
+ */
+function bestFingering(frets: readonly (number | null)[], pinkyBarre = false): Fingering | null {
     const empty: (string | null)[] = frets.map(() => null)
     const byFret = new Map<number, number[]>()
     frets.forEach((fret, s) => {
@@ -220,8 +223,11 @@ function bestFingering(frets: readonly (number | null)[]): Fingering | null {
                 // Only the index finger lies over strings fretted higher, on the lowest fret.
                 if (g.under && (choice[i] !== 1 || g.fret !== lowest)) ok = false
                 // Barres are the index's (F, Bm7) or the ring finger's (the A-shape's 1-3-3-3-1);
-                // teachers don't ask for a middle or pinky barre.
-                if (g.strings.length > 1 && choice[i] !== 1 && choice[i] !== 3) ok = false
+                // teachers don't ask for a middle or pinky barre, except a pinky on the two
+                // highest strings in a few standard grips.
+                const topTwo = g.from === frets.length - 2 && g.to === frets.length - 1
+                const pinky = pinkyBarre && choice[i] === 4 && topTwo
+                if (g.strings.length > 1 && choice[i] !== 1 && choice[i] !== 3 && !pinky) ok = false
                 for (let j = i + 1; j < sorted.length && ok; j++) {
                     // A finger reaches at most one fret past one fret per finger.
                     if (sorted[j]!.fret - g.fret > choice[j]! - choice[i]! + 1) ok = false
@@ -233,7 +239,7 @@ function bestFingering(frets: readonly (number | null)[]): Fingering | null {
             sorted.forEach((g, i) => {
                 const finger = choice[i]!
                 if (g.strings.length > 1) {
-                    cost += 2.5
+                    cost += finger === 4 ? 3.5 : 2.5
                     // A small index barre over the top strings (F xx3211, Dm7 xx0211) is the usual way.
                     if (finger === 1 && g.fret === lowest && g.to === top && !g.under) cost -= 2
                 }
@@ -279,13 +285,15 @@ function bestFingering(frets: readonly (number | null)[]): Fingering | null {
 }
 
 /**
- * Fingers for a fretted voicing (lowest string first, as frets are): any finger can hold a note or
- * barre adjacent strings on one fret (every string under it sounding at that fret), only the index
- * can lie over strings fretted higher, finger numbers go up with the frets, at most four fingers.
- * The easiest such fingering; null when a hand can't play it.
+ * Fingers for a fretted voicing (lowest string first, as frets are): a finger holds a note, the
+ * index or the ring finger may barre adjacent strings on one fret (every string under it sounding
+ * at that fret), the pinky the two highest strings (E6/9 022122 is 0-2-3-1-4-4), only the index
+ * lies over strings fretted higher, finger numbers go up with the frets, at most four fingers.
+ * The easiest such fingering; null when a hand can't play it. Generated voicings never ask for a
+ * pinky barre.
  */
 export function fingerVoicing(frets: readonly (number | null)[]): (string | null)[] | null {
-    return bestFingering(frets)?.fingers ?? null
+    return bestFingering(frets, true)?.fingers ?? null
 }
 
 /** Where each open-position CAGED chord has its root: string index, lowest first. */
@@ -403,12 +411,15 @@ function shapeOf(
  * The shape a voicing is played with: power chord, shell (root, third and seventh or sixth on three
  * or four strings), triad (three adjacent strings, three notes), open (open strings, frets 1–4),
  * the CAGED shapes (in standard tuning: the open C, A, G, E or D chord moved up the neck, with a
- * barre or not). Null when it's none of them.
+ * barre or not). Null when it's none of them. The shape doesn't depend on the fingers: `_fingers`
+ * is accepted for callers written for 0.8.0 and ignored; tell a barre with `barreKind` or
+ * `isBarreVoicing` (an "E shape" held with a full barre is the E-shape barre chord).
  */
 export function voicingShape(
     frets: readonly (number | null)[],
     symbol: string,
-    tuning: readonly number[] = STANDARD_TUNING
+    tuning: readonly number[] = STANDARD_TUNING,
+    _fingers?: readonly (string | null)[] | null
 ): VoicingShape | null {
     const info = chordInfo(symbol)
     return info ? shapeOf(frets, info, cagedTargets(info), tuning) : null

@@ -98,14 +98,20 @@ describe('every database voicing (#62)', () => {
                     const pitches = v.frets.flatMap((f, s) =>
                         f === null ? [] : [STANDARD[s]! + f]
                     )
-                    if (Math.min(...pitches) % 12 !== bass) failures.push(`${where}: bass`)
+                    // A diminished seventh is symmetrical: any of its notes may be lowest.
+                    const dim7 = suffix === 'dim7' && !parts.bass
+                    const roots = dim7 ? [0, 3, 6, 9].map((i) => (root + i) % 12) : [bass]
+                    if (!roots.includes(Math.min(...pitches) % 12)) failures.push(`${where}: bass`)
                     const fingers = fingeringProblem(v.frets, v.fingers)
                     if (fingers) failures.push(`${where}: ${fingers}`)
                     if (!parts.bass && DETECTED.has(suffix)) {
                         const readings = detectChordFromFrets(v.frets)?.readings ?? []
                         const named = readings.some((reading) => {
                             const m = /^([A-G][#b]*)(.*?)(?:\/([A-G][#b]*))?$/.exec(reading)
-                            return m && chromaOf(m[1]!) === root && m[2] === suffix && !m[3]
+                            const at = m ? chromaOf(m[1]!)! : -1
+                            // Cdim7 xx1212 reads Ebdim7: the same four notes.
+                            const rootOk = dim7 ? roots.includes(at) : at === root
+                            return m && rootOk && m[2] === suffix && !m[3]
                         })
                         if (!named) failures.push(`${where}: the detector reads ${readings[0]}`)
                     }
@@ -166,6 +172,25 @@ describe('every database voicing (#62)', () => {
         expect(all('Cmaj7')).not.toContain('332000')
         expect(all('B')).not.toContain('224442')
         expect(all('G7')).not.toContain('323033')
+    })
+
+    it('keeps standard dim7 and 6/9 grips', () => {
+        const all = (symbol: string) =>
+            Array.from({ length: voicingCount(symbol) }, (_, i) =>
+                show(lookupGuitarVoicing(symbol, i)!.frets)
+            )
+        // A dim7 is symmetrical: any of its notes may be the bass.
+        expect(all('Cdim7')).toContain('xx1212')
+        expect(all('Bbdim7')).toContain('xx2323')
+        // The pinky barres the two highest strings.
+        expect(all('E6/9')).toContain('022122')
+        expect(all('Cm6/9')).toContain('x31233')
+        expect(lookupGuitarVoicing('E6/9', 0)!.fingers).toEqual([null, '2', '3', '1', '4', '4'])
+        expect(voicingProblem('Cdim7', [null, null, 1, 2, 1, 2])).toBeNull()
+        expect(fingeringProblem([0, 2, 2, 1, 2, 2], [null, '2', '3', '1', '4', '4'])).toBeNull()
+        expect(fingeringProblem([3, 1, 2, 4, 4, null], ['3', '1', '2', '4', '4', null])).toBe(
+            'a barre with finger 4'
+        )
     })
 
     it('hands out the curated shapes for chords the database lacks the name of', () => {

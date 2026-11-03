@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'bun:test'
 import * as alphaTab from '@coderline/alphatab'
-import { palmMutesOf, positionsOf, techniquesOf, textTabToAlphaTex } from './text-tab.js'
+import {
+    palmMutesOf,
+    positionsOf,
+    sketchRhythmOf,
+    techniquesOf,
+    textTabToAlphaTex
+} from './text-tab.js'
 import { chordSheetToChordPro } from './chord-sheet.js'
 
 const six = (lines: string[]) => lines.join('\n')
@@ -189,7 +195,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
     })
 
     it('reads strings numbered 1 to 6 as standard tuning', () => {
-        expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3')
+        expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3 :4 r')
         expect(textTabToAlphaTex('1|--0--|\n2|--1--|\n3|--0--|')).toBe(
             '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3)'
         )
@@ -202,7 +208,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         expect(load(three).tracks[0]!.staves[0]!.tuning).toEqual([64, 59, 55])
         // The four highest strings: E4 B3 G3 D3, not an octave below.
         expect(textTabToAlphaTex(SAMPLES.topFour)).toBe(
-            '\\tuning (E4 B3 G3 D3)\n:8 7.4 5.3 5.2 5.1 5.2 5.3'
+            '\\tuning (E4 B3 G3 D3)\n:8 7.4 5.3 5.2 5.1 5.2 5.3 :4 r'
         )
         expect(textTabToAlphaTex('A|--0--|\nE|--3--|')).toContain('\\tuning (A2 E2)')
         expect(textTabToAlphaTex('e|--0--|')).toContain('\\tuning (E4)')
@@ -409,13 +415,27 @@ describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
         ])
     })
 
-    it('keeps even notes even when the spacing fits no grid, eighths as before', () => {
-        // Evenly spaced, the bar a little short: quarters. Unevenly: eighths.
+    it('keeps even notes even when the spacing fits no grid, eighths filling the bar', () => {
+        // Evenly spaced, the bar a little short: quarters. Unevenly: eighths, then rests.
         expect(textTabToAlphaTex('e|--5--8--5--8-|')).toBe('\\tuning (E4)\n:4 5.1 8.1 5.1 8.1')
-        expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3')
-        // Past 8 beats, sixteenths.
+        expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3 :4 r')
+        // Five even notes: five eighths, rests on the beats to the end of the 4/4 bar.
+        expect(rhythmOf(textTabToAlphaTex('A|-0-0-0-0-0--|')!)).toBe('8 8 8 8 8 r8 r4')
+        // The most frequent gap is an eighth, a gap twice as wide a quarter.
+        expect(sketchRhythmOf([1, 3, 5, 9, 11])).toEqual([
+            { beat: 0, sixteenths: 2 },
+            { beat: 1, sixteenths: 2 },
+            { beat: 2, sixteenths: 4 },
+            { beat: 3, sixteenths: 2 },
+            { beat: 4, sixteenths: 2 },
+            { beat: -1, sixteenths: 4 }
+        ])
+        // Eighths would overrun the bar: sixteenths.
+        const ten = sketchRhythmOf([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        expect(ten.reduce((n, e) => n + e.sixteenths, 0)).toBe(16)
+        // Past 8 beats, sixteenths, then rests to the end of the bar.
         expect(rhythmOf(textTabToAlphaTex(`e|${'-0'.repeat(9)}-|`)!)).toBe(
-            Array(9).fill('16').join(' ')
+            `${Array(9).fill('16').join(' ')} r16 r8 r4`
         )
     })
 
@@ -426,6 +446,12 @@ describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
         expect(positionsOf([4, 12], 16, 3)).toEqual([4, 12])
         expect(positionsOf([0, 1, 3, 5, 7, 9], 11, 0)).toBeNull()
         expect(positionsOf([], 16, 0)).toEqual([])
+    })
+
+    it('fits a beat exactly a column off (no rounding error)', () => {
+        // Columns 1 and 9 of 19: 1.0000000000000004 columns off the half-note grid.
+        expect(positionsOf([1, 9], 19, 1)).toEqual([0, 8])
+        expect(textTabToAlphaTex('A|-3-------3---------|')).toBe('\\tuning (A2)\n:2 3.1 3.1')
     })
 })
 
