@@ -100,6 +100,7 @@ export {
     type RootlessForm,
     type ShellForm
 } from './keyboard/piano-chord.js'
+export { standardScaleFingering, scaleFingers, type ScaleHand } from './keyboard/scale-fingering.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
 export { parseTuning } from './fretboard/tuning.js'
 export {

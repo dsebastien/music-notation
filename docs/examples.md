@@ -580,14 +580,26 @@ Degrees on the keys and the fingers in a row under them, over two octaves:
 C major
 fingering: 1 2 3 1 2 3 4 5
 labels: degrees
-range: C3-B4
+range: C3-C5
 ```
 ````
 
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">C major
 fingering: 1 2 3 1 2 3 4 5
 labels: degrees
-range: C3-B4</code></pre></div>
+range: C3-C5</code></pre></div>
+
+The standard fingering of a scale, for the left hand:
+
+````markdown
+```keyboard
+scale: A harmonic minor
+fingering: auto left
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">scale: A harmonic minor
+fingering: auto left</code></pre></div>
 
 ## Left-handed
 
