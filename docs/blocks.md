@@ -250,7 +250,7 @@ labels: intervals</code></pre></div>
 | `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
 
-**A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root (degrees show the interval number: 1, 3, 5). The root gets its color when it is in the list, but it doesn't have to be. Keyboards work the same way. Scales and chords have their own root: `root:` is only for lists.
+**A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists.
 
 ````markdown
 ```fretboard
@@ -290,10 +290,10 @@ compare: major</code></pre></div>
 
 - 5-note scales: the five boxes, `position: 1` to `5` (box 1 starts on the root on the low string).
 - 7-note scales: the five CAGED positions, by number (`position: 1` is the E shape) or by shape: `shape: E` (the root on the low string), then up the neck `D`, `C`, `A`, `G`.
-- One position is drawn in the lowest octave where all its notes fit on the neck (box 5 of A minor pentatonic at frets 2–5; E major box 1 at 11–14). Add `frets:` to draw it higher: `position: 4` with `frets: 10-17` is box 4 at 12–15.
+- One position is drawn in the lowest octave where all its notes fit on the neck (box 5 of A minor pentatonic at frets 2–5; E major box 1 at 11–14). Add `frets:` to draw it higher up the neck: with `frets: 10-17`, `position: 4` is box 4 at frets 12–15.
 - `shape: 3nps` with `position: 1` to `7`: three notes per string, from that degree. Scales with no pentatonic inside (locrian, harmonic minor…) use it for their CAGED positions too.
-- `positions: all` (or a list, `positions: 1 3`) draws the positions side by side, up the neck: each one at or above the one before. A minor pentatonic's boxes sit at frets 5–8, 7–10, 9–13, 12–15 and 14–17. A position that would go past fret 36 goes back to its lowest octave. A list keeps the frets `all` gives them. With `shape: 3nps`, the 3NPS positions.
-- `numbering: minor` numbers a major pentatonic's positions from its relative minor, as many courses do: A major pentatonic's position 1 is then the F# minor pentatonic's box 1. The titles say so. It only works on major pentatonic scales.
+- `positions: all` (or a list, `positions: 1 3`) draws the positions side by side in neck order, each one at or above the one before: A minor pentatonic's boxes sit at frets 5–8, 7–10, 9–13, 12–15 and 14–17. A position that would go past fret 36 drops back to its lowest octave. A list puts each position at the frets `all` gives it. With `shape: 3nps`, you get the 3NPS positions.
+- `numbering: minor` counts a major pentatonic's positions from its relative minor, as many courses do. A major pentatonic's position 1 is then box 1 of F# minor pentatonic, and the titles add "(numbered from F# minor)". It only works on major pentatonic scales.
 
 ````markdown
 ```fretboard

@@ -117,13 +117,13 @@ if (!result.ok) console.warn(result.error)
 
 ## Check your notes
 
-The `check` command draws every block of your Markdown files and lists the mistakes, one per line (`file:line: language: message`). It exits with 1 when a block has a mistake:
+The `check` command draws every block of your Markdown files and lists the mistakes, one per line (`file:line: language: message`). It exits with code 1 when a block has a mistake:
 
 ```bash
 npx @dsebastien/music-notation check notes/*.md
 ```
 
-`--describe` prints what each block draws (titles, chord names, the notes of each dot or key, the frets or keys shown), and `--json` gives the same as JSON. More in the [guide](https://dsebastien.github.io/music-notation/check.html).
+`--describe` prints what each block draws (titles, chord names, the notes of each dot or key, the frets or keys shown), and `--json` prints the same as JSON. The [guide](https://dsebastien.github.io/music-notation/check.html) has the details.
 
 ## Obsidian Publish
 
