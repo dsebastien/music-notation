@@ -185,6 +185,13 @@ describe('progression block', () => {
         expect(error('I IV\nkey: C\nvoice-leading: yes')).toContain('instrument: piano')
         expect(error('I IV\nkey: C\ninstrument: banjo')).toContain('Unknown instrument')
         expect(error('I IV\nkey: C\nnumerals: greek')).toContain('numerals: use roman')
+        expect(error('I IV V\nkey: C\ninstrument: piano\nvoicing: drop2')).toContain(
+            'voicing: use close, open, shell'
+        )
+        expect(error('I IV V\nkey: C\ninstrument: piano\noctave: 9')).toContain(
+            'octave: use a number from 0 to 8'
+        )
+        expect(error('I IV V\nkey: C\ninstrument: piano\nhands: three')).toContain('hands: use')
         expect(error(`${Array(33).fill('I').join(' ')}\nkey: C`)).toContain('At most 32 chords')
         expect(error('G Dxyz')).toContain('Didn\'t read "Dxyz"')
     })

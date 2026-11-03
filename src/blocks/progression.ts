@@ -8,6 +8,7 @@ import { parseBlockSource, splitParts, type BlockSource } from './block-source.j
 import type { DiagramRenderer, RenderOptions } from './renderers.js'
 import { smoothProgression } from '../chord/transitions.js'
 import { parseTuning } from '../fretboard/tuning.js'
+import { pianoOptionsOf } from '../keyboard/piano-chord.js'
 import { voiceLead } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
@@ -185,6 +186,8 @@ function renderSection(
     if (pianoKeys.length && led) {
         throw new Error(`Use voice-leading or ${pianoKeys[0]}, not both`)
     }
+    // A value that can't be read is the block's mistake, not each chord's.
+    if (pianoKeys.length) pianoOptionsOf((key) => field(block, key))
     const symbols = chords.map((c) => c.symbol)
     const guitar = diagrams && !piano ? guitarVoicings(symbols, field(block, 'tuning')) : null
     const pitches = diagrams && piano && led ? voiceLead(symbols) : null
