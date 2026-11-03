@@ -16,6 +16,15 @@ describe('voicings blocks', () => {
         expect(h.querySelector('.mn-root')).not.toBeNull()
     })
 
+    it('titles every diagram with a name (#72)', () => {
+        const h = host()
+        expect(renderBlock('chord', 'F\nvoicings: all', h).ok).toBe(true)
+        const all = titles(h)
+        expect(all).toContain('F, E shape (strings 1-4)')
+        // No diagram is titled with the chord alone.
+        expect(all.filter((t) => t === 'F')).toEqual([])
+    })
+
     it('draws at most 32 with all', () => {
         const h = host()
         expect(renderBlock('chord', 'chord: Em\nvoicings: all', h).ok).toBe(true)
