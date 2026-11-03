@@ -12,6 +12,9 @@
     --mn-root: #c2410c;
     /* A mode's characteristic notes: dark enough for white labels too. */
     --mn-char: #047857;
+    /* A note that sounds while a diagram plays: bright, with dark labels, in both themes. */
+    --mn-playing: #facc15;
+    --mn-on-playing: #1c1917;
     /* Piano keys keep their real colors in every theme. */
     --mn-key-white: #fafafa;
     --mn-key-black: #222;
@@ -542,4 +545,17 @@
 .mn-error-message {
     color: var(--text-error, #c92a2a);
     font-size: 0.9em;
+}
+
+/* Following the notes: the dot, key or string mark that sounds while a diagram plays. Last in the
+   file and with enough specificity to win over root, characteristic and highlighted keys. */
+.mn-playable .mn-svg [data-midi].mn-playing {
+    fill: var(--mn-playing);
+    stroke: var(--mn-fg);
+    stroke-width: 2.5;
+}
+
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
+    fill: var(--mn-on-playing);
 }

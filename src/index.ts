@@ -49,6 +49,13 @@ export {
 } from './playback/player.js'
 export { attachPlayback, type PlayOptions } from './playback/controls.js'
 export {
+    followNotes,
+    noteTargets,
+    PLAYING_CLASS,
+    START_WAIT,
+    type Follower
+} from './playback/follow.js'
+export {
     transition,
     smoothProgression,
     type TransitionStep,
