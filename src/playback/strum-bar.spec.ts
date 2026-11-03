@@ -54,4 +54,26 @@ describe('strum playback bar', () => {
             '72'
         )
     })
+
+    it('lights the slot that plays, and unlights it on stop', () => {
+        let start: (() => void) | undefined
+        const player: NotePlayer = {
+            reportsStart: true,
+            play(_events, options) {
+                start = options.onStart
+                return { stop() {} }
+            }
+        }
+        const h = host()
+        renderBlock('strum', 'D - D U - U D U\ntempo: 60', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const lit = () =>
+            [...h.querySelectorAll('.mn-playing')].map((el) => el.getAttribute('data-mn-beat'))
+        // Not before the notes are heard.
+        expect(lit()).toEqual([])
+        start!()
+        expect(lit()).toEqual(['0'])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(lit()).toEqual([])
+    })
 })

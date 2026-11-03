@@ -136,6 +136,39 @@ describe('runStrum', () => {
         expect(ended).toBe(true)
     })
 
+    it('counts the loop from the moment a reporting player starts (a soundfont loading)', () => {
+        const starts: (() => void)[] = []
+        const player: NotePlayer = {
+            reportsStart: true,
+            play(_events, options) {
+                if (options.onStart) starts.push(options.onStart)
+                return { stop() {} }
+            }
+        }
+        const { pending, timers } = setup()
+        const lit: number[][] = []
+        let heard = 0
+        runStrum(
+            scoreFor('D-DU-UDU'),
+            () => player,
+            () => settings({ loop: true }),
+            timers,
+            undefined,
+            (strums) => {
+                lit.push(strums.map((s) => s.slot))
+                return { heard: () => heard++, stop() {} }
+            }
+        )
+        // Nothing is timed until the notes really start.
+        expect(pending).toHaveLength(0)
+        expect(lit).toEqual([[0, 2, 3, 5, 6, 7]])
+        starts[0]!()
+        expect(heard).toBe(1)
+        expect(pending).toHaveLength(1)
+        expect(pending[0]!.ms).toBeGreaterThan(1900)
+        expect(pending[0]!.ms).toBeLessThanOrEqual(2000)
+    })
+
     it('stops what plays', () => {
         const { player, timers, stops } = setup()
         const handle = runStrum(

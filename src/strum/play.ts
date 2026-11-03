@@ -79,15 +79,23 @@ export const tempoOf = (bpm: number | null | undefined) =>
         ? DEFAULT_TEMPO
         : Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, bpm))
 
+/** When a slot's strum is played in a pass: from its start, for one slot. */
+export interface StrumTiming {
+    slot: number
+    /** Seconds from the start of the pass. */
+    time: number
+    duration: number
+}
+
 /**
- * The notes of one pass of a pattern (with the count-in first when asked), and its length in
- * seconds (count-in plus the pattern's bars, without the last strum's ring), the time the next
- * pass starts when it loops.
+ * The notes of one pass of a pattern (with the count-in first when asked), its length in seconds
+ * (count-in plus the pattern's bars, without the last strum's ring), the time the next pass starts
+ * when it loops, and when each strum is played (to light it).
  */
 export function strumEvents(
     score: StrumScore,
     options: StrumEventOptions = {}
-): { events: NoteEvent[]; length: number } {
+): { events: NoteEvent[]; length: number; strums: StrumTiming[] } {
     const beat = 60 / tempoOf(options.bpm)
     const slot = beat / score.slotsPerBeat
     const events: NoteEvent[] = []
@@ -105,9 +113,11 @@ export function strumEvents(
     const end = start + score.slots.length * slot
     const tail = Math.max(0, options.tail ?? 1)
     const sounding = score.slots.flatMap((s, i) => (s.stroke === 'rest' ? [] : [i]))
+    const strums: StrumTiming[] = []
     sounding.forEach((i, n) => {
         const s = score.slots[i]!
         const at = start + i * slot
+        strums.push({ slot: i, time: at, duration: slot })
         // A strum rings until the next one (a muted strum damps it too), the last one past the end.
         const next = sounding[n + 1]
         const until = next === undefined ? end + tail : start + next * slot
@@ -137,7 +147,7 @@ export function strumEvents(
             events.push({ midi, time, duration, velocity })
         })
     })
-    return { events, length: end }
+    return { events, length: end, strums }
 }
 
 /** What a strum player reads at each pass, so the bar's changes apply from the next pass. */
@@ -155,59 +165,97 @@ const GIVEN = '\u0000given'
 /** The last strum's ring after a pattern that doesn't loop, in seconds. */
 const TAIL = 1.2
 
+/** Lights the strums of one pass as they sound (see `followNotes`). */
+export interface StrumFollower {
+    /** The pass's notes started sounding now. */
+    heard(): void
+    stop(): void
+}
+
 /**
  * Plays a score through `player`, pass after pass while `settings().loop` is on. Each next pass
- * is started on a timer at the exact end of the previous one (from the first start, so delays
- * don't add up), and is scheduled by the player like the first: no gap, no drift.
+ * is started on a timer at the exact end of the previous one, counted from the first pass's start
+ * (so delays don't add up), and is scheduled by the player like the first: no gap, no drift. With
+ * a player that says when its notes start (`reportsStart`), the passes are counted from that
+ * moment, so a first play that waits for a soundfont isn't cut by the second pass. `follow` gets
+ * each pass's strums, to light them from the moment they sound.
  */
 export function runStrum(
     score: StrumScore,
     player: () => NotePlayer,
     settings: () => StrumSettings,
     timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
-    onEnd?: () => void
+    onEnd?: () => void,
+    follow?: (strums: StrumTiming[], player: NotePlayer) => StrumFollower
 ): PlayHandle {
     let stopped = false
     let timer: number | undefined
     let pass = 0
-    let next = Date.now()
+    // When the first pass would have been asked for without any wait; then the passes' lengths.
+    let anchor: number | null = null
+    let elapsed = 0
     const handles: PlayHandle[] = []
+    const followers: StrumFollower[] = []
     const finish = () => {
         if (stopped) return
         stopped = true
         onEnd?.()
     }
-    const play = (first: boolean) => {
-        if (stopped) return
-        const s = settings()
-        const id = ++pass
-        const looping = s.loop
-        const { events, length } = strumEvents(score, {
-            bpm: s.bpm,
-            countIn: first && s.countIn,
-            tail: looping ? 0 : TAIL
-        })
-        handles.push(
-            player().play(events, {
-                sound: s.sound,
-                volume: s.volume,
-                // A pass that didn't loop ends the playback once its last strum has rung.
-                onEnd: () => {
-                    if (id === pass && !looping) finish()
-                }
-            })
-        )
-        // Older passes have ended; their handles only matter while their notes may ring.
-        while (handles.length > 2) handles.shift()
-        next += length * 1000
+    const schedule = (looping: boolean) => {
         timer = timers.setTimeout(
             () => {
                 if (stopped) return
                 if (settings().loop) play(false)
                 else if (looping) finish()
             },
-            Math.max(0, next - Date.now())
+            Math.max(0, anchor! + elapsed * 1000 - Date.now())
         )
+    }
+    const play = (first: boolean) => {
+        if (stopped) return
+        const s = settings()
+        const id = ++pass
+        const looping = s.loop
+        const { events, length, strums } = strumEvents(score, {
+            bpm: s.bpm,
+            countIn: first && s.countIn,
+            tail: looping ? 0 : TAIL
+        })
+        const current = player()
+        const follower = follow?.(strums, current)
+        if (follower) followers.push(follower)
+        while (followers.length > 2) followers.shift()
+        const called = Date.now()
+        // Waits for the player's start only on the first pass (a soundfont may load first).
+        const waits = first && current.reportsStart === true
+        elapsed += length
+        handles.push(
+            current.play(events, {
+                sound: s.sound,
+                volume: s.volume,
+                // A pass that didn't loop ends the playback once its last strum has rung.
+                onEnd: () => {
+                    if (id === pass && !looping) finish()
+                },
+                onStart: () => {
+                    if (stopped) return
+                    follower?.heard()
+                    if (!waits || anchor !== null) return
+                    // The time the player takes to start is kept (it takes it every pass); a long
+                    // wait (loading) isn't.
+                    const now = Date.now()
+                    const lead = now - called
+                    anchor = now - (lead < 250 ? lead : 50)
+                    schedule(looping)
+                }
+            })
+        )
+        // Older passes have ended; their handles only matter while their notes may ring.
+        while (handles.length > 2) handles.shift()
+        if (!waits) {
+            anchor ??= called
+            schedule(looping)
+        }
     }
     play(true)
     return {
@@ -215,6 +263,7 @@ export function runStrum(
             stopped = true
             timers.clearTimeout(timer)
             for (const h of handles) h.stop()
+            for (const f of followers) f.stop()
         }
     }
 }

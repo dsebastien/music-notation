@@ -688,3 +688,15 @@
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
     fill: var(--mn-on-playing);
 }
+
+/* Following a strumming pattern: the slot that plays gets a band and its strum the playing
+   color (the band keeps it visible for a muted strum and in any theme). */
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-cell {
+    fill: color-mix(in srgb, var(--mn-playing) 35%, transparent);
+}
+
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-arrow,
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-mute {
+    stroke: var(--mn-fg);
+    stroke-width: 3;
+}

@@ -8,7 +8,8 @@ import { runStrum, tempoOf, type StrumScore, type StrumSettings } from '../strum
 import { strumVoicing } from '../strum/voicing.js'
 import type { Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
-import type { NoteEvent, NotePlayer, PlayHandle, Sound } from './player.js'
+import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
+import { followNotes, START_WAIT } from './follow.js'
 
 const STROKES = new Set<Stroke>(['down', 'up', 'mute', 'rest'])
 
@@ -99,7 +100,9 @@ export function strumBarFor(
         const here = wrap.ownerDocument.defaultView ?? win
         const chosen = playerFor(here, options)
         return {
-            play(events: NoteEvent[], opts: { sound: Sound; volume: number; onEnd?: () => void }) {
+            // Says when its notes start like the player it wraps (the light one does too).
+            reportsStart: chosen.reportsStart === true,
+            play(events: NoteEvent[], opts: Parameters<NotePlayer['play']>[1]) {
                 try {
                     return chosen.play(events, opts)
                 } catch {
@@ -122,6 +125,26 @@ export function strumBarFor(
             () => {
                 playing = null
                 show()
+            },
+            // Each strum lights while it plays, from the moment the pass is heard, as notes do
+            // on diagrams (#41); it waits for players that say when they start.
+            (strums, current) => {
+                const cells = new Map(
+                    [...drawing.querySelectorAll('[data-mn-beat]')].map((el) => [
+                        Number(el.getAttribute('data-mn-beat')),
+                        el
+                    ])
+                )
+                return followNotes(
+                    here,
+                    drawing,
+                    strums.map((s) => {
+                        const cell = cells.get(s.slot)
+                        return cell ? [cell] : []
+                    }),
+                    strums.map((s) => ({ midi: 0, time: s.time, duration: s.duration })),
+                    current.reportsStart === true ? Infinity : START_WAIT
+                )
             }
         )
         show()
