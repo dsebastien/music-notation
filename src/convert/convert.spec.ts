@@ -11,6 +11,22 @@ import { chordSheetToChordPro } from './chord-sheet.js'
 
 const six = (lines: string[]) => lines.join('\n')
 
+/**
+ * Linear time, measured as growth so a slow CI runner doesn't fail it: the work at four times the
+ * size must take less than eight times as long (linear is about 4x, quadratic 16x), plus 50 ms of
+ * timer and garbage-collector noise. A first run at size 1 warms the code up.
+ */
+function expectLinear(run: (scale: number) => void): void {
+    const time = (k: number) => {
+        const start = performance.now()
+        run(k)
+        return performance.now() - start
+    }
+    time(1)
+    const one = time(1)
+    expect(time(4)).toBeLessThan(8 * one + 50)
+}
+
 describe('textTabToAlphaTex, edge cases', () => {
     it('keeps a fret written right-aligned under a two-digit one', () => {
         expect(
@@ -310,13 +326,14 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
     })
 
     it('reads long lines in linear time', () => {
-        const start = performance.now()
-        textTabToAlphaTex(`H${' '.repeat(50_000)}!\n${'e|' + '-'.repeat(50_000)} x`)
-        textTabToAlphaTex(`${' '.repeat(50_000)}1${' '.repeat(50_000)}z`)
-        textTabToAlphaTex(`Hi-Hat${' '.repeat(50_000)}|${'x-'.repeat(25_000)}?`)
-        textTabToAlphaTex(`e|--0--|${' x'.repeat(50_000)}9`)
-        textTabToAlphaTex(`e|--0--|${'-'.repeat(50_000)} let ring`)
-        expect(performance.now() - start).toBeLessThan(500)
+        expectLinear((k) => {
+            const n = 12_500 * k
+            textTabToAlphaTex(`H${' '.repeat(n)}!\n${'e|' + '-'.repeat(n)} x`)
+            textTabToAlphaTex(`${' '.repeat(n)}1${' '.repeat(n)}z`)
+            textTabToAlphaTex(`Hi-Hat${' '.repeat(n)}|${'x-'.repeat(n / 2)}?`)
+            textTabToAlphaTex(`e|--0--|${' x'.repeat(n)}9`)
+            textTabToAlphaTex(`e|--0--|${'-'.repeat(n)} let ring`)
+        })
     })
 })
 
@@ -554,12 +571,13 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
     })
 
     it('reads techniques in linear time', () => {
-        const start = performance.now()
-        textTabToAlphaTex(`e|${'1'.repeat(50_000)}|\nB|${'-'.repeat(50_000)}|`)
-        textTabToAlphaTex(`e|-5${'~'.repeat(50_000)}|\nB|${'5b'.repeat(25_000)}|`)
-        textTabToAlphaTex(`${'PM'.repeat(25_000)}\ne|${'0-'.repeat(25_000)}|`)
-        textTabToAlphaTex(`e|${'<1>'.repeat(20_000)}|\nB|${'5h'.repeat(25_000)}|`)
-        expect(performance.now() - start).toBeLessThan(1000)
+        expectLinear((k) => {
+            const n = 12_500 * k
+            textTabToAlphaTex(`e|${'1'.repeat(n)}|\nB|${'-'.repeat(n)}|`)
+            textTabToAlphaTex(`e|-5${'~'.repeat(n)}|\nB|${'5b'.repeat(n / 2)}|`)
+            textTabToAlphaTex(`${'PM'.repeat(n / 2)}\ne|${'0-'.repeat(n / 2)}|`)
+            textTabToAlphaTex(`e|${'<1>'.repeat((n * 2) / 5)}|\nB|${'5h'.repeat(n / 2)}|`)
+        })
     })
 })
 
@@ -682,17 +700,11 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
     it('joins bars across many rows in linear time', () => {
         const row = rows(['|0---0---0---0---|0---', '|----------------|----'])
         const next = rows(['|0---0---0---|', '|------------|'])
-        const tab = (n: number) => Array(n).fill(`${row}\n\n${next}`).join('\n\n')
-        const time = (n: number) => {
-            const start = performance.now()
-            const tex = textTabToAlphaTex(tab(n))!
+        expectLinear((k) => {
+            const n = 1_250 * k
+            const tex = textTabToAlphaTex(Array(n).fill(`${row}\n\n${next}`).join('\n\n'))!
             expect(tex.split('|')).toHaveLength(2 * n)
-            return performance.now() - start
-        }
-        time(500) // warm-up
-        // Twice the rows takes about twice the time; a quadratic join would take four times.
-        // A ratio, not a wall-clock limit, so a slow CI runner doesn't fail it.
-        expect(time(5_000)).toBeLessThan(3 * time(2_500) + 50)
+        })
     })
 
     it('joins drum bars split across rows', () => {
