@@ -220,6 +220,22 @@ describe('choosing the other instrument redraws the diagram', () => {
             Number(k.getAttribute('data-midi'))
         )
 
+    it('stops what plays before it switches', () => {
+        let stops = 0
+        const player: NotePlayer = {
+            play: () => ({ stop: () => void stops++ })
+        }
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: { player } })
+        const toggle = h.querySelector('.mn-play-toggle') as HTMLButtonElement
+        toggle.click()
+        expect(toggle.getAttribute('aria-label')).toBe('Stop')
+        choose(h, 'piano')
+        expect(stops).toBe(1)
+        expect(toggle.getAttribute('aria-label')).toBe('Play')
+        h.remove()
+    })
+
     it('draws a fretboard as a keyboard on piano, and back on guitar', () => {
         const h = host()
         renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: {} })

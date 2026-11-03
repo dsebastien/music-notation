@@ -355,6 +355,8 @@ function barFor(
         }
     }
     sound.addEventListener('change', () => {
+        // What plays stops first: its notes belong to the drawing that goes away.
+        stop()
         settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
         drawFor()
     })
