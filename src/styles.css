@@ -543,3 +543,40 @@
     color: var(--text-error, #c92a2a);
     font-size: 0.9em;
 }
+
+/* A chord over a scale (#48): chord tones solid, the scale's other notes hollow (passing notes), so
+   the difference doesn't rest on color alone. */
+.mn-svg .mn-dot.mn-passing {
+    fill: var(--mn-bg);
+    stroke: var(--mn-accent);
+    stroke-width: 2;
+}
+
+.mn-svg .mn-dot.mn-passing.mn-root {
+    stroke: var(--mn-root);
+}
+
+.mn-svg .mn-dot.mn-passing + .mn-dot-text {
+    fill: var(--mn-fg);
+}
+
+.mn-svg .mn-key-white.mn-on.mn-passing {
+    fill: color-mix(in srgb, var(--mn-accent) 25%, var(--mn-key-white));
+}
+
+.mn-svg .mn-key-white.mn-on.mn-passing.mn-root {
+    fill: color-mix(in srgb, var(--mn-root) 25%, var(--mn-key-white));
+}
+
+.mn-svg .mn-key-black.mn-on.mn-passing {
+    fill: color-mix(in srgb, var(--mn-accent) 45%, var(--mn-key-black));
+}
+
+.mn-svg .mn-key-black.mn-on.mn-passing.mn-root {
+    fill: color-mix(in srgb, var(--mn-root) 45%, var(--mn-key-black));
+}
+
+/* Piano keys keep their colors in every theme: a light passing key takes dark text. */
+.mn-svg .mn-key-white.mn-passing + .mn-key-label {
+    fill: var(--mn-key-black);
+}

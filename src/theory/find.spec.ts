@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { findKey, findScales, inKey } from './find.js'
+import { chordsInScale, findKey, findScales, inKey, scalesForChord } from './find.js'
 import { degreeOf, keyChords, keySignature, parentMajor, readKey, signatureText } from './keys.js'
 
 const names = (list: { name: string }[], n = list.length) => list.slice(0, n).map((m) => m.name)
@@ -137,6 +137,53 @@ describe('findScales', () => {
         expect(findScales('G Xyz')).toEqual([])
         expect(findScales('')).toEqual([])
         expect(names(findScales('C E G'))).not.toContain('C chromatic')
+    })
+})
+
+describe('scalesForChord', () => {
+    it('lists the scales on the chord root that hold its tones', () => {
+        expect(names(scalesForChord('Cmaj7'), 2)).toEqual(['C major', 'C lydian'])
+        expect(names(scalesForChord('Dm7'), 3)).toEqual(['D minor', 'D dorian', 'D phrygian'])
+        expect(names(scalesForChord('C7'), 2)).toEqual(['C mixolydian', 'C lydian dominant'])
+        expect(names(scalesForChord('Am'))).toContain('A minor pentatonic')
+        expect(scalesForChord('Cmaj7').every((m) => m.tonic === 'C' && !m.outside.length)).toBe(
+            true
+        )
+        expect(scalesForChord('nope')).toEqual([])
+    })
+})
+
+describe('chordsInScale', () => {
+    it('harmonizes seven-note scales', () => {
+        const chords = chordsInScale('G major')!
+        expect(chords.map((c) => c.triad)).toEqual(['G', 'Am', 'Bm', 'C', 'D', 'Em', 'F#dim'])
+        expect(chords.map((c) => c.seventh)).toEqual([
+            'Gmaj7',
+            'Am7',
+            'Bm7',
+            'Cmaj7',
+            'D7',
+            'Em7',
+            'F#m7b5'
+        ])
+        expect(chords[6]!.numeral).toBe('vii°')
+        expect(chordsInScale('A harmonic minor')!.map((c) => c.triad)).toEqual([
+            'Am',
+            'Bdim',
+            'Caug',
+            'Dm',
+            'E',
+            'F',
+            'G#dim'
+        ])
+    })
+
+    it('lists the common chords that fit other scales', () => {
+        const chords = chordsInScale('A minor pentatonic')!
+        expect(chords[0]!.triad).toBeNull()
+        expect(chords[0]!.chords).toEqual(['Am', 'Am7', 'Asus4'])
+        expect(chords[1]!.chords).toContain('C')
+        expect(chordsInScale('C nothing')).toBeNull()
     })
 })
 

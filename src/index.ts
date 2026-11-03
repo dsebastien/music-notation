@@ -141,10 +141,13 @@ export {
     findScales,
     findKey,
     inKey,
+    scalesForChord,
+    chordsInScale,
     type ScaleMatch,
     type FindScalesOptions,
     type KeyCandidate,
-    type FoundKey
+    type FoundKey,
+    type ScaleChord
 } from './theory/find.js'
 export {
     readKey,

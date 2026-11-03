@@ -1,13 +1,14 @@
 /**
- * Finding scales and keys (#42): the scales that hold some notes or the tones of some chords, and
- * the most likely key of a progression.
+ * Finding scales and keys (#42, #48): the scales that hold some notes or the tones of some chords,
+ * the scales to play over a chord, the chords in a scale, and the most likely key of a
+ * progression.
  */
 import { Interval, ScaleType, Scale } from 'tonal'
 import { chordNoteSet } from './note-set.js'
 import { chromaOf, nameOf } from './pitch.js'
 import { scaleSpelling } from './scales.js'
 import { parseChord } from './chord-symbol.js'
-import { keyNotes, noteName, type MusicalKey } from './keys.js'
+import { degreeOf, keyNotes, noteName, romanText, stackedChord, type MusicalKey } from './keys.js'
 
 export interface ScaleMatch {
     /** "G major", "E minor pentatonic". */
@@ -193,6 +194,66 @@ export function findScales(
     return rank(material, Math.max(0, options.maxOutside ?? 1))
         .slice(0, options.limit ?? 20)
         .map(strip)
+}
+
+/**
+ * Scales to play over a chord (chord-scale): the scales on its root that hold every chord tone,
+ * best first (Cmaj7: C major, C lydian, C major pentatonic…; Dm7: D minor, D dorian, D phrygian…).
+ * Empty when the chord doesn't read.
+ */
+export function scalesForChord(symbol: string, options: { limit?: number } = {}): ScaleMatch[] {
+    const set = parseChord(symbol) ? chordNoteSet(symbol) : null
+    if (!set || set.root === null) return []
+    const material = materialOf([symbol], 'chords')!
+    return rank(material, 0, set.root)
+        .slice(0, options.limit ?? 20)
+        .map(strip)
+}
+
+export interface ScaleChord {
+    /** 1-based position in the scale. */
+    degree: number
+    root: string
+    /** The triad stacked in thirds on the scale (seven-note scales); null otherwise. */
+    triad: string | null
+    /** The seventh chord stacked in thirds (seven-note scales); null otherwise. */
+    seventh: string | null
+    /** The triad's numeral from the scale's tonic ("ii", "bVII"); null without a triad. */
+    numeral: string | null
+    /** Every common chord on this root whose notes are all in the scale. */
+    chords: string[]
+}
+
+/** Common chord types tried on every note of a scale, most used first. */
+const COMMON = ['', 'm', '7', 'm7', 'maj7', 'dim', 'm7b5', 'dim7', 'aug', 'sus2', 'sus4', '6', 'm6']
+
+/**
+ * The chords in a scale: on each note, the triad and the seventh chord stacked in thirds (for
+ * seven-note scales), their numeral, and every common chord whose notes are all in the scale.
+ * Null when the scale doesn't read.
+ */
+export function chordsInScale(scaleName: string): ScaleChord[] | null {
+    const scale = Scale.get(scaleName.trim())
+    if (scale.empty || !scale.tonic) return null
+    const { notes } = scaleSpelling(scale)
+    const inScale = new Set(notes.map((n) => chromaOf(n)))
+    const heptatonic = notes.length === 7
+    return notes.map((root, i) => {
+        const triad = heptatonic ? stackedChord(notes, i, false) : null
+        const seventh = heptatonic ? stackedChord(notes, i, true) : null
+        const chords = COMMON.map((suffix) => `${root}${suffix}`).filter((symbol) =>
+            chordNoteSet(symbol)?.members.every((m) => inScale.has(m.chroma))
+        )
+        const degree = degreeOf(scale.tonic!, root)
+        return {
+            degree: i + 1,
+            root,
+            triad,
+            seventh,
+            numeral: triad && degree ? romanText(degree, triad.slice(root.length)) : null,
+            chords
+        }
+    })
 }
 
 export interface KeyCandidate extends MusicalKey {

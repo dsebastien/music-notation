@@ -101,7 +101,15 @@ const int = (value: string | null) => (value === null ? null : Number(value))
 
 const marksOf = (el: Element) =>
     classes(el).flatMap((c) =>
-        c === 'mn-char' ? ['characteristic'] : c === 'mn-diff' ? ['different'] : []
+        c === 'mn-char'
+            ? ['characteristic']
+            : c === 'mn-diff'
+              ? ['different']
+              : c === 'mn-tone'
+                ? ['chord tone']
+                : c === 'mn-passing'
+                  ? ['passing']
+                  : []
     )
 
 /** A spelled note with its octave: B#3 is MIDI 60, so the octave follows the letter. */

@@ -398,6 +398,22 @@ frets: 0-5</code></pre></div>
 
 The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note.
 
+**A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint.
+
+````markdown
+```fretboard
+scale: A minor pentatonic
+chord: Am7
+frets: 5-8
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">scale: A minor pentatonic
+chord: Am7
+frets: 5-8
+labels: intervals</code></pre></div>
+
 ## From a note's properties
 
 An empty `chord`, `fretboard` or `keyboard` block can draw what the note's properties say, so a note doesn't repeat its frets or its scale in the body. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
