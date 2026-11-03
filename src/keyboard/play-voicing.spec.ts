@@ -25,6 +25,16 @@ describe('chordVoicingIn (#61)', () => {
         expect(voicing('C/Bb')).toEqual([70, 72, 76, 79])
     })
 
+    it('falls back to the lit keys when a narrow range has no room for every chord tone', () => {
+        // C/G within C4-C5: G4 C5, and E has no key above G4.
+        expect(voicing('C/G', 60, 72)).toBeNull()
+        expect(voicing('C/G', 60, 71)).toBeNull()
+        // Room enough: G4 C5 E5.
+        expect(voicing('C/G', 60, 76)).toEqual([67, 72, 76])
+        // A root position whose 9th falls below the first key (E4-C5: D4 is not drawn).
+        expect(voicing('C9', 64, 72)).toBeNull()
+    })
+
     it('leaves exact pitches, lists without a root and ranges without a root key alone', () => {
         const exact = chordNoteSet('C')!
         exact.pitches = [48, 60, 64, 67]

@@ -10,6 +10,7 @@ import {
     type NotePlayer
 } from './player.js'
 import { renderBlock } from '../render/render-block.js'
+import { strumsOf } from './controls.js'
 
 describe('sequenceOf', () => {
     it('strums a chord low to high, then lets it ring', () => {
@@ -237,6 +238,16 @@ describe('playback bar', () => {
         renderBlock('keyboard', 'chord: C\nrange: C4-B5\nfingering: 1 2 4', f, { play: { player } })
         ;(f.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([60, 64, 67])
+        // A slash chord in a narrow range keeps every chord tone: the lit keys.
+        for (const [range, keys] of [
+            ['C4-C5', [60, 64, 67, 72]],
+            ['C4-B4', [60, 64, 67]]
+        ] as const) {
+            const s = host()
+            renderBlock('keyboard', `chord: C/G\nrange: ${range}`, s, { play: { player } })
+            ;(s.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+            expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([...keys])
+        }
         // Every lit key still plays on a click.
         h.querySelector('[data-midi="62"]')!.dispatchEvent(new Event('click', { bubbles: true }))
         expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([62])
@@ -263,21 +274,65 @@ describe('playback bar', () => {
         select.value = 'guitar'
         select.dispatchEvent(new Event('change'))
         expect(strum.value).toBe('12')
-        // A strum the reader sets stays across sounds.
+        // The slider sets the strum of the sound chosen; each instrument keeps its own.
         strum.value = '30'
         strum.dispatchEvent(new Event('input'))
         select.value = 'piano'
         select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('0')
+        strum.value = '25'
+        strum.dispatchEvent(new Event('input'))
+        select.value = 'guitar'
+        select.dispatchEvent(new Event('change'))
         expect(strum.value).toBe('30')
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('25')
+        toggle.click()
+        expect(calls.at(-1)!.events.map((e) => +(e.time * 1000).toFixed(3))).toEqual([
+            0, 25, 50, 75, 100
+        ])
         const k = host()
         renderBlock('keyboard', 'chord: C', k, { play: { player } })
         ;(k.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0, 0])
-        // The app's strum is kept on every instrument.
-        const a = host()
-        renderBlock('keyboard', 'chord: C', a, { play: { player, strum: 20 } })
-        ;(a.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
-        expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0.02, 0.04])
+    })
+
+    it("applies an app's plain strum to guitar only; { guitar, piano } sets each", () => {
+        const { player, calls } = recorder()
+        const times = () => calls.at(-1)!.events.map((e) => +(e.time * 1000).toFixed(3))
+        const k = host()
+        renderBlock('keyboard', 'chord: C', k, { play: { player, strum: 40 } })
+        ;(k.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // A piano chord stays a block.
+        expect(times()).toEqual([0, 0, 0])
+        const g = host()
+        renderBlock('chord', 'A x02220', g, { play: { player, strum: 40 } })
+        ;(g.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(times()).toEqual([0, 40, 80, 120, 160])
+        // The guitar diagram on piano: a block too.
+        const select = g.querySelector('.mn-play-sound') as HTMLSelectElement
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        ;(g.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(new Set(times())).toEqual(new Set([0]))
+        const both = host()
+        renderBlock('keyboard', 'chord: C', both, {
+            play: { player, strum: { guitar: 30, piano: 20 } }
+        })
+        ;(both.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(times()).toEqual([0, 20, 40])
+        expect((both.querySelector('input[aria-label^="Strum"]') as HTMLInputElement).value).toBe(
+            '20'
+        )
+        const pick = both.querySelector('.mn-play-sound') as HTMLSelectElement
+        pick.value = 'guitar'
+        pick.dispatchEvent(new Event('change'))
+        ;(both.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(times()).toEqual([0, 30, 60])
+        // Only piano given: guitar keeps its 12 ms.
+        expect(strumsOf({ piano: 500 })).toEqual({ guitar: 12, piano: 200 })
+        expect(strumsOf(Number.NaN)).toEqual({ guitar: 12, piano: 0 })
     })
 
     it('plays chord tones over a scale a little louder than passing notes', () => {

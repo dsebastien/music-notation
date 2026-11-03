@@ -4,7 +4,13 @@
  * `data-mn-beat` element, each chord's notes), so any page that drew the pattern can play it.
  */
 import { html, svg } from '../render/dom.js'
-import { runStrum, tempoOf, type StrumScore, type StrumSettings } from '../strum/play.js'
+import {
+    countedTempoOf,
+    runStrum,
+    tempoOf,
+    type StrumScore,
+    type StrumSettings
+} from '../strum/play.js'
 import { strumVoicing } from '../strum/voicing.js'
 import { isCompound, type Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
@@ -62,6 +68,12 @@ export function scoreFromDrawing(drawing: Element): StrumScore | null {
     }
 }
 
+/** The drawn time signature's beat unit (8 in 6/8); 4 when unknown. */
+function unitOf(drawing: Element): number {
+    const unit = Number(/^\d+\/(\d+)$/.exec(drawing.getAttribute('data-mn-time') ?? '')?.[1])
+    return Number.isInteger(unit) && unit > 0 ? unit : 4
+}
+
 /** A metronome, for the count-in. */
 const COUNT_IN = 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7'
 
@@ -84,8 +96,11 @@ export function strumBarFor(
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
     const compound = (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat
     const settings: StrumSettings = {
+        // The app's bpm counts quarters: the same speed in the beat the pattern counts.
         bpm: tempoOf(
-            drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo) ? tempo : options.bpm,
+            drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo)
+                ? tempo
+                : countedTempoOf(options.bpm, compound, unitOf(drawing)),
             compound
         ),
         countIn: false,

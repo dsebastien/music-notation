@@ -12,7 +12,8 @@ const pc = (midi: number) => ((midi % 12) + 12) % 12
  * from the lowest root drawn (G7: G B D F, C9: C E G Bb D), each note an octave lower when it
  * would pass the last key. A slash chord takes its lowest bass key, then the chord's other notes
  * in close position above it (C/E: E G C). Null when the set has exact pitches (they play as
- * drawn), no root, or no root key within the range.
+ * drawn), no root, no root key within the range, or when the range is too narrow for a voicing
+ * with every chord tone (C/G within C4-C5 has no room for E above G4): the lit keys play then.
  */
 export function chordVoicingIn(set: NoteSet, from: number, to: number): number[] | null {
     if (set.pitches || set.root === null || from > to) return null
@@ -24,15 +25,24 @@ export function chordVoicingIn(set: NoteSet, from: number, to: number): number[]
             if (pc(midi) === chroma) return midi
         return null
     }
+    // Every chord tone sounds, or the voicing isn't one.
+    const whole = (notes: number[]) => {
+        const sounding = new Set(notes.map(pc))
+        return set.members.every((m) => sounding.has(m.chroma))
+            ? [...new Set(notes)].sort((a, b) => a - b)
+            : null
+    }
     if (bass !== null && bass !== undefined && bass !== root) {
         const low = lowest(bass, from)
-        if (low !== null) {
-            const above = set.members
-                .filter((m) => m.chroma !== bass)
-                .map((m) => lowest(m.chroma, low + 1))
-                .filter((midi): midi is number => midi !== null)
-            return [...new Set([low, ...above])].sort((a, b) => a - b)
-        }
+        // Each other note on its lowest key above the bass; one with no key there is left out.
+        if (low !== null)
+            return whole([
+                low,
+                ...set.members
+                    .filter((m) => m.chroma !== bass)
+                    .map((m) => lowest(m.chroma, low + 1))
+                    .filter((midi): midi is number => midi !== null)
+            ])
     }
     const start = lowest(root, from)
     if (start === null) return null
@@ -47,5 +57,5 @@ export function chordVoicingIn(set: NoteSet, from: number, to: number): number[]
             return midi
         })
         .filter((midi) => midi >= from)
-    return [...new Set([start, ...notes])].sort((a, b) => a - b)
+    return whole([start, ...notes])
 }

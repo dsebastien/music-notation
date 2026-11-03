@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'bun:test'
 import * as alphaTab from '@coderline/alphatab'
-import { lightPlayer, type NoteEvent } from './player.js'
+import { clickFrequency, lightPlayer, type NoteEvent } from './player.js'
 import { soundfontPlayer, type AlphaTabModule } from '../tab/index.js'
 
 /** An audio context that records the nodes made and each envelope's levels and times. */
 function fakeWindow() {
     const made: { type: string; frequency?: number; buffer?: boolean }[] = []
     const envelopes: { values: number[]; times: number[] }[] = []
+    const oscillators: { frequency: { value: number } }[] = []
     class Param {
         value = 1
         readonly values: number[] = []
@@ -25,8 +26,13 @@ function fakeWindow() {
         }
     }
     const node = () => ({ connect() {}, disconnect() {} })
+    // What the context was asked, in order: buffers made, the clock read.
+    const calls: string[] = []
     class FakeContext {
-        currentTime = 0
+        get currentTime() {
+            calls.push('time')
+            return 0
+        }
         sampleRate = 8000
         destination = node()
         resume = () => Promise.resolve()
@@ -36,6 +42,7 @@ function fakeWindow() {
             return { ...node(), gain }
         }
         createBuffer(_c: number, length: number) {
+            calls.push('buffer')
             return { getChannelData: () => new Float32Array(length) }
         }
         createBufferSource() {
@@ -52,6 +59,7 @@ function fakeWindow() {
                 stop() {}
             }
             made.push({ type: 'oscillator' })
+            oscillators.push(osc)
             return osc
         }
         createPeriodicWave() {
@@ -67,7 +75,7 @@ function fakeWindow() {
         setTimeout: () => 0,
         clearTimeout() {}
     } as unknown as Window
-    return { win, made, envelopes }
+    return { win, made, envelopes, oscillators, calls }
 }
 
 describe('percussive notes (NoteEvent.kind)', () => {
@@ -95,6 +103,35 @@ describe('percussive notes (NoteEvent.kind)', () => {
             const env = envelopes[1]!
             expect(env.times[env.times.length - 1]! - env.times[0]!).toBeCloseTo(0.03)
         }
+    })
+
+    it('light synthesizer: the downbeat, a beat and the other beats click at three pitches', () => {
+        // The count-in in simple time: 88 on 1, 84 on the other beats; 81 between counted beats.
+        expect([88, 84, 81].map(clickFrequency)).toEqual([2800, 2100, 1400])
+        const { win, oscillators } = fakeWindow()
+        lightPlayer(win).play(
+            [88, 84, 84, 84].map((midi, i) => ({ midi, time: i, duration: 0.05, kind: 'click' })),
+            { sound: 'guitar', volume: 1 }
+        )
+        expect(oscillators.map((o) => o.frequency.value)).toEqual([2800, 2100, 2100, 2100])
+    })
+
+    it('light synthesizer: strings for strings only, made before the start time is read', () => {
+        // Clicks make no string buffer.
+        const clicks = fakeWindow()
+        lightPlayer(clicks.win).play(
+            [0, 1, 2, 3].map((time) => ({ midi: 84 + time, time, duration: 0.05, kind: 'click' })),
+            { sound: 'guitar', volume: 1 }
+        )
+        expect(clicks.calls.filter((c) => c === 'buffer')).toEqual([])
+        // A muted strum's strings: made up front, one each.
+        const muted = fakeWindow()
+        lightPlayer(muted.win).play(
+            [40, 47, 52].map((midi) => ({ midi, time: 0, duration: 0.06, kind: 'muted' })),
+            { sound: 'guitar', volume: 1 }
+        )
+        expect(muted.calls.slice(0, 4)).toEqual(['buffer', 'buffer', 'buffer', 'time'])
+        expect(muted.calls.filter((c) => c === 'buffer')).toHaveLength(3)
     })
 
     it('soundfont: muted notes on the muted guitar (program 28), clicks on the metronome click', () => {
@@ -128,6 +165,15 @@ describe('percussive notes (NoteEvent.kind)', () => {
             [1, 28],
             [9, 0]
         ])
+        // The song ends half a second after the last note (3 s), on a pedal-up, so it rings.
+        const division = (played as unknown as { division: number }).division
+        const last = all.reduce((a, b) =>
+            (b as { tick?: number }).tick! >= (a as { tick?: number }).tick! ? b : a
+        ) as { tick: number; controller?: number; value?: number }
+        expect(last.constructor.name).toBe('ControlChangeEvent')
+        expect(last.controller).toBe(alphaTab.midi.ControllerType.HoldPedal)
+        expect(last.value).toBe(0)
+        expect(last.tick).toBe(Math.round(3.5 * division))
         // On piano, a muted note is a short piano note.
         player.play([events[1]!], { sound: 'piano', volume: 1 }).stop()
         const piano = played!.tracks
