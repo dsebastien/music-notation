@@ -799,7 +799,7 @@ Supported:
 - Song details: `{title}` (`{t}`), `{subtitle}` (`{st}`), `{artist}`, `{key}`, `{capo}`, `{tempo}`, `{time}`.
 - Sections: verse, chorus, bridge (`{start_of_verse}`, `{sov}`, `{soc}`, `{sob}`…), with an optional label (`{start_of_verse: Verse 2}`); tab and grid sections are shown as written.
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
-- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key.
+- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their place in it: in G moved down to F#, C becomes B and D/F# becomes C#/E#.
 - Long lyric lines wrap on narrow screens.
 - Chord shapes and the chords used row: see below.
 

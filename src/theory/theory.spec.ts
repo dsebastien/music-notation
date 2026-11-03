@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { chromaOf, midiOf, nameOf, noteOf } from './pitch.js'
-import { keyPrefersFlats, transposeChord, transposeKey } from './transpose.js'
+import { keyMove, keyPrefersFlats, transposeChord, transposeKey } from './transpose.js'
+import { keyChords, readKey } from './keys.js'
 import {
     chordNoteSet,
     intervalFrom,
@@ -56,6 +57,58 @@ describe('transpose', () => {
         expect(keyPrefersFlats('Dm')).toBe(true)
         expect(keyPrefersFlats('G')).toBe(false)
         expect(keyPrefersFlats('Em')).toBe(false)
+        // A sharp tonic is a sharp key: "F#" isn't F followed by something.
+        expect(keyPrefersFlats('F#')).toBe(false)
+        expect(keyPrefersFlats('C#')).toBe(false)
+        expect(keyPrefersFlats('F#m')).toBe(false)
+        expect(keyPrefersFlats('F# major')).toBe(false)
+        expect(keyPrefersFlats('F major')).toBe(true)
+        expect(keyPrefersFlats('Fmaj')).toBe(true)
+        expect(keyPrefersFlats('Gm')).toBe(true)
+        expect(keyPrefersFlats('G minor')).toBe(true)
+    })
+
+    it('moves chords between keys by letters', () => {
+        expect(keyMove('G', -1)).toEqual({ from: 'G', to: 'F#' })
+        const g = keyMove('G', -1)!
+        expect(['G', 'C', 'D', 'F#dim', 'D/F#'].map((c) => transposeChord(c, -1, g))).toEqual([
+            'F#',
+            'B',
+            'C#',
+            'E#dim',
+            'C#/E#'
+        ])
+        const em = keyMove('Em', -1)!
+        expect(['Em', 'Am', 'B7', 'C', 'D'].map((c) => transposeChord(c, -1, em))).toEqual([
+            'Ebm',
+            'Abm',
+            'Bb7',
+            'Cb',
+            'Db'
+        ])
+        // A move that doesn't match the semitones falls back to the new key's sharps or flats.
+        expect(transposeChord('C', 2, { from: 'C', to: 'Eb' })).toBe('D')
+    })
+
+    it('keeps the chords of every key in its key, whatever the move', () => {
+        const majors = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb']
+        const minors = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'Dm', 'Gm', 'Cm', 'Fm', 'Bbm', 'Ebm']
+        for (const key of [...majors, ...minors]) {
+            const from = readKey(key)!
+            for (let steps = -11; steps <= 11; steps++) {
+                const moved = transposeKey(key, steps)
+                const move = keyMove(key, steps)!
+                const to = readKey(moved)!
+                const chords = keyChords(from, true).map((c) =>
+                    transposeChord(c.symbol, steps, move)
+                )
+                expect([key, steps, chords]).toEqual([
+                    key,
+                    steps,
+                    keyChords(to, true).map((c) => c.symbol)
+                ])
+            }
+        }
     })
 
     it('transposes keys with their usual spelling', () => {

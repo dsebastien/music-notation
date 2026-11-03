@@ -1,6 +1,6 @@
 /** ChordPro songs rendered as HTML charts: chords above the lyrics, transposable. */
 import { html } from '../render/dom.js'
-import { keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose.js'
+import { keyMove, keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose.js'
 import type { Song } from './chordpro.js'
 import type { Hand, LayoutDefaults } from '../render/layout.js'
 import type { VoicingLookup } from '../voicings/index.js'
@@ -44,7 +44,10 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
     const semitones = song.transpose + (Number.isFinite(extra) ? Math.round(extra) : 0)
     const key = song.key ? transposeKey(song.key, semitones) : null
     const flats = key ? keyPrefersFlats(key) : undefined
-    const chord = (symbol: string) => transposeChord(symbol, semitones, flats)
+    // With a key, chords move by the interval between the keys (letters kept: G → F#, C → B).
+    const move = song.key ? keyMove(song.key, semitones) : null
+    const spelling = move ?? flats
+    const chord = (symbol: string) => transposeChord(symbol, semitones, spelling)
     const drawing: ChordDrawing = {
         instrument: song.instrument ?? (options.instrument === 'piano' ? 'piano' : 'guitar'),
         ...(options.voicings ? { voicings: options.voicings } : {}),
@@ -57,7 +60,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         renderChordsUsed(doc, song, {
             ...drawing,
             semitones,
-            ...(flats === undefined ? {} : { flats })
+            ...(spelling === undefined ? {} : { spelling })
         })
 
     const root = html(doc, 'div', 'mn-chart')
@@ -100,7 +103,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                 const { definition } = line
                 if (!definition.diagram) continue
                 const moved = definition.transposable ? semitones : 0
-                const shown = transposeChord(definition.name, moved, flats)
+                const shown = transposeChord(definition.name, moved, spelling)
                 const inline = html(doc, 'div', 'mn-line mn-chart-chord')
                 let diagram: SVGElement | null = null
                 try {

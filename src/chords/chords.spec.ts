@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { parseChordPro, parseLyrics } from './chordpro.js'
 import { renderChart } from './chart.js'
+import { lookupGuitarVoicing } from '../voicings/index.js'
 
 const SONG = `{title: Example Song}
 {artist: Someone}
@@ -101,5 +102,44 @@ describe('renderChart', () => {
         expect(el.querySelector('.mn-chart-meta')?.textContent).toBe(
             'Key Bb · Capo 2 · Transposed +3'
         )
+    })
+
+    it('keeps the letters of the key when it moves', () => {
+        const chords = (source: string, transpose: number) =>
+            [
+                ...renderChart(document, parseChordPro(source), { transpose }).querySelectorAll(
+                    '.mn-chord'
+                )
+            ].map((c) => c.textContent)
+        expect(chords('{key: G}\n[G]a [D]b [Em]c [C]d [D/F#]e', -1)).toEqual([
+            'F#',
+            'C#',
+            'D#m',
+            'B',
+            'C#/E#'
+        ])
+        expect(chords('{key: Em}\n[Em]a [Am]b [B7]c [C]d', -1)).toEqual(['Ebm', 'Abm', 'Bb7', 'Cb'])
+        expect(chords('{key: C}\n[C]a [F]b [G]c [Bdim]d [E7]e', 6)).toEqual([
+            'F#',
+            'B',
+            'C#',
+            'E#dim',
+            'A#7'
+        ])
+        expect(chords('{key: A}\n[A]a [D]b [E7]c', 1)).toEqual(['Bb', 'Eb', 'F7'])
+        // Without a key, each chord keeps its own spelling.
+        expect(chords('[G]a [Bb]b', 1)).toEqual(['G#', 'B'])
+    })
+
+    it('spells the chords used row like the lyrics', () => {
+        const el = renderChart(document, parseChordPro('{key: G}\n{diagrams}\n[G]a [C]b'), {
+            transpose: -1,
+            voicings: lookupGuitarVoicing
+        })
+        expect(
+            [...el.querySelectorAll('.mn-chart-diagrams svg.mn-svg')].map((s) =>
+                s.getAttribute('data-mn-chord')
+            )
+        ).toEqual(['F#', 'B'])
     })
 })

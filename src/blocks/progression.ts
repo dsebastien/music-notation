@@ -19,7 +19,7 @@ import {
     progressionTokens,
     type ProgressionChord
 } from '../theory/numerals.js'
-import { keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose.js'
+import { transposeChord, transposeKey } from '../theory/transpose.js'
 
 /** More chords than this in one block is an error, so a page stays quick to draw. */
 const MAX_CHORDS = 32
@@ -113,11 +113,12 @@ function sectionOf(block: BlockSource): Section {
         if (!found.clear) others = found.candidates.slice(1, 3).map((c) => c.name)
     } else throw new Error('Add the key: e.g. key: G or key: E minor')
     const to = transposed(key, shift)
-    const flats = keyPrefersFlats(`${to.tonic}${to.mode === 'minor' ? 'm' : ''}`)
+    // Chord names move by the interval between the keys, so they keep their letters in it.
+    const move = { from: key.tonic, to: to.tonic }
     const chords = tokens.map((token) => {
         // Numerals follow the key; chord names move with it.
         const chord = /^[A-G]/.test(token)
-            ? progressionChord(shift ? transposeChord(token, shift, flats) : token, to)
+            ? progressionChord(shift ? transposeChord(token, shift, move) : token, to)
             : progressionChord(token, to)
         if (!chord) throw unread(token)
         return chord

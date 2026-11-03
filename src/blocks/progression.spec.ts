@@ -69,6 +69,24 @@ describe('progression block', () => {
         expect(texts(names, 'mn-progression-key')).toEqual(['Key: Bb major'])
         expect(texts(names, 'mn-progression-name')).toEqual(['Bb', 'F', 'Gm', 'Eb'])
         expect(texts(names, 'mn-progression-numeral')).toEqual(['I', 'V', 'vi', 'IV'])
+        const down = host()
+        renderBlock(
+            'progression',
+            'G C D F#dim\nkey: G\ntranspose: -1\nfunctions: yes\ndiagrams: no',
+            down
+        )
+        expect(texts(down, 'mn-progression-name')).toEqual(['F#', 'B', 'C#', 'E#dim'])
+        expect(texts(down, 'mn-progression-numeral')).toEqual(['I', 'IV', 'V', 'vii°'])
+        expect(texts(down, 'mn-progression-function')).toEqual([
+            'tonic',
+            'subdominant',
+            'dominant',
+            'dominant'
+        ])
+        const minor = host()
+        renderBlock('progression', 'Em Am B7 C\nkey: Em\ntranspose: -1\ndiagrams: no', minor)
+        expect(texts(minor, 'mn-progression-name')).toEqual(['Ebm', 'Abm', 'Bb7', 'Cb'])
+        expect(texts(minor, 'mn-progression-numeral')).toEqual(['i', 'iv', 'V7', 'bVI'])
     })
 
     it('draws chords whose root needs a double sharp', () => {
