@@ -2,7 +2,7 @@
  * Fretboards with the notes of a scale, chord or list, as SVG. Horizontal by default, high string
  * on top like tabs; vertical has the nut on top, like a chord diagram.
  */
-import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 import {
     labelOf,
@@ -246,19 +246,31 @@ export function renderFretboard(
             const cls = `mn-dot${markClasses(set, member.chroma, options.marks)}`
             // Note names as guitar charts write them (G, not F##).
             const text = chartNoteName(labelOf(member, label))
-            root.appendChild(
-                svg(doc, 'circle', {
-                    'class': cls,
-                    cx,
-                    cy,
-                    'r': DOT_R,
-                    'data-midi': open + fret,
-                    'data-mn-string': strings - s,
-                    'data-mn-fret': fret,
-                    'data-mn-note': member.name
-                })
+            // The hit area (#69): the note's own cell, its string's lane and its fret.
+            const [start, end] = fret === 0 ? [0, OPEN_W] : [wire(fret) - FRET_W, wire(fret)]
+            const area = frame.box(
+                across(s) - STRING_GAP / 2,
+                start,
+                across(s) + STRING_GAP / 2,
+                end
             )
-            if (text) root.appendChild(svgLabel(doc, text, point, 'mn-dot-text'))
+            root.appendChild(
+                playableMark(
+                    doc,
+                    area,
+                    svg(doc, 'circle', {
+                        'class': cls,
+                        cx,
+                        cy,
+                        'r': DOT_R,
+                        'data-midi': open + fret,
+                        'data-mn-string': strings - s,
+                        'data-mn-fret': fret,
+                        'data-mn-note': member.name
+                    }),
+                    ...(text ? [svgLabel(doc, text, point, 'mn-dot-text')] : [])
+                )
+            )
             sounding.add(open + fret)
         }
     }

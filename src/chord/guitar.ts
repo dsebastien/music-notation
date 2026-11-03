@@ -1,5 +1,5 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
-import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
 import { chromaOf, nameOf } from '../theory/pitch.js'
 
@@ -125,6 +125,9 @@ const SPACING = 18
 const ROW = 20
 /** Room for the open and muted marks before the nut. */
 const MARKERS = 16
+/** A playable mark's hit area along its string (its string's lane across): taller than the mark,
+ * as touch guidelines ask; a string has one mark, so the areas never overlap. */
+const HIT_ALONG = 44
 /** Room beyond the low string, for the base fret. */
 const BASE = 30
 const TITLE = 22
@@ -292,12 +295,24 @@ export function renderGuitarDiagram(
             'data-mn-fret': fret,
             ...(open !== undefined ? { 'data-midi': open + fret } : {})
         }
-        const place = (...els: Element[]) => {
-            for (const el of els) root.appendChild(el)
+        // A mark that plays (the tuning is known) gets a hit area: its string's lane, centered on it.
+        const place = (markAt: number, ...els: Element[]) => {
+            if (open === undefined) {
+                for (const el of els) root.appendChild(el)
+                return
+            }
+            const area = frame.box(
+                across(s) - SPACING / 2,
+                markAt - HIT_ALONG / 2,
+                across(s) + SPACING / 2,
+                markAt + HIT_ALONG / 2
+            )
+            root.appendChild(playableMark(doc, area, ...els))
         }
         if (fret === 0) {
             const [cx, cy] = mark
             place(
+                markAlong,
                 svg(doc, 'circle', {
                     class: `mn-open${isRoot ? ' mn-root' : ''}`,
                     cx,
@@ -308,11 +323,13 @@ export function renderGuitarDiagram(
             )
             return
         }
+        const row = along(fret - base + 0.5)
         const center = at(s, fret - base + 0.5)
         const [cx, cy] = center
         if (fret === capoFret) {
             // A string the capo plays: a ring on the capo.
             place(
+                row,
                 svg(doc, 'circle', {
                     class: `mn-capo-open${isRoot ? ' mn-root' : ''}`,
                     cx,
@@ -325,6 +342,7 @@ export function renderGuitarDiagram(
         }
         const text = quiet.has(s) ? null : textOf(s)
         place(
+            row,
             svg(doc, 'circle', {
                 class: `mn-dot${isRoot ? ' mn-root' : ''}${options.marks?.[s] ? ` mn-${options.marks[s]}` : ''}`,
                 cx,

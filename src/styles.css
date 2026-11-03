@@ -219,8 +219,17 @@
     background: var(--mn-accent);
 }
 
-.mn-playable [data-midi] {
+.mn-playable [data-midi],
+.mn-playable .mn-hit {
     cursor: pointer;
+}
+
+/* A playable mark's hit area: invisible, but it takes clicks and taps (an open string's circle is
+   only a ring), centered on the mark. */
+.mn-svg .mn-hit {
+    fill: transparent;
+    stroke: none;
+    pointer-events: all;
 }
 
 /* A finger number or note name over a dot or key lets the click reach it. */
