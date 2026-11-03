@@ -805,6 +805,22 @@ describe('textTabToAlphaTex, the meter from the typical bar', () => {
     })
 })
 
+describe('textTabToAlphaTex, rhythm of unbarred and uneven tabs (#71)', () => {
+    it('puts the same columns on the same beats in bars of the same width', () => {
+        const tex = textTabToAlphaTex(
+            six([
+                'e|-----0---3---5---|-----0---3---6-5-|',
+                'B|-----------------|-----------------|',
+                'G|-----------------|-----------------|',
+                'D|-----------------|-----------------|',
+                'A|-----------------|-----------------|',
+                'E|-----------------|-----------------|'
+            ])
+        )!
+        expect(rhythmOf(tex)).toBe('r4 4 4 4 | r4 4 4 8 8')
+    })
+})
+
 describe('chordSheetToChordPro, edge cases', () => {
     it('reads a labelled line of chords as a section with its chords', () => {
         expect(chordSheetToChordPro('Intro: G D Em C')).toBe('{comment: Intro}\n[G] [D] [Em] [C]')

@@ -674,8 +674,9 @@ function fit(
  * 0.4 of a column and with plain note values, then within a column (a tab written a column off),
  * then on a grid that falls on columns, with ties. A grid step is a column wide at least, and
  * equal gaps get equal lengths. The bar runs from `pad` (the dashes every bar starts with) to
- * its end, or `pad` columns less; when the first beat comes later, from its start too (a rest
- * first). Null when nothing fits (a sketch, not a rhythm).
+ * its end, or `pad` columns less; from fewer dashes than `pad` to its end (a bar that starts with
+ * a rest); when the first beat comes later, from its start too (a rest first). Null when nothing
+ * fits (a sketch, not a rhythm).
  */
 export function positionsOf(
     cols: number[],
@@ -688,6 +689,10 @@ export function positionsOf(
         [pad, width - pad],
         [pad, width]
     ]
+    // Fewer dashes before the bar than the row's pad (#71): a bar whose first beat is a rest
+    // can't show how many dashes start it, so every count up to the pad is tried, and the one
+    // that fits the grid best keeps the same columns on the same beats bar after bar.
+    for (let start = 1; start < pad; start++) spans.push([start, width - start])
     if (cols[0]! > pad) spans.push([0, width])
     for (const [slack, ties] of [
         [0.4, false],
