@@ -578,7 +578,7 @@ functions: yes</code></pre></div>
 
 The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
 
-**Finding the key.** Chord names without a key get the likeliest one. The first chord counts most, then the last one, and a V7 → I move. When the chords play in a mode, the block says so: `Dm C G` is in D dorian (i bVII IV), `C Bb F C` in C mixolydian. A blues is in the key of its first chord: `A7 D7 E7 A7` shows "Key: A major (blues)" with I7 IV7 V7, as blues players read them, not V7/IV.
+**Finding the key.** Chord names without a key get the likeliest one. The first chord counts most, then the last one, and a V7 → I move. When the chords play in a mode, the block says so: `Dm C G` is in D dorian (i bVII IV), `C Bb F C` in C mixolydian. Every chord must fit the mode, and a C7 going to F is V7/IV: `C C7 F C` is in C major. A blues is in the key of its first chord: `A7 D7 E7 A7` shows "Key: A major (blues)" with I7 IV7 V7, as blues players read them, not V7/IV.
 
 **Functions.** Secondary dominants include the diminished chords that lead to a chord of the key: `#iv°` and `vii°/V` (F#dim in C) both lead to G, and F#dim7 written as a chord name shows `vii°7/V`. `bII` (Db in C, Bb in A minor) is the Neapolitan. In a blues, I7 is the tonic and IV7 the subdominant.
 

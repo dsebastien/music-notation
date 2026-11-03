@@ -293,7 +293,14 @@ describe('findKey', () => {
         expect(findKey('Am F C G')!.modal).toBeUndefined()
         expect(findKey('Dm G A7 Dm')!.modal).toBeUndefined()
         expect(findKey('C F G C')!.modal).toBeUndefined()
-        expect(findKey('A7 D7 E7 A7')!.modal).toBeUndefined()
+        expect(findKey('A7 D7 E7 A7')!.modal).toBeUndefined() // Every chord inside the mode: Fm's Ab isn't in C mixolydian.
+        expect(findKey('C C7 F Fm C')!.modal).toBeUndefined()
+        // A I7 going to IV is a V7/IV, not a mixolydian b7.
+        expect(findKey('C C7 F C')!.modal).toBeUndefined()
+        expect(findKey('G G7 C G D7 G')!.modal).toBeUndefined()
+        expect(findKey('C7 F C')!.modal).toBeUndefined()
+        // A I7 that doesn't go to IV still reads as the mode's.
+        expect(findKey('C C7 Dm C')!.modal?.name).toBe('C mixolydian')
     })
 
     it('needs chords that read', () => {

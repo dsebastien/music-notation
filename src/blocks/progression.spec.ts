@@ -95,7 +95,11 @@ describe('progression block', () => {
         const moved = host()
         renderBlock('progression', 'Dm C G\ntranspose: 2\ndiagrams: no', moved)
         expect(texts(moved, 'mn-progression-key')[0]).toMatch(/^Key: E dorian/)
-        expect(texts(moved, 'mn-progression-name')).toEqual(['Em', 'D', 'A'])
+        expect(texts(moved, 'mn-progression-name')).toEqual(['Em', 'D', 'A']) // A I7 going to IV is V7/IV in a major key, not a mixolydian I7.
+        const secondary = host()
+        renderBlock('progression', 'C C7 F C\ndiagrams: no', secondary)
+        expect(texts(secondary, 'mn-progression-key')[0]).toMatch(/^Key: C major/)
+        expect(texts(secondary, 'mn-progression-numeral')).toEqual(['I', 'V7/IV', 'IV', 'I'])
     })
 
     it('switches numeral styles', () => {
