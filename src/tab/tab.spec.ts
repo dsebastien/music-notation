@@ -62,7 +62,7 @@ describe('import and export', () => {
                 'E|---------|3---------|'
             ].join('\n')
         )!
-        expect(tex).toBe(':8 2.4 0.3 1.2 0.1 1.2 |\n3.6 0.4 0.3 0.2 0.3 3.1')
+        expect(tex).toBe(':8 2.4 0.3 1.2 0.1 1.2 r :4 r |\n:8 3.6 0.4 0.3 0.2 0.3 3.1 :4 r')
         const score = at.importer.ScoreLoader.loadAlphaTex(tex)
         expect(score.tracks[0]!.staves[0]!.bars).toHaveLength(2)
         expect(textTabToAlphaTex('no tab here')).toBeNull()
