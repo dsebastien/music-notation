@@ -509,6 +509,8 @@ Choosing the other sound also stops what is playing, then redraws the diagram fo
 
 A click on a dot or a key plays that note. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
 
+While it plays, each note lights up on the drawing when you hear it: the dot, the key, or the string's mark. A strummed chord lights its strings from the low one up. A clicked note lights only the dot or key you clicked. Stop or a new sound turns every light off.
+
 ## Tabs and scores
 
 ![A tab with its player](images/tab.png)
@@ -545,7 +547,7 @@ staves: both
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
 
-These keys go on the first lines, and the alphaTex follows. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
+These keys go on the first lines, and the alphaTex follows. Drums have no tablature: a `tab` block with a percussion track (`\instrument percussion`) shows notation too. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
@@ -586,8 +588,51 @@ Supported:
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
 - `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key.
 - Long lyric lines wrap on narrow screens.
+- Chord shapes and the chords used row: see below.
 
 Other directives are ignored.
+
+### Chord diagrams in a chart
+
+`{diagrams}` draws every chord the chart uses, in the order they first appear, as a row of diagrams above the song. The row wraps on narrow screens.
+
+````markdown
+```chords
+{title: Example}
+{diagrams: on}
+{define: F base-fret 1 frets 1 3 3 2 1 1 fingers 1 3 4 2 1 1}
+
+[C]Hello [F]little [G]world, [C]hello
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Example}
+{diagrams: on}
+{define: F base-fret 1 frets 1 3 3 2 1 1 fingers 1 3 4 2 1 1}
+
+[C]Hello [F]little [G]world, [C]hello</code></pre></div>
+
+- `{diagrams}` or `{diagrams: on}` puts the row on top, `{diagrams: bottom}` under the song, `{diagrams: off}` hides it. The row is off by default; apps can turn it on for every chart (`chartDiagrams` option).
+- Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
+- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice.
+- `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
+- With `{capo: 2}`, the row shows the shapes you play (the names above the lyrics) and says "Capo 2".
+- Chords the chart can't draw are listed under the row, with what to write.
+- `N.C.`, `%` and other text in brackets that isn't a chord is skipped.
+
+`{define: name …}` gives a chord's shape (ChordPro 6 syntax):
+
+- `base-fret 3`: the fret the shape starts on (1 by default). Frets count from it: with `base-fret 3`, fret 1 is the 3rd fret.
+- `frets x 0 2 2 1 0`: one value per string, lowest string first. `0` is an open string; `x`, `N` or `-1` a muted one.
+- `fingers 0 0 2 3 1 0`: one value per string, `1` to `9` or a letter (`T` for the thumb). Anything else (`0`, `-`, `x`) means no finger.
+- `keys 0 3 7`: piano keys, in semitones above the root (0 is the root, 7 the fifth).
+- `display "A flat"`: the name shown on the diagram.
+- `copy Am`: start from another chord's shape (an earlier `{define}`, or the database), then change it with the other keywords. `copyall` also copies the display name.
+- `diagram off`: leave that chord out of the row.
+
+`{chord: Am}` draws one chord where it is written: the chart's own `{define}` for it, else the database. `{chord: Bes base-fret 1 frets 1 1 3 3 3 1}` draws that shape without defining it for the rest of the song. As in ChordPro, the name is transposed only when written in brackets: `{chord: [Am]}`.
+
+A `{define}` or `{chord}` with a mistake shows a message at the top of the chart (what to write instead); the rest of the chart still draws.
 
 ## Strumming patterns
 

@@ -136,6 +136,16 @@ function messageOf(error: unknown, lineOffset: number): string {
 const PROFILE: Record<Staves, string> = { tab: 'Tab', score: 'Score', both: 'ScoreTab' }
 
 /**
+ * The stave profile for a block. Drums have no tablature: in a `tab` block, alphaTex with a
+ * percussion track draws notation too, else the drums would draw nothing.
+ */
+function staveProfileOf(staves: Staves, tex: string): string {
+    return staves === 'tab' && /\binstrument\s+percussion\b/i.test(tex)
+        ? 'ScoreTab'
+        : PROFILE[staves]
+}
+
+/**
  * A CSS color as rgba(), whatever the theme wrote (oklch(), color(srgb …), names): alphaTab only
  * reads hex and rgb()/rgba(). Read through a canvas; null when it can't be.
  */
@@ -439,7 +449,10 @@ export function renderTab(
                     logLevel: at.LogLevel.Warning
                 },
                 display: {
-                    staveProfile: PROFILE[parsed.staves] as unknown as AT.StaveProfile,
+                    staveProfile: staveProfileOf(
+                        parsed.staves,
+                        parsed.file ? '' : parsed.tex
+                    ) as unknown as AT.StaveProfile,
                     resources: colorsOf(el)
                 },
                 // The player starts at the first Play (playerBar).
@@ -534,7 +547,8 @@ export function soundfontPlayer(
     api: () => AT.AlphaTabApi | null
 ): NotePlayer {
     return {
-        play(events: NoteEvent[], { sound, volume, onEnd }) {
+        reportsStart: true,
+        play(events: NoteEvent[], { sound, volume, onEnd, onStart }) {
             const current = api()
             const player = current?.player
             if (!current || !player) throw new Error('The soundfont player is not ready')
@@ -564,9 +578,15 @@ export function soundfontPlayer(
             const end = Math.max(...events.map((e) => e.time + e.duration), 0)
             current.playbackSpeed = 1
             player.playOneTimeMidiFile(midi)
+            let stopped = false
+            // The synthesizer starts the song right away: its notes sound from now.
+            queueMicrotask(() => {
+                if (!stopped) onStart?.()
+            })
             const timer = setTimeout(() => onEnd?.(), (end + 0.2) * 1000)
             return {
                 stop() {
+                    stopped = true
                     clearTimeout(timer)
                     player.stop()
                 }
@@ -646,6 +666,8 @@ export function createSoundfontPlayer(
     }
     const inner = soundfontPlayer(alphaTab, () => api)
     return {
+        // Its notes start once the soundfont is in: `onStart` says when (the fallback's too).
+        reportsStart: true,
         play(events, options) {
             let handle: { stop(): void } | null = null
             let stopped = false
@@ -659,7 +681,10 @@ export function createSoundfontPlayer(
                 } catch {
                     // Falls through to the fallback.
                 }
-                if (fallback) handle = fallback.play(events, options)
+                if (!fallback) return
+                handle = fallback.play(events, options)
+                // A fallback that doesn't say when it starts starts now.
+                if (!fallback.reportsStart) options.onStart?.()
             })
             return {
                 stop() {

@@ -12,6 +12,9 @@
     --mn-root: #c2410c;
     /* A mode's characteristic notes: dark enough for white labels too. */
     --mn-char: #047857;
+    /* A note that sounds while a diagram plays: bright, with dark labels, in both themes. */
+    --mn-playing: #facc15;
+    --mn-on-playing: #1c1917;
     /* Piano keys keep their real colors in every theme. */
     --mn-key-white: #fafafa;
     --mn-key-black: #222;
@@ -269,6 +272,31 @@
 .mn-tab.mn-play-open .mn-tab-bar {
     opacity: 1;
     pointer-events: auto;
+}
+
+/* alphaTab's cursor (the bar that plays, the beat line) and the notes of the beat that sounds, in
+   the player bar's accent color: alphaTab ships no style for them, so they didn't show. */
+.mn-tab .at-cursor-bar {
+    background: color-mix(in srgb, var(--mn-accent) 12%, transparent);
+}
+
+.mn-tab .at-cursor-beat {
+    background: var(--mn-accent);
+}
+
+.mn-tab .at-selection div {
+    background: color-mix(in srgb, var(--mn-accent) 15%, transparent);
+}
+
+.mn-tab .at-highlight,
+.mn-tab .at-highlight * {
+    fill: var(--mn-accent);
+    stroke: var(--mn-accent);
+}
+
+/* alphaTab's outlined rectangles stay hollow. */
+.mn-tab .at-highlight [fill='transparent'] {
+    fill: transparent;
 }
 
 .mn-tab-time {
@@ -539,6 +567,41 @@
     white-space: pre;
 }
 
+/* A chart's chord diagrams: the chords used row (wraps like a block's row) and {chord} in place. */
+.mn-chart-diagrams {
+    margin: 0.75em 0;
+}
+
+.mn-chart .mn-chart-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75em 1.25em;
+}
+
+.mn-chart .mn-chart-row .mn-cell {
+    min-width: 0;
+}
+
+.mn-chart-diagrams-caption,
+.mn-chart-diagrams-note {
+    color: var(--mn-muted);
+    font-size: 0.9em;
+}
+
+.mn-chart-diagrams-caption {
+    font-weight: 600;
+    margin-bottom: 0.3em;
+}
+
+.mn-chart-diagrams-note {
+    margin-top: 0.3em;
+}
+
+.mn-chart-chord {
+    margin: 0.4em 0;
+}
+
 .mn-error-message {
     color: var(--text-error, #c92a2a);
     font-size: 0.9em;
@@ -611,4 +674,17 @@
 .mn-svg .mn-strum-cell {
     fill: transparent;
     stroke: none;
+}
+
+/* Following the notes: the dot, key or string mark that sounds while a diagram plays. Last in the
+   file and with enough specificity to win over root, characteristic and highlighted keys. */
+.mn-playable .mn-svg [data-midi].mn-playing {
+    fill: var(--mn-playing);
+    stroke: var(--mn-fg);
+    stroke-width: 2.5;
+}
+
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
+    fill: var(--mn-on-playing);
 }

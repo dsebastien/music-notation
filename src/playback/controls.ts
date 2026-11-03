@@ -25,6 +25,7 @@ import {
     type Sound
 } from './player.js'
 import { strumBarFor } from './strum-bar.js'
+import { followNotes, noteTargets, START_WAIT, type Follower } from './follow.js'
 
 export interface PlayOptions {
     /**
@@ -77,6 +78,10 @@ export function lightFor(win: Window): NotePlayer {
     }
     return player
 }
+
+/** Players seen calling `onStart`: the bar waits for theirs before it lights notes. */
+const reporting = new WeakSet<NotePlayer>()
+const reportsStart = (player: NotePlayer) => player.reportsStart === true || reporting.has(player)
 
 /** The player apps passed (read at each play), else the light synthesizer. */
 export function playerFor(win: Window, options: PlayOptions): NotePlayer {
@@ -233,6 +238,8 @@ function barFor(
         loop: false
     }
     let playing: PlayHandle | null = null
+    // The notes lit on the drawing as they sound.
+    let lights: Follower | null = null
     // The drawing on the page: the diagram, or its redrawing for the other instrument.
     let shown: Element = diagram
     // What the drawing on the page shows: a redrawn fretboard leaves out notes a guitar can't play.
@@ -249,6 +256,8 @@ function barFor(
     const stop = () => {
         playing?.stop()
         playing = null
+        lights?.stop()
+        lights = null
         show()
     }
     /**
@@ -256,24 +265,59 @@ function barFor(
      * window the diagram is in now: a host may move a drawn diagram to another window (Obsidian
      * popouts), and its sound then belongs to that window.
      */
-    const play = (events: NoteEvent[], onEnd: () => void): PlayHandle => {
-        const options_ = { sound: settings.sound, volume: settings.volume, onEnd }
+    const play = (
+        events: NoteEvent[],
+        onEnd: () => void,
+        targets: readonly (readonly Element[])[]
+    ): PlayHandle => {
         const here = wrap.ownerDocument.defaultView ?? win
+        // Each note lights when it really sounds: a soundfont may take seconds on the first play.
+        const run = (player: NotePlayer) => {
+            lights?.stop()
+            const follower = followNotes(
+                here,
+                shown,
+                targets,
+                events,
+                reportsStart(player) ? Infinity : START_WAIT
+            )
+            lights = follower
+            const onStart = () => {
+                reporting.add(player)
+                follower.heard()
+            }
+            try {
+                return player.play(events, {
+                    sound: settings.sound,
+                    volume: settings.volume,
+                    onEnd,
+                    onStart
+                })
+            } catch (error) {
+                follower.stop()
+                throw error
+            }
+        }
         try {
-            return playerFor(here, options).play(events, options_)
+            return run(playerFor(here, options))
         } catch {
-            return lightFor(here).play(events, options_)
+            return run(lightFor(here))
         }
     }
     const start = () => {
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        playing = play(sequenceOf(data.kind, pitchesShown(), settings), () => {
-            playing = null
-            if (settings.loop && wrap.isConnected) start()
-            else show()
-        })
+        const events = sequenceOf(data.kind, pitchesShown(), settings)
+        playing = play(
+            events,
+            () => {
+                playing = null
+                if (settings.loop && wrap.isConnected) start()
+                else show()
+            },
+            noteTargets(shown, events, data.kind)
+        )
         show()
     }
     toggle.addEventListener('click', () => (playing ? stop() : start()))
@@ -380,10 +424,15 @@ function barFor(
         const midi = Number(target?.getAttribute('data-midi'))
         if (!target || !Number.isFinite(midi)) return
         stop()
-        playing = play([{ midi, time: 0, duration: 1.5 }], () => {
-            playing = null
-            show()
-        })
+        // Only the clicked dot or key lights, not the pitch's other places.
+        playing = play(
+            [{ midi, time: 0, duration: 1.5 }],
+            () => {
+                playing = null
+                show()
+            },
+            [[target]]
+        )
         show()
     })
     // Touch screens have no hover: a tap on the diagram shows the bar.
