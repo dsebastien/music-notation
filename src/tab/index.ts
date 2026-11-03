@@ -337,6 +337,11 @@ export interface TabResult {
     ready: Promise<{ ok: boolean; error: string | null }>
     /** The alphaTab API, for exports and playback. */
     api: AT.AlphaTabApi | null
+    /**
+     * The speed set on the player bar (0.25 to 1.5; 1 without a bar). alphaTab's `playbackSpeed`
+     * takes it only once the player starts (the first Play), so an app reads it here.
+     */
+    speed(): number
     destroy(): void
 }
 
@@ -378,7 +383,7 @@ function playerBar(
     api: AT.AlphaTabApi,
     alphaTab: AlphaTabModule,
     assets: TabAssets
-): { bar: HTMLElement; failed: (message: string) => void } {
+): { bar: HTMLElement; failed: (message: string) => void; speed: () => number } {
     const bar = html(doc, 'div', 'mn-play mn-tab-bar')
     // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
     // click on the block, which opens its source.
@@ -510,6 +515,7 @@ function playerBar(
     })
     return {
         bar,
+        speed: () => state.speed,
         // The score stays; only playback is off (no soundfont, no audio).
         failed: (message) => {
             cantStart?.()
@@ -607,6 +613,8 @@ export function renderTab(
     const el = html(doc, 'div', `mn-block mn-block-${language} mn-tab`)
     host.appendChild(el)
     let api: AT.AlphaTabApi | null = null
+    /** The player bar's speed, once the bar exists. */
+    let speedOf = (): number => 1
     let gone = false
     let settled = false
     let settle: (result: { ok: boolean; error: string | null }) => void = () => {}
@@ -690,6 +698,7 @@ export function renderTab(
                 if (settled || gone) return
                 if (options.player !== false) {
                     bar = playerBar(doc, current, at, assets)
+                    speedOf = bar.speed
                     el.appendChild(bar.bar)
                     // Drums and piano have one view only: no control then.
                     if (options.views !== false && tablature)
@@ -762,6 +771,7 @@ export function renderTab(
         get api() {
             return api
         },
+        speed: () => speedOf(),
         destroy() {
             gone = true
             try {

@@ -323,6 +323,30 @@ describe('renderTab', () => {
         expect(h.querySelector('.mn-tab-time')?.textContent).toBe('')
     })
 
+    it('tells the speed set on its bar, before the player starts too (Music Practice #70)', async () => {
+        const h = host()
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: fakeAlphaTab(), assets })
+        await result.ready
+        expect(result.speed()).toBe(1)
+        const speed = h.querySelector<HTMLInputElement>('.mn-tab-bar input[aria-label="Speed"]')!
+        speed.value = '125'
+        speed.dispatchEvent(new Event('input'))
+        // The player starts at the first Play: alphaTab's playbackSpeed is still 1.
+        expect(result.speed()).toBe(1.25)
+        result.destroy()
+        expect(result.speed()).toBe(1.25)
+    })
+
+    it('tells a speed of 1 when it has no player bar', async () => {
+        const result = renderTab('tab', ':4 3.3', host(), {
+            alphaTab: fakeAlphaTab(),
+            assets,
+            player: false
+        })
+        await result.ready
+        expect(result.speed()).toBe(1)
+    })
+
     it('draws a file the app finds, and says when it does not', async () => {
         const found = renderTab('score', 'file: [[Blues.gp]]', host(), {
             alphaTab: fakeAlphaTab(),
