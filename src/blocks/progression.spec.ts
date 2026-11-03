@@ -365,6 +365,15 @@ describe('progression block', () => {
         )
         expect(pop.querySelector('.mn-error-message')).toBeNull()
         expect(pitches(pop)).toEqual(['43 55 59 62', '40 55 59 64', '48 55 60 64', '50 57 62 66'])
+        // A bass line written with slash chords goes down by step: C3 B2 A2 G2 F2.
+        const line = host()
+        renderBlock(
+            'progression',
+            'C G/B Am C/G F\nkey: C\ninstrument: piano\nvoice-leading: yes\nhands: left+right',
+            line
+        )
+        expect(line.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(line).map((p) => p!.split(' ')[0])).toEqual(['48', '47', '45', '43', '41'])
         expect(pop.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(4)
         expect(
             error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: close')

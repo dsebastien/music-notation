@@ -71,6 +71,37 @@ describe('voiceLead', () => {
         expect(cg!.slice(1).some((p) => p % 12 === 7)).toBe(true)
     })
 
+    it('leads a bass line written with slash chords by step', () => {
+        const basses = (symbols: string) =>
+            voiceLead(symbols.split(' '), { bass: true }).map((p) => noteOf(p![0]!, true))
+        // Stepwise bass lines stay stepwise.
+        expect(basses('C C7/Bb F/A')).toEqual(['C3', 'Bb2', 'A2'])
+        expect(basses('G D/F# Em')).toEqual(['G2', 'Gb2', 'E2'])
+        expect(basses('C G/B Am')).toEqual(['C3', 'B2', 'A2'])
+        // Before, the bass jumped back up to octave 3 (A2 G3, D2 C3, B2 A3).
+        expect(basses('C G/B Am C/G F')).toEqual(['C3', 'B2', 'A2', 'G2', 'F2'])
+        expect(basses('F C/E Dm F/C Bb F/A Gm C')).toEqual([
+            'F2',
+            'E2',
+            'D2',
+            'C2',
+            'Bb2',
+            'A2',
+            'G2',
+            'C3'
+        ])
+        expect(basses('D A/C# Bm D/A G')).toEqual(['D3', 'Db3', 'B2', 'A2', 'G2'])
+        // Each bass at least a fourth under its chord, never below C2.
+        for (const p of voiceLead('C G/B Am C/G F C/E Dm G'.split(' '), { bass: true })) {
+            expect(p![1]! - p![0]!).toBeGreaterThanOrEqual(5)
+            expect(p![0]!).toBeGreaterThanOrEqual(36)
+        }
+        // Root-position chords keep their basses from octave 3 down: C F G C is C3 F3 G2 C3,
+        // I vi IV V in G is G2 E2 C3 D3, as before.
+        expect(basses('C F G C')).toEqual(['C3', 'F3', 'G2', 'C3'])
+        expect(basses('G Em C D')).toEqual(['G2', 'E2', 'C3', 'D3'])
+    })
+
     it('voices a ii-V-I as the textbook does (#63)', () => {
         expect(voiceLead(['Dm7', 'G7', 'Cmaj7']).map(names)).toEqual([
             'D4 F4 A4 C5',
