@@ -475,3 +475,45 @@ describe('scale fingering on keyboards (#28)', () => {
         expect(h.querySelectorAll('.mn-on')).toHaveLength(14)
     })
 })
+
+describe('fingering on keyboard note lists (#55)', () => {
+    const fingers = (source: string) => {
+        const h = document.createElement('div')
+        expect(renderBlock('keyboard', source, h).ok).toBe(true)
+        return [...h.querySelectorAll('[data-midi]')]
+            .map((key) => {
+                const label = key.nextElementSibling
+                return label?.classList.contains('mn-key-label')
+                    ? `${key.getAttribute('data-midi')}:${label.textContent}`
+                    : null
+            })
+            .filter(Boolean)
+    }
+
+    it('puts one finger on each listed key, low to high', () => {
+        expect(fingers('notes: C4 D4 E4 F4 G4\nfingering: 1 2 3 4 5')).toEqual([
+            '60:1',
+            '62:2',
+            '64:3',
+            '65:4',
+            '67:5'
+        ])
+    })
+
+    it('goes up from the first note for pitch classes, inside the range when given', () => {
+        expect(fingers('notes: C D E F G\nfingering: 1 2 3 4 5')).toEqual([
+            '60:1',
+            '62:2',
+            '64:3',
+            '65:4',
+            '67:5'
+        ])
+        expect(fingers('notes: G A B C D\nfingering: 1 2 3 4 5\nrange: C3-B4')).toEqual([
+            '55:1',
+            '57:2',
+            '59:3',
+            '60:4',
+            '62:5'
+        ])
+    })
+})

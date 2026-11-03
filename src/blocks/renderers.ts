@@ -414,6 +414,23 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         ].sort((a, b) => a - b)
         fingers = fingersFor(octave, fingering)
         if (!keys) set.pitches = octave
+    } else if (fingering && set.list) {
+        // A list (a five-finger position, a hand position): one finger per listed key, low to
+        // high. Exact pitches as written; pitch classes go up from the first note, in middle C's
+        // octave (or from its first key inside the range), so C D E F G is C4 to G4.
+        let pitches = set.pitches
+        if (!pitches) {
+            const first = set.members[0]!.chroma
+            let at = keys ? keys[0] + ((((first - keys[0]) % 12) + 12) % 12) : 60 + first
+            pitches = set.members.map((member, i) => {
+                if (i > 0)
+                    do at++
+                    while (((at % 12) + 12) % 12 !== member.chroma)
+                return at
+            })
+            if (!keys) set.pitches = pitches
+        }
+        fingers = fingersFor(pitches, fingering)
     }
     return renderKeyboard(doc, set, {
         // A chord plays together; scales and lists one note at a time.
