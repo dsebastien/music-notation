@@ -125,6 +125,26 @@ describe('voiceLeadVoicings', () => {
         ])
     })
 
+    it('starts a shell progression on A or Ab in the same range as the others', () => {
+        expect(forms(['Am7', 'D7', 'Gmaj7'], { voicing: 'shell' })).toEqual([
+            'R-3 A2 C3 G3',
+            'R-3 D3 Gb3 C4',
+            'R-7 G2 Gb3 B3'
+        ])
+        expect(forms(['Abm7', 'Db7', 'Gbmaj7'], { voicing: 'shell' })[0]).toBe('R-3 Ab2 B2 Gb3')
+        expect(forms(['Am7', 'D7'], { voicing: 'shell', hands: 'left+right' })[0]).toBe(
+            'R-3 A2 C4 G4'
+        )
+        // Every root fits the first chord's window, R-3 or R-7.
+        for (const root of ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']) {
+            for (const form of ['R-3', 'R-7'] as const) {
+                const [first] = voiceLeadVoicings([`${root}m7`], { voicing: 'shell', form })
+                expect(first!.pitches[0]!).toBeGreaterThanOrEqual(form === 'R-3' ? 44 : 41)
+                expect(first!.pitches[0]!).toBeLessThanOrEqual(form === 'R-3' ? 55 : 52)
+            }
+        }
+    })
+
     it('moves the range with octave, and leaves out chords it cannot voice', () => {
         expect(forms(['Dm7', 'G7'], { voicing: 'rootless', octave: 4 })[0]).toBe('A F4 A4 C5 E5')
         expect(forms(['Dm7', 'C', 'Hm7'], { voicing: 'shell' })).toEqual([

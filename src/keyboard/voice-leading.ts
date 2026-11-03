@@ -159,14 +159,14 @@ export interface LedVoicing {
 /**
  * Where each form may sit, by its lowest note (MIDI, at the default octave 3). Rootless voicings
  * start between C3 and D4, so they stay in the comping range (C3 to C5). Shells keep their root
- * low enough for a bass but above the muddy range: an R-7 shell's root from F2 to E3, an R-3
- * shell's (a third above the root) from Bb2 to G3.
+ * low enough for a bass: an R-7 shell's root from F2 to E3, an R-3 shell's from Ab2 to G3. Each
+ * shell window spans twelve semitones, so every root has a place in it.
  */
 const WINDOWS: Record<RootlessForm | ShellForm, [number, number]> = {
     'A': [48, 62],
     'B': [48, 62],
     'R-7': [41, 52],
-    'R-3': [46, 55]
+    'R-3': [44, 55]
 }
 
 /**
@@ -195,24 +195,31 @@ export function voiceLeadVoicings(
     const leading = (pitches: number[]) => (shell ? pitches.slice(1) : pitches)
     let previous: number[] | null = null
     return symbols.map((symbol) => {
-        const candidates: Scored<{ form: RootlessForm | ShellForm; octave: number }>[] = []
+        // Each candidate with how far its lowest note is outside its window (0 inside).
+        const candidates: (Scored<{ form: RootlessForm | ShellForm; octave: number }> & {
+            outside: number
+        })[] = []
         const allowed = previous ? forms : [options.form ?? forms[0]!]
         for (const form of allowed) {
             const [low, high] = WINDOWS[form]
             for (let octave = 0; octave <= 8; octave++) {
                 const v = voiced(symbol, form, octave)
-                const lowest = v?.pitches[0]
-                if (!v || lowest! < low + shift || lowest! > high + shift) continue
+                if (!v) continue
+                const lowest = v.pitches[0]!
                 const notes = leading(v.pitches)
                 candidates.push({
                     value: { form, octave },
-                    cost: previous ? voiceMotion(notes, previous) : lowest! - low - shift,
+                    cost: previous ? voiceMotion(notes, previous) : lowest - low - shift,
                     common: previous ? common(notes, previous) : 0,
-                    center: Math.abs(mean(v.pitches) - (CENTER - 5 + shift))
+                    center: Math.abs(mean(v.pitches) - (CENTER - 5 + shift)),
+                    outside: Math.max(0, low + shift - lowest, lowest - high - shift)
                 })
             }
         }
-        const best = bestOf(candidates)
+        // Inside a window when one fits; else the nearest to its window (never a null for a chord
+        // that takes the voicing).
+        const nearest = Math.min(...candidates.map((c) => c.outside))
+        const best = bestOf(candidates.filter((c) => c.outside === nearest))
         if (!best) return null
         // Both hands: a shell's root stays where it was chosen, in the left hand; its third and
         // seventh go to the right hand, an octave up (C3 + E4 B4). A rootless voicing stays put.

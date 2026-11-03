@@ -614,7 +614,7 @@ Guitar diagrams use the voicings that make the whole progression easiest to play
 
 **Voice leading** (piano) moves each note of a chord to its own note of the next one, as little as it can, and keeps common tones. With `voice-leading: yes`, each chord takes the close-position inversion that moves least: ii7 V7 Imaj7 in C is D F A C, D F G B, C E G B. The first chord is in root position near middle C, and the lowest note stays between F3 and G4.
 
-Shell and rootless voicings do this by default. Rootless voicings switch between form A and form B, and shells between R-3 and R-7, so the chords stay around middle C: ii7 V7 Imaj7 with `voicing: rootless` is Dm7 (A) F3 A3 C4 E4, G7 (B) F3 A3 B3 E4, Cmaj7 (A) E3 G3 B3 D4. `voicing: rootless B` or `shell R-7` sets the first chord's form. Shells move their third and seventh as little as they can, and keep the root low (F2 to G3). `octave` moves everything up or down by octaves (3 is the default). `voice-leading: no` gives every chord the same form and octave.
+Shell and rootless voicings do this by default. Rootless voicings switch between form A and form B, and shells between R-3 and R-7, so the chords stay around middle C: ii7 V7 Imaj7 with `voicing: rootless` is Dm7 (A) F3 A3 C4 E4, G7 (B) F3 A3 B3 E4, Cmaj7 (A) E3 G3 B3 D4. `voicing: rootless B` or `shell R-7` sets the first chord's form. Shells move their third and seventh as little as they can, and keep the root low (F2 to G3: Am7 starts A2 C3 G3). `octave` moves everything up or down by octaves (3 is the default). `voice-leading: no` gives every chord the same form and octave.
 
 ````markdown
 ```progression
