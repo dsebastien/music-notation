@@ -256,4 +256,44 @@ describe('choosing the other instrument redraws the diagram', () => {
         expect(calls).toHaveLength(1)
         h.remove()
     })
+
+    it('keeps the chord spelling and labels: Gm is Bb, C9 keeps its 9 (review)', () => {
+        const h = host()
+        renderBlock('chord', 'Gm 355333', h, { play: {} })
+        choose(h, 'piano')
+        const names = [...h.querySelectorAll('.mn-keyboard .mn-on')].map((k) =>
+            k.getAttribute('data-mn-note')
+        )
+        expect(names).toContain('Bb')
+        expect(names).not.toContain('A#')
+        const k = host()
+        renderBlock('keyboard', 'chord: C9\nlabels: intervals', k, { play: {} })
+        choose(k, 'guitar')
+        expect(
+            [...k.querySelectorAll('.mn-fretboard .mn-dot-text')].map((t) => t.textContent)
+        ).toContain('9')
+        h.remove()
+        k.remove()
+    })
+
+    it('keeps a vertical orientation between fretboards and keyboards, and the name', () => {
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1\norientation: vertical', h, {
+            play: {}
+        })
+        const name = h.querySelector('.mn-fretboard')!.getAttribute('aria-label')
+        choose(h, 'piano')
+        const keyboard = h.querySelector('.mn-keyboard')!
+        expect(keyboard.getAttribute('data-mn-orientation')).toBe('vertical')
+        expect(keyboard.getAttribute('aria-label')).toBe(`${name}, drawn for piano`)
+        h.remove()
+    })
+
+    it('shows the drawing of a starting sound that differs from the diagram', () => {
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: { sound: 'piano' } })
+        expect(h.querySelector('.mn-keyboard')).not.toBeNull()
+        expect(h.querySelector('.mn-fretboard')).toBeNull()
+        h.remove()
+    })
 })
