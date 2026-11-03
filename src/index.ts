@@ -278,3 +278,26 @@ export {
     type LedVoicing
 } from './keyboard/voice-leading.js'
 export { renderCircle, type CircleOptions } from './circle/circle.js'
+export {
+    parsePicking,
+    formatPicking,
+    namedPicking,
+    pluckText,
+    PICKING_PATTERNS,
+    MAX_PICKING_BARS,
+    type PickingPattern,
+    type PickingSlot,
+    type Pluck
+} from './picking/pattern.js'
+export { pickingFrets, pluckNote, type PickedNote } from './picking/voicing.js'
+export {
+    playPicking,
+    pickingEvents,
+    pickingScore,
+    PICKING_VELOCITY,
+    type PickingEventOptions,
+    type PickingScore,
+    type PickingScoreOptions,
+    type PlayPickingOptions
+} from './picking/play.js'
+export { renderPicking, type PickingOptions } from './picking/render.js'

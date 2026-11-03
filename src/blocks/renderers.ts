@@ -83,6 +83,7 @@ import { withScalesFor } from './scales-for.js'
 import { renderProgression } from './progression.js'
 import { renderCircleBlock } from '../circle/circle.js'
 import { renderStrumBlock } from '../strum/render.js'
+import { renderPickingBlock } from '../picking/render.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -92,7 +93,7 @@ export interface RenderOptions extends LayoutDefaults {
     /**
      * The note's properties (or a function of the block's element returning them, read at each
      * render, so a page can tell embeds from the note itself): an empty
-     * `chord`, `fretboard`, `keyboard` or `strum` block draws from them (see `blockFromProperties`).
+     * `chord`, `fretboard`, `keyboard`, `strum` or `picking` block draws from them (see `blockFromProperties`).
      */
     properties?:
         | Record<string, unknown>
@@ -102,7 +103,7 @@ export interface RenderOptions extends LayoutDefaults {
     propertyNames?: Partial<PropertyNames>
     /** The note's instrument; from its tags when absent. */
     instrument?: Instrument
-    /** A playback bar on chord, keyboard and fretboard diagrams and strum patterns (true for the defaults). */
+    /** A playback bar on diagrams, strum and picking patterns, progressions and charts (true for the defaults). */
     play?: boolean | PlayOptions
     /**
      * The chords used row of `chords` blocks, when a chart has no `{diagrams}`: `'top'`,
@@ -833,6 +834,7 @@ export const RENDERERS = {
     keyboard: fromSource(DIAGRAMS.keyboard),
     fretboard: fromSource(DIAGRAMS.fretboard),
     strum: renderStrumBlock,
+    picking: renderPickingBlock,
     progression: (doc: Document, source: string, options: RenderOptions) =>
         renderProgression(doc, source, options, DIAGRAMS.chord),
     circle: renderCircleBlock

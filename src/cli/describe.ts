@@ -133,7 +133,22 @@ export interface CircleDiagram {
     chords: string[]
 }
 
+export interface PickingDiagram {
+    type: 'picking'
+    title: string | null
+    /** One token a slot (p p' i m a or string numbers, + for a pinch), bars separated by `|`. */
+    pattern: string
+    time: string
+    subdivision: string
+    tempo: number | null
+    swing?: number
+    /** Each bar's chord where it changes, and each slot's notes as string(1 the highest):fret. */
+    chords: { bar: number; chord: string }[]
+    notes: string[]
+}
+
 export type Diagram =
+    | PickingDiagram
     | GuitarChordDiagram
     | FretboardDiagram
     | KeyboardDiagram
@@ -342,6 +357,39 @@ function strum(svg: Element): StrumDiagram {
     }
 }
 
+function picking(svg: Element): PickingDiagram {
+    const tempo = svg.getAttribute('data-mn-tempo')
+    const swing = svg.getAttribute('data-mn-swing')
+    const slots = [...svg.querySelectorAll('[data-mn-beat]')]
+    const count = Number(svg.getAttribute('data-mn-strings')) || 6
+    return {
+        type: 'picking',
+        title: text(svg.querySelector('.mn-title')),
+        pattern: svg.getAttribute('data-mn-picking') ?? '',
+        time: svg.getAttribute('data-mn-time') ?? '',
+        subdivision: svg.getAttribute('data-mn-subdivision') ?? '',
+        tempo: tempo === null ? null : Number(tempo),
+        ...(swing === null ? {} : { swing: Number(swing) }),
+        chords: slots
+            .filter((el) => el.hasAttribute('data-mn-chord'))
+            .map((el) => ({
+                bar: Number(el.getAttribute('data-mn-bar')),
+                chord: el.getAttribute('data-mn-chord') ?? ''
+            })),
+        notes: slots.map((el) => {
+            const notes = (el.getAttribute('data-mn-notes') ?? '').split(' ').filter(Boolean)
+            return notes.length
+                ? notes
+                      .map((n) => {
+                          const [string, fret] = n.split(':')
+                          return `${count - Number(string)}:${fret}`
+                      })
+                      .join('+')
+                : '-'
+        })
+    }
+}
+
 /** Every diagram a rendered block holds, in order. */
 export function describeBlock(el: Element): Diagram[] {
     return [...el.querySelectorAll('svg.mn-svg, .mn-chart, .mn-cell.mn-error')].map((d) => {
@@ -363,6 +411,7 @@ export function describeBlock(el: Element): Diagram[] {
         if (has(d, 'mn-fretboard')) return fretboard(d)
         if (has(d, 'mn-keyboard')) return keyboard(d)
         if (has(d, 'mn-strum')) return strum(d)
+        if (has(d, 'mn-picking')) return picking(d)
         return guitarChord(d)
     })
 }
@@ -403,6 +452,21 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                     d.tempo !== null && `tempo ${d.tempo}`
                 ])}`,
                 `${pad}${d.pattern}`
+            ]
+        case 'picking':
+            return [
+                `${head}${listed([
+                    'picking pattern',
+                    quoted(d.title),
+                    d.time,
+                    d.subdivision,
+                    d.swing !== undefined && `swing ${Math.round(d.swing * 100)}%`,
+                    d.tempo !== null && `tempo ${d.tempo}`,
+                    d.chords.length > 0 &&
+                        `chords ${d.chords.map((c) => `${c.chord} (bar ${c.bar + 1})`).join(' ')}`
+                ])}`,
+                `${pad}${d.pattern}`,
+                `${pad}notes (string:fret) ${d.notes.join(' ')}`
             ]
         case 'chart':
             return [
