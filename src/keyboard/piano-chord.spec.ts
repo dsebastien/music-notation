@@ -245,6 +245,13 @@ describe('piano chord blocks', () => {
         expect(renderBlock('chord', 'G7\ninstrument: piano\nfingering: auto', host()).error).toBe(
             'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
         )
+        expect(
+            renderBlock(
+                'chord',
+                'C\ninstrument: piano\ninversion: 1\nhands: left+right\nfingering: auto',
+                host()
+            ).error
+        ).toContain('the right hand plays 2')
     })
 
     it('redraws an inversion for guitar with its own pitches', () => {

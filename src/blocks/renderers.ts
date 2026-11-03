@@ -301,8 +301,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             if (fingering?.trim().toLowerCase() === 'auto') {
                 auto = triadFingering(voiced)
                 if (!auto) {
+                    // Both hands: a first or third inversion leaves the right hand two notes.
                     throw new Error(
-                        'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
+                        voiced.hands === 'left+right' && voiced.right.length < 3
+                            ? `fingering: auto covers a right hand of three notes: here the left hand takes the bass and the right hand plays ${voiced.right.length}: write the fingers, e.g. fingering: 5 1 4`
+                            : 'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
                     )
                 }
             }
