@@ -74,6 +74,20 @@ describe('sequenceOf', () => {
 })
 
 describe('synthesized sound', () => {
+    it('plucks softer or brighter, at the pick position given, within range', () => {
+        const seeded = () => {
+            let seed = 3
+            return () => (seed = (seed * 16807) % 2147483647) / 2147483647
+        }
+        const bright = pluckedString(57, 8000, 0.5, seeded())
+        const dark = pluckedString(57, 8000, 0.5, seeded(), { brightness: 0.3, pick: 0.15 })
+        expect(Math.max(...dark.map(Math.abs))).toBeLessThanOrEqual(0.5)
+        // A darker pluck changes less from one sample to the next.
+        const roughness = (data: Float32Array) =>
+            data.slice(1, 400).reduce((sum, v, i) => sum + Math.abs(v - data[i]!), 0)
+        expect(roughness(dark)).toBeLessThan(roughness(bright))
+    })
+
     it('plucks a string that fades', () => {
         let seed = 1
         const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
@@ -494,6 +508,7 @@ describe('light player velocity', () => {
     /** An audio context that records each note's envelope levels. */
     function fakeWindow() {
         const levels: number[][] = []
+        const sources: { buffer: unknown; playbackRate: { value: number } }[] = []
         class Param {
             value = 1
             readonly set: number[] = []
@@ -522,7 +537,15 @@ describe('light player velocity', () => {
                 return { getChannelData: () => new Float32Array(length) }
             }
             createBufferSource() {
-                return { ...node(), buffer: null, start() {}, stop() {} }
+                const source = {
+                    ...node(),
+                    buffer: null,
+                    playbackRate: new Param(),
+                    start() {},
+                    stop() {}
+                }
+                sources.push(source)
+                return source
             }
         }
         const win = {
@@ -530,13 +553,14 @@ describe('light player velocity', () => {
             setTimeout: () => 0,
             clearTimeout() {}
         } as unknown as Window
-        return { win, levels }
+        return { win, levels, sources }
     }
 
     it('scales each note by its velocity (100 is the computed level)', async () => {
         const { lightPlayer } = await import('./player.js')
         const { win, levels } = fakeWindow()
-        lightPlayer(win).play(
+        // A random source in the middle: no variation.
+        lightPlayer(win, () => 0.5).play(
             [
                 { midi: 60, time: 0, duration: 0.5 },
                 { midi: 64, time: 0, duration: 0.5, velocity: 50 },
@@ -546,6 +570,24 @@ describe('light player velocity', () => {
         )
         // The first gain is the master volume; then one envelope a note.
         expect(levels.slice(1).map((set) => set[0])).toEqual([1, 0.5, 1.2])
+    })
+
+    it('varies repeated notes a little: pluck, pitch and level (#59)', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, levels, sources } = fakeWindow()
+        let seed = 7
+        const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+        const notes = Array.from({ length: 8 }, (_, i) => ({ midi: 60, time: i, duration: 0.5 }))
+        lightPlayer(win, random).play(notes, { sound: 'guitar', volume: 1 })
+        const rates = sources.map((s) => s.playbackRate.value)
+        // A few cents either way, never the same twice.
+        expect(rates.every((r) => Math.abs(1200 * Math.log2(r)) <= 4)).toBe(true)
+        expect(new Set(rates).size).toBe(8)
+        const peaks = levels.slice(1).map((set) => set[0]!)
+        expect(peaks.every((v) => v >= 0.93 && v <= 1.07)).toBe(true)
+        expect(new Set(peaks).size).toBe(8)
+        // Several plucks of the string, not one recording.
+        expect(new Set(sources.map((s) => s.buffer)).size).toBeGreaterThan(1)
     })
 })
 

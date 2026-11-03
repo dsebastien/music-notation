@@ -160,22 +160,55 @@ export const lengthOf = (events: readonly NoteEvent[]): number =>
 
 const frequency = (midi: number) => 440 * Math.pow(2, (midi - 69) / 12)
 
+/** How a string is plucked, for a little variety between notes. */
+export interface PluckOptions {
+    /** 0 (a soft, dark pluck) to 1 (bright, the default). */
+    brightness?: number
+    /** Where the pick hits, as a part of the string's length (0 to 0.5; 0, the default: no effect). */
+    pick?: number
+    /** How fast the string loses its energy, times the usual (1 by default). */
+    damping?: number
+}
+
 /**
  * A plucked string (Karplus-Strong): a burst of noise through a delay line one period long,
- * averaged as it loops, so the tone softens as it decays, like a string.
+ * averaged as it loops, so the tone softens as it decays, like a string. The burst can be
+ * darker (a softer pluck) and shaped by the pick's position.
  */
 export function pluckedString(
     midi: number,
     sampleRate: number,
     seconds: number,
-    random: () => number = Math.random
+    random: () => number = Math.random,
+    options: PluckOptions = {}
 ): Float32Array {
     const out = new Float32Array(Math.round(sampleRate * seconds))
     const period = Math.max(2, Math.round(sampleRate / frequency(midi)))
     const line = new Float32Array(period)
     for (let i = 0; i < period; i++) line[i] = random() * 2 - 1
+    const bright = Math.min(1, Math.max(0, options.brightness ?? 1))
+    if (bright < 1) {
+        // A softer pluck: the burst through a low-pass filter.
+        const a = 0.2 + 0.8 * bright
+        let y = line[period - 1]!
+        for (let i = 0; i < period; i++) line[i] = y += a * (line[i]! - y)
+    }
+    const pick = Math.min(0.5, Math.max(0, options.pick ?? 0))
+    const gap = Math.round(pick * period)
+    if (gap > 0) {
+        // The pick's position: harmonics with a node there are left out (a comb filter).
+        const burst = Float32Array.from(line)
+        for (let i = 0; i < period; i++) line[i] = burst[i]! - burst[(i - gap + period) % period]!
+    }
+    if (bright < 1 || gap > 0) {
+        // Back to the burst's usual level, without an offset (it would hum as the note fades).
+        const mean = line.reduce((sum, v) => sum + v, 0) / period
+        const peak = line.reduce((max, v) => Math.max(max, Math.abs(v - mean)), 0) || 1
+        for (let i = 0; i < period; i++) line[i] = (line[i]! - mean) / peak
+    }
     // Lower notes ring longer, as on a guitar.
-    const decay = 0.996 + Math.min(0.0035, 0.00004 * (90 - midi))
+    const loss = (0.004 - Math.min(0.0035, 0.00004 * (90 - midi))) * (options.damping ?? 1)
+    const decay = 1 - Math.min(0.02, Math.max(0.0001, loss))
     let at = 0
     for (let i = 0; i < out.length; i++) {
         const next = (at + 1) % period
@@ -221,24 +254,39 @@ function contextFor(win: Window & { AudioContext?: AudioContextClass }): AudioCo
     return ctx
 }
 
-/** The light synthesizer: computed sound, a few KB, no download. */
 /** How long a guitar note's buffer lasts; each note is cut to its own length when it plays. */
 const STRING_SECONDS = 4
 
 /** The partials of the simple piano tone (fundamental first). */
 const PIANO_PARTIALS = [0, 1, 0.5, 0.3, 0.15, 0.08, 0.04]
 
-export function lightPlayer(win: Window): NotePlayer {
-    // One buffer per string pitch: notes of any length reuse it.
+/** Recordings made per string pitch: each note takes one at random, so repeats differ. */
+const PLUCKS = 4
+
+/**
+ * The light synthesizer: computed sound, a few KB, no download. No two notes sound quite the
+ * same: each guitar note takes one of a few plucks of its string (brightness, pick position,
+ * decay), and every note varies a little in pitch (a few cents) and level. `random` (0–1) is
+ * for tests.
+ */
+export function lightPlayer(win: Window, random: () => number = Math.random): NotePlayer {
+    // A few buffers per string pitch: notes of any length reuse them.
     const strings = new Map<number, AudioBuffer>()
     const waves = new WeakMap<AudioContext, PeriodicWave>()
-    const stringBuffer = (ctx: AudioContext, midi: number) => {
-        let buffer = strings.get(midi)
+    /** A number between `lo` and `hi`, at random. */
+    const between = (lo: number, hi: number) => lo + (hi - lo) * random()
+    const stringBuffer = (ctx: AudioContext, midi: number, pluck: number) => {
+        const key = midi * PLUCKS + pluck
+        let buffer = strings.get(key)
         if (!buffer) {
-            const data = pluckedString(midi, ctx.sampleRate, STRING_SECONDS)
+            const data = pluckedString(midi, ctx.sampleRate, STRING_SECONDS, random, {
+                brightness: between(0.55, 0.95),
+                pick: between(0.08, 0.2),
+                damping: between(0.85, 1.15)
+            })
             buffer = ctx.createBuffer(1, data.length, ctx.sampleRate)
             buffer.getChannelData(0).set(data)
-            strings.set(midi, buffer)
+            strings.set(key, buffer)
         }
         return buffer
     }
@@ -257,13 +305,21 @@ export function lightPlayer(win: Window): NotePlayer {
             const ctx = contextFor(win)
             if (!ctx || !events.length) return { stop() {} }
             const resumed = ctx.resume()
-            // Buffers are made before the start time is read, so the first notes aren't late.
-            if (sound === 'guitar') for (const e of events) stringBuffer(ctx, e.midi)
+            // Each note's pluck and variations, chosen (and buffers made) before the start time is
+            // read, so the first notes aren't late.
+            const touches = events.map(() => ({
+                pluck: Math.min(PLUCKS - 1, Math.floor(random() * PLUCKS)),
+                cents: between(-4, 4),
+                level: between(0.93, 1.07)
+            }))
+            if (sound === 'guitar')
+                events.forEach((e, i) => stringBuffer(ctx, e.midi, touches[i]!.pluck))
             const gain = ctx.createGain()
             gain.gain.value = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             gain.connect(ctx.destination)
             const start = ctx.currentTime + 0.05
-            const sources = events.map((e) => {
+            const sources = events.map((e, i) => {
+                const touch = touches[i]!
                 const at = start + e.time
                 const end = at + e.duration
                 // Each note fades out at its end, so it doesn't click.
@@ -271,13 +327,14 @@ export function lightPlayer(win: Window): NotePlayer {
                 env.connect(gain)
                 // Velocity scales the note's level (100, the default, is the level as computed).
                 const level =
-                    e.velocity === undefined || !Number.isFinite(e.velocity)
+                    (e.velocity === undefined || !Number.isFinite(e.velocity)
                         ? 1
-                        : Math.min(127, Math.max(0, e.velocity)) / 100
+                        : Math.min(127, Math.max(0, e.velocity)) / 100) * touch.level
                 let source: AudioScheduledSourceNode
                 if (sound === 'guitar') {
                     const buffer = ctx.createBufferSource()
-                    buffer.buffer = stringBuffer(ctx, e.midi)
+                    buffer.buffer = stringBuffer(ctx, e.midi, touch.pluck)
+                    buffer.playbackRate.value = Math.pow(2, touch.cents / 1200)
                     source = buffer
                     env.gain.setValueAtTime(level, at)
                     env.gain.setValueAtTime(level, end)
@@ -286,6 +343,7 @@ export function lightPlayer(win: Window): NotePlayer {
                     const osc = ctx.createOscillator()
                     osc.setPeriodicWave(pianoWave(ctx))
                     osc.frequency.value = frequency(e.midi)
+                    osc.detune.value = touch.cents
                     source = osc
                     env.gain.setValueAtTime(0, at)
                     env.gain.linearRampToValueAtTime(0.35 * level || 0.0001, at + 0.005)

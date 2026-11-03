@@ -201,7 +201,13 @@ describe('the light player says when its notes start', () => {
             createBuffer = (_: number, length: number) => ({
                 getChannelData: () => new Float32Array(length)
             })
-            createBufferSource = () => ({ ...node(), buffer: null, start() {}, stop() {} })
+            createBufferSource = () => ({
+                ...node(),
+                buffer: null,
+                playbackRate: param(),
+                start() {},
+                stop() {}
+            })
         }
         const timers: { ms: number; run: () => void }[] = []
         const win = {
