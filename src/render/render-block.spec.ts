@@ -517,3 +517,65 @@ describe('fingering on keyboard note lists (#55)', () => {
         ])
     })
 })
+
+describe('fingering on note lists, review fixes', () => {
+    const keys = (source: string) => {
+        const h = document.createElement('div')
+        const result = renderBlock('keyboard', source, h)
+        return {
+            result,
+            fingers: [...h.querySelectorAll('[data-midi]')]
+                .map((key) => {
+                    const label = key.nextElementSibling
+                    return label?.classList.contains('mn-key-label')
+                        ? `${key.getAttribute('data-midi')}:${label.textContent}`
+                        : null
+                })
+                .filter(Boolean)
+        }
+    }
+
+    it('follows the order written, high to low too', () => {
+        expect(keys('notes: G4 F4 E4 D4 C4\nfingering: 5 4 3 2 1').fingers).toEqual([
+            '60:1',
+            '62:2',
+            '64:3',
+            '65:4',
+            '67:5'
+        ])
+        expect(keys('notes: G F E D C\nfingering: 5 4 3 2 1').fingers).toEqual([
+            '60:1',
+            '62:2',
+            '64:3',
+            '65:4',
+            '67:5'
+        ])
+        // A repeated note is the octave above.
+        expect(keys('notes: C D E F G A B C\nfingering: 1 2 3 1 2 3 4 5').fingers.at(-1)).toBe(
+            '72:5'
+        )
+    })
+
+    it('says when fingers and notes do not match, a key repeats, or a note leaves the range', () => {
+        expect(keys('notes: C D E\nfingering: 1 2').result.error).toContain('2 fingers for 3 notes')
+        expect(keys('notes: C4 C4 D4\nfingering: 1 2 3').result.error).toContain('listed twice')
+        expect(keys('notes: F G A\nfingering: 1 2 3\nrange: C4-E4').result.error).toContain(
+            'past the range'
+        )
+    })
+})
+
+describe('root: in blocks that expand into rows (#56, review)', () => {
+    it('is refused once, not in every diagram', () => {
+        for (const source of [
+            'from: C\nto: G\nroot: E',
+            'progression: C G Am F\nroot: E',
+            'voicings: all\nsymbol: C\nroot: E',
+            'C\ntriads: 1-3\nroot: E'
+        ]) {
+            const result = renderBlock('chord', source, document.createElement('div'))
+            expect(result.ok).toBe(false)
+            expect(result.error!.split('root only applies').length - 1).toBe(1)
+        }
+    })
+})

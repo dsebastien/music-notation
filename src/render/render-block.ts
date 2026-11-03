@@ -5,6 +5,7 @@ import {
     SHARED_KEYS,
     type DiagramLanguage,
     type NotationLanguage,
+    ROOT_FOR_LISTS_ONLY,
     type RenderOptions
 } from '../blocks/renderers.js'
 import {
@@ -321,6 +322,8 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     ) {
         throw new Error('voicings are for guitar and other fretted instruments')
     }
+    // Once for the block, not in every diagram it expands into.
+    if (fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
     const refused = NOT_WITH_VOICINGS.find((key) => fields.has(key))
     if (refused) throw new Error(`voicings finds the frets itself: remove "${refused}"`)
     const frettish = block.head?.split(/\s+/).find((t, i) => i > 0 && parseFrets(t) !== null)
@@ -446,6 +449,8 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
     if (value === undefined) return null
     const fields = block.fields
     if (fields.has('voicings')) throw new Error('Use triads or voicings, not both')
+    // Once for the block, not in every diagram it expands into.
+    if (fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
     const refused = NOT_WITH_VOICINGS.find((key) => fields.has(key))
     if (refused) throw new Error(`triads finds the frets itself: remove "${refused}"`)
     const instrument = fields.get('instrument')?.toLowerCase()
@@ -589,6 +594,8 @@ function transitionParts(language: DiagramLanguage, source: string): string[] | 
     if (fromText !== undefined && progressionText !== undefined) {
         throw new Error('Use from and to, or progression, not both')
     }
+    // Once for the block, not in every diagram it expands into.
+    if (fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
     const refused = [...NOT_WITH_VOICINGS, 'voicings', 'triads'].find((key) => fields.has(key))
     if (refused)
         throw new Error(`"${refused}" can't be used with ${fromText ? 'from' : 'progression'}`)

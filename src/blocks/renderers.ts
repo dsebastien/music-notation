@@ -191,13 +191,13 @@ function pianoPitches(symbol: string): NoteSet {
     return { ...set, pitches }
 }
 
+/** root: in a chord block (or a row it expands into): it only applies to note lists. */
+export const ROOT_FOR_LISTS_ONLY =
+    'root only applies to lists of notes on fretboards and keyboards (notes: C E G with root: C): a chord has its own root'
+
 const renderChord: DiagramRenderer = (doc, block, options) => {
     // root: is for note lists (#33); a chord has its own root.
-    if (block.fields.get('root')?.trim()) {
-        throw new Error(
-            'root only applies to lists of notes on fretboards and keyboards (notes: C E G with root: C): a chord has its own root'
-        )
-    }
+    if (block.fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
     const short = shorthand(block.head)
     const name = field(block, 'name')
     // A chord written as a symbol or in words; a `name` that reads as a chord ("name: A Major")
@@ -421,22 +421,41 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         fingers = fingersFor(octave, fingering)
         if (!keys) set.pitches = octave
     } else if (fingering && set.list) {
-        // A list (a five-finger position, a hand position): one finger per listed key, low to
-        // high. Exact pitches as written; pitch classes go up from the first note, in middle C's
-        // octave (or from its first key inside the range), so C D E F G is C4 to G4.
+        // A list (a five-finger position, a hand position): one finger per note, in the order
+        // written, so G F E D C with 5 4 3 2 1 puts 5 on G. Exact pitches as written; pitch
+        // classes each in the octave nearest the note before, the first in middle C's octave (or
+        // its first key inside the range): C D E F G is C4 to G4, G F E D C is G4 down to C4.
+        const fingerList = fingering.split(/[\s,-]+/).filter(Boolean)
         let pitches = set.pitches
         if (!pitches) {
-            const first = set.members[0]!.chroma
+            const chromas = set.title
+                .split(/[\s,]+/)
+                .filter(Boolean)
+                .map((name) => chromaOf(name) ?? 0)
+            const first = chromas[0] ?? 0
             let at = keys ? keys[0] + ((((first - keys[0]) % 12) + 12) % 12) : 60 + first
-            pitches = set.members.map((member, i) => {
-                if (i > 0)
-                    do at++
-                    while (((at % 12) + 12) % 12 !== member.chroma)
+            pitches = chromas.map((chroma, i) => {
+                if (i > 0) {
+                    const up = (((chroma - at) % 12) + 12) % 12
+                    // The same note again is the octave above; else the nearer way (a tritone up).
+                    at += up === 0 ? 12 : up <= 6 ? up : up - 12
+                }
                 return at
             })
             if (!keys) set.pitches = pitches
         }
-        fingers = fingersFor(pitches, fingering)
+        if (fingerList.length !== pitches.length) {
+            throw new Error(
+                `fingering has ${fingerList.length} fingers for ${pitches.length} notes: one finger per note, in the order written`
+            )
+        }
+        if (new Set(pitches).size !== pitches.length) {
+            throw new Error('A key is listed twice: one finger per key')
+        }
+        if (keys && pitches.some((midi) => midi < keys[0] || midi > keys[1])) {
+            throw new Error('The fingered notes go past the range: widen range: or leave it out')
+        }
+        fingers = new Map(pitches.map((midi, i) => [midi, fingerList[i]!]))
     }
     return renderKeyboard(doc, set, {
         // A chord plays together; scales and lists one note at a time.
@@ -449,7 +468,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
             keys
                 ? keys
                 : fingers && set.pitches
-                  ? [set.pitches[0]!, set.pitches[set.pitches.length - 1]!]
+                  ? [Math.min(...set.pitches), Math.max(...set.pitches)]
                   : keyRangeOf(set)
         ),
         orientation: orientationOf(block, options.orientation?.keyboard),
