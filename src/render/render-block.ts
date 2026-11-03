@@ -20,6 +20,7 @@ import { attachPlayback } from '../playback/controls.js'
 import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
+import { resolveScalesFor } from '../blocks/scales-for.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import {
     CAGED_SHAPES,
@@ -99,6 +100,9 @@ export function renderBlock(
     }
     let parts: string[] | null = null
     try {
+        // scales-for first: the keys that split a block into a row need its scale.
+        if ((language === 'fretboard' || language === 'keyboard') && !splitParts(text))
+            text = resolveScalesFor(text)
         parts = isDiagramLanguage(language)
             ? (splitParts(text) ??
               modeParts(language, text) ??

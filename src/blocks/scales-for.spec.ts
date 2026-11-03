@@ -46,6 +46,18 @@ describe('scales-for', () => {
         expect(h.querySelectorAll('svg')[0]!.getAttribute('data-mn-set')).toBe('A harmonic minor')
     })
 
+    it('draws the found scale’s positions', () => {
+        const h = host()
+        const result = renderBlock('fretboard', 'scales-for: G D Em C\npositions: all', h)
+        expect(result.error).toBeNull()
+        const sets = [...h.querySelectorAll('svg')].map((s) => s.getAttribute('data-mn-set'))
+        expect(sets).toEqual(Array<string>(5).fill('G major'))
+        expect(h.querySelector('.mn-title')?.textContent).toBe('G major, E shape')
+        const box = host()
+        renderBlock('fretboard', 'scales-for-notes: A C D E G\npositions: 1 2', box)
+        expect(box.querySelectorAll('svg')).toHaveLength(2)
+    })
+
     it('says what to write instead', () => {
         const error = (source: string) => renderBlock('fretboard', source, host()).error
         expect(error('scales-for: G Xyz')).toContain('scales-for: G D Em C')
@@ -55,5 +67,11 @@ describe('scales-for', () => {
         )
         expect(error('scales-for: G C\nscales-for-notes: C')).toContain('not both')
         expect(error('scales-for:')).toContain('Add the chords')
+        expect(error('scales-for: G D Em C\nmodes: G major')).toBe(
+            'scales-for finds the scale itself: remove "modes"'
+        )
+        expect(renderBlock('keyboard', 'scales-for: G D Em C\nmodes: G major', host()).error).toBe(
+            'scales-for finds the scale itself: remove "modes"'
+        )
     })
 })
