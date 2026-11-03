@@ -605,8 +605,11 @@ export function createSoundfontPlayer(
         })
         if (assets.soundFont instanceof Uint8Array)
             current.loadSoundFont(made.bytes(assets.soundFont), false)
-        // The player needs a song loaded to be ready: one rest.
-        current.tex('r')
+        // The player needs a song loaded to be ready, and alphaTab loads only the soundfont presets
+        // its song uses: one rest per diagram sound, else piano would play nothing.
+        current.tex(
+            `\\track "Guitar" \\instrument ${PROGRAMS.guitar} r \\track "Piano" \\instrument ${PROGRAMS.piano} r`
+        )
         return ready
     }
     const inner = soundfontPlayer(alphaTab, () => api)

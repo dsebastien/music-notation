@@ -3,6 +3,7 @@ import * as alphaTab from '@coderline/alphatab'
 import {
     alphaTabCdn,
     ALPHATAB_VERSION,
+    createSoundfontPlayer,
     exportGp7,
     exportMidi,
     parseTabSource,
@@ -116,6 +117,35 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
         PlayerMode: { Disabled: 0, EnabledSynthesizer: 2 }
     } as unknown as AlphaTabModule
 }
+
+describe('createSoundfontPlayer', () => {
+    it('loads a song with every diagram sound, so alphaTab loads the piano preset too', () => {
+        const mod = fakeAlphaTab()
+        const made: { loaded: unknown }[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => { loaded: unknown }
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(this)
+            }
+        }
+        const assets = {
+            scriptFile: null,
+            font: 'data:font/woff2;base64,',
+            soundFont: new Uint8Array()
+        }
+        createSoundfontPlayer(mod, assets, document).play([{ midi: 60, time: 0, duration: 1 }], {
+            sound: 'piano',
+            volume: 1
+        })
+        const tex = made[0]!.loaded as string
+        const real = alphaTab as unknown as AlphaTabModule
+        const score = real.importer.ScoreLoader.loadAlphaTex(tex)
+        expect(score.tracks.map((t) => t.playbackInfo.program).sort((a, b) => a - b)).toEqual([
+            0, 25
+        ])
+    })
+})
 
 describe('renderTab', () => {
     const assets = {
