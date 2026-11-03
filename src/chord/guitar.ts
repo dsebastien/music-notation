@@ -289,9 +289,14 @@ export function renderGuitarDiagram(
         const middle = along(barre.fret - base + 0.5)
         root.appendChild(
             svg(doc, 'rect', {
-                class: 'mn-barre',
+                'class': 'mn-barre',
                 ...frame.box(across(barre.from) - 7, middle - 7, across(barre.to) + 7, middle + 7),
-                rx: 7
+                'rx': 7,
+                // What the bar is, for tools that read diagrams (strings as guitarists count them).
+                'data-mn-fret': barre.fret,
+                'data-mn-finger': barre.finger,
+                'data-mn-from': strings - barre.from,
+                'data-mn-to': strings - barre.to
             })
         )
     }

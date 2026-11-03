@@ -11,6 +11,7 @@ import type {
     GuitarChordDiagram,
     KeyboardDiagram
 } from './describe.js'
+import { formatDiagram } from './describe.js'
 
 const FIXTURE = join(import.meta.dir, 'fixtures', 'notes.md')
 let fixture = ''
@@ -182,6 +183,20 @@ describe('what blocks draw', () => {
         const [barre] = checkNote('a.md', '```chord\nC 8-10-10-9-8-8\n```', document)
         expect((barre!.diagrams[0] as GuitarChordDiagram).fretRange).toEqual([8, 11])
         expect((barre!.diagrams[0] as GuitarChordDiagram).frets).toBe('8-10-10-9-8-8')
+    })
+
+    test('a barre: its finger, fret and strings', () => {
+        const block = (body: string) =>
+            checkNote('a.md', `\`\`\`chord\n${body}\n\`\`\``, document)[0]!
+                .diagrams[0] as GuitarChordDiagram
+        const chord = block('F\nfrets: 133211\nfingers: 134211')
+        expect(chord.barres).toEqual([{ finger: '1', fret: 1, from: 6, to: 1 }])
+        expect(formatDiagram(chord, 1)[0]).toContain('barre 1 at fret 1, strings 6 to 1')
+        // With note labels too, where the finger isn't on the dots.
+        expect(block('F\nfrets: 133211\nfingers: 134211\nlabels: notes').barres).toEqual(
+            chord.barres
+        )
+        expect(block('Am').barres).toBeUndefined()
     })
 })
 
