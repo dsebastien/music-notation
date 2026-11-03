@@ -688,13 +688,11 @@ Every mode of C major, with its characteristic note:
 ````markdown
 ```keyboard
 modes: C major
-range: C4-B4
 columns: 4
 ```
 ````
 
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">modes: C major
-range: C4-B4
 columns: 4</code></pre></div>
 
 D dorian against D natural minor: the major sixth (B) is what changes.
