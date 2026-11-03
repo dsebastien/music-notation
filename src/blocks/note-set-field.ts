@@ -29,7 +29,8 @@ export function noteSetOf(block: BlockSource): NoteSet {
     const scale = block.fields.get('scale')
     const chord = block.fields.get('chord')
     const notes = block.fields.get('notes')
-    const root = block.fields.get('root')
+    // An empty `root:` line is no root, like other empty keys.
+    const root = block.fields.get('root')?.trim() || undefined
     if (root !== undefined) {
         if (scale !== undefined) throw rootNotForList('a scale')
         if (chord !== undefined) throw rootNotForList('a chord')

@@ -183,6 +183,7 @@ export function renderFretboard(
     // What the diagram shows, for tools that read diagrams.
     root.setAttribute('data-mn-set', set.title)
     root.setAttribute('data-mn-frets', `${from}-${to}`)
-    if (set.root !== null) root.setAttribute('data-mn-root', String(set.root))
+    // Playback runs a scale from root to root; a list (even with a root) plays every note written.
+    if (set.root !== null && !set.list) root.setAttribute('data-mn-root', String(set.root))
     return root
 }
