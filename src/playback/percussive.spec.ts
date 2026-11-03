@@ -165,6 +165,15 @@ describe('percussive notes (NoteEvent.kind)', () => {
             [1, 28],
             [9, 0]
         ])
+        // The song ends half a second after the last note (3 s), on a pedal-up, so it rings.
+        const division = (played as unknown as { division: number }).division
+        const last = all.reduce((a, b) =>
+            (b as { tick?: number }).tick! >= (a as { tick?: number }).tick! ? b : a
+        ) as { tick: number; controller?: number; value?: number }
+        expect(last.constructor.name).toBe('ControlChangeEvent')
+        expect(last.controller).toBe(alphaTab.midi.ControllerType.HoldPedal)
+        expect(last.value).toBe(0)
+        expect(last.tick).toBe(Math.round(3.5 * division))
         // On piano, a muted note is a short piano note.
         player.play([events[1]!], { sound: 'piano', volume: 1 }).stop()
         const piano = played!.tracks
