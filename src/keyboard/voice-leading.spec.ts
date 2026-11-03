@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { voiceLead, voiceLeadVoicings, voiceMotion } from './voice-leading.js'
+import {
+    belowLowIntervalLimit,
+    voiceLead,
+    voiceLeadVoicings,
+    voiceMotion
+} from './voice-leading.js'
 import { noteOf } from '../theory/pitch.js'
 
 const names = (pitches: number[] | null | undefined) =>
@@ -133,24 +138,70 @@ describe('voiceLeadVoicings', () => {
         ])
     })
 
-    it('starts a shell progression on A or Ab in the same range as the others', () => {
+    it('takes R-7 for a chord whose R-3 third would sit below the low interval limit', () => {
+        // A2 C3 (a minor third under C3) and Ab2 B2 sound muddy: R-7 instead, then the
+        // alternation goes on.
         expect(forms(['Am7', 'D7', 'Gmaj7'], { voicing: 'shell' })).toEqual([
-            'R-3 A2 C3 G3',
+            'R-7 A2 G3 C4',
             'R-3 D3 Gb3 C4',
             'R-7 G2 Gb3 B3'
         ])
-        expect(forms(['Abm7', 'Db7', 'Gbmaj7'], { voicing: 'shell' })[0]).toBe('R-3 Ab2 B2 Gb3')
-        expect(forms(['Am7', 'D7'], { voicing: 'shell', hands: 'left+right' })[0]).toBe(
-            'R-3 A2 C4 G4'
+        expect(forms(['Abm7', 'Db7', 'Gbmaj7'], { voicing: 'shell' })).toEqual([
+            'R-7 Ab2 Gb3 B3',
+            'R-3 Db3 F3 B3',
+            'R-7 Gb2 F3 Bb3'
+        ])
+        // The written form too: shell R-3 on Am7 is still A2 G3 C4.
+        expect(forms(['Am7'], { voicing: 'shell', form: 'R-3' })[0]).toBe('R-7 A2 G3 C4')
+        // Clear thirds stay R-3: D3 F3, C3 E3, Bb2 D3 (a major third from Bb2 is fine).
+        expect(forms(['Dm7', 'G7', 'Cmaj7'], { voicing: 'shell' })).toEqual([
+            'R-3 D3 F3 C4',
+            'R-7 G2 F3 B3',
+            'R-3 C3 E3 B3'
+        ])
+        expect(forms(['Bbmaj7'], { voicing: 'shell' })[0]).toBe('R-3 Bb2 D3 A3')
+        // Both hands: the third sounds a tenth above the root (A2 + C4), so R-3 stays.
+        expect(forms(['Am7', 'D7', 'Gmaj7'], { voicing: 'shell', hands: 'left+right' })).toEqual([
+            'R-3 A2 C4 G4',
+            'R-3 D3 Gb4 C5',
+            'R-7 G2 Gb4 B4'
+        ])
+        expect(forms(['Abm7', 'Db7', 'Gbmaj7'], { voicing: 'shell', hands: 'left+right' })[0]).toBe(
+            'R-3 Ab2 B3 Gb4'
         )
-        // Every root fits the first chord's window, R-3 or R-7.
+        expect(forms(['Dm7', 'G7', 'Cmaj7'], { voicing: 'shell', hands: 'left+right' })).toEqual([
+            'R-3 D3 F4 C5',
+            'R-7 G2 F4 B4',
+            'R-3 C3 E4 B4'
+        ])
+    })
+
+    it('starts a shell progression in the same range whatever its root', () => {
+        // Every root fits the first chord's window (the root from F2 to G3), R-3 or R-7.
         for (const root of ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']) {
             for (const form of ['R-3', 'R-7'] as const) {
                 const [first] = voiceLeadVoicings([`${root}m7`], { voicing: 'shell', form })
-                expect(first!.pitches[0]!).toBeGreaterThanOrEqual(form === 'R-3' ? 44 : 41)
-                expect(first!.pitches[0]!).toBeLessThanOrEqual(form === 'R-3' ? 55 : 52)
+                const [low, high] = first!.options.shell === 'R-3' ? [44, 55] : [41, 52]
+                expect(first!.pitches[0]!).toBeGreaterThanOrEqual(low)
+                expect(first!.pitches[0]!).toBeLessThanOrEqual(high)
+                expect(belowLowIntervalLimit(first!.pitches)).toBe(false)
             }
         }
+    })
+
+    it('knows the low interval limits', () => {
+        // The lowest note of each interval that still sounds clear (C3 = 48).
+        expect(belowLowIntervalLimit([48, 51])).toBe(false) // C3 Eb3
+        expect(belowLowIntervalLimit([47, 50])).toBe(true) // B2 D3
+        expect(belowLowIntervalLimit([46, 50])).toBe(false) // Bb2 D3
+        expect(belowLowIntervalLimit([45, 49])).toBe(true) // A2 C#3
+        expect(belowLowIntervalLimit([41, 51])).toBe(false) // F2 Eb3
+        expect(belowLowIntervalLimit([40, 50])).toBe(true) // E2 D3
+        expect(belowLowIntervalLimit([36, 48])).toBe(false) // an octave
+        expect(belowLowIntervalLimit([45, 57, 60])).toBe(false) // A2 A3 C4
+        expect(belowLowIntervalLimit([45, 55, 57, 60])).toBe(false) // A2 G3 A3 C4
+        expect(belowLowIntervalLimit([45, 55, 57, 59])).toBe(false) // G3 A3: a second above E3
+        expect(belowLowIntervalLimit([45, 50, 51])).toBe(true) // D3 Eb3
     })
 
     it('moves the range with octave, and leaves out chords it cannot voice', () => {
