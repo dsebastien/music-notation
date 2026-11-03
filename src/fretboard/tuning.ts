@@ -5,11 +5,20 @@ const NAMED = new Map<string, string>(
     Object.entries({
         'standard': 'E2 A2 D3 G3 B3 E4',
         'drop d': 'D2 A2 D3 G3 B3 E4',
+        'drop c': 'C2 G2 C3 F3 A3 D4',
+        'drop b': 'B1 F#2 B2 E3 G#3 C#4',
+        'drop a': 'A1 E2 A2 D3 F#3 B3',
+        'double drop d': 'D2 A2 D3 G3 B3 D4',
         'dadgad': 'D2 A2 D3 G3 A3 D4',
         'open g': 'D2 G2 D3 G3 B3 D4',
         'open d': 'D2 A2 D3 F#3 A3 D4',
         'open e': 'E2 B2 E3 G#3 B3 E4',
+        'open c': 'C2 G2 C3 G3 C4 E4',
+        'open a': 'E2 A2 E3 A3 C#4 E4',
         'half step down': 'Eb2 Ab2 Db3 Gb3 Bb3 Eb4',
+        'whole step down': 'D2 G2 C3 F3 A3 D4',
+        'modal c6': 'C2 A2 C3 G3 C4 E4',
+        'c6': 'C2 A2 C3 G3 C4 E4',
         'bass': 'E1 A1 D2 G2',
         'ukulele': 'G4 C4 E4 A4'
     })
