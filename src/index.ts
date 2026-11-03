@@ -192,6 +192,8 @@ export {
     strumEvents,
     scoreOf,
     STRUM_VELOCITY,
+    STRUM_STRESS,
+    strumVelocity,
     tempoOf,
     type PlayStrumOptions,
     type StrumEventOptions,

@@ -7,7 +7,9 @@ import {
     runStrum,
     scoreOf,
     strumEvents,
+    STRUM_STRESS,
     STRUM_VELOCITY,
+    strumVelocity,
     tempoOf,
     type StrumSettings
 } from './play.js'
@@ -42,17 +44,60 @@ describe('strumEvents', () => {
         expect(up[0]!.time + up[0]!.duration).toBeCloseTo(4)
     })
 
-    it('plays accents louder, ghost strums soft and muted strums short', () => {
+    it('plays accents louder, ghost strums soft and muted strums as a percussive chuck', () => {
         const { events } = strumEvents(scoreFor('D> (U) X U D U D U'), { bpm: 90 })
         const at = (slot: number) => events.filter((e) => Math.abs(e.time - slot / 3) < 0.1)
-        expect(new Set(at(0).map((e) => e.velocity))).toEqual(new Set([STRUM_VELOCITY.accent]))
-        expect(new Set(at(1).map((e) => e.velocity))).toEqual(new Set([STRUM_VELOCITY.ghost]))
-        expect(at(2).every((e) => e.duration === 0.04 && e.velocity === STRUM_VELOCITY.mute)).toBe(
-            true
-        )
+        const velocity = (slot: number) => at(slot)[0]!.velocity!
+        // One velocity a strum, within a few steps of the written one.
+        for (const slot of [0, 1, 2, 3])
+            expect(new Set(at(slot).map((e) => e.velocity)).size).toBe(1)
+        expect(
+            Math.abs(velocity(0) - STRUM_VELOCITY.accent - STRUM_STRESS.first / 2)
+        ).toBeLessThanOrEqual(3)
+        expect(Math.abs(velocity(1) - STRUM_VELOCITY.ghost)).toBeLessThanOrEqual(1)
+        expect(velocity(0)).toBeGreaterThan(velocity(2))
+        expect(velocity(2)).toBeGreaterThan(velocity(3))
+        expect(velocity(3)).toBeGreaterThan(velocity(1))
+        // A muted strum: dead strings, short, nearly at once; marked for the players.
+        const chuck = at(2)
+        expect(chuck.every((e) => e.kind === 'muted' && e.duration === 0.06)).toBe(true)
+        expect(chuck[1]!.time - chuck[0]!.time).toBeCloseTo(0.006)
+        expect(events.filter((e) => e.kind).every((e) => e.kind === 'muted')).toBe(true)
         // The muted strum damps the ghost strum before it.
         const ghost = at(1)[0]!
         expect(ghost.time + ghost.duration).toBeCloseTo(2 / 3)
+    })
+
+    it('grooves: up strums softer than down strums, the beats stressed, beat 1 the most', () => {
+        const plain = { stroke: 'down' as const, accent: false, ghost: false }
+        const up = { ...plain, stroke: 'up' as const }
+        // Without the small variation (the same seed and slot give the same one).
+        const v = (slot: typeof plain | typeof up, isUp: boolean, inBar: number, pulse = 2) =>
+            strumVelocity(slot, isUp, inBar, pulse, 1, 5) -
+            strumVelocity(plain, false, 1, pulse, 1, 5)
+        expect(v(plain, false, 0)).toBe(STRUM_STRESS.first)
+        expect(v(plain, false, 2)).toBe(STRUM_STRESS.beat)
+        expect(v(plain, false, 1)).toBe(0)
+        expect(v(up, true, 1)).toBe(STRUM_VELOCITY.up - STRUM_VELOCITY.normal)
+        // 6/8: 1 and 4 are the beats.
+        expect(v(plain, false, 3, 3)).toBe(STRUM_STRESS.beat)
+        expect(v(plain, false, 2, 3)).toBe(0)
+        // Each strum varies by at most 3, and passes differ.
+        const one = strumEvents(scoreFor('D D D D D D D D'), { seed: 1 }).events
+        const two = strumEvents(scoreFor('D D D D D D D D'), { seed: 2 }).events
+        const offBeats = (events: NoteEvent[]) =>
+            events.filter((_, i) => Math.floor(i / 6) % 2 === 1).map((e) => e.velocity!)
+        for (const n of offBeats(one))
+            expect(Math.abs(n - STRUM_VELOCITY.normal)).toBeLessThanOrEqual(3)
+        expect(offBeats(one)).not.toEqual(offBeats(two))
+    })
+
+    it('counts in with clicks, the first one stronger', () => {
+        const { events } = strumEvents(scoreFor('D - D U - U D U'), { bpm: 60, countIn: true })
+        const clicks = events.filter((e) => e.kind === 'click')
+        expect(clicks.map((e) => e.time)).toEqual([0, 1, 2, 3])
+        expect(clicks[0]!.velocity!).toBeGreaterThan(clicks[1]!.velocity!)
+        expect(clicks.every((e) => e.duration <= 0.05)).toBe(true)
     })
 
     it('swings: the second 8th of each beat comes later (2/3 of the beat in a triplet swing)', () => {
@@ -89,7 +134,7 @@ describe('strumEvents', () => {
         const { events } = strumEvents(scoreFor('D - X - - - - - - - - -\nsubdivision: triplets'), {
             bpm: 60
         })
-        expect(events.filter((e) => e.duration === 0.04).map((e) => e.midi)).toEqual([
+        expect(events.filter((e) => e.kind === 'muted').map((e) => e.midi)).toEqual([
             64, 59, 55, 52
         ])
     })
@@ -134,13 +179,18 @@ describe('strumEvents', () => {
         const clicks = strumEvents(scoreFor('D U D U D U\ntime: 6/8'), {
             bpm: 60,
             countIn: true
-        }).events.slice(0, 6)
+        }).events.filter((e) => e.kind === 'click')
         expect(clicks.map((e) => e.time)).toEqual(
             [0, 1, 2, 3, 4, 5].map((t) => expect.closeTo(t / 3, 6) as unknown as number)
         )
         const loud = clicks.map((e) => e.velocity!)
         expect(loud[0]!).toBeGreaterThan(loud[3]!)
         expect(loud[3]!).toBeGreaterThan(loud[1]!)
+        // Strums on 1 and 4 are stressed.
+        const strums = strumEvents(scoreFor('D D D D D D\ntime: 6/8'), { bpm: 60 }).events
+        const at = (slot: number) => strums[slot * 6]!.velocity!
+        expect(at(3)).toBeGreaterThan(at(2))
+        expect(at(3)).toBeGreaterThan(at(4))
         expect(
             strumEvents(scoreFor('DUDUDUDUDUDUDUDU\nsubdivision: 16ths'), { bpm: 60 }).length
         ).toBe(4)
