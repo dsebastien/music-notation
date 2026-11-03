@@ -55,6 +55,8 @@ const TITLE = 22
 /** Room under the neck for the caption (the capo). */
 const CAPTION = 18
 const SINGLE_INLAYS = new Set([3, 5, 7, 9, 15, 17, 19, 21])
+const INLAY_R = 4
+const DOT_R = 8
 
 export function renderFretboard(
     doc: Document,
@@ -132,9 +134,26 @@ export function renderFretboard(
         )
     }
 
+    // What each string shows at each fret: a note dot, a faint ring (a compared scale's note
+    // missing here), or nothing.
+    const markOf = (s: number, fret: number): 'dot' | 'ghost' | null => {
+        const pitch = tuning[s]! + fret
+        const member = memberOf(set, pitch)
+        // Nothing sounds behind the capo.
+        const hidden =
+            (options.strings !== undefined && !options.strings.includes(s)) ||
+            (fromNut && fret < capo)
+        if (hidden) return null
+        if (member) return played && !played.has(`${s}:${fret}`) ? null : 'dot'
+        return options.marks?.ghosts?.has(pitch % 12) ? 'ghost' : null
+    }
     const inlay = (a: number, fret: number) => {
+        // A dot over part of an inlay leaves a grey sliver: the inlay is left out there.
+        for (let s = 0; s < strings; s++) {
+            if (Math.abs(across(s) - a) < INLAY_R + DOT_R && markOf(s, fret)) return
+        }
         const [cx, cy] = frame.at(a, center(fret))
-        root.appendChild(svg(doc, 'circle', { class: 'mn-inlay', cx, cy, r: 4 }))
+        root.appendChild(svg(doc, 'circle', { class: 'mn-inlay', cx, cy, r: INLAY_R }))
     }
     // The 12th fret's pair sits between the 2nd and 3rd strings from each edge (between the
     // outer two on 4 strings or fewer).
@@ -201,50 +220,46 @@ export function renderFretboard(
         for (let fret = from; fret <= to; fret++) {
             const point = frame.at(across(s), center(fret))
             const [cx, cy] = point
-            const member = memberOf(set, open + fret)
+            const shown = markOf(s, fret)
+            if (!shown) continue
             const chroma = (open + fret) % 12
-            // Nothing sounds behind the capo.
-            const hidden =
-                (options.strings !== undefined && !options.strings.includes(s)) ||
-                (fromNut && fret < capo)
-            if (!member || hidden || (played && !played.has(`${s}:${fret}`))) {
+            if (shown === 'ghost') {
                 // A parent scale's note missing here: a faint ring.
-                if (!member && !hidden && options.marks?.ghosts?.has(chroma)) {
-                    root.appendChild(
-                        svg(doc, 'circle', {
-                            'class': 'mn-ghost',
-                            cx,
-                            cy,
-                            'r': 7,
-                            'data-mn-ghost-string': strings - s,
-                            'data-mn-fret': fret,
-                            'data-mn-note':
-                                options.marks?.ghostNames?.get(chroma) ??
-                                nameOf(chroma, set.preferFlats),
-                            // Not data-midi: a ghost isn't a note to click and play.
-                            'data-mn-pitch': open + fret
-                        })
-                    )
-                }
+                root.appendChild(
+                    svg(doc, 'circle', {
+                        'class': 'mn-ghost',
+                        cx,
+                        cy,
+                        'r': 7,
+                        'data-mn-ghost-string': strings - s,
+                        'data-mn-fret': fret,
+                        'data-mn-note':
+                            options.marks?.ghostNames?.get(chroma) ??
+                            nameOf(chroma, set.preferFlats),
+                        // Not data-midi: a ghost isn't a note to click and play.
+                        'data-mn-pitch': open + fret
+                    })
+                )
                 continue
             }
+            const member = memberOf(set, open + fret)!
             const cls = `mn-dot${markClasses(set, member.chroma, options.marks)}`
+            // Note names as guitar charts write them (G, not F##).
+            const text = chartNoteName(labelOf(member, label))
             root.appendChild(
                 svg(doc, 'circle', {
                     'class': cls,
                     cx,
                     cy,
-                    'r': 8,
+                    'r': DOT_R,
                     'data-midi': open + fret,
                     'data-mn-string': strings - s,
                     'data-mn-fret': fret,
                     'data-mn-note': member.name
                 })
             )
-            sounding.add(open + fret)
-            // Note names as guitar charts write them (G, not F##).
-            const text = chartNoteName(labelOf(member, label))
             if (text) root.appendChild(svgLabel(doc, text, point, 'mn-dot-text'))
+            sounding.add(open + fret)
         }
     }
     root.setAttribute('data-mn-pitches', [...sounding].sort((a, b) => a - b).join(' '))

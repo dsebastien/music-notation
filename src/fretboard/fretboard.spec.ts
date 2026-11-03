@@ -66,6 +66,27 @@ describe('renderFretboard', () => {
     })
 })
 
+describe('inlays', () => {
+    const inlayFrets = (el: Element) =>
+        [...el.querySelectorAll('.mn-inlay')].map((c) => {
+            const x = Number(c.getAttribute('cx'))
+            const numbers = [...el.querySelectorAll('.mn-fret-number')]
+            return numbers.find((n) => Math.abs(Number(n.getAttribute('x')) - x) < 1)?.textContent
+        })
+
+    it('leaves out an inlay that a note dot would cover in part', () => {
+        // A minor pentatonic: only at the 3rd fret do the D and G strings (either side of the
+        // inlay) have no note; at the 12th, the outer strings have notes.
+        const el = renderFretboard(document, scaleNoteSet('A minor pentatonic')!, {
+            frets: [0, 12]
+        })
+        expect(inlayFrets(el)).toEqual(['3'])
+        // With no notes there, every inlay shows.
+        const empty = renderFretboard(document, listNoteSet('F#')!, { frets: [0, 12] })
+        expect(inlayFrets(empty)).toEqual(['3', '5', '7', '9', '12', '12'])
+    })
+})
+
 describe('renderFretboard orientation', () => {
     const num = (el: Element | null | undefined, name: string) => Number(el?.getAttribute(name))
     const scale = () => scaleNoteSet('A minor pentatonic')!
