@@ -267,7 +267,7 @@ describe('scales and modes', () => {
             'C major has 5 CAGED positions: use position 1 to 5'
         )
         expect(renderBlock('fretboard', 'notes: C E G\nposition: 1', host()).error).toBe(
-            'Positions need a scale: e.g. scale: A minor'
+            'Positions need a scale or a chord: e.g. scale: A minor or arpeggio: Am7'
         )
     })
 
@@ -285,8 +285,56 @@ describe('scales and modes', () => {
             'positions: use all, or numbers from 1 to 5 for C major'
         )
         expect(renderBlock('fretboard', 'positions: all', host()).error).toContain(
-            'positions needs a scale'
+            'positions needs a scale or a chord'
         )
+    })
+
+    it('draws arpeggio positions of a chord', () => {
+        const h = host()
+        expect(renderBlock('fretboard', 'arpeggio: Am7\nposition: 1', h).error).toBeNull()
+        // Intervals by default, the root in its color.
+        const labels = [...h.querySelectorAll('.mn-dot-text')].map((el) => el.textContent)
+        expect(new Set(labels)).toEqual(new Set(['R', 'b3', '5', 'b7']))
+        expect(h.querySelector('svg')?.getAttribute('data-mn-frets')).toBe('5-8')
+        expect(count(h, '.mn-dot.mn-root')).toBe(3)
+        // A chord with a position is an arpeggio too; labels: notes still works.
+        const named = host()
+        renderBlock('fretboard', 'chord: G7\nshape: A\nlabels: notes', named)
+        expect(named.querySelector('.mn-dot-text')?.textContent).toMatch(/^[GBDF]$/)
+        const row = host()
+        expect(renderBlock('fretboard', 'Am7\npositions: all\ncolumns: 3', row).error).toBeNull()
+        expect(titles(row)).toEqual(
+            ['E', 'D', 'C', 'A', 'G'].map((shape) => `Am7 arpeggio, ${shape} shape`)
+        )
+        expect(
+            [...row.querySelectorAll('svg')].map((svg) => svg.getAttribute('data-mn-frets'))
+        ).toEqual(['5-8', '7-10', '9-13', '12-15', '14-17'])
+        const list = host()
+        renderBlock('fretboard', 'arpeggio: C\npositions: 2 4', list)
+        expect(titles(list)).toEqual(['C arpeggio, D shape', 'C arpeggio, A shape'])
+        expect(renderBlock('fretboard', 'arpeggio: Am7\nshape: 3nps', host()).error).toBe(
+            'Arpeggios use CAGED shapes: position 1 to 5, or shape: E, D, C, A or G (not 3nps)'
+        )
+        expect(
+            renderBlock('fretboard', 'arpeggio: Am7\npositions: all\nshape: 3nps', host()).error
+        ).toBe('Arpeggios use CAGED shapes, not 3nps: leave shape out')
+        expect(renderBlock('fretboard', 'arpeggio: Am7\nposition: 6', host()).error).toBe(
+            'Am7 has 5 CAGED positions: use position 1 to 5'
+        )
+        // Without a position, every chord tone on the neck, as chord: does.
+        const all = host()
+        renderBlock('fretboard', 'arpeggio: Am7', all)
+        expect(count(all, '.mn-dot')).toBeGreaterThan(20)
+        expect(all.querySelector('.mn-dot-text')?.textContent).toMatch(/^(R|b3|5|b7)$/)
+    })
+
+    it('plays an arpeggio on a keyboard one note at a time', () => {
+        const h = host()
+        renderBlock('keyboard', 'arpeggio: Cmaj7', h)
+        expect(h.querySelector('svg')?.getAttribute('data-mn-play')).toBe('scale')
+        const chord = host()
+        renderBlock('keyboard', 'chord: Cmaj7', chord)
+        expect(chord.querySelector('svg')?.getAttribute('data-mn-play')).toBe('chord')
     })
 
     it('lays positions out in neck order', () => {
@@ -679,7 +727,7 @@ describe('a root for lists of notes (#33)', () => {
         )
         expect(error('fretboard', 'root: C')).toBe('Add the notes for the root: e.g. notes: C Eb G')
         expect(error('fretboard', 'notes: C E G\nroot: C\nposition: 1')).toBe(
-            'Positions need a scale: e.g. scale: A minor'
+            'Positions need a scale or a chord: e.g. scale: A minor or arpeggio: Am7'
         )
     })
 })

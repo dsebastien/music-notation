@@ -191,11 +191,24 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     }
     const value = block.fields.get('positions')?.trim()
     if (value === undefined) return null
-    const scale = block.fields.get('scale') ?? block.head
-    const set = scale ? scaleNoteSet(scale) : null
-    if (!scale || !set) throw new Error('positions needs a scale: e.g. A minor pentatonic')
-    const nps = block.fields.get('shape')?.trim().toLowerCase() === '3nps'
-    const system = nps ? '3nps' : set.members.length === 5 ? 'box' : 'caged'
+    // A scale, or a chord: its arpeggio (`arpeggio: Am7`, `chord: Am7`, or a shorthand chord).
+    const chordText = block.fields.get('arpeggio') ?? block.fields.get('chord')
+    const scaleText = block.fields.get('scale') ?? (chordText === undefined ? block.head : null)
+    const scaleSet = scaleText ? scaleNoteSet(scaleText) : null
+    const written = scaleSet ? scaleText! : (chordText ?? block.head)
+    const set = scaleSet ?? (written ? chordNoteSet(written) : null)
+    if (!written || !set) {
+        throw new Error(
+            'positions needs a scale or a chord: e.g. A minor pentatonic or arpeggio: Am7'
+        )
+    }
+    const arpeggio = !scaleSet
+    const shape = block.fields.get('shape')?.trim().toLowerCase()
+    if (arpeggio && shape === '3nps') {
+        throw new Error('Arpeggios use CAGED shapes, not 3nps: leave shape out')
+    }
+    const system =
+        shape === '3nps' ? '3nps' : !arpeggio && set.members.length === 5 ? 'box' : 'caged'
     const count = positionCount(set, system)
     const wanted =
         value.toLowerCase() === 'all'
@@ -233,9 +246,17 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const shared = SHARED_KEYS.fretboard
     const others = [...block.fields].filter(
         ([key]) =>
-            !['positions', 'scale', 'shape', 'position', 'numbering', 'title', 'frets'].includes(
-                key
-            )
+            ![
+                'positions',
+                'scale',
+                'arpeggio',
+                'chord',
+                'shape',
+                'position',
+                'numbering',
+                'title',
+                'frets'
+            ].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -243,17 +264,16 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const own = others
         .filter(([key]) => key !== 'columns' && !shared.includes(key))
         .map(([key, v]) => `${key}: ${v}`)
+    const name = arpeggio ? `${set.title} arpeggio` : set.title
     const diagrams = wanted.map((n) => {
         const at =
             system === 'caged'
-                ? [
-                      `shape: ${CAGED_SHAPES[n - 1]}`,
-                      `title: ${set.title}, ${CAGED_SHAPES[n - 1]} shape`
-                  ]
+                ? [`shape: ${CAGED_SHAPES[n - 1]}`, `title: ${name}, ${CAGED_SHAPES[n - 1]} shape`]
                 : system === '3nps'
-                  ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}${from}`]
-                  : [`position: ${n}`, `title: ${set.title}, box ${n}${from}`]
-        return [`scale: ${scale}`, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
+                  ? ['shape: 3nps', `position: ${n}`, `title: ${name}, 3nps ${n}${from}`]
+                  : [`position: ${n}`, `title: ${name}, box ${n}${from}`]
+        const what = arpeggio ? `arpeggio: ${written}` : `scale: ${written}`
+        return [what, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
 }

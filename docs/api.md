@@ -54,6 +54,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `detectChordFromFrets(frets, tuning?)`, `detectChordFromPitches(midis)`: the chord played, `{ symbol, readings }`.
 - `scaleName(text)` (the usual names as tonal knows them), `modesOf(scale)`, `scaleTypes()`, `characteristicIntervals(type)`.
 - `scalePosition(noteSet, tuning, 'box' | 'caged' | '3nps', n, { within, numbering })`: the notes of one position, `{ string, fret }[]`, in its lowest octave (or the lowest one inside the `within` frets). `numbering: 'minor'` counts a major pentatonic's positions from its relative minor. `neckPositions(noteSet, tuning, system, numbering?)`: every position in neck order. Also `positionCount(noteSet, system)` and `MAX_FRET` (36, the highest fret a fretboard draws).
+- Arpeggios: `scalePosition` and `neckPositions` take a chord's note set too (`chordNoteSet('Am7')`, system `'caged'`): the chord tones of each CAGED shape. `isArpeggio(noteSet)` tells a chord's notes from a scale or a list.
 - `blockFromProperties(language, properties, { names, instrument })`: a block's source from a note's properties; `DEFAULT_PROPERTY_NAMES`, `instrumentOf(properties, names)`.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).

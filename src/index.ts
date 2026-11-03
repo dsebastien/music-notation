@@ -131,6 +131,7 @@ export {
 export {
     scalePosition,
     neckPositions,
+    isArpeggio,
     positionCount,
     CAGED_SHAPES,
     MAX_FRET,

@@ -41,6 +41,7 @@ import { parseBlockSource, parseRange, parseStrings, type BlockSource } from './
 import type { Instrument, PropertyNames } from './properties.js'
 import { labelField, marksOf, noteSetOf, orFail } from './note-set-field.js'
 import {
+    isArpeggio,
     MAX_FRET,
     numberingOf,
     positionCount,
@@ -543,8 +544,11 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         fingers = new Map(pitches.map((midi, i) => [midi, fingerList[i]!]))
     }
     return renderKeyboard(doc, set, {
-        // A chord plays together; scales and lists one note at a time.
-        playAs: !set.scaleType && !set.list && set.root !== null ? 'chord' : 'scale',
+        // A chord plays together; scales, lists and arpeggios one note at a time.
+        playAs:
+            !set.scaleType && !set.list && set.root !== null && !block.fields.has('arpeggio')
+                ? 'chord'
+                : 'scale',
         title: field(block, 'title'),
         label: labelField(block, fingers ? 'fingers' : 'notes', fingers !== undefined),
         fingers,
@@ -587,12 +591,22 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     if (!at && field(block, 'numbering')) {
         throw new Error('numbering goes with a position: e.g. position: 1 or positions: all')
     }
+    // A chord's positions are arpeggios: they show which chord tone each note is.
+    const arpeggio = at !== null && isArpeggio(set)
     if (at) {
         if (set.root === null || set.list) {
-            throw new Error('Positions need a scale: e.g. scale: A minor')
+            throw new Error(
+                'Positions need a scale or a chord: e.g. scale: A minor or arpeggio: Am7'
+            )
         }
         // A numbered position of a 7-note scale is a CAGED one; boxes are for 5-note scales.
-        if (at.system === 'box' && set.members.length !== 5) at.system = 'caged'
+        // Arpeggios have CAGED shapes.
+        if (at.system === 'box' && (arpeggio || set.members.length !== 5)) at.system = 'caged'
+        if (arpeggio && at.system === '3nps') {
+            throw new Error(
+                'Arpeggios use CAGED shapes: position 1 to 5, or shape: E, D, C, A or G (not 3nps)'
+            )
+        }
         const count = positionCount(set, at.system)
         const named = { 'box': 'box', 'caged': 'CAGED', '3nps': '3nps' }[at.system]
         // With frets, the lowest octave inside them (how `positions:` puts them in neck order).
@@ -619,7 +633,8 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     return renderFretboard(doc, set, {
         title: field(block, 'title'),
         ...(strings ? { strings } : {}),
-        label: labelField(block, 'notes'),
+        // Arpeggios (`arpeggio:`, or a chord's position) show intervals unless told otherwise.
+        label: labelField(block, arpeggio || block.fields.has('arpeggio') ? 'intervals' : 'notes'),
         frets,
         cells,
         marks: marksOf(block, set),
