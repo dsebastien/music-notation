@@ -18,7 +18,7 @@ import {
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
 import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
-import { blockFromProperties } from '../blocks/properties.js'
+import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import {
@@ -81,6 +81,11 @@ export function renderBlock(
         orientation: layout.orientation ?? {},
         hand: layout.hand ?? 'right'
     }
+    // A chart's chord diagrams: guitar or piano, from the note's tags when the options don't say.
+    if (language === 'chords' && !options.instrument) {
+        const instrument = chartInstrument(options, host)
+        if (instrument) options.instrument = instrument
+    }
     let text = source
     // An empty block in a note draws from the note's properties, when they describe one.
     if (!text.trim() && isDiagramLanguage(language)) {
@@ -114,6 +119,9 @@ export function renderBlock(
             error = renderRow(doc, language, parts, el, options)
         } else {
             el.appendChild(RENDERERS[language](doc, text, options))
+            // A chart still draws around directives it couldn't read; they make the block not ok.
+            const warnings = [...el.querySelectorAll('.mn-chart > .mn-error-message')]
+            if (warnings.length) error = warnings.map((w) => w.textContent ?? '').join('; ')
         }
     } catch (e) {
         return failed(el, host, language, messageOf(e))
@@ -148,6 +156,23 @@ export function resolveProperties(properties: unknown, el: Element): unknown {
     if (typeof properties !== 'function') return properties
     try {
         return (properties as (el: Element) => unknown)(el)
+    } catch {
+        return null
+    }
+}
+
+/** The instrument the note's tags name (piano, else guitar); null without properties. */
+function chartInstrument(
+    options: RenderOptions,
+    host: Element
+): RenderOptions['instrument'] | null {
+    const properties = resolveProperties(options.properties, host)
+    if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return null
+    try {
+        return instrumentOf(properties as Record<string, unknown>, {
+            ...DEFAULT_PROPERTY_NAMES,
+            ...options.propertyNames
+        })
     } catch {
         return null
     }

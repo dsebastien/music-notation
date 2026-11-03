@@ -567,6 +567,41 @@
     white-space: pre;
 }
 
+/* A chart's chord diagrams: the chords used row (wraps like a block's row) and {chord} in place. */
+.mn-chart-diagrams {
+    margin: 0.75em 0;
+}
+
+.mn-chart .mn-chart-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75em 1.25em;
+}
+
+.mn-chart .mn-chart-row .mn-cell {
+    min-width: 0;
+}
+
+.mn-chart-diagrams-caption,
+.mn-chart-diagrams-note {
+    color: var(--mn-muted);
+    font-size: 0.9em;
+}
+
+.mn-chart-diagrams-caption {
+    font-weight: 600;
+    margin-bottom: 0.3em;
+}
+
+.mn-chart-diagrams-note {
+    margin-top: 0.3em;
+}
+
+.mn-chart-chord {
+    margin: 0.4em 0;
+}
+
 .mn-error-message {
     color: var(--text-error, #c92a2a);
     font-size: 0.9em;

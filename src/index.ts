@@ -85,9 +85,12 @@ export {
     type Song,
     type Section,
     type Line,
-    type Segment
+    type Segment,
+    type ChordDefinition
 } from './chords/chordpro.js'
 export { renderChart, type ChartOptions } from './chords/chart.js'
+export { chordsUsed } from './chords/chart-diagrams.js'
+export { parseDefinition } from './chords/defines.js'
 export { parseChord, type ParsedChord } from './theory/chord-symbol.js'
 export {
     chromaOf,

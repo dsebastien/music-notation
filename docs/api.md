@@ -32,6 +32,7 @@ Options:
 
 - `voicings`: finds guitar voicings for chord blocks that only give a symbol. Pass `lookupGuitarVoicing` from `@dsebastien/music-notation/voicings` (about 1,800 voicings by symbol, ~230 KB), or your own `(symbol, index) => FrettedVoicing | null`.
 - `transpose`: semitones added to `chords` blocks.
+- `chartDiagrams`: the chords used row of `chords` blocks when a chart has no `{diagrams}`: `'top'`, `'bottom'` or `'off'` (the default). Guitar or piano follows `instrument`, else the note's tags (`properties`), else guitar; a chart's `{instrument}` wins.
 - `orientation`: the default per block language, `{ chord, keyboard, fretboard }`, each `'vertical'` or `'horizontal'`. Piano chords follow `keyboard`. A block's own `orientation` wins.
 - `hand`: `'left'` mirrors guitar chords and fretboards unless a block says `hand: right`.
 
@@ -55,6 +56,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `scaleName(text)` (the usual names as tonal knows them), `modesOf(scale)`, `scaleTypes()`, `characteristicIntervals(type)`.
 - `scalePosition(noteSet, tuning, 'box' | 'caged' | '3nps', n, { within, numbering })`: the notes of one position, `{ string, fret }[]`, in its lowest octave (or the lowest one inside the `within` frets). `numbering: 'minor'` counts a major pentatonic's positions from its relative minor. `neckPositions(noteSet, tuning, system, numbering?)`: every position in neck order. Also `positionCount(noteSet, system)` and `MAX_FRET` (36, the highest fret a fretboard draws).
 - `blockFromProperties(language, properties, { names, instrument })`: a block's source from a note's properties; `DEFAULT_PROPERTY_NAMES`, `instrumentOf(properties, names)`.
+- `renderChart(doc, song, { transpose, diagrams, instrument, voicings, orientation, hand })`: `diagrams` places the chords used row (`'top'`, `'bottom'`, `'off'`) when the song has no `{diagrams}`. `chordsUsed(song)`: the chords of the lyrics as written, in order of first appearance. `parseDefinition(text, earlier)`: a `{define}` value as `{ definition, problems }`; a song's are in `song.definitions`, and the directives it couldn't read in `song.warnings`.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).
 - `transposeChord(symbol, semitones, preferFlats?)`, `transposeKey(key, semitones)`.
