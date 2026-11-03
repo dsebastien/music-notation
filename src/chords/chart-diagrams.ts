@@ -134,18 +134,22 @@ export function chordDiagram(
     // A display name is for the chord as written: a transposed chord shows its new name.
     const title = (!moved && definition?.display) || shown
     const known = parseChord(shown) !== null && chordNoteSet(shown) !== null
+    const capo = drawing.capo && drawing.capo > 0 ? drawing.capo : 0
+    // Under a capo the chart's names are the shapes played; they sound higher.
+    const sounding = capo ? soundingChord(shown, capo) : shown
     let el: SVGElement | null = null
     if (drawing.instrument === 'piano') {
+        // A piano has no capo: it plays what the guitar sounds, and the title says so.
         // Keys are counted from the root, so they move with it.
         const set = definition?.keys
-            ? keysNoteSet(shown, definition.keys)
+            ? keysNoteSet(sounding, definition.keys)
             : known
-              ? pianoPitches(shown)
+              ? pianoPitches(sounding)
               : null
         if (!set) return null
         el = renderKeyboard(doc, set, {
             playAs: 'chord',
-            title,
+            title: sounding === shown ? title : `${title} (sounds ${sounding})`,
             range: keyRangeOf(set),
             orientation: drawing.orientation?.keyboard
         })
@@ -155,9 +159,7 @@ export function chordDiagram(
             (defined && shifted(defined, semitones)) ??
             (known ? (drawing.voicings?.(shown, 0) ?? null) : null)
         if (!voicing) return null
-        const capo = drawing.capo && drawing.capo > 0 ? drawing.capo : 0
-        // Under a capo the shape sounds higher: root marks follow the sounding chord.
-        const sounding = capo ? soundingChord(shown, capo) : shown
+        // Root marks follow the sounding chord.
         el = renderGuitarDiagram(doc, voicing, {
             title,
             root: chordNoteSet(sounding)?.root ?? null,
@@ -165,6 +167,8 @@ export function chordDiagram(
             hand: drawing.hand,
             ...(capo ? { capo, caption: false } : {})
         })
+        // What it sounds, as chord blocks say it (a piano redrawing titles itself with it).
+        if (sounding !== shown) el.setAttribute('data-mn-sounds', sounding)
     }
     el.setAttribute('data-mn-chord', shown)
     return el
@@ -185,12 +189,18 @@ export interface ChordsUsedOptions extends ChordDrawing {
     semitones: number
     /** Spell transposed chords with flats (the transposed key's way), or as written. */
     flats?: boolean
+    /**
+     * A "Capo N" caption over guitar shapes (default true). Charts leave it out when the row is
+     * right under the chart's own line that says the capo.
+     */
+    capoCaption?: boolean
 }
 
 /**
  * The "chords used" row: every chord of the lyrics, in order of first appearance, as the chart
- * prints it (transposed), with the song's shapes first. With a capo the shapes are the ones played
- * (the names above the lyrics) and a caption says the capo. Null when no chord is used.
+ * prints it (transposed), with the song's shapes first. With a capo, guitar shapes are the ones
+ * played (the names above the lyrics) under a "Capo N" caption, and piano diagrams the chords that
+ * sound ("G (sounds A)"). Null when no chord is used.
  */
 export function renderChordsUsed(
     doc: Document,
@@ -231,8 +241,8 @@ export function renderChordsUsed(
     }
     if (!cells.length && !missing.length) return null
     const root = html(doc, 'div', 'mn-chart-diagrams')
-    // The shapes under a capo are guitar shapes: piano diagrams play the names as printed.
-    if (song.capo && options.instrument === 'guitar') {
+    // The shapes under a capo are guitar shapes: piano diagrams say what they sound in their titles.
+    if (song.capo && options.instrument === 'guitar' && options.capoCaption !== false) {
         root.appendChild(html(doc, 'div', 'mn-chart-diagrams-caption', `Capo ${song.capo}`))
     }
     if (cells.length) {

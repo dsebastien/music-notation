@@ -129,8 +129,19 @@ describe('the chords used row', () => {
         const el = renderChart(document, parseChordPro(`{diagrams}\n{capo: 2}\n${SONG}`), {
             voicings
         })
-        expect(el.querySelector('.mn-chart-diagrams-caption')?.textContent).toBe('Capo 2')
+        // The chart's line says the capo once; a row right under it doesn't repeat it.
+        expect(el.querySelector('.mn-chart-meta')?.textContent).toBe('Capo 2')
+        expect(el.querySelector('.mn-chart-diagrams-caption')).toBeNull()
+        expect(el.textContent.match(/Capo 2/g)).toHaveLength(1)
+        // At the bottom, far from that line, the row says it.
+        const bottom = renderChart(
+            document,
+            parseChordPro(`{diagrams: bottom}\n{capo: 2}\n${SONG}`),
+            { voicings }
+        )
+        expect(bottom.querySelector('.mn-chart-diagrams-caption')?.textContent).toBe('Capo 2')
         expect(rowOf(el)).toEqual(['G', 'C', 'D/F#'])
+        expect(el.querySelector('.mn-chart-diagrams svg')?.getAttribute('data-mn-sounds')).toBe('A')
         // The shapes play as they sound (a G shape on capo 2 is A) and have no caption each.
         const g = el.querySelector('.mn-chart-diagrams svg[data-mn-chord="G"]')!
         const plain = renderChart(document, parseChordPro(`{diagrams}\n${SONG}`), { voicings })
@@ -143,6 +154,30 @@ describe('the chords used row', () => {
             instrument: 'piano'
         })
         expect(piano.querySelector('.mn-chart-diagrams-caption')).toBeNull()
+    })
+
+    it('with a capo, draws piano chords as they sound, and says so in the title', () => {
+        const piano = renderChart(
+            document,
+            parseChordPro(`{diagrams}\n{capo: 2}\n{define: Em keys 0 3 7 12}\n${SONG}\n[Em]x`),
+            { instrument: 'piano' }
+        )
+        const titles = [...piano.querySelectorAll('.mn-chart-row .mn-title')].map(
+            (t) => t.textContent
+        )
+        expect(titles).toEqual([
+            'G (sounds A)',
+            'C (sounds D)',
+            'D/F# (sounds E/G#)',
+            'Em (sounds F#m)'
+        ])
+        expect(rowOf(piano)).toEqual(['G', 'C', 'D/F#', 'Em'])
+        const pitches = [...piano.querySelectorAll('.mn-chart-row svg')].map((svg) =>
+            svg.getAttribute('data-mn-pitches')
+        )
+        // A from middle C's octave (A C# E), and F#m's keys counted from F#.
+        expect(pitches[0]).toBe('69 73 76')
+        expect(pitches[3]).toBe('66 69 73 78')
     })
 
     it('draws piano chords, with keys from definitions counted from the root', () => {
@@ -192,6 +227,22 @@ describe('{chord} in place', () => {
         expect(inline[3]!.querySelector('.mn-error-message')?.textContent).toContain(
             'No diagram for Qq'
         )
+    })
+})
+
+describe('{chord} in place with a capo', () => {
+    it('plays and draws like the chords used row', () => {
+        const el = renderChart(
+            document,
+            parseChordPro('{capo: 2}\n{chord: G}\n{diagrams}\n[G]Hello'),
+            { voicings }
+        )
+        const inline = el.querySelector('.mn-chart-chord svg')!
+        const row = el.querySelector('.mn-chart-diagrams svg')!
+        expect(inline.getAttribute('data-mn-capo')).toBe('2')
+        expect(inline.getAttribute('data-mn-pitches')).toBe(row.getAttribute('data-mn-pitches'))
+        expect(inline.querySelector('.mn-capo')).not.toBeNull()
+        expect(inline.textContent).not.toContain('Capo')
     })
 })
 

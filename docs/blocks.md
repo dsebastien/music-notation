@@ -827,7 +827,7 @@ Other directives are ignored.
 - Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
 - Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice.
 - `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
-- With `{capo: 2}`, the row shows the shapes you play (the names above the lyrics) and says "Capo 2".
+- With `{capo: 2}`, guitar diagrams show the shapes you play (the names above the lyrics), with the capo drawn; `{chord}` diagrams too. The chart's top line already says "Capo 2", so a row on top doesn't repeat it; a row at the bottom says it again, since the top line is far away. A piano has no capo: piano diagrams show the chord that sounds, titled "G (sounds A)".
 - Chords the chart can't draw are listed under the row, with what to write.
 - `N.C.`, `%` and other text in brackets that isn't a chord is skipped.
 

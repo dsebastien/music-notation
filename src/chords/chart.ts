@@ -53,10 +53,13 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
     }
     const placement =
         song.diagrams ?? (PLACEMENTS.has(options.diagrams as string) ? options.diagrams! : 'off')
-    const used = () =>
+    // The chart's line says "Capo N": a row right under it doesn't say it again; a row at the
+    // bottom, far from that line, does.
+    const used = (capoCaption: boolean) =>
         renderChordsUsed(doc, song, {
             ...drawing,
             semitones,
+            capoCaption,
             ...(flats === undefined ? {} : { flats })
         })
 
@@ -81,7 +84,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         root.appendChild(html(doc, 'div', 'mn-error-message', warning))
     }
     if (placement === 'top') {
-        const row = used()
+        const row = used(false)
         if (row) root.appendChild(row)
     }
 
@@ -104,7 +107,11 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                 const inline = html(doc, 'div', 'mn-line mn-chart-chord')
                 let diagram: SVGElement | null = null
                 try {
-                    diagram = chordDiagram(doc, shown, definition, moved, drawing)
+                    // Under a capo, played and drawn like the chords used row.
+                    diagram = chordDiagram(doc, shown, definition, moved, {
+                        ...drawing,
+                        ...(song.capo ? { capo: song.capo } : {})
+                    })
                 } catch {
                     diagram = null
                 }
@@ -143,7 +150,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         root.appendChild(el)
     }
     if (placement === 'bottom') {
-        const row = used()
+        const row = used(true)
         if (row) root.appendChild(row)
     }
     return root
