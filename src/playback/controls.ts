@@ -6,8 +6,11 @@
 import { accessibleName, html, setAccessibleName, svg } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
+import { chartNoteName, renderGuitarDiagram, STANDARD_TUNING } from '../chord/guitar.js'
+import { generateVoicings } from '../chord/generate.js'
 import {
     chordNoteSet,
+    intervalLabel,
     listNoteSet,
     scaleNoteSet,
     type NoteLabel,
@@ -207,10 +210,47 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
         (set.root !== null || written === 'notes' || written === 'none')
             ? written
             : 'notes'
-    const heading = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    // A hand belongs to the piano: "C major, right hand" is "C major" on a guitar.
+    const shownTitle = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    const heading = toGuitar ? shownTitle?.replace(/,\s*(left|right) hand$/, '') : shownTitle
     // A piano plays what the guitar sounds: the title says which chord that is.
     const title =
         sounds && heading ? `${heading} (sounds ${sounds})` : (heading ?? sounds ?? undefined)
+    // A piano chord on guitar: a grip a guitarist plays (the easiest voicing of the chord), not a
+    // map of its pitches over the neck.
+    const symbol = chord ?? named
+    const grip =
+        toGuitar && data.kind === 'chord' && symbol && set.root !== null && chordNoteSet(symbol)
+            ? generateVoicings(symbol)[0]
+            : undefined
+    if (grip) {
+        const members = set.members
+        const labels =
+            label === 'intervals' || label === 'notes'
+                ? grip.frets.map((fret, s) => {
+                      if (fret === null) return null
+                      const member = members.find(
+                          (m) => m.chroma === (STANDARD_TUNING[s]! + fret) % 12
+                      )
+                      if (!member) return null
+                      return label === 'notes' || member.interval === null
+                          ? chartNoteName(member.name)
+                          : intervalLabel(member.interval)
+                  })
+                : label === 'none'
+                  ? grip.frets.map(() => null)
+                  : null
+        const drawn = renderGuitarDiagram(doc, grip, {
+            ...(title ? { title } : {}),
+            root: set.root,
+            ...(labels ? { labels } : {})
+        })
+        drawn.setAttribute('data-mn-chord', symbol!)
+        const name = accessibleName(diagram)
+        if (name) setAccessibleName(drawn, `${name}, drawn for guitar`)
+        drawn.classList.add('mn-redrawn')
+        return drawn
+    }
     // A fretboard and a keyboard share their orientation; a chord diagram's is its own.
     const orientation =
         diagram.getAttribute('data-mn-orientation') === 'vertical' ? 'vertical' : undefined

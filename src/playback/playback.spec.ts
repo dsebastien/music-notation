@@ -342,7 +342,8 @@ describe('playback bar', () => {
         pick.value = 'guitar'
         pick.dispatchEvent(new Event('change'))
         ;(both.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
-        expect(times()).toEqual([0, 30, 60])
+        // On guitar, the chord is a grip: x32010 strums five strings.
+        expect(times()).toEqual([0, 30, 60, 90, 120])
         // Only piano given: guitar keeps its 12 ms.
         expect(strumsOf({ piano: 500 })).toEqual({ guitar: 12, piano: 200 })
         expect(strumsOf(Number.NaN)).toEqual({ guitar: 12, piano: 0 })
@@ -550,6 +551,32 @@ describe('choosing the other instrument redraws the diagram', () => {
         h.remove()
     })
 
+    it('draws a piano chord as a guitar grip, with its labels and a title without hands', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chord', 'C\ninstrument: piano\nlabels: intervals', h, { play: { player } })
+        choose(h, 'guitar')
+        // The easiest voicing, x32010, not C, E and G over twelve frets.
+        expect(h.querySelector('.mn-fretboard')).toBeNull()
+        const grip = h.querySelector('.mn-guitar-chord')!
+        expect(grip.getAttribute('data-mn-pitches')).toBe('48 52 55 60 64')
+        expect(grip.querySelector('.mn-title')?.textContent).toBe('C')
+        expect([...grip.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)).toEqual([
+            'R',
+            '3',
+            'R'
+        ])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual([48, 52, 55, 60, 64])
+        // A scale fingered for one hand drops the hand on guitar.
+        const s = host()
+        renderBlock('keyboard', 'scale: C major\nfingering: auto', s, { play: {} })
+        choose(s, 'guitar')
+        expect(s.querySelector('.mn-fretboard .mn-title')?.textContent).toBe('C major')
+        h.remove()
+        s.remove()
+    })
+
     it('draws a keyboard as a fretboard on guitar, and a click there plays its note', () => {
         const h = host()
         const calls: number[] = []
@@ -583,7 +610,7 @@ describe('choosing the other instrument redraws the diagram', () => {
         renderBlock('keyboard', 'chord: C9\nlabels: intervals', k, { play: {} })
         choose(k, 'guitar')
         expect(
-            [...k.querySelectorAll('.mn-fretboard .mn-dot-text')].map((t) => t.textContent)
+            [...k.querySelectorAll('.mn-guitar-chord .mn-dot-text')].map((t) => t.textContent)
         ).toContain('9')
         h.remove()
         k.remove()
