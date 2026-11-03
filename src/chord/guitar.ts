@@ -156,7 +156,7 @@ export function renderGuitarDiagram(
     const along = (row: number) => row * ROW
     const at = (string: number, row: number) => frame.at(across(string), along(row))
 
-    const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).toLowerCase()}` : ''}`
+    const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).replace(/^Capo/, 'capo')}` : ''}`
     const height = frame.height + (caption ? CAPTION : 0)
     const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
     if (caption) {

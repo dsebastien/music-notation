@@ -66,7 +66,14 @@ describe('capo on guitar diagrams', () => {
         expect(svg.querySelector('.mn-capo')).not.toBeNull()
         expect(svg.querySelector('.mn-nut')).toBeNull()
         expect(svg.querySelector('.mn-caption')?.textContent).toBe('Capo 2, sounds B')
-        expect(svg.getAttribute('aria-label')).toBe('A chord diagram, capo 2, sounds b')
+        // Only "Capo" is lowercased in the screen reader's name: chord names keep their case.
+        expect(svg.getAttribute('aria-label')).toBe('A chord diagram, capo 2, sounds B')
+        const slash = renderGuitarDiagram(
+            document,
+            { frets: [2, null, 0, 2, 3, 2], fingers: [] },
+            { title: 'D/F#', capo: 2, sounds: 'E/G#' }
+        )
+        expect(slash.getAttribute('aria-label')).toBe('D/F# chord diagram, capo 2, sounds E/G#')
         // A shape (x02220) with a capo on 2: B2 F#3 B3 D#4 F#4.
         expect(pitches(svg)).toEqual([47, 54, 59, 63, 66])
         // B is the root: the open A string (now B) and the G string's dot.
