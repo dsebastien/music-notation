@@ -549,7 +549,7 @@ The chords line can go before or after the keys, and a long progression can take
 
 **Minor keys.** Write `i iv v` (or `V`), `bIII bVI bVII`. The plain `III`, `VI` and `VII` mean the same chords (C, F and G in A minor), and `vii°` is the chord on the raised seventh (G#dim in A minor). `#vi` raises the sixth (F#m in A minor).
 
-**Nashville numbers.** `1 5 6m 4`: a plain number is a major chord, `m` or `-` makes it minor (`6m`, `2-7`), and `b7`, `5/3` (the bass) work as above. A seventh right after the number is written raised, `5⁷`, so it doesn't read as 57 (typing `57` works).
+**Nashville numbers.** `1 5 6m 4`: a plain number is a major chord, `m` or `-` makes it minor (`6m`, `2-7`), and `b7`, `5/3` (the bass) work as above. A seventh right after the number is shown raised, `5⁷`, so it doesn't read as fifty-seven. You can type `57` or `5⁷`.
 
 **Key changes.** `---` starts a new section with its own `key:`. Settings before the first `---` apply to every section.
 
@@ -832,7 +832,7 @@ Other directives are ignored.
 
 - `{diagrams}` or `{diagrams: on}` puts the row on top, `{diagrams: bottom}` under the song, `{diagrams: off}` hides it. The row is off by default; apps can turn it on for every chart (`chartDiagrams` option).
 - Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
-- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice. Other instruments (`{instrument: ukulele}`) are ignored: the chart draws guitar diagrams.
+- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro). Other instruments (`{instrument: ukulele}`) are ignored: the chart draws guitar diagrams.
 - `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
 - With `{capo: 2}`, guitar diagrams show the shapes you play (the names above the lyrics), with the capo drawn; `{chord}` diagrams too. The chart's top line already says "Capo 2", so a row on top doesn't repeat it; a row at the bottom says it again, since the top line is far away. A piano has no capo: piano diagrams show the chord that sounds, titled "G (sounds A)".
 - Chords the chart can't draw are listed under the row, with what to write.
