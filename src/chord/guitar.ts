@@ -92,10 +92,16 @@ interface Barre {
     finger: string
     /** The strings the finger holds at that fret, lowest first. */
     strings: number[]
+    /** A full barre: over four strings or more, or over strings fretted higher (F 133211, Bm7
+     * x24232), not a small one (F xx3211, a triad's two strings under one finger). */
+    full: boolean
 }
 
 /** Strings held by the same finger on the same fret, across at least two strings. */
-function barresOf(voicing: FrettedVoicing, capoFret: number | null): Barre[] {
+function barresOf(
+    voicing: Pick<FrettedVoicing, 'frets' | 'fingers'>,
+    capoFret: number | null
+): Barre[] {
     const byKey = new Map<string, number[]>()
     voicing.frets.forEach((fret, string) => {
         const finger = voicing.fingers[string]
@@ -107,17 +113,41 @@ function barresOf(voicing: FrettedVoicing, capoFret: number | null): Barre[] {
     const barres: Barre[] = []
     for (const [key, strings] of byKey) {
         if (strings.length < 2) continue
-        const [finger, fret] = key.split('@')
-        barres.push({
-            fret: Number(fret),
-            from: Math.min(...strings),
-            to: Math.max(...strings),
-            finger: finger!,
-            strings
-        })
+        const [finger, fretText] = key.split('@')
+        const fret = Number(fretText)
+        const from = Math.min(...strings)
+        const to = Math.max(...strings)
+        let under = false
+        for (let s = from + 1; s < to; s++) {
+            const f = voicing.frets[s]
+            if (!strings.includes(s) && f !== null && f !== undefined && f > fret) under = true
+        }
+        barres.push({ fret, from, to, finger: finger!, strings, full: under || strings.length > 3 })
     }
     return barres
 }
+
+/**
+ * The barre a voicing is held with: `full` when one finger lies over four strings or more, or over
+ * strings fretted higher (F 133211, Bm7 x24232: an E-shape or A-shape barre chord), `partial` for a
+ * smaller one (F xx3211, an A shape's ring-finger barre x3555x), null when no finger holds two
+ * strings on one fret.
+ */
+export function barreKind(
+    voicing: Pick<FrettedVoicing, 'frets' | 'fingers'>
+): 'full' | 'partial' | null {
+    const barres = barresOf(voicing, null)
+    if (!barres.length) return null
+    return barres.some((b) => b.full) ? 'full' : 'partial'
+}
+
+/**
+ * Whether a finger holds two strings or more on one fret (a full or a partial barre): what told
+ * an "E-shape barre" from a "CAGED E" before shapes had one name per CAGED letter. Generated
+ * voicings say the same with `reasons.includes('barre')`.
+ */
+export const isBarreVoicing = (voicing: Pick<FrettedVoicing, 'frets' | 'fingers'>): boolean =>
+    barreKind(voicing) !== null
 
 /** Between two strings. */
 const SPACING = 18
@@ -247,11 +277,15 @@ export function renderGuitarDiagram(
     // Strings whose text the barre's one label stands for.
     const quiet = new Set<number>()
     for (const barre of barresOf(voicing, capoFret)) {
-        // One bar says one thing: dots labelled differently (a triad's 5 and R) stay apart.
         const texts = new Set(barre.strings.map(textOf))
-        if (texts.size > 1) continue
-        // One finger number for the whole bar, on its lowest string.
-        for (const s of barre.strings) if (s !== barre.from) quiet.add(s)
+        if (texts.size === 1) {
+            // One finger number for the whole bar, on its lowest string.
+            for (const s of barre.strings) if (s !== barre.from) quiet.add(s)
+        } else if (!barre.full) {
+            // A small barre's dots labelled differently (a triad's 5 and R) stay apart.
+            continue
+        }
+        // A full barre labelled differently (F 133211 with notes): each dot's label on the bar.
         const middle = along(barre.fret - base + 0.5)
         root.appendChild(
             svg(doc, 'rect', {
