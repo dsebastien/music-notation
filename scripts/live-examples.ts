@@ -14,7 +14,8 @@ const LANGUAGES = [
     'circle',
     'tab',
     'score',
-    'strum'
+    'strum',
+    'picking'
 ]
 const LIVE = /\n<div class="mn-live" markdown="0">[\s\S]*?<\/div>\n/g
 const EXAMPLE = /````markdown\n```(\w+)\n([\s\S]*?)\n```\n````\n/g
