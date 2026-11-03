@@ -73,24 +73,72 @@ function pentatonicOf(set: NoteSet): number[] | null {
     return null
 }
 
-/** The notes of position `n` (1-based); null when the scale or position doesn't fit the system. */
+/** The highest fret a fretboard can show. */
+export const MAX_FRET = 36
+
+/** Where to draw a position: `within` picks the lowest octave inside those frets (else the lowest). */
+export interface PositionOptions {
+    within?: [number, number]
+}
+
+const lowestFret = (cells: Cell[]) => Math.min(...cells.map((c) => c.fret))
+const highestFret = (cells: Cell[]) => Math.max(...cells.map((c) => c.fret))
+
+/**
+ * The notes of position `n` (1-based), in the lowest octave where every note is on the neck (or
+ * the lowest one inside `within`); null when the scale or position doesn't fit the system.
+ */
 export function scalePosition(
     set: NoteSet,
     tuning: number[],
     system: PositionSystem,
-    n: number
+    n: number,
+    options: PositionOptions = {}
 ): Cell[] | null {
-    if (set.root === null || n < 1 || n > positionCount(set, system)) return null
+    const octaves = octavesOf(set, tuning, system, n)
+    const within = options.within
+    const inside = within
+        ? octaves.find((cells) => lowestFret(cells) >= within[0] && highestFret(cells) <= within[1])
+        : undefined
+    return inside ?? octaves[0] ?? null
+}
+
+/**
+ * Every position in neck order, position 1 first: the first in its lowest octave, each next one in
+ * the lowest octave at or above the previous one (by their lowest frets), or in its own lowest
+ * octave when that would go past fret 36. Null for a position that doesn't fit the system.
+ */
+export function neckPositions(
+    set: NoteSet,
+    tuning: number[],
+    system: PositionSystem
+): (Cell[] | null)[] {
+    let floor = 0
+    return Array.from({ length: positionCount(set, system) }, (_, i) => {
+        const octaves = octavesOf(set, tuning, system, i + 1)
+        const cells =
+            octaves.find((c) => lowestFret(c) >= floor && highestFret(c) <= MAX_FRET) ??
+            octaves[0] ??
+            null
+        if (cells) floor = lowestFret(cells)
+        return cells
+    })
+}
+
+/** Position `n` in each octave where every note is on the neck, lowest first. */
+function octavesOf(set: NoteSet, tuning: number[], system: PositionSystem, n: number): Cell[][] {
+    if (set.root === null || n < 1 || n > positionCount(set, system)) return []
     const open = tuning[0]!
     const chromas = chromasOf(set)
     const notes = tuning.length * 3
     const nps =
         system === '3nps' || (system === 'caged' && chromas.length !== 5 && !pentatonicOf(set))
     const pentatonic = chromas.length === 5 ? chromas : pentatonicOf(set)
-    if (!nps && !pentatonic) return null
+    if (!nps && !pentatonic) return []
     const startChroma = nps ? chromas[(n - 1) % chromas.length]! : pentatonic![(n - 1) % 5]!
-    // The lowest octave where every note is on the neck (a box may reach a fret below its start).
-    for (let start = fretOn(open, startChroma, 0); start <= 36; start += 12) {
+    const out: Cell[][] = []
+    // A box may reach a fret below its start: only octaves with every note on the neck count.
+    for (let start = fretOn(open, startChroma, 0); start <= MAX_FRET; start += 12) {
         const cells = nps
             ? fill(ascending(chromas, open + start, notes), tuning, 3)
             : withOther(
@@ -98,9 +146,9 @@ export function scalePosition(
                   system === 'caged' && chromas.length !== 5 ? chromas : null,
                   tuning
               )
-        if (cells && cells.every((c) => c.fret >= 0)) return cells
+        if (cells && cells.every((c) => c.fret >= 0)) out.push(cells)
     }
-    return null
+    return out
 }
 
 /** A box as is, or with the other scale notes (CAGED); null when a note falls off the neck. */

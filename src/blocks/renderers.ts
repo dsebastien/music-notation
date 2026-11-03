@@ -32,7 +32,13 @@ import {
 import { parseBlockSource, parseRange, parseStrings, type BlockSource } from './block-source.js'
 import type { Instrument, PropertyNames } from './properties.js'
 import { labelField, marksOf, noteSetOf, orFail } from './note-set-field.js'
-import { positionCount, positionOf, scalePosition, type Cell } from '../fretboard/positions.js'
+import {
+    MAX_FRET,
+    positionCount,
+    positionOf,
+    scalePosition,
+    type Cell
+} from '../fretboard/positions.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -421,7 +427,7 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const frets = fretsText
         ? orFail(parseRange(fretsText), `Invalid frets "${fretsText}": use e.g. 5-8`)
         : undefined
-    if (frets && frets[1] > 36) throw new Error('Frets go up to 36')
+    if (frets && frets[1] > MAX_FRET) throw new Error(`Frets go up to ${MAX_FRET}`)
     const tuningText = field(block, 'tuning')
     const tuning = tuningText ? tuningOf(tuningText) : undefined
     let cells: Cell[] | undefined
@@ -433,8 +439,9 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         if (at.system === 'box' && set.members.length !== 5) at.system = 'caged'
         const count = positionCount(set, at.system)
         const named = { 'box': 'box', 'caged': 'CAGED', '3nps': '3nps' }[at.system]
+        // With frets, the lowest octave inside them (how `positions:` puts them in neck order).
         cells = orFail(
-            scalePosition(set, tuning ?? STANDARD_TUNING, at.system, at.n),
+            scalePosition(set, tuning ?? STANDARD_TUNING, at.system, at.n, { within: frets }),
             `${set.title} has ${count} ${named} positions: use position 1 to ${count}`
         )
     }

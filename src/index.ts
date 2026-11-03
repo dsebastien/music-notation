@@ -119,9 +119,12 @@ export {
 } from './theory/scales.js'
 export {
     scalePosition,
+    neckPositions,
     positionCount,
     CAGED_SHAPES,
+    MAX_FRET,
     type Cell,
+    type PositionOptions,
     type PositionSystem
 } from './fretboard/positions.js'
 export {

@@ -20,7 +20,8 @@ import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
-import { CAGED_SHAPES, positionCount } from '../fretboard/positions.js'
+import { CAGED_SHAPES, neckPositions, positionCount } from '../fretboard/positions.js'
+import { STANDARD_TUNING } from '../chord/guitar.js'
 import {
     fingerVoicing,
     generateVoicings,
@@ -166,8 +167,9 @@ function propertiesSource(
 
 /**
  * `positions: all` (or `1 3 5`) on a fretboard with a scale: one diagram per position, in a row.
- * Boxes for 5-note scales, CAGED shapes for 7-note scales, or 3NPS with `shape: 3nps`. Null when
- * the block has no `positions:`.
+ * Boxes for 5-note scales, CAGED shapes for 7-note scales, or 3NPS with `shape: 3nps`. Positions
+ * follow the neck: each diagram gets the frets `neckPositions` puts it at (a list picks from that
+ * layout). Null when the block has no `positions:`.
  */
 function positionParts(language: DiagramLanguage, source: string): string[] | null {
     if (language !== 'fretboard') return null
@@ -193,10 +195,23 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     if (bad !== undefined) {
         throw new Error(`positions: use all, or numbers from 1 to ${count} for ${set.title}`)
     }
+    // Up the neck, each position at or above the one before; an unknown tuning fails in the diagram.
+    const tuningText = block.fields.get('tuning')
+    const neck = neckPositions(
+        set,
+        (tuningText && parseTuning(tuningText)) || STANDARD_TUNING,
+        system
+    )
+    const fretsOf = (n: number) => {
+        const cells = neck[n - 1]
+        if (!cells?.length) return []
+        const frets = cells.map((c) => c.fret)
+        return [`frets: ${Math.min(...frets)}-${Math.max(...frets)}`]
+    }
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
     const shared = SHARED_KEYS.fretboard
     const others = [...block.fields].filter(
-        ([key]) => !['positions', 'scale', 'shape', 'position', 'title'].includes(key)
+        ([key]) => !['positions', 'scale', 'shape', 'position', 'title', 'frets'].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -214,7 +229,7 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
                 : system === '3nps'
                   ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}`]
                   : [`position: ${n}`, `title: ${set.title}, box ${n}`]
-        return [`scale: ${scale}`, ...at, ...own].join('\n')
+        return [`scale: ${scale}`, ...at, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
 }

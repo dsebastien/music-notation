@@ -251,6 +251,28 @@ describe('scales and modes', () => {
         )
     })
 
+    it('lays positions out in neck order', () => {
+        // The lowest pitch of each diagram: box 4 and 5 up the neck, not at the nut.
+        const lowest = (h: HTMLElement) =>
+            [...h.querySelectorAll('[data-mn-pitches]')].map((svg) =>
+                Number(svg.getAttribute('data-mn-pitches')!.split(' ')[0])
+            )
+        const h = host()
+        expect(renderBlock('fretboard', 'A minor pentatonic\npositions: all', h).ok).toBe(true)
+        expect(lowest(h)).toEqual([45, 48, 50, 52, 55])
+        // A list keeps the frets the whole row gives them.
+        const list = host()
+        renderBlock('fretboard', 'A minor pentatonic\npositions: 4 5\nfrets: 0-12', list)
+        expect(lowest(list)).toEqual([52, 55])
+        // A single position stays in its lowest octave, unless frets put it elsewhere.
+        const one = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 4', one)
+        expect(lowest(one)).toEqual([40])
+        const moved = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 4\nfrets: 10-17', moved)
+        expect(lowest(moved)).toEqual([52])
+    })
+
     it('draws every mode of a key in a row', () => {
         const h = host()
         expect(renderBlock('keyboard', 'modes: C major\nrange: C4-B5', h).ok).toBe(true)

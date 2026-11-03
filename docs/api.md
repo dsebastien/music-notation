@@ -53,7 +53,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - Playback: `sequenceOf(kind, pitches, { bpm, strum })` (the notes a chord or scale plays, timed), `lightPlayer(window)` (the light synthesizer: `pluckedString`, `pianoTone`), `attachPlayback(el, options)` (the bar). The `play` render option (`true`, or `{ player, sound, volume, bpm, strum }`) adds the bar to every diagram; `player` is a `NotePlayer` or a function returning one at each play, given the diagram's window (popouts have their own).
 - `detectChordFromFrets(frets, tuning?)`, `detectChordFromPitches(midis)`: the chord played, `{ symbol, readings }`.
 - `scaleName(text)` (the usual names as tonal knows them), `modesOf(scale)`, `scaleTypes()`, `characteristicIntervals(type)`.
-- `scalePosition(noteSet, tuning, 'box' | 'caged' | '3nps', n)`: the notes of one position, `{ string, fret }[]`; `positionCount(noteSet, system)`.
+- `scalePosition(noteSet, tuning, 'box' | 'caged' | '3nps', n, { within })`: the notes of one position, `{ string, fret }[]`, in its lowest octave (or the lowest one inside the `within` frets); `neckPositions(noteSet, tuning, system)`: every position in neck order; `positionCount(noteSet, system)`; `MAX_FRET` (36).
 - `blockFromProperties(language, properties, { names, instrument })`: a block's source from a note's properties; `DEFAULT_PROPERTY_NAMES`, `instrumentOf(properties, names)`.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).

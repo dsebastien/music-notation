@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { positionOf, scalePosition, type Cell } from './positions.js'
+import { neckPositions, positionOf, scalePosition, type Cell } from './positions.js'
 import { scaleNoteSet } from '../theory/note-set.js'
 
 const STANDARD = [40, 45, 50, 55, 59, 64]
@@ -116,6 +116,76 @@ describe('scale positions, checked against standard charts', () => {
         expect(scalePosition(scaleNoteSet('C major')!, STANDARD, 'caged', 6)).toBeNull()
         expect(scalePosition(scaleNoteSet('C major')!, STANDARD, '3nps', 8)).toBeNull()
         expect(scalePosition(scaleNoteSet('C major')!, STANDARD, '3nps', 7)).not.toBeNull()
+    })
+})
+
+/** Lowest and highest fret of each position. */
+const spans = (positions: (Cell[] | null)[]) =>
+    positions.map((cells) => {
+        const frets = (cells ?? []).map((c) => c.fret)
+        return `${Math.min(...frets)}-${Math.max(...frets)}`
+    })
+
+describe('positions in neck order', () => {
+    it('lays the minor pentatonic boxes up the neck', () => {
+        const set = scaleNoteSet('A minor pentatonic')!
+        expect(spans(neckPositions(set, STANDARD, 'box'))).toEqual([
+            '5-8',
+            '7-10',
+            '9-13',
+            '12-15',
+            '14-17'
+        ])
+    })
+
+    it('starts from the first position in its lowest octave', () => {
+        // E major pentatonic box 1 doesn't fit at the nut: from fret 11, the others above it.
+        expect(spans(neckPositions(scaleNoteSet('E major pentatonic')!, STANDARD, 'box'))).toEqual([
+            '11-14',
+            '13-17',
+            '16-19',
+            '18-21',
+            '21-24'
+        ])
+    })
+
+    it('lays CAGED shapes and 3NPS positions up the neck', () => {
+        expect(spans(neckPositions(scaleNoteSet('C major')!, STANDARD, 'caged'))).toEqual([
+            '7-10',
+            '9-13',
+            '12-15',
+            '14-18',
+            '17-21'
+        ])
+        expect(spans(neckPositions(scaleNoteSet('G major')!, STANDARD, '3nps'))).toEqual([
+            '3-8',
+            '5-10',
+            '7-12',
+            '8-14',
+            '10-15',
+            '12-17',
+            '14-19'
+        ])
+    })
+
+    it('takes the lowest octave of a position that would go past fret 36', () => {
+        // Six strings tuned to E2: each box covers 2.5 octaves. Box 4 at 12-39 is off the neck.
+        const unison = [40, 40, 40, 40, 40, 40]
+        expect(spans(neckPositions(scaleNoteSet('A minor pentatonic')!, unison, 'box'))).toEqual([
+            '5-32',
+            '8-34',
+            '10-36',
+            '0-27',
+            '3-29'
+        ])
+    })
+
+    it('draws a position inside the frets given, else in its lowest octave', () => {
+        const set = scaleNoteSet('A minor pentatonic')!
+        expect(spans([scalePosition(set, STANDARD, 'box', 4, { within: [10, 17] })])).toEqual([
+            '12-15'
+        ])
+        expect(spans([scalePosition(set, STANDARD, 'box', 4, { within: [5, 8] })])).toEqual(['0-3'])
     })
 })
 
