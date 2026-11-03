@@ -134,6 +134,27 @@ describe('labels and strings', () => {
         )
     })
 
+    it('writes the plain note for a double sharp, as guitar charts do', () => {
+        // E7#9: the B string's 8th fret is the #9, F## in theory, G on a chart.
+        const h = host()
+        renderBlock('chord', 'E7#9 076780\nlabels: notes', h)
+        expect([...h.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)).toEqual([
+            'E',
+            'G#',
+            'D',
+            'G'
+        ])
+        const f = host()
+        renderBlock('fretboard', 'chord: E7#9\nfrets: 0-4', f)
+        const names = [...f.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)
+        expect(names).toContain('G')
+        expect(names).not.toContain('F##')
+        // Intervals stay as they are.
+        const i = host()
+        renderBlock('chord', 'E7#9 076780\nlabels: intervals', i)
+        expect([...i.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)).toContain('#9')
+    })
+
     it('draws no barre between triad dots labelled differently', () => {
         let bars = 0
         for (const set of ['1-3', '2-4', '3-5', '4-6']) {

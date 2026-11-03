@@ -15,7 +15,7 @@ import {
 } from '../theory/note-set.js'
 import type { Cell } from './positions.js'
 import { nameOf } from '../theory/pitch.js'
-import { STANDARD_TUNING } from '../chord/guitar.js'
+import { STANDARD_TUNING, chartNoteName } from '../chord/guitar.js'
 
 export interface FretboardOptions {
     /** Open-string pitches (MIDI), lowest string first. */
@@ -242,7 +242,8 @@ export function renderFretboard(
                 })
             )
             sounding.add(open + fret)
-            const text = labelOf(member, label)
+            // Note names as guitar charts write them (G, not F##).
+            const text = chartNoteName(labelOf(member, label))
             if (text) root.appendChild(svgLabel(doc, text, point, 'mn-dot-text'))
         }
     }

@@ -1,9 +1,19 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
 import { svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
+import { chromaOf, nameOf } from '../theory/pitch.js'
 
 /** Standard tuning, lowest string first. */
 export const STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
+
+/**
+ * A note name as guitar charts write it on a dot: a double sharp or flat becomes the plain note
+ * (E7#9's F## is G, Bbb is A); any other name or label stays.
+ */
+export function chartNoteName(name: string): string {
+    if (!/^[A-G](##|bb)$/.test(name)) return name
+    return nameOf(chromaOf(name)!, name.endsWith('b'))
+}
 
 export interface FrettedVoicing {
     /** Absolute frets, lowest string first: null = muted, 0 = open. */

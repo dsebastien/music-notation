@@ -4,6 +4,7 @@
  */
 import {
     baseFretOf,
+    chartNoteName,
     parseFingers,
     parseFrets,
     renderGuitarDiagram,
@@ -505,7 +506,7 @@ function dotLabels(
         const member = set.members.find((m) => m.chroma === (strings[s]! + fret) % 12)
         if (!member) return null
         return value === 'notes' || member.interval === null
-            ? member.name
+            ? chartNoteName(member.name)
             : intervalLabel(member.interval)
     })
 }
