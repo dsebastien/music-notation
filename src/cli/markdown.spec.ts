@@ -105,4 +105,35 @@ describe('parseMarkdown', () => {
     test('inline code is not a fence; an unclosed fence runs to the end', () => {
         expect(blocks('```chord` inline\n```chord\nAm\nC')).toEqual([['chord', 2, 'Am\nC']])
     })
+
+    test('skips indented code outside lists, and blocks inside comments (review of #35)', () => {
+        const text = [
+            'Para',
+            '',
+            '    ```chord',
+            '    Am',
+            '    ```',
+            '',
+            '- item',
+            '',
+            '    ```chord',
+            '    C',
+            '    ```',
+            '',
+            '%%',
+            '```chord',
+            'Hm',
+            '```',
+            '%%',
+            '<!--',
+            '```chord',
+            'Xm',
+            '```',
+            '-->',
+            '```chord',
+            'G',
+            '```'
+        ].join('\n')
+        expect(parseMarkdown(text).blocks.map((b) => b.source)).toEqual(['C', 'G'])
+    })
 })

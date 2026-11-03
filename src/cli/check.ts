@@ -34,7 +34,13 @@ export interface Summary {
 }
 
 const DIAGRAM_LANGUAGES = ['chord', 'keyboard', 'fretboard']
-const oneLine = (s: string) => s.replace(/\s*[\r\n]+\s*/g, ' ').trim()
+/** A message on one line (split, not one regex over the whole text: no backtracking). */
+const oneLine = (s: string) =>
+    s
+        .split(/[\r\n]+/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join(' ')
 
 /** Every notation block of one note, rendered into `doc`. */
 export function checkNote(file: string, text: string, doc: Document): BlockReport[] {
@@ -44,7 +50,16 @@ export function checkNote(file: string, text: string, doc: Document): BlockRepor
         const { language, line, source } = block
         const report = (status: BlockStatus, message: string | null, diagrams: Diagram[] = []) =>
             reports.push({ file, line, language, status, message, diagrams })
-        if (language === 'tab' || language === 'score') {
+        const isTab = language === 'tab' || language === 'score'
+        if ((isTab || isNotationLanguage(language)) && !source.trim()) {
+            // Templates scaffold empty blocks: they draw nothing, successfully. In Obsidian an
+            // empty diagram block draws from the note's properties, which aren't read here.
+            if (note.frontMatter !== null && DIAGRAM_LANGUAGES.includes(language)) {
+                report('skipped', "empty block: draws from the note's properties, not checked")
+            } else report('empty', 'empty block: draws nothing')
+            continue
+        }
+        if (isTab) {
             // Only the settings lines can be checked: the music itself needs alphaTab.
             try {
                 parseTabSource(language, source)
@@ -55,13 +70,6 @@ export function checkNote(file: string, text: string, doc: Document): BlockRepor
             continue
         }
         if (!isNotationLanguage(language)) continue
-        if (!source.trim()) {
-            // In Obsidian an empty block draws from the note's properties; they aren't read here.
-            if (note.frontMatter !== null && DIAGRAM_LANGUAGES.includes(language)) {
-                report('skipped', "empty block: draws from the note's properties, not checked")
-            } else report('empty', 'empty block: draws nothing')
-            continue
-        }
         const host = doc.createElement('div')
         const result = renderBlock(language, source, host, { voicings: lookupGuitarVoicing })
         const diagrams = describeBlock(result.el)
@@ -159,19 +167,18 @@ const isMarkdown = (path: string) => /\.(md|markdown)$/i.test(path)
 /** The files an argument names: a file, a folder (its Markdown files), or a glob. */
 export async function expand(arg: string, cwd: string): Promise<string[]> {
     const pattern = arg.replace(/\\/g, '/')
-    if (!GLOB.test(pattern)) {
-        const path = resolve(cwd, arg)
-        const info = await stat(path).catch(() => null)
-        if (!info) throw new Error(`${arg}: no such file or folder`)
-        return info.isDirectory() ? (await walk(path)).filter(isMarkdown) : [path]
-    }
+    // A file or folder of that name first: "Song {live}.md" and "Draft [1].md" aren't globs.
+    const path = resolve(cwd, arg)
+    const info = await stat(path).catch(() => null)
+    if (info) return info.isDirectory() ? (await walk(path)).filter(isMarkdown) : [path]
+    if (!GLOB.test(pattern)) throw new Error(`${arg}: no such file or folder`)
     // The folder before the first wildcard is where the search starts.
     const segments = pattern.split('/')
     const first = segments.findIndex((s) => GLOB.test(s))
     const base = resolve(cwd, segments.slice(0, first).join('/') || '.')
     const matcher = globToRegExp(segments.slice(first).join('/'))
-    const info = await stat(base).catch(() => null)
-    if (!info?.isDirectory()) return []
+    const baseInfo = await stat(base).catch(() => null)
+    if (!baseInfo?.isDirectory()) return []
     return (await walk(base)).filter((f) => matcher.test(relative(base, f).replace(/\\/g, '/')))
 }
 

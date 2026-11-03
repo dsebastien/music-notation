@@ -41,6 +41,20 @@ const dedent = (line: string, indent: number) => {
     return line.slice(i)
 }
 
+/** Columns of leading whitespace (a tab counts as 4). */
+const columns = (lead: string) => [...lead].reduce((n, c) => n + (c === '\t' ? 4 - (n % 4) : 1), 0)
+
+/** Whether a line leaves a comment open: an odd number of %%, or <!-- without --> after it. */
+function opensComment(line: string): boolean {
+    if ((line.split('%%').length - 1) % 2 === 1) return true
+    const html = line.lastIndexOf('<!--')
+    return html >= 0 && !line.includes('-->', html + 4)
+}
+
+/** The text that closes the comment a line opens. */
+const commentEnd = (line: string): '%%' | '-->' =>
+    (line.split('%%').length - 1) % 2 === 1 ? '%%' : '-->'
+
 export function parseMarkdown(text: string): MarkdownNote {
     const lines = text.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/)
     let i = 0
@@ -54,8 +68,20 @@ export function parseMarkdown(text: string): MarkdownNote {
         }
     }
     const blocks: FencedBlock[] = []
+    // Obsidian draws nothing inside %% … %% and <!-- … --> comments.
+    let comment: '%%' | '-->' | null = null
+    // Inside a list, a fence may sit 4 columns in or more; elsewhere that's an indented code block.
+    let inList = false
     for (; i < lines.length; i++) {
-        let rest = lines[i]!
+        const line = lines[i]!
+        if (comment) {
+            const end = line.indexOf(comment)
+            if (end < 0) continue
+            comment = null
+            if (opensComment(line.slice(end + 2))) comment = commentEnd(line.slice(end + 2))
+            continue
+        }
+        let rest = line
         let depth = 0
         for (let m = QUOTE.exec(rest); m; m = QUOTE.exec(rest)) {
             rest = rest.slice(m[0].length)
@@ -65,8 +91,14 @@ export function parseMarkdown(text: string): MarkdownNote {
         const spaces = /^[ \t]*/.exec(rest)![0].length
         const marker = LIST_MARKER.exec(rest.slice(spaces))?.[0].length ?? 0
         const indent = spaces + marker
+        if (marker) inList = true
+        else if (rest.trim() && columns(rest.slice(0, spaces)) === 0) inList = false
         const open = OPENING.exec(rest.slice(indent))
-        if (!open) continue
+        if (!open) {
+            if (opensComment(rest)) comment = commentEnd(rest)
+            continue
+        }
+        if (!marker && !inList && columns(rest.slice(0, spaces)) > 3) continue
         const fence = open[1]!
         const info = open[2]!
         // A backtick fence's info string has no backticks (else it's inline code).
