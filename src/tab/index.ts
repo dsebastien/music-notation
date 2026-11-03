@@ -7,6 +7,7 @@
  */
 import type * as AT from '@coderline/alphatab'
 import { html, svg } from '../render/dom.js'
+import { textTabToAlphaTex } from '../convert/text-tab.js'
 import type { NoteEvent, NotePlayer, Sound } from '../playback/player.js'
 
 export type AlphaTabModule = typeof AT
@@ -71,14 +72,20 @@ export interface TabSource {
     tex: string
     /** Lines of the block before the alphaTex (settings, blank lines), for error positions. */
     texLine: number
+    /**
+     * Whether `tex` was converted from a plain-text tab written in the block (a tab pasted from
+     * the web, #71): `textTabToAlphaTex`, in memory, the block's text unchanged.
+     */
+    fromText: boolean
 }
 
 const SETTING = /^\s*(staves|file|tracks?)\s*:\s*(.*)$/i
 
 /**
  * A tab block's own settings (lines `staves:`, `file:`, `tracks:` at the top, `//` comments
- * allowed among them), then its alphaTex. ```tab blocks show tablature, ```score blocks standard
- * notation, unless `staves:` says otherwise. Throws a message for the user.
+ * allowed among them), then its alphaTex, or a plain-text tab, converted (#71). ```tab blocks show
+ * tablature, ```score blocks standard notation, unless `staves:` says otherwise. Throws a message
+ * for the user.
  */
 export function parseTabSource(language: 'tab' | 'score', source: string): TabSource {
     const lines = source.split(/\r?\n/)
@@ -88,7 +95,8 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
         file: null,
         tracks: null,
         tex: '',
-        texLine: 0
+        texLine: 0,
+        fromText: false
     }
     let i = 0
     for (; i < lines.length; i++) {
@@ -129,11 +137,20 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
     out.tex = lines.slice(i).join('\n').trimEnd()
     if (!out.file && !out.tex)
         throw new Error('Write the music in alphaTex, or give a file: [[Song.gp]]')
+    // A tab pasted from the web (e|---0---|) isn't alphaTex: drawn from its conversion (#71).
+    const converted = out.file ? null : textTabToAlphaTex(out.tex)
+    if (converted !== null) {
+        out.tex = converted
+        out.fromText = true
+    }
     return out
 }
 
-/** alphaTab's message for a mistake, with the first diagnostic's place in the block when known. */
-function messageOf(error: unknown, lineOffset: number): string {
+/**
+ * alphaTab's message for a mistake, with the first diagnostic's place in the block when known;
+ * no place for alphaTex the block doesn't show (`lineOffset` null: a converted text tab).
+ */
+function messageOf(error: unknown, lineOffset: number | null): string {
     const cause = (error as { cause?: unknown } | null)?.cause ?? error
     for (const kind of ['lexerDiagnostics', 'parserDiagnostics', 'semanticDiagnostics']) {
         const items = (cause as Record<string, { items?: unknown } | undefined> | null)?.[kind]
@@ -147,9 +164,10 @@ function messageOf(error: unknown, lineOffset: number): string {
             }[]
         ).find((d) => d.severity === 2 && d.message)
         if (first) {
-            const at = first.start
-                ? `line ${first.start.line + lineOffset}, column ${first.start.col}: `
-                : ''
+            const at =
+                first.start && lineOffset !== null
+                    ? `line ${first.start.line + lineOffset}, column ${first.start.col}: `
+                    : ''
             return `${at}${first.message}`
         }
     }
@@ -706,7 +724,9 @@ export function renderTab(
                 settle({ ok: true, error: null })
             })
             current.error.on((e: Error) => {
-                const message = messageOf(e, parsed.texLine)
+                const message = parsed.fromText
+                    ? `Couldn't draw this text tab: ${messageOf(e, null)}`
+                    : messageOf(e, parsed.texLine)
                 // Drawn already: only playback failed (the soundfont, the audio); the score stays.
                 if (settled) bar?.failed(message)
                 else fail(message)

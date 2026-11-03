@@ -24,7 +24,8 @@ describe('parseTabSource', () => {
             file: null,
             tracks: null,
             tex: ':4 3.3 0.2',
-            texLine: 0
+            texLine: 0,
+            fromText: false
         })
         const parsed = parseTabSource('score', 'staves: both\ntracks: 1 2\n\n:4 3.3')
         expect(parsed).toMatchObject({
@@ -35,6 +36,21 @@ describe('parseTabSource', () => {
             texLine: 3
         })
         expect(parseTabSource('tab', 'file: [[Songs/Blues.gp|Blues]]').file).toBe('Songs/Blues.gp')
+    })
+
+    it('reads a text tab pasted from the web as the tab it shows (#71)', () => {
+        // Before: alphaTab's "No alphaTex data found".
+        const parsed = parseTabSource(
+            'tab',
+            'staves: both\n\ne|--0--3--|\nB|--1--0--|\nG|--0--0--|\nD|--2--0--|'
+        )
+        expect(parsed).toMatchObject({
+            staves: 'both',
+            tex: ':2 (0.1 1.2 0.3 2.4) (3.1 0.2 0.3 0.4)',
+            fromText: true
+        })
+        // alphaTex stays as written.
+        expect(parseTabSource('tab', ':4 0.6 2.5 | 3.4').fromText).toBe(false)
     })
 
     it('says what to write', () => {
