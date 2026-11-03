@@ -224,7 +224,9 @@ describe('the light player says when its notes start', () => {
 })
 
 describe('styles', () => {
-    it('style the sounding notes', () => {
+    it('style the sounding notes and alphaTab cursor', () => {
         expect(STYLES).toContain('.mn-playing')
+        expect(STYLES).toContain('.mn-tab .at-cursor-beat')
+        expect(STYLES).toContain('.mn-tab .at-highlight')
     })
 })

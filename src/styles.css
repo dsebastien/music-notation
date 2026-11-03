@@ -274,6 +274,31 @@
     pointer-events: auto;
 }
 
+/* alphaTab's cursor (the bar that plays, the beat line) and the notes of the beat that sounds, in
+   the player bar's accent color: alphaTab ships no style for them, so they didn't show. */
+.mn-tab .at-cursor-bar {
+    background: color-mix(in srgb, var(--mn-accent) 12%, transparent);
+}
+
+.mn-tab .at-cursor-beat {
+    background: var(--mn-accent);
+}
+
+.mn-tab .at-selection div {
+    background: color-mix(in srgb, var(--mn-accent) 15%, transparent);
+}
+
+.mn-tab .at-highlight,
+.mn-tab .at-highlight * {
+    fill: var(--mn-accent);
+    stroke: var(--mn-accent);
+}
+
+/* alphaTab's outlined rectangles stay hollow. */
+.mn-tab .at-highlight [fill='transparent'] {
+    fill: transparent;
+}
+
 .mn-tab-time {
     font-variant-numeric: tabular-nums;
     opacity: 0.8;
