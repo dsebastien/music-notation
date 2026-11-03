@@ -318,6 +318,7 @@ function spacedFingers(chord: readonly number[]): string[] | null {
  * else.
  */
 export function triadFingering(voicing: PianoVoicing): Map<number, string> | null {
+    if (voicing.style === 'rootless' || voicing.style === 'shell') return jazzFingering(voicing)
     const leftAlone = voicing.hands === 'left'
     const chord = leftAlone ? voicing.left : voicing.right
     const extra = voicing.pitches.filter((p) => !chord.includes(p))
@@ -355,6 +356,35 @@ export function triadFingering(voicing: PianoVoicing): Map<number, string> | nul
               ['1', '3', '5']
           ][voicing.inversion]!
     return withBass(fingers)
+}
+
+/**
+ * Fingers for a rootless or shell voicing (`fingering: auto`), by its spacing as spacedFingers
+ * gives them. Without `hands`, the hand that plays it where it sits: the left hand below middle C
+ * (the comping register: Dm7 rootless A F3 A3 C4 E4 is 5 3 2 1), else the right (1 2 3 5). With
+ * both hands, the left hand's root gets 5 and the right hand its notes (two notes: 1 and 5, 4, 3
+ * or 2 by their span). Null for a hand that would span more than an octave (a shell R-7, C B E).
+ */
+function jazzFingering(voicing: PianoVoicing): Map<number, string> | null {
+    const both = voicing.hands === 'left+right'
+    const chord = both ? voicing.right : voicing.pitches
+    const left =
+        !both &&
+        (voicing.hands === 'left' || (voicing.hands !== 'right' && voicing.pitches[0]! < 60))
+    const span = chord[chord.length - 1]! - chord[0]!
+    if (!chord.length || span > 12) return null
+    let fingers: string[] | null | undefined
+    if (chord.length === 2) {
+        fingers = ['1', span >= 7 ? '5' : span >= 5 ? '4' : span >= 3 ? '3' : '2']
+    } else {
+        fingers = left
+            ? spacedFingers([...chord].reverse().map((p) => -p))?.reverse()
+            : spacedFingers(chord)
+    }
+    if (!fingers) return null
+    const map = new Map<number, string>(chord.map((p, i) => [p, fingers[i]!]))
+    if (both) for (const p of voicing.left) map.set(p, '5')
+    return map
 }
 
 /** Piano voicing of a chord as a note set: close root position from octave 4, a slash chord's bass in octave 3. */

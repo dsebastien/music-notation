@@ -321,7 +321,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                 auto = triadFingering(voiced)
                 if (!auto) {
                     throw new Error(
-                        'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position: write the fingers, e.g. fingering: 1 2 3 4 5'
+                        'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position, and rootless and shell voicings one hand can reach: write the fingers, e.g. fingering: 1 2 3 4 5'
                     )
                 }
             }

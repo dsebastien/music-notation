@@ -234,6 +234,35 @@ describe('pianoVoicing', () => {
         expect(triadFingering(pianoVoicing('C7/E')!)).toBeNull()
     })
 
+    it('fingers rootless and shell voicings', () => {
+        const fingers = (symbol: string, options: object) => {
+            const map = triadFingering(pianoVoicing(symbol, options)!)
+            return map
+                ? [...map]
+                      .sort(([a], [b]) => a - b)
+                      .map(([p, f]) => `${noteOf(p, true)}:${f}`)
+                      .join(' ')
+                : null
+        }
+        // Rootless voicings sit below middle C: the left hand, 5 3 2 1 (5 4 2 1 over a second).
+        expect(fingers('Dm7', { voicing: 'rootless' })).toBe('F3:5 A3:3 C4:2 E4:1')
+        expect(fingers('G7', { voicing: 'rootless', rootless: 'B' })).toBe('F3:5 A3:3 B3:2 E4:1')
+        expect(fingers('G7sus4', { voicing: 'rootless' })).toBe('C3:5 D3:4 F3:2 A3:1')
+        // The right hand above middle C, or when asked.
+        expect(fingers('Dm7', { voicing: 'rootless', octave: 4 })).toBe('F4:1 A4:2 C5:3 E5:5')
+        expect(fingers('Dm7', { voicing: 'rootless', hands: 'right' })).toBe('F3:1 A3:2 C4:3 E4:5')
+        // Both hands: the root 5, the right hand by its spacing.
+        expect(fingers('C7', { voicing: 'rootless', hands: 'left+right' })).toBe(
+            'C2:5 E3:1 A3:2 Bb3:3 D4:5'
+        )
+        // Shells: R-3 in one hand (5 3 1 left, 1 2 5 right), two notes over a left-hand root.
+        expect(fingers('Cmaj7', { voicing: 'shell', octave: 3 })).toBe('C3:5 E3:3 B3:1')
+        expect(fingers('Cmaj7', { voicing: 'shell' })).toBe('C4:1 E4:2 B4:5')
+        expect(fingers('Cmaj7', { voicing: 'shell', hands: 'left+right' })).toBe('C3:5 E4:1 B4:5')
+        // A shell R-7 spans a tenth: no hand reaches it.
+        expect(fingers('Cmaj7', { voicing: 'shell', shell: 'R-7' })).toBeNull()
+    })
+
     it('reads the block keys', () => {
         const read = (fields: Record<string, string>) => pianoOptionsOf((key) => fields[key])
         expect(read({ inversion: 'first' })).toEqual({ inversion: 1 })
@@ -329,7 +358,7 @@ describe('piano chord blocks', () => {
         const fingers = [...h.querySelectorAll('.mn-key-label')].map((el) => el.textContent)
         expect(fingers).toEqual(['1', '3', '5'])
         expect(renderBlock('chord', 'G9\ninstrument: piano\nfingering: auto', host()).error).toBe(
-            'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position: write the fingers, e.g. fingering: 1 2 3 4 5'
+            'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position, and rootless and shell voicings one hand can reach: write the fingers, e.g. fingering: 1 2 3 4 5'
         )
         // Both hands with the third in the bass: the right hand's two notes get fingers too.
         const both = (source: string) => {
