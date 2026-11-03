@@ -406,8 +406,12 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 level: between(0.93, 1.07),
                 decay: between(0.9, 1.1)
             }))
+            // Strings only: a click has no string, and a muted note takes the first pluck.
             if (sound === 'guitar')
-                events.forEach((e, i) => stringBuffer(ctx, e.midi, touches[i]!.pluck))
+                events.forEach((e, i) => {
+                    if (e.kind === 'muted') stringBuffer(ctx, e.midi, 0)
+                    else if (!e.kind) stringBuffer(ctx, e.midi, touches[i]!.pluck)
+                })
             const gain = ctx.createGain()
             gain.gain.value = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             gain.connect(ctx.destination)
