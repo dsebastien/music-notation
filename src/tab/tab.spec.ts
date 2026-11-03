@@ -392,14 +392,18 @@ describe('renderTab, drums (#37)', () => {
                 )
                 .join(' ')
         )
-        return { profile, staves }
+        const clefs = made[0]!.score!.tracks.map((t) => t.staves[0]!.bars.map((b) => b.clef))
+        return { profile, staves, clefs }
     }
 
     const drums = textTabToAlphaTex('HH|x-x-x-x-|\nS |--o---o-|\nB |o---o---|')!
     const band = `\\track "Guitar"\n:4 3.3 0.2 1.2 0.1\n\\track "Drums"\n${drums}`
 
     it('draws drums as notation in a tab block, staff by staff: drums have no tablature', async () => {
-        expect(await stavesOf('tab', drums)).toEqual({ profile: 'Default', staves: ['score'] })
+        expect(await stavesOf('tab', drums)).toMatchObject({
+            profile: 'Default',
+            staves: ['score']
+        })
         expect((await stavesOf('tab', ':8 0.1 3.1')).staves).toEqual(['tab'])
         // The guitar keeps its tablature only; the drums get notation.
         expect((await stavesOf('tab', band)).staves).toEqual(['tab', 'score'])
@@ -408,6 +412,12 @@ describe('renderTab, drums (#37)', () => {
             'score+tab',
             'score'
         ])
+    })
+
+    it('gives drums the percussion clef, and leaves the guitar its own', async () => {
+        const { clefs } = await stavesOf('tab', band)
+        expect(clefs[1]!.every((c) => c === alphaTab.model.Clef.Neutral)).toBe(true)
+        expect(clefs[0]!.every((c) => c !== alphaTab.model.Clef.Neutral)).toBe(true)
     })
 
     it('chooses the staves of a score file too (Guitar Pro drums in a tab block)', async () => {

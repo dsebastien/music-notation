@@ -141,7 +141,12 @@ interface StaffView {
     showStandardNotation: boolean
     showSlash: boolean
     showNumbered: boolean
+    /** Bars, with the clef alphaTab draws (0 is its neutral percussion clef). */
+    bars?: { clef: number }[]
 }
+
+/** alphaTab's `Clef.Neutral`: the percussion clef. */
+const NEUTRAL_CLEF = 0
 
 /**
  * Chooses what each staff shows, once the score is loaded (alphaTex or a file) and before it's
@@ -153,6 +158,8 @@ interface StaffView {
 function chooseStaves(staves: Staves, score: { tracks: { staves: StaffView[] }[] }): void {
     for (const track of score.tracks) {
         for (const staff of track.staves) {
+            // Drums written without a clef get the percussion clef, not the default treble.
+            if (staff.isPercussion) for (const bar of staff.bars ?? []) bar.clef = NEUTRAL_CLEF
             const stringed = !staff.isPercussion && staff.tuning.length > 0
             if (staves === 'both') {
                 staff.showStandardNotation = true
