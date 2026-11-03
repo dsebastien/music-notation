@@ -52,6 +52,7 @@ export {
     pluckedString,
     pianoTone,
     DEFAULT_SEQUENCE,
+    DEFAULT_STRUM,
     type NoteEvent,
     type NotePlayer,
     type PlayHandle,

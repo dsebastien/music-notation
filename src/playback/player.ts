@@ -53,7 +53,13 @@ export interface SequenceOptions {
     root?: number | null
 }
 
-export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 40 }
+export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 12 }
+
+/**
+ * Milliseconds between two notes of a chord, by instrument: a guitar strum (about 12 ms a
+ * string, a 6-string chord in 60 ms), a piano chord struck as a block.
+ */
+export const DEFAULT_STRUM: Readonly<Record<Sound, number>> = { guitar: 12, piano: 0 }
 
 /** How long a strummed chord rings, in seconds. */
 const RING = 2.5

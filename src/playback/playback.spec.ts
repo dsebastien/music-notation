@@ -176,6 +176,44 @@ describe('playback bar', () => {
         expect(calls[1]!.events.map((e) => e.midi)).toEqual([62])
     })
 
+    it('strums a guitar chord about 12 ms a string, strikes a piano chord as a block (#59)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chord', 'A x02220', h, { play: { player } })
+        const toggle = h.querySelector('.mn-play-toggle') as HTMLButtonElement
+        toggle.click()
+        expect(calls[0]!.events.map((e) => +(e.time * 1000).toFixed(3))).toEqual([
+            0, 12, 24, 36, 48
+        ])
+        const strum = h.querySelector('input[aria-label^="Strum"]') as HTMLInputElement
+        expect(strum.value).toBe('12')
+        // Piano: a block; back on guitar, the strum again.
+        const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('0')
+        toggle.click()
+        expect(new Set(calls[1]!.events.map((e) => e.time))).toEqual(new Set([0]))
+        select.value = 'guitar'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('12')
+        // A strum the reader sets stays across sounds.
+        strum.value = '30'
+        strum.dispatchEvent(new Event('input'))
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('30')
+        const k = host()
+        renderBlock('keyboard', 'chord: C', k, { play: { player } })
+        ;(k.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0, 0])
+        // The app's strum is kept on every instrument.
+        const a = host()
+        renderBlock('keyboard', 'chord: C', a, { play: { player, strum: 20 } })
+        ;(a.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0.02, 0.04])
+    })
+
     it('runs an arpeggio from its root', () => {
         const { player, calls } = recorder()
         const h = host()

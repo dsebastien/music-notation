@@ -16,6 +16,7 @@ import {
 import { midiOf, nameOf } from '../theory/pitch.js'
 import {
     DEFAULT_SEQUENCE,
+    DEFAULT_STRUM,
     lightPlayer,
     sequenceOf,
     type NoteEvent,
@@ -47,7 +48,7 @@ export interface PlayOptions {
     volume?: number
     /** Scales: notes per minute, 90 by default; also strum patterns' tempo when they have none. */
     bpm?: number
-    /** Chords: milliseconds between strings, 40 by default. */
+    /** Chords: milliseconds between strings; by default 12 on guitar, 0 (a block) on piano. */
     strum?: number
 }
 
@@ -248,13 +249,17 @@ function barFor(
     bar.setAttribute('aria-label', name ? `Play ${name}` : 'Playback')
     wrap.appendChild(bar)
 
+    const firstSound = options.sound ?? data.sound
     const settings = {
-        sound: options.sound ?? data.sound,
+        sound: firstSound,
         volume: clamp(options.volume, 0, 1, 0.8),
         bpm: clamp(options.bpm, 20, 240, DEFAULT_SEQUENCE.bpm),
-        strum: clamp(options.strum, 0, 200, DEFAULT_SEQUENCE.strum),
+        // The instrument's own: a guitar strum, a piano block chord.
+        strum: clamp(options.strum, 0, 200, DEFAULT_STRUM[firstSound]),
         loop: false
     }
+    // Set by the app or the slider: then it stays when the sound changes.
+    let strumChosen = options.strum !== undefined && Number.isFinite(options.strum)
     let playing: PlayHandle | null = null
     // The notes lit on the drawing as they sound.
     let lights: Follower | null = null
@@ -382,18 +387,26 @@ function barFor(
         })
         field.append(tag, input)
         bar.appendChild(field)
+        return (n: number) => {
+            input.value = String(n)
+            field.title = `${label}: ${n}`
+        }
     }
+    let showStrum: ((n: number) => void) | null = null
     // Speed only when several notes play: BPM for scales, the strum's spread for chords.
     if (data.pitches.length > 1) {
         if (data.kind === 'scale')
             slider('Tempo (BPM)', 20, 240, settings.bpm, (n) => (settings.bpm = n), '♩')
         else
-            slider(
+            showStrum = slider(
                 'Strum (ms between strings)',
                 0,
                 200,
                 settings.strum,
-                (n) => (settings.strum = n),
+                (n) => {
+                    settings.strum = n
+                    strumChosen = true
+                },
                 '≋'
             )
     }
@@ -433,6 +446,11 @@ function barFor(
         // What plays stops first: its notes belong to the drawing that goes away.
         stop()
         settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
+        // A strum nobody set follows the instrument.
+        if (!strumChosen) {
+            settings.strum = DEFAULT_STRUM[settings.sound]
+            showStrum?.(settings.strum)
+        }
         drawFor()
     })
     // An app or a page that starts on the other sound (play: { sound }) shows its drawing.
