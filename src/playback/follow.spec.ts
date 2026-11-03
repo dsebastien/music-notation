@@ -2,7 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { followNotes, noteTargets, PLAYING_CLASS, START_WAIT } from './follow.js'
 import { lightPlayer, sequenceOf, type NoteEvent, type NotePlayer } from './player.js'
 import { renderBlock } from '../render/render-block.js'
-import { STYLES } from '../styles.js'
+import { injectStyles, STYLES } from '../styles.js'
+import type { NotationLanguage } from '../blocks/renderers.js'
 
 /** A window with a clock the test moves: timers run when their time comes. */
 function fakeWindow() {
@@ -228,5 +229,44 @@ describe('styles', () => {
         expect(STYLES).toContain('.mn-playing')
         expect(STYLES).toContain('.mn-tab .at-cursor-beat')
         expect(STYLES).toContain('.mn-tab .at-highlight')
+    })
+
+    // The cascade itself, not the rule's presence: a later or more specific rule (a passing key,
+    // a root, a characteristic note) must not hide the playing color.
+    it('paints every sounding note in the playing color, whatever else marks it', () => {
+        injectStyles(document)
+        const blocks: [NotationLanguage, string][] = [
+            ['keyboard', 'scale: C major\nchord: G7'],
+            ['keyboard', 'scale: A minor pentatonic\nchord: Am'],
+            ['keyboard', 'scale: D dorian'],
+            ['fretboard', 'scale: C major\nchord: G7'],
+            ['fretboard', 'scale: A minor pentatonic\nchord: A7'],
+            ['chord', 'C x32010'],
+            ['circle', 'key: G']
+        ]
+        const classes = new Set<string>()
+        for (const [language, source] of blocks) {
+            const h = document.body.appendChild(document.createElement('div'))
+            renderBlock(language, source, h, { play: true })
+            expect(h.querySelector('.mn-playable')).not.toBeNull()
+            for (const el of h.querySelectorAll('[data-midi]')) {
+                el.classList.add(PLAYING_CLASS)
+                const style = getComputedStyle(el)
+                const what = `${language} "${source}" ${el.getAttribute('class')}`
+                expect(`${what}: ${style.fill}`).toBe(`${what}: #facc15`)
+                expect(`${what}: ${style.strokeWidth}`).toBe(`${what}: 2.5`)
+                const label = el.nextElementSibling
+                if (label?.matches('.mn-key-label, .mn-dot-text'))
+                    expect(`${what} label: ${getComputedStyle(label).fill}`).toBe(
+                        `${what} label: #1c1917`
+                    )
+                for (const c of el.classList) classes.add(c)
+                el.classList.remove(PLAYING_CLASS)
+            }
+            h.remove()
+        }
+        // The marks the test covers, so a renderer change that drops one shows here.
+        for (const c of ['mn-passing', 'mn-root', 'mn-tone', 'mn-char', 'mn-on', 'mn-circle-cell'])
+            expect(classes).toContain(c)
     })
 })
