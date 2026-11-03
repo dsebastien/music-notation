@@ -95,7 +95,11 @@ describe('progression block', () => {
         const moved = host()
         renderBlock('progression', 'Dm C G\ntranspose: 2\ndiagrams: no', moved)
         expect(texts(moved, 'mn-progression-key')[0]).toMatch(/^Key: E dorian/)
-        expect(texts(moved, 'mn-progression-name')).toEqual(['Em', 'D', 'A'])
+        expect(texts(moved, 'mn-progression-name')).toEqual(['Em', 'D', 'A']) // A I7 going to IV is V7/IV in a major key, not a mixolydian I7.
+        const secondary = host()
+        renderBlock('progression', 'C C7 F C\ndiagrams: no', secondary)
+        expect(texts(secondary, 'mn-progression-key')[0]).toMatch(/^Key: C major/)
+        expect(texts(secondary, 'mn-progression-numeral')).toEqual(['I', 'V7/IV', 'IV', 'I'])
     })
 
     it('switches numeral styles', () => {
@@ -248,6 +252,17 @@ describe('progression block', () => {
         )
         expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 52 55 59 62'])
         expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)
+        // A 7sus4 chord takes the voicing too (rootless 4 5 b7 9 or b7 9 4 5; shell R 4 7).
+        for (const voicing of ['rootless', 'shell']) {
+            const sus = host()
+            renderBlock(
+                'progression',
+                `Dm7 G7sus4 G7 Cmaj7\ninstrument: piano\nvoicing: ${voicing}`,
+                sus
+            )
+            expect(sus.querySelector('.mn-error-message')).toBeNull()
+            expect(sus.querySelectorAll('svg.mn-keyboard')).toHaveLength(4)
+        }
         const error = (source: string) => renderBlock('progression', source, host()).error
         expect(error('I V\nkey: C\nvoicing: shell')).toContain('instrument: piano')
         expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\noctave: 3')).toContain(
@@ -258,7 +273,15 @@ describe('progression block', () => {
         )
         expect(
             error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: close')
-        ).toBeNull()
+        ).toBeNull() // voicing: close with voice-leading draws the voice-led keys, with no error in a cell.
+        const close = host()
+        renderBlock(
+            'progression',
+            'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: close\nvoice-leading: yes',
+            close
+        )
+        expect(close.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(close)).toEqual(['62 65 69 72', '62 65 67 71', '60 64 67 71'])
     })
 
     it('takes the piano from the note’s instrument', () => {

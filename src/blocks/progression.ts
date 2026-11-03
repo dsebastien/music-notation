@@ -360,7 +360,11 @@ function renderSection(
                         lines.push(['voicing', `${led.voicing} ${form}`])
                         lines.push(['octave', String(led.octave)])
                         if (led.hands) lines.push(['hands', led.hands])
-                    } else for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                    } else if (!pitches) {
+                        // Voice-led keys (below) are the keys to play: the block's voicing
+                        // (close, the only one voice-leading allows) isn't passed on with them.
+                        for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                    }
                     if (range) lines.push(['range', range])
                     const midi = pitches?.[i]
                     if (midi) {

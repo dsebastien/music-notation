@@ -28,7 +28,8 @@ import {
     parseKeyRange,
     renderKeyboard,
     scaleKeysFrom,
-    scaleTonicOf
+    scaleTonicOf,
+    tonicNearMiddleC
 } from '../keyboard/keyboard.js'
 import {
     autoFingeringHand,
@@ -319,11 +320,8 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             if (fingering?.trim().toLowerCase() === 'auto') {
                 auto = triadFingering(voiced)
                 if (!auto) {
-                    // Both hands: a first or third inversion leaves the right hand two notes.
                     throw new Error(
-                        voiced.hands === 'left+right' && voiced.right.length < 3
-                            ? `fingering: auto covers a right hand of three notes: here the left hand takes the bass and the right hand plays ${voiced.right.length}: write the fingers, e.g. fingering: 5 1 4`
-                            : 'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
+                        'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
                     )
                 }
             }
@@ -651,6 +649,16 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
             throw new Error('The fingered notes go past the range: widen range: or leave it out')
         }
         fingers = new Map(pitches.map((midi, i) => [midi, fingerList[i]!]))
+    } else if (
+        !keys &&
+        block.fields.has('arpeggio') &&
+        set.root !== null &&
+        !set.list &&
+        !set.pitches
+    ) {
+        // An arpeggio without a range: two octaves from the root to the root, as scales go (the
+        // root from G3 up to F#4: Am7 A3-A5, C C4-C6).
+        set.pitches = scaleKeysFrom(set, tonicNearMiddleC(set.root))
     }
     return renderKeyboard(doc, set, {
         // A chord plays together; scales, lists and arpeggios one note at a time.
@@ -665,7 +673,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         // range, a scale shows its two octaves from the tonic and other notes keyRangeOf's.
         range: keys
             ? keyRange(keys)
-            : fingers && set.pitches
+            : (fingers || block.fields.has('arpeggio')) && set.pitches
               ? keyRange([Math.min(...set.pitches), Math.max(...set.pitches)])
               : scaleTonicOf(set) === null
                 ? keyRange(keyRangeOf(set))

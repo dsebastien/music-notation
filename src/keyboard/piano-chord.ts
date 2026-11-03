@@ -13,7 +13,8 @@
  *   chords take the 13th in place of the 5th (form A 3 13 b7 9, form B b7 9 3 13), and their altered
  *   9th or 5th when the symbol has one. Half-diminished chords keep their b5 and take the natural
  *   9th (locrian #2): Bm7b5 A is D F A C#. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A)
- *   E G B D.
+ *   E G B D. Dominant sus chords put the 4th in the 3rd's place and keep the 5th (the 13th when
+ *   the symbol names it): G7sus4 A is C D F A, B is F A C D.
  *
  * The lowest right-hand note is in `octave` (4 by default: middle C's; 3 for rootless voicings, so
  * they sit in the usual comping range, C3 to C5), a slash chord's bass an octave below it.
@@ -107,27 +108,35 @@ function shellOf(symbol: string, tones: Tone[], form: ShellForm): number[] {
         : [root.chroma, third.chroma, seventh.chroma]
 }
 
-/** Rootless form A (3 5 7 9) or B (7 9 3 5), with a dominant's 13th for its 5th. */
+/**
+ * Rootless form A (3 5 7 9) or B (7 9 3 5), with a dominant's 13th for its 5th. A dominant sus
+ * chord (C7sus4, C9sus4, C13sus4) puts its 4th in the 3rd's place: A 4 5 b7 9, B b7 9 4 5 (Bb D F
+ * G over C: the Bb/C sound), its 13th for the 5th when it names one.
+ */
 function rootlessOf(symbol: string, tones: Tone[], form: RootlessForm): number[] {
     const root = tones[0]!.chroma
     const at = (semitones: number) => (root + semitones) % 12
-    const third = find(tones, '3M', '3m')
     const seventh = find(tones, '7m', '7M')
+    const sus = seventh?.interval === '7m' && !find(tones, '3M', '3m')
+    const third = sus ? find(tones, '4P', '11P') : find(tones, '3M', '3m')
     // A sixth chord's sixth takes the seventh's place: 3 5 6 9.
     const sixth = seventh ? undefined : find(tones, '6M', '13M')
     // A diminished seventh has no seventh to keep (7d): it isn't voiced rootless.
     if (!third || !(seventh ?? sixth)) {
         throw new Error(
-            `Rootless voicings are for major, minor, dominant and half-diminished seventh or sixth chords (Cmaj7, Cm7, C7, Cm7b5, C6): not ${symbol}`
+            `Rootless voicings are for major, minor, dominant (sus4 too) and half-diminished seventh or sixth chords (Cmaj7, Cm7, C7, C7sus4, Cm7b5, C6): not ${symbol}`
         )
     }
     const sevenChroma = (seventh ?? sixth)!.chroma
     const dominant = third.interval === '3M' && seventh?.interval === '7m'
     const ninth = find(tones, '9m', '9A', '9M', '2m', '2A', '2M')?.chroma ?? at(2)
-    // Dominants: the 13th (or the altered 5th) for the 5th.
-    const fifth = dominant
-        ? (find(tones, '13M', '13m', '6M', '6m', '5d', '5A')?.chroma ?? at(9))
-        : (find(tones, '5P', '5A', '5d')?.chroma ?? at(7))
+    // Dominants: the 13th (or the altered 5th) for the 5th; sus chords keep their 5th unless
+    // they name a 13th.
+    const fifth = sus
+        ? (find(tones, '13M', '6M')?.chroma ?? at(7))
+        : dominant
+          ? (find(tones, '13M', '13m', '6M', '6m', '5d', '5A')?.chroma ?? at(9))
+          : (find(tones, '5P', '5A', '5d')?.chroma ?? at(7))
     return form === 'A'
         ? [third.chroma, fifth, sevenChroma, ninth]
         : [sevenChroma, ninth, third.chroma, fifth]
@@ -225,15 +234,30 @@ export function pianoVoicing(
 /**
  * Fingers for a close triad (`fingering: auto`), low to high: the right hand 1 3 5 in root position
  * and second inversion, 1 2 5 in first; the left hand 5 3 1 in root position and first inversion,
- * 5 2 1 in second; a left-hand bass under a right-hand chord gets 5. Null for anything else.
+ * 5 2 1 in second; a left-hand bass under a right-hand chord gets 5. With both hands, a bass that is
+ * the chord's third leaves the right hand two notes (D/F#: F#3 + D4 A4, C first inversion: E3 + G4
+ * C5): 1 5 a fifth or more apart, 1 4 a fourth or a tritone, 1 3 a third, 1 2 a second. Null for
+ * anything else.
  */
 export function triadFingering(voicing: PianoVoicing): Map<number, string> | null {
     const leftAlone = voicing.hands === 'left'
     const chord = leftAlone ? voicing.left : voicing.right
     const extra = voicing.pitches.filter((p) => !chord.includes(p))
-    if (voicing.style !== 'close' || chord.length !== 3 || voicing.inversion > 2) return null
+    if (voicing.style !== 'close' || voicing.inversion > 2) return null
     // A bass outside the hands (a slash chord without hands) has no finger to give.
     if (extra.length && voicing.hands !== 'left+right') return null
+    // Both hands, the bass not doubled above: the right hand's two notes by their distance.
+    if (chord.length === 2 && voicing.hands === 'left+right' && extra.length) {
+        const span = chord[1]! - chord[0]!
+        const top = span >= 7 ? '5' : span >= 5 ? '4' : span >= 3 ? '3' : '2'
+        const map = new Map<number, string>([
+            [chord[0]!, '1'],
+            [chord[1]!, top]
+        ])
+        for (const p of extra) map.set(p, '5')
+        return map
+    }
+    if (chord.length !== 3) return null
     const fingers = leftAlone
         ? [
               ['5', '3', '1'],

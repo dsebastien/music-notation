@@ -18,6 +18,29 @@ const spans = (h: HTMLElement) =>
     })
 
 describe('keyboard scales without a range: two octaves, tonic to tonic', () => {
+    it('draws an arpeggio from root to root over two octaves, as scales', () => {
+        const am = host()
+        renderBlock('keyboard', 'arpeggio: Am7', am)
+        expect(spans(am)).toEqual([[57, 81, 57, 81]])
+        expect(am.querySelector('svg')!.getAttribute('data-mn-pitches')).toBe(
+            '57 60 64 67 69 72 76 79 81'
+        )
+        const c = host()
+        renderBlock('keyboard', 'arpeggio: C', c)
+        expect(spans(c)).toEqual([[60, 84, 60, 84]])
+        // A root on a black key: the white keys around it, the root lit at both ends.
+        const fs = host()
+        renderBlock('keyboard', 'arpeggio: F#m', fs)
+        expect(spans(fs)).toEqual([[65, 91, 66, 90]])
+        // A range keeps its keys; chord: keeps C4 to B5.
+        const ranged = host()
+        renderBlock('keyboard', 'arpeggio: Am7\nrange: C4-B4', ranged)
+        expect(spans(ranged)[0]!.slice(0, 2)).toEqual([60, 71])
+        const chord = host()
+        renderBlock('keyboard', 'chord: Am7', chord)
+        expect(spans(chord)[0]!.slice(0, 2)).toEqual([60, 83])
+    })
+
     it('draws C major from C4 to C6 and A minor pentatonic from A3 to A5', () => {
         const h = host()
         renderBlock('keyboard', 'C major', h)

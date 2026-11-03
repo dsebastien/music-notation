@@ -84,8 +84,14 @@ describe('pianoVoicing', () => {
         expect(voiced('Dm7b5', { voicing: 'rootless' }, true)).toBe('F3 Ab3 C4 E4')
         expect(voiced('Dm7b5', { voicing: 'rootless', rootless: 'B' }, true)).toBe('C3 E3 F3 Ab3')
         expect(() => pianoVoicing('Cdim7', { voicing: 'rootless' })).toThrow(
-            'Rootless voicings are for major, minor, dominant and half-diminished'
+            'Rootless voicings are for major, minor, dominant (sus4 too) and half-diminished'
         )
+        // Dominant sus chords: the 4th for the 3rd, the 5th kept (the 13th when named).
+        expect(voiced('G7sus4', { voicing: 'rootless' })).toBe('C3 D3 F3 A3')
+        expect(voiced('G7sus4', { voicing: 'rootless', rootless: 'B' })).toBe('F3 A3 C4 D4')
+        expect(voiced('G13sus4', { voicing: 'rootless', rootless: 'B' })).toBe('F3 A3 C4 E4')
+        // Shells take the sus note for the third: R 4 7.
+        expect(voiced('G7sus4', { voicing: 'shell' })).toBe('G4 C5 F5')
         expect(() => pianoVoicing('C', { voicing: 'rootless' })).toThrow('not C')
     })
 
@@ -143,6 +149,9 @@ describe('pianoVoicing', () => {
         expect(fingers({ hands: 'left', inversion: 2 })).toBe('5 2 1')
         expect(fingers({ hands: 'left+right' })).toBe('5 1 3 5')
         expect(fingers({ hands: 'left+right', inversion: 2 })).toBe('5 1 3 5')
+        // The bass is the third: the right hand keeps two notes (no doubled third).
+        expect(fingers({ hands: 'left+right' }, 'D/F#')).toBe('5 1 5')
+        expect(fingers({ hands: 'left+right', inversion: 1 })).toBe('5 1 4')
         expect(triadFingering(pianoVoicing('Cmaj7')!)).toBeNull()
         expect(triadFingering(pianoVoicing('C', { voicing: 'open' })!)).toBeNull()
         expect(triadFingering(pianoVoicing('C/G')!)).toBeNull()
@@ -245,13 +254,22 @@ describe('piano chord blocks', () => {
         expect(renderBlock('chord', 'G7\ninstrument: piano\nfingering: auto', host()).error).toBe(
             'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
         )
+        // Both hands with the third in the bass: the right hand's two notes get fingers too.
+        const both = (source: string) => {
+            const el = host()
+            expect(renderBlock('chord', source, el).error).toBeNull()
+            return [...el.querySelectorAll('.mn-key-label')]
+                .sort((a, b) => +a.getAttribute('x')! - +b.getAttribute('x')!)
+                .map((l) => l.textContent)
+        }
         expect(
-            renderBlock(
-                'chord',
-                'C\ninstrument: piano\ninversion: 1\nhands: left+right\nfingering: auto',
-                host()
-            ).error
-        ).toContain('the right hand plays 2')
+            both('C\ninstrument: piano\ninversion: 1\nhands: left+right\nfingering: auto')
+        ).toEqual(['5', '1', '4'])
+        expect(both('D/F#\ninstrument: piano\nhands: left+right\nfingering: auto')).toEqual([
+            '5',
+            '1',
+            '5'
+        ])
     })
 
     it('redraws an inversion for guitar with its own pitches', () => {

@@ -39,7 +39,10 @@ describe('scales-for', () => {
     it('finds the exact pentatonic for its notes', () => {
         const h = host()
         renderBlock('keyboard', 'scales-for-notes: C D E G A', h)
-        expect(h.querySelector('svg')!.getAttribute('data-mn-set')).toBe('C major pentatonic')
+        expect(h.querySelector('svg')!.getAttribute('data-mn-set')).toBe('C major pentatonic') // Seven notes: the first one is the tonic.
+        const d = host()
+        renderBlock('keyboard', 'scales-for-notes: D E F G A B C', d)
+        expect(d.querySelector('svg')!.getAttribute('data-mn-set')).toBe('D dorian')
     })
 
     it('reads notes with scales-for-notes, and keeps a title and labels', () => {

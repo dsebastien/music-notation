@@ -126,6 +126,10 @@ describe('findScales', () => {
         expect(findScales('A C D Eb E G')[0]!.name).toBe('A minor blues')
         // Seven notes: still major first.
         expect(findScales('C D E F G A B')[0]!.name).toBe('C major')
+        // The first note is the tonic among equals: D E F G A B C is D dorian, not C major.
+        expect(findScales('D E F G A B C')[0]!.name).toBe('D dorian')
+        expect(findScales('G A B C D E F')[0]!.name).toBe('G mixolydian')
+        expect(findScales('A B C D E F G')[0]!.name).toBe('A minor')
     })
 
     it('takes the tonic from the first chord, the last one and V → I moves', () => {
@@ -283,6 +287,9 @@ describe('findKey', () => {
         expect(key('Dm C G')).toBe('D minor')
         expect(findKey('Dm G7 C')!.clear).toBe(true)
         expect(key('C E7 Am')).toBe('A minor')
+        // A major seventh chord isn't a dominant: Cmaj7 → Fmaj7 is I → IV, not V → I.
+        expect(key('Cmaj7 Fmaj7')).toBe('C major')
+        expect(findScales('Cmaj7 Fmaj7')[0]!.name).toBe('C major')
     })
 
     it('names the mode a minor or major key plays in', () => {
@@ -293,7 +300,14 @@ describe('findKey', () => {
         expect(findKey('Am F C G')!.modal).toBeUndefined()
         expect(findKey('Dm G A7 Dm')!.modal).toBeUndefined()
         expect(findKey('C F G C')!.modal).toBeUndefined()
-        expect(findKey('A7 D7 E7 A7')!.modal).toBeUndefined()
+        expect(findKey('A7 D7 E7 A7')!.modal).toBeUndefined() // Every chord inside the mode: Fm's Ab isn't in C mixolydian.
+        expect(findKey('C C7 F Fm C')!.modal).toBeUndefined()
+        // A I7 going to IV is a V7/IV, not a mixolydian b7.
+        expect(findKey('C C7 F C')!.modal).toBeUndefined()
+        expect(findKey('G G7 C G D7 G')!.modal).toBeUndefined()
+        expect(findKey('C7 F C')!.modal).toBeUndefined()
+        // A I7 that doesn't go to IV still reads as the mode's.
+        expect(findKey('C C7 Dm C')!.modal?.name).toBe('C mixolydian')
     })
 
     it('needs chords that read', () => {

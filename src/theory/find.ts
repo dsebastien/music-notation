@@ -186,7 +186,7 @@ function rank(
     onlyTonic: number | null = null
 ): (ScaleMatch & { cost: number })[] {
     const played = [...material.written.keys()]
-    const matches: (ScaleMatch & { cost: number })[] = []
+    const matches: (ScaleMatch & { cost: number; hint: number })[] = []
     for (const type of scaleTypes()) {
         for (let tonic = 0; tonic < 12; tonic++) {
             if (onlyTonic !== null && tonic !== onlyTonic) continue
@@ -211,11 +211,21 @@ function rank(
                     typeCost(type.name) +
                     material.tonicCost(tonic) +
                     missing.length * 0.05 -
-                    (exact ? 2 : 0)
+                    (exact ? 2 : 0),
+                hint: material.tonicCost(tonic)
             })
         }
     }
-    return matches.sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name))
+    // Ties go to the tonic the material points to (D E F G A B C: D dorian before C major and
+    // A minor), then by name.
+    return matches
+        .sort(
+            (a, b) =>
+                (Math.abs(a.cost - b.cost) > 1e-9 ? a.cost - b.cost : 0) ||
+                a.hint - b.hint ||
+                a.name.localeCompare(b.name)
+        )
+        .map(({ hint: _hint, ...match }) => match)
 }
 
 const strip = ({ cost: _cost, ...match }: ScaleMatch & { cost: number }): ScaleMatch => match
@@ -411,12 +421,16 @@ function isTonic(symbol: string, key: MusicalKey): boolean {
     return third?.interval === (key.mode === 'minor' ? '3m' : '3M')
 }
 
-/** A major or dominant chord a fifth above another chord's root (D7 → G). */
+/**
+ * A major or dominant chord a fifth above another chord's root (D7 → G); a major seventh chord
+ * isn't a dominant (Cmaj7 → Fmaj7 is I → IV).
+ */
 function resolves(from: string, to: string): boolean {
     const a = chordNoteSet(from)
     const b = chordNoteSet(to)
     if (!a || !b || a.root === null || b.root === null) return false
-    const major = a.members.some((m) => m.interval === '3M')
+    const major =
+        a.members.some((m) => m.interval === '3M') && !a.members.some((m) => m.interval === '7M')
     return major && (a.root - b.root + 12) % 12 === 7
 }
 
@@ -442,20 +456,40 @@ function dorianFour(symbol: string, key: MusicalKey): boolean {
     )
 }
 
-/** The mode a key's chords play in (see FoundKey.modal); null for plain major or minor. */
+/** Each mode's notes, in semitones from its tonic. */
+const MODE_STEPS = {
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10]
+} as const
+
+/**
+ * The mode a key's chords play in (see FoundKey.modal); null for plain major or minor. Every chord
+ * stays inside the mode, and one of them plays the mode's own note (dorian's major 6th,
+ * mixolydian's minor 7th). A dominant seventh on the tonic going to IV is a V7/IV (C C7 F C): its
+ * minor 7th isn't the mode's.
+ */
 function modalOf(items: string[], key: MusicalKey): MusicalKey | null {
     const tonic = chromaOf(key.tonic)!
-    const played = new Set(
-        items.flatMap((item) => chordNoteSet(item)!.members.map((m) => m.chroma))
-    )
-    const has = (semitones: number) => played.has((tonic + semitones) % 12)
-    const mode =
-        key.mode === 'minor' && has(9) && !has(8) && !has(11)
-            ? 'dorian'
-            : key.mode === 'major' && has(10) && !has(11)
-              ? 'mixolydian'
-              : null
-    return mode ? { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` } : null
+    const mode = key.mode === 'minor' ? 'dorian' : key.mode === 'major' ? 'mixolydian' : null
+    if (!mode) return null
+    const steps = new Set<number>(MODE_STEPS[mode])
+    const sets = items.map((item) => chordNoteSet(item)!)
+    const relative = (chroma: number) => (chroma - tonic + 12) % 12
+    if (!sets.every((set) => set.members.every((m) => steps.has(relative(m.chroma))))) return null
+    const evidence = mode === 'dorian' ? 9 : 10
+    const shows = sets.some((set, i) => {
+        if (!set.members.some((m) => relative(m.chroma) === evidence)) return false
+        const next = sets[i + 1]
+        const toFour =
+            mode === 'mixolydian' &&
+            set.root === tonic &&
+            isDominant(items[i]!) &&
+            next?.root !== null &&
+            next !== undefined &&
+            relative(next.root) === 5
+        return !toFour
+    })
+    return shows ? { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` } : null
 }
 
 /** Keys as they're usually spelled: F# major and C# minor, Db major and Bb minor. */

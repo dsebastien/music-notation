@@ -55,7 +55,15 @@ describe('voiceLead', () => {
         expect(c).toEqual([60, 64, 67])
         expect(ce![0]).toBe(46)
         expect(ce!.slice(1)).toEqual([60, 64, 67])
-        expect(bad).toBeNull()
+        expect(bad).toBeNull() // A bass that is the chord's third or seventh isn't doubled above (G/B: no B over B2).
+        const [, gb] = voiceLead(['C', 'G/B', 'Am'])
+        expect(gb!.slice(1).some((p) => p % 12 === 11)).toBe(false)
+        expect(gb![0]! % 12).toBe(11)
+        const [, c7] = voiceLead(['F', 'C7/Bb'])
+        expect(c7!.slice(1).some((p) => p % 12 === 10)).toBe(false)
+        // A root or fifth bass stays in the chord above (C/G keeps its G).
+        const [, cg] = voiceLead(['F', 'C/G'])
+        expect(cg!.slice(1).some((p) => p % 12 === 7)).toBe(true)
     })
 
     it('voices a ii-V-I as the textbook does (#63)', () => {
@@ -123,6 +131,26 @@ describe('voiceLeadVoicings', () => {
             'R-7 G2 F4 B4',
             'R-3 C3 E4 B4'
         ])
+    })
+
+    it('starts a shell progression on A or Ab in the same range as the others', () => {
+        expect(forms(['Am7', 'D7', 'Gmaj7'], { voicing: 'shell' })).toEqual([
+            'R-3 A2 C3 G3',
+            'R-3 D3 Gb3 C4',
+            'R-7 G2 Gb3 B3'
+        ])
+        expect(forms(['Abm7', 'Db7', 'Gbmaj7'], { voicing: 'shell' })[0]).toBe('R-3 Ab2 B2 Gb3')
+        expect(forms(['Am7', 'D7'], { voicing: 'shell', hands: 'left+right' })[0]).toBe(
+            'R-3 A2 C4 G4'
+        )
+        // Every root fits the first chord's window, R-3 or R-7.
+        for (const root of ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']) {
+            for (const form of ['R-3', 'R-7'] as const) {
+                const [first] = voiceLeadVoicings([`${root}m7`], { voicing: 'shell', form })
+                expect(first!.pitches[0]!).toBeGreaterThanOrEqual(form === 'R-3' ? 44 : 41)
+                expect(first!.pitches[0]!).toBeLessThanOrEqual(form === 'R-3' ? 55 : 52)
+            }
+        }
     })
 
     it('moves the range with octave, and leaves out chords it cannot voice', () => {
