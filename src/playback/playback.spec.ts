@@ -197,3 +197,63 @@ describe('playback bar', () => {
         expect(events[1]!.time).toBeCloseTo(60 / 90)
     })
 })
+
+describe('choosing the other instrument redraws the diagram', () => {
+    const host = () => document.body.appendChild(document.createElement('div'))
+    const choose = (h: HTMLElement, value: 'guitar' | 'piano') => {
+        const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
+        select.value = value
+        select.dispatchEvent(new Event('change'))
+    }
+    const lit = (h: HTMLElement) =>
+        [...h.querySelectorAll('.mn-keyboard .mn-on')].map((k) =>
+            Number(k.getAttribute('data-midi'))
+        )
+
+    it('draws a fretboard as a keyboard on piano, and back on guitar', () => {
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: {} })
+        const pitches = h.querySelector('.mn-fretboard')!.getAttribute('data-mn-pitches')!
+        choose(h, 'piano')
+        expect(h.querySelector('.mn-fretboard')).toBeNull()
+        expect(lit(h).join(' ')).toBe(pitches)
+        // The root keeps its color, and the title carries over.
+        expect(h.querySelectorAll('.mn-keyboard .mn-root').length).toBeGreaterThan(0)
+        choose(h, 'guitar')
+        expect(h.querySelector('.mn-keyboard')).toBeNull()
+        expect(h.querySelector('.mn-fretboard')).not.toBeNull()
+        h.remove()
+    })
+
+    it('draws a guitar chord as its keys, with the title and root', () => {
+        const h = host()
+        renderBlock('chord', 'Am x02210', h, { play: {} })
+        choose(h, 'piano')
+        expect(lit(h)).toEqual([45, 52, 57, 60, 64])
+        expect(h.querySelector('.mn-keyboard .mn-title')?.textContent).toBe('Am')
+        expect(
+            [...h.querySelectorAll('.mn-keyboard .mn-root')].map((k) => k.getAttribute('data-midi'))
+        ).toEqual(['45', '57'])
+        h.remove()
+    })
+
+    it('draws a keyboard as a fretboard on guitar, and a click there plays its note', () => {
+        const h = host()
+        const calls: number[] = []
+        const player: NotePlayer = {
+            play(events) {
+                calls.push(...events.map((e) => e.midi))
+                return { stop() {} }
+            }
+        }
+        renderBlock('keyboard', 'C4 E4 G4', h, { play: { player } })
+        choose(h, 'guitar')
+        const dots = [...h.querySelectorAll('.mn-fretboard .mn-dot')]
+        expect(new Set(dots.map((d) => d.getAttribute('data-midi')))).toEqual(
+            new Set(['60', '64', '67'])
+        )
+        ;(dots[0] as SVGElement).dispatchEvent(new Event('click', { bubbles: true }))
+        expect(calls).toHaveLength(1)
+        h.remove()
+    })
+})

@@ -4,6 +4,10 @@
  * or a key plays that note.
  */
 import { html, svg } from '../render/dom.js'
+import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
+import { renderFretboard } from '../fretboard/fretboard.js'
+import { listNoteSet, type NoteLabel } from '../theory/note-set.js'
+import { midiOf, nameOf } from '../theory/pitch.js'
 import {
     DEFAULT_SEQUENCE,
     lightPlayer,
@@ -97,6 +101,76 @@ function dataOf(diagram: Element): DiagramData | null {
             ? Number(diagram.getAttribute('data-mn-root'))
             : null
     }
+}
+
+const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
+
+/** A note name with the octave that gives this pitch ("B#3" is MIDI 60, "Cb5" is 71). */
+function spelledNote(name: string, midi: number): string {
+    const octave = Math.floor(midi / 12) - 1
+    for (const o of [octave, octave + 1, octave - 1])
+        if (midiOf(`${name}${o}`) === midi) return `${name}${o}`
+    return `${nameOf(midi)}${octave}`
+}
+
+/**
+ * The same notes drawn for the other instrument: a keyboard for a guitar diagram or a fretboard,
+ * a fretboard for a keyboard. Exact pitches, spelled as drawn, with the title, the root and the
+ * labels when they carry over; null when nothing can be drawn (no note on a guitar's range).
+ */
+function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element | null {
+    const flats =
+        /^[A-G]b/.test(diagram.getAttribute('data-mn-chord') ?? '') ||
+        [...diagram.querySelectorAll('[data-mn-note]')].some((el) =>
+            /^[A-G]b/.test(el.getAttribute('data-mn-note') ?? '')
+        )
+    const nameAt = (midi: number) =>
+        diagram
+            .querySelector(`[data-midi="${midi}"][data-mn-note]`)
+            ?.getAttribute('data-mn-note') ?? nameOf(midi, flats)
+    // A guitar can't play below its low E (MIDI 40) or past fret 24 of the high E (88).
+    const toGuitar = data.sound === 'piano'
+    const pitches = [...new Set(data.pitches)]
+        .sort((a, b) => a - b)
+        .filter((midi) => !toGuitar || (midi >= 40 && midi <= 88))
+    if (!pitches.length) return null
+    const rootEl = diagram.querySelector('.mn-root[data-midi]')
+    const root =
+        data.root ?? (rootEl ? ((Number(rootEl.getAttribute('data-midi')) % 12) + 12) % 12 : null)
+    const rootPitch = root === null ? undefined : pitches.find((midi) => midi % 12 === root)
+    const rootName =
+        root === null
+            ? undefined
+            : rootPitch !== undefined
+              ? nameAt(rootPitch)
+              : nameOf(root, flats)
+    const set = listNoteSet(
+        pitches.map((midi) => spelledNote(nameAt(midi), midi)).join(' '),
+        rootName
+    )
+    if (!set) return null
+    const written = diagram.getAttribute('data-mn-labels') as NoteLabel | null
+    const label: NoteLabel =
+        written &&
+        LABELS.has(written) &&
+        (root !== null || written === 'notes' || written === 'none')
+            ? written
+            : 'notes'
+    const title = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    const drawn = toGuitar
+        ? renderFretboard(doc, set, {
+              label,
+              ...(title ? { title } : {}),
+              frets: [0, Math.max(12, Math.min(24, pitches[pitches.length - 1]! - 64))]
+          })
+        : renderKeyboard(doc, set, {
+              label,
+              ...(title ? { title } : {}),
+              range: keyRangeOf(set),
+              playAs: data.kind
+          })
+    drawn.classList.add('mn-redrawn')
+    return drawn
 }
 
 /**
@@ -253,13 +327,23 @@ function barFor(
         option.selected = value === settings.sound
         sound.appendChild(option)
     }
+    // Choosing the other instrument draws the same notes for it (a fretboard on piano becomes a
+    // keyboard); choosing the diagram's own brings its drawing back.
+    let shown: Element = diagram
+    let other: Element | null | undefined
     sound.addEventListener('change', () => {
         settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
+        if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data)
+        const next = settings.sound === data.sound ? diagram : (other ?? diagram)
+        if (next !== shown) {
+            wrap.replaceChild(next, shown)
+            shown = next
+        }
     })
     bar.appendChild(sound)
 
-    // A dot or a key plays its note.
-    diagram.addEventListener('click', (event) => {
+    // A dot or a key plays its note, on either drawing (the bar has no notes).
+    wrap.addEventListener('click', (event) => {
         // Not `instanceof Element`: nodes of a popout window have that window's Element.
         const node = event.target as Partial<Element> | null
         const target = typeof node?.closest === 'function' ? node.closest('[data-midi]') : null
