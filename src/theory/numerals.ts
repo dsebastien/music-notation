@@ -269,7 +269,7 @@ const MINOR_FUNCTIONS: HarmonicFunction[] = [
     'subdominant',
     'dominant',
     'subdominant',
-    'subdominant'
+    'dominant'
 ]
 
 /**
@@ -349,8 +349,10 @@ export function harmonicFunction(
         const degree = degreeOf(k.tonic, parts.root)!
         // A minor key's raised 7th (vii°) leads to the tonic.
         if (minor && degree.number === 7 && degree.accidental === '') return 'dominant'
-        // A mode's own bVII (mixolydian) moves to the tonic as IV does.
-        if (degree.number === 7 && degree.accidental === 'b') return 'subdominant'
+        // A minor key's natural VII is a dominant (VII → i, the aeolian cadence; Riemann's
+        // dominant parallel). A mode's own bVII (mixolydian, dorian) moves to the tonic as IV does.
+        if (degree.number === 7 && degree.accidental === 'b')
+            return k.mode === 'minor' || k.mode === 'aeolian' ? 'dominant' : 'subdominant'
         return (minor ? MINOR_FUNCTIONS : MAJOR_FUNCTIONS)[degree.number - 1]!
     }
     if (isNeapolitan(parts.root, parts.suffix, k)) return 'neapolitan'

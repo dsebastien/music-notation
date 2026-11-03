@@ -173,9 +173,15 @@ describe('harmonicFunction', () => {
             'subdominant',
             'dominant',
             'subdominant',
-            'subdominant',
+            'dominant',
             'dominant'
         ])
+        // The natural VII of minor is a dominant (VII → i, the aeolian cadence); a mode's own
+        // bVII moves to the tonic as IV does.
+        expect(harmonicFunction('G', 'A minor')).toBe('dominant')
+        expect(harmonicFunction('G', 'A aeolian')).toBe('dominant')
+        expect(harmonicFunction('Bb', 'C mixolydian')).toBe('subdominant')
+        expect(harmonicFunction('C', 'D dorian')).toBe('subdominant')
         expect(fns('bVII iv V/V V/IV vii°/V', 'C')).toEqual([
             'borrowed',
             'borrowed',
@@ -331,7 +337,7 @@ describe('withTonicizations', () => {
             'bIIImaj7 tonic'
         ])
         // G7 not resolving stays bVII7; V7 to the tonic stays V7; E7 A7 in C stays V7/vi.
-        expect(analysis('Am G7 Am', 'A minor')[1]).toBe('bVII7 subdominant')
+        expect(analysis('Am G7 Am', 'A minor')[1]).toBe('bVII7 dominant')
         expect(analysis('Dm7 G7 C', 'C')[1]).toBe('V7 dominant')
         expect(analysis('C E7 A7 Dm7', 'C').slice(1, 3)).toEqual([
             'V7/vi secondary dominant',
