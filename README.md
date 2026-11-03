@@ -71,9 +71,14 @@ modes: C major
 ```
 ````
 
-The scale that fits a song's chords:
+Progressions in roman numerals or Nashville numbers, and the scale that fits a song's chords:
 
 ````markdown
+```progression
+I V vi IV
+key: G
+```
+
 ```fretboard
 scales-for: G D Em C
 ```
@@ -142,7 +147,7 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
     const VERSION = '0.7.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
-    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard'])
+    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard', 'progression'])
     const TABS = selector(['tab', 'score'])
     const requested = new Set()
     const load = (file) => {

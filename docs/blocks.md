@@ -414,6 +414,65 @@ chord: Am7
 frets: 5-8
 labels: intervals</code></pre></div>
 
+## Progressions
+
+A `progression` block writes a progression once and shows its chords in any key: roman numerals, Nashville numbers or chord names, each chord with its numeral and a diagram.
+
+````markdown
+```progression
+I V vi IV
+key: G
+functions: yes
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">I V vi IV
+key: G
+functions: yes</code></pre></div>
+
+| Key             | Meaning                                                                                                                       |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| first line      | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.             |
+| `key`           | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others). |
+| `transpose`     | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                 |
+| `numerals`      | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                           |
+| `functions`     | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, borrowed or chromatic.         |
+| `instrument`    | `guitar` (default, or the note's instrument) or `piano`.                                                                      |
+| `diagrams`      | `no` shows only the chord names.                                                                                              |
+| `voice-leading` | `yes` (piano): each chord in the inversion closest to the one before.                                                         |
+| `tuning`        | For guitar diagrams, as for chords.                                                                                           |
+| `title`         | A title above the progression.                                                                                                |
+
+**Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C.
+
+**Minor keys.** Write `i iv v` (or `V`), `bIII bVI bVII`. The plain `III`, `VI` and `VII` mean the same chords (C, F and G in A minor), and `vii°` is the chord on the raised seventh (G#dim in A minor). `#vi` raises the sixth (F#m in A minor).
+
+**Nashville numbers.** `1 5 6m 4`: a plain number is a major chord, `m` or `-` makes it minor (`6m`, `2-7`), and `b7`, `5/3` (the bass) work as above. A seventh right after the number is written raised, `5⁷`, so it doesn't read as 57 (typing `57` works).
+
+**Key changes.** `---` starts a new section with its own `key:`. Settings before the first `---` apply to every section.
+
+````markdown
+```progression
+diagrams: no
+---
+I IV V I
+key: C
+---
+I IV V I
+key: D
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">diagrams: no
+---
+I IV V I
+key: C
+---
+I IV V I
+key: D</code></pre></div>
+
+Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`.
+
 ## From a note's properties
 
 An empty `chord`, `fretboard` or `keyboard` block can draw what the note's properties say, so a note doesn't repeat its frets or its scale in the body. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.

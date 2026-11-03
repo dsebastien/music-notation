@@ -580,3 +580,48 @@
 .mn-svg .mn-key-white.mn-passing + .mn-key-label {
     fill: var(--mn-key-black);
 }
+
+/* Progressions (#9): one column per chord (numeral, diagram or name, function). */
+.mn-progression-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 0.3em;
+}
+
+.mn-progression-section + .mn-progression-section,
+.mn-progression-section-title {
+    margin-top: 0.75em;
+}
+
+.mn-progression-section-title {
+    font-weight: 600;
+}
+
+.mn-progression-key {
+    color: var(--mn-muted);
+    font-size: 0.85em;
+    margin-bottom: 0.3em;
+}
+
+.mn-block .mn-progression-chord {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.mn-progression-numeral {
+    font-weight: 700;
+    font-size: 1.05em;
+    color: var(--mn-accent);
+}
+
+.mn-progression-name {
+    font-weight: 600;
+    min-width: 2.5em;
+}
+
+.mn-progression-function {
+    color: var(--mn-muted);
+    font-size: 0.8em;
+}

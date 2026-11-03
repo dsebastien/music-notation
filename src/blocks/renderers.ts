@@ -41,6 +41,7 @@ import {
     type Cell
 } from '../fretboard/positions.js'
 import { withScalesFor } from './scales-for.js'
+import { renderProgression } from './progression.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -550,7 +551,9 @@ export const RENDERERS = {
     chord: fromSource(renderChord),
     chords: renderChordsBlock,
     keyboard: fromSource(DIAGRAMS.keyboard),
-    fretboard: fromSource(DIAGRAMS.fretboard)
+    fretboard: fromSource(DIAGRAMS.fretboard),
+    progression: (doc: Document, source: string, options: RenderOptions) =>
+        renderProgression(doc, source, options, DIAGRAMS.chord)
 } satisfies Record<string, Renderer>
 
 export type NotationLanguage = keyof typeof RENDERERS

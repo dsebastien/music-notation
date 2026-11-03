@@ -162,3 +162,13 @@ export {
     type KeySignature,
     type KeyChord
 } from './theory/keys.js'
+export {
+    progressionChords,
+    progressionChord,
+    readNumeral,
+    numeralOf,
+    harmonicFunction,
+    type ProgressionChord,
+    type HarmonicFunction
+} from './theory/numerals.js'
+export { voiceLead } from './keyboard/voice-leading.js'
