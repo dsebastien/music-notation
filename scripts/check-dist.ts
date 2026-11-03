@@ -59,11 +59,21 @@ if (cli.status !== 1 || !cli.stdout.startsWith('src/cli/fixtures/notes.md:17: ch
     failed = true
     console.error(`✗ dist/cli.js: exit ${cli.status}\n${cli.stdout}${cli.stderr}`)
 } else console.log('✓ dist/cli.js')
-// linkedom is the command line's alone: no other entry may load or bundle it.
+// linkedom is the command line's alone: no other entry may load or bundle it. Its package name
+// doesn't survive bundling, so look for its import and for code only linkedom brings (parseHTML,
+// its CSSStyleDeclaration), and make sure those markers are in dist/cli.js, or the guard is blind.
+const LINKEDOM = [/linkedom/, /\bparseHTML\b/, /\bCSSStyleDeclaration\b/]
+const cliText = await readFile('dist/cli.js', 'utf8')
+if (!LINKEDOM.slice(1).every((marker) => marker.test(cliText))) {
+    failed = true
+    console.error('✗ dist/cli.js: the linkedom markers are gone; update the guard in check-dist.ts')
+}
 for (const file of [...Object.keys(expect), ...BROWSER_BUNDLES]) {
-    if ((await readFile(file, 'utf8')).includes('linkedom')) {
+    const text = await readFile(file, 'utf8')
+    const found = LINKEDOM.find((marker) => marker.test(text))
+    if (found) {
         failed = true
-        console.error(`✗ ${file} includes linkedom`)
+        console.error(`✗ ${file} includes linkedom (${found.source})`)
     }
 }
 if (failed) process.exit(1)
