@@ -121,6 +121,9 @@ describe('findScales', () => {
         expect(findScales('G C D')[0]!.missing.length).toBe(4)
         expect(findScales('G C D', { as: 'chords' })[0]!.name).toBe('G major')
         expect(findScales('C# E G#')[0]!.name).toBe('C# minor')
+        // Notes with octaves when asked (A3 C4 E4 is A C E); else A5 D5 E5 are power chords.
+        expect(findScales('A3 C4 E4', { as: 'notes' })[0]!.name).toBe('A minor')
+        expect(findScales('A5 D5 E5')[0]!.missing).not.toContain('B')
     })
 
     it('spells scales the way the input does, without double accidentals', () => {

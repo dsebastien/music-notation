@@ -101,6 +101,8 @@ function spelledScale(type: string, chroma: number, written: Map<number, string>
     return best
 }
 
+const withoutOctave = (item: string) => item.replace(/-?\d+$/, '')
+
 /** Items split on spaces, commas and bar lines: "G D Em C", "G, D | Em C". */
 const itemsOf = (input: string | readonly string[]): string[] =>
     (typeof input === 'string' ? [input] : [...input])
@@ -120,7 +122,8 @@ function materialOf(items: string[], as: 'notes' | 'chords'): Material | null {
     const tonics: number[] = []
     for (const item of items) {
         if (as === 'notes') {
-            const name = noteName(item)
+            // An octave ("C4") says nothing about the scale.
+            const name = noteName(withoutOctave(item))
             if (!name) return null
             const chroma = chromaOf(name)!
             if (!written.has(chroma)) written.set(chroma, name)
@@ -172,7 +175,7 @@ function rank(
 
 const strip = ({ cost: _cost, ...match }: ScaleMatch & { cost: number }): ScaleMatch => match
 
-/** Whether every item is a plain note name (C, F#, Bb). */
+/** Whether every item is a plain note name (C, F#, Bb): A5 D5 E5 are power chords. */
 const allNotes = (items: string[]) => items.every((i) => noteName(i) !== null)
 
 /**
