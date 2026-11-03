@@ -596,11 +596,11 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
         const tex = textTabToAlphaTex(nem)!
         const bars = tex.split(' |\n')
         expect(bars).toHaveLength(5)
-        expect(bars[3]).toBe(':8 0.6 0.3 0.2 0.1 0.2 7.1 :4 r')
-        // The joined bar has the rhythm of the full bars before it.
+        expect(bars[3]).toBe('0.6 0.3 0.2 0.1 0.2 7.1')
+        // The joined bar has the rhythm of the full bars before it (six eighths in 6/8, see #70).
         const rhythm = rhythmOf(tex).split(' | ')
         expect(rhythm[3]).toBe(rhythm[0])
-        expect(rhythm[3]).toBe('8 8 8 8 8 8 r4')
+        expect(rhythm[3]).toBe('8 8 8 8 8 8')
     })
 
     it("joins a fragment before a row's first bar line to the bar before it", () => {
@@ -712,6 +712,89 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
             ].join('\n')
         )!
         expect(rhythmOf(tex)).toBe('8 8 8 8 8 8 8 8 | 8 8 8 8 8 8 8 8')
+    })
+})
+
+/** Lines of a tab, highest string first, joined into one text. */
+const tab = (...lines: string[]) => lines.join('\n')
+
+/** A score's time signature, as alphaTab reads it. */
+const meterOfTex = (tex: string) => {
+    const bar = load(tex).masterBars[0]!
+    return `${bar.timeSignatureNumerator}/${bar.timeSignatureDenominator}`
+}
+
+describe('textTabToAlphaTex, the meter from the typical bar', () => {
+    it('reads the Nothing Else Matters intro in 6/8: six eighths a bar, no rest', () => {
+        const nem = tab(
+            'e|------0----|------0----|------0----|',
+            'B|----0---0--|----0---0--|----0---0--|',
+            'G|--0-------0|--0-------0|--0-------0|',
+            'D|-----------|-----------|-----------|',
+            'A|-----------|-----------|-----------|',
+            'E|0----------|0----------|0----------|'
+        )
+        const tex = textTabToAlphaTex(nem)!
+        expect(tex.split('\n')[0]).toBe('\\ts 6 8')
+        expect(meterOfTex(tex)).toBe('6/8')
+        expect(rhythmOf(tex)).toBe('8 8 8 8 8 8 | 8 8 8 8 8 8 | 8 8 8 8 8 8')
+    })
+
+    it('reads a waltz riff in 3/4', () => {
+        const tex = textTabToAlphaTex(
+            tab(
+                'G|----2---2---|----2---2---|',
+                'D|----2---2---|----2---2---|',
+                'A|0-----------|3-----------|'
+            )
+        )!
+        expect(tex).toContain('\\ts 3 4')
+        expect(rhythmOf(tex)).toBe('4 4 4 | 4 4 4')
+    })
+
+    it('chooses 6/8 or 3/4 for six eighths by how the beats and bass notes group', () => {
+        // Bass notes on every other eighth: three quarters.
+        const twos = tab('G|--1---1---1-|--1---1---1-|', 'D|0---0---0---|0---0---0---|')
+        expect(textTabToAlphaTex(twos)).toContain('\\ts 3 4')
+        // Bass notes on the first and fourth eighths: two dotted quarters.
+        const threes = tab('G|--1-1---1-1-|--1-1---1-1-|', 'D|0-----0-----|0-----0-----|')
+        expect(textTabToAlphaTex(threes)).toContain('\\ts 6 8')
+        expect(rhythmOf(textTabToAlphaTex(threes)!)).toBe('8 8 8 8 8 8 | 8 8 8 8 8 8')
+    })
+
+    it('reads a shuffle of quarters and eighths in 12/8', () => {
+        const tex = textTabToAlphaTex(
+            tab(
+                'A|0---0-0---0-0---0-0---0-|2---2-2---2-2---2-2---2-|',
+                'E|0-----0-----0-----0-----|0-----0-----0-----0-----|'
+            )
+        )!
+        expect(meterOfTex(tex)).toBe('12/8')
+        expect(rhythmOf(tex)).toBe('4 8 4 8 4 8 4 8 | 4 8 4 8 4 8 4 8')
+    })
+
+    it('keeps 4/4 when the bars show no clear count', () => {
+        // Five eighths, dotted eighths, a single bar of six eighths, Smoke on the Water.
+        for (const text of [
+            'e|0-0-0-0-0-|0-0-0-0-0-|',
+            'E|0--0--0-0--0--0-|0--0--0-0--0--0-|',
+            'e|0-0-0-0-0-0-|',
+            RIFFS.smoke
+        ])
+            expect(textTabToAlphaTex(text)).not.toContain('\\ts')
+    })
+
+    it('fills empty bars, fragments and rests to the bar of the meter', () => {
+        const six = '0-0-0-0-0-0-'
+        const tex = textTabToAlphaTex(`e|${six}|${six}|------------|0-0-0-`)!
+        expect(rhythmOf(tex)).toBe('8 8 8 8 8 8 | 8 8 8 8 8 8 | r2. | 8 8 8 r4.')
+        for (const bar of load(tex).tracks[0]!.staves[0]!.bars) {
+            const sixteenths = bar.voices[0]!.beats.reduce(
+                (sum, b) => sum + (16 / b.duration) * (b.dots ? 1.5 : 1),
+                0
+            )
+            expect(sixteenths).toBe(12)
+        }
     })
 })
 
