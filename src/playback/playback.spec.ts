@@ -236,6 +236,32 @@ describe('choosing the other instrument redraws the diagram', () => {
         h.remove()
     })
 
+    it('plays again on the new sound after a switch', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: { player } })
+        const toggle = h.querySelector('.mn-play-toggle') as HTMLButtonElement
+        toggle.click()
+        choose(h, 'piano')
+        toggle.click()
+        expect(calls.map((c) => c.sound)).toEqual(['guitar', 'piano'])
+        h.remove()
+    })
+
+    it('plays the notes the redrawn fretboard shows', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        // C2 and C3 are below a guitar's low E: the fretboard leaves C2 out.
+        renderBlock('keyboard', 'notes: C2 E3 G3', h, { play: { player } })
+        choose(h, 'guitar')
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual([52, 55, 52])
+        choose(h, 'piano')
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[1]!.events.map((e) => e.midi)).toEqual([36, 52, 55, 52, 36])
+        h.remove()
+    })
+
     it('draws a fretboard as a keyboard on piano, and back on guitar', () => {
         const h = host()
         renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: {} })

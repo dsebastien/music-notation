@@ -229,6 +229,11 @@ function barFor(
         loop: false
     }
     let playing: PlayHandle | null = null
+    // The drawing on the page: the diagram, or its redrawing for the other instrument.
+    let shown: Element = diagram
+    // What the drawing on the page shows: a redrawn fretboard leaves out notes a guitar can't play.
+    const pitchesShown = () =>
+        shown === diagram ? data.pitches : (dataOf(shown)?.pitches ?? data.pitches)
 
     const toggle = html(doc, 'button', 'mn-play-toggle')
     toggle.type = 'button'
@@ -260,7 +265,7 @@ function barFor(
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        playing = play(sequenceOf(data.kind, data.pitches, settings), () => {
+        playing = play(sequenceOf(data.kind, pitchesShown(), settings), () => {
             playing = null
             if (settings.loop && wrap.isConnected) start()
             else show()
@@ -343,7 +348,6 @@ function barFor(
     }
     // Choosing the other instrument draws the same notes for it (a fretboard on piano becomes a
     // keyboard); choosing the diagram's own brings its drawing back.
-    let shown: Element = diagram
     let other: Element | null | undefined
     const drawFor = () => {
         if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data)
