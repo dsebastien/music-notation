@@ -509,8 +509,8 @@ describe('scale fingering on keyboards (#28)', () => {
     it('shows fingering and labels together', () => {
         const h = document.createElement('div')
         renderBlock('keyboard', 'C major\nfingering: 1 2 3 1 2 3 4 5\nlabels: degrees', h)
-        expect(texts(h, '.mn-key-label')).toBe('1 2 3 4 5 6 7 1')
-        expect(texts(h, '.mn-key-finger')).toBe('1 2 3 1 2 3 4 5')
+        expect(texts(h, '.mn-key-label')).toBe('1 2 3 4 5 6 7 1 2 3 4 5 6 7 1')
+        expect(texts(h, '.mn-key-finger')).toBe('1 2 3 1 2 3 4 1 2 3 1 2 3 4 5')
     })
 
     it('fingers every octave of the range, the thumb where two octaves meet (#68)', () => {
@@ -547,25 +547,33 @@ describe('scale fingering on keyboards (#28)', () => {
                 title: h.querySelector('.mn-title')?.textContent
             }
         }
+        // Two octaves from the tonic, as an unfingered scale.
         expect(fingered('C major\nfingering: auto')).toEqual({
-            fingers: '1 2 3 1 2 3 4 5',
-            keys: '60 62 64 65 67 69 71 72',
+            fingers: '1 2 3 1 2 3 4 1 2 3 1 2 3 4 5',
+            keys: '60 62 64 65 67 69 71 72 74 76 77 79 81 83 84',
             title: 'C major, right hand'
         })
-        // The left hand plays the octave below middle C.
+        // The left hand plays an octave lower.
         expect(fingered('C major\nfingering: auto left')).toEqual({
-            fingers: '5 4 3 2 1 3 2 1',
-            keys: '48 50 52 53 55 57 59 60',
+            fingers: '5 4 3 2 1 3 2 1 4 3 2 1 3 2 1',
+            keys: '48 50 52 53 55 57 59 60 62 64 65 67 69 71 72',
             title: 'C major, left hand'
         })
-        expect(fingered('scale: F major\nfingering: auto').fingers).toBe('1 2 3 4 1 2 3 4')
-        expect(fingered('scale: Bb major\nfingering: right hand').fingers).toBe('4 1 2 3 1 2 3 4')
+        expect(fingered('scale: F major\nfingering: auto').fingers).toBe(
+            '1 2 3 4 1 2 3 1 2 3 4 1 2 3 4'
+        )
+        expect(fingered('scale: Bb major\nfingering: right hand').fingers).toBe(
+            '4 1 2 3 1 2 3 4 1 2 3 1 2 3 4'
+        )
         expect(fingered('scale: Eb harmonic minor\nfingering: left').fingers).toBe(
-            '2 1 4 3 2 1 3 2'
+            '2 1 4 3 2 1 3 2 1 4 3 2 1 3 2'
         )
         expect(fingered('scale: F# harmonic minor\nfingering: auto').fingers).toBe(
-            '3 4 1 2 3 1 2 3'
+            '3 4 1 2 3 1 2 3 4 1 2 3 1 2 3'
         )
+        // A tonic from G up starts below middle C: A major A3 to A5, the left hand A2 to A4.
+        expect(fingered('scale: A major\nfingering: auto').keys?.split(' ').at(0)).toBe('57')
+        expect(fingered('scale: A major\nfingering: auto left').keys?.split(' ').at(-1)).toBe('69')
         // Two octaves of the left hand: the thumb on the middle root, 4 crossing over after it.
         expect(fingered('C major\nfingering: auto left\nrange: C2-C4').fingers).toBe(
             '5 4 3 2 1 3 2 1 4 3 2 1 3 2 1'

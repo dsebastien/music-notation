@@ -45,6 +45,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 ## Renderers and theory
 
 - `renderGuitarDiagram(doc, voicing, options)`, `renderKeyboard(doc, noteSet, options)`, `renderFretboard(doc, noteSet, options)`, `renderChart(doc, song, options)`. The diagram renderers take `orientation`, and guitar diagrams and fretboards take `hand`.
+- `keyRangeOf(noteSet)`: the keys `renderKeyboard` shows without `range`: a scale's two octaves from its tonic to its tonic (tonic from G3 to F#4), whole octaves around exact pitches, else C4 to B5. Without `range`, `renderKeyboard` lights a scale's keys from the tonic to the top tonic only.
 - `parseOrientation(text)`, `parseHand(text)`: read a block's value or throw a message for the user.
 - `parseChordName(text)`: a chord name in words (`F Sharp Minor 7`) as a parsed chord; `readChord(text)` takes a symbol or words; `suggestChords(text)` says what to write instead.
 - `generateVoicings(symbol, options)`: every playable voicing of a chord, easiest first: `{ frets, fingers, baseFret, bassString, inversion, shape, difficulty, reasons }`. Options: `tuning`, `area` (`[5, 9]` or `'open'`), `bassString` and `strings` (1 = the highest string), `inversion` (the chord's note in the bass, 0–3, or `'any'`; any by default on re-entrant tunings), `maxSpan` (4, at most 6), `allowOpen`, `minStrings`, `gaps`, `maxFret` (15). Up to `MAX_GENERATED_STRINGS` (8) strings.

@@ -288,22 +288,32 @@ labels: degrees
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">D dorian
 labels: degrees</code></pre></div>
 
-| Key                    | Meaning                                                                                                                                                                                                                                                                                        |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scale`                | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                                                                                                                                                                                                               |
-| `chord`                | `Cmaj7`, `G7`, `F#m7b5`…                                                                                                                                                                                                                                                                       |
-| `notes`                | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                                                                                                                                                                                                                       |
-| `root`                 | For `notes`: the note that `intervals` and `degrees` labels count from, `root: C`. It doesn't have to be in the list.                                                                                                                                                                          |
-| `range`                | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.                                                                                                                                                                                                   |
-| `labels`               | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`.                                                                                                                                                                                              |
-| `title`                | The title shown above.                                                                                                                                                                                                                                                                         |
-| `orientation`          | `horizontal` (default) or `vertical`: low notes at the bottom.                                                                                                                                                                                                                                 |
-| `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                                                                                                                                                                                                     |
-| `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`, or `auto` (`auto left` for the left hand): the standard fingering of a major or harmonic minor scale. For a list of notes: one finger per note, in the order written. It works with `labels` and `range` too. |
-| `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                                                                                                                                                                                       |     |
-| `scales-for`           | `scales-for: G D Em C`: the scale that fits these chords. See [which scale fits](#which-scale-fits).                                                                                                                                                                                           |
+| Key                    | Meaning                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scale`                | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                                                                                                                                                                                                                                                                |
+| `chord`                | `Cmaj7`, `G7`, `F#m7b5`…                                                                                                                                                                                                                                                                                                                        |
+| `notes`                | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                                                                                                                                                                                                                                                                        |
+| `root`                 | For `notes`: the note that `intervals` and `degrees` labels count from, `root: C`. It doesn't have to be in the list.                                                                                                                                                                                                                           |
+| `range`                | Keys shown: `C3-B4`. By default, a scale shows two octaves from its tonic to the tonic (see below); chords and notes without octaves show two octaves from middle C; exact notes show the whole octaves around them.                                                                                                                            |
+| `labels`               | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`.                                                                                                                                                                                                                                               |
+| `title`                | The title shown above.                                                                                                                                                                                                                                                                                                                          |
+| `orientation`          | `horizontal` (default) or `vertical`: low notes at the bottom.                                                                                                                                                                                                                                                                                  |
+| `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                                                                                                                                                                                                                                                      |
+| `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`, or `auto` (`auto left` for the left hand): the standard fingering of a major or harmonic minor scale. Without a range, the fingers go on both octaves. For a list of notes: one finger per note, in the order written. It works with `labels` and `range` too. |
+| `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                                                                                                                                                                                                                                        |     |
+| `scales-for`           | `scales-for: G D Em C`: the scale that fits these chords. See [which scale fits](#which-scale-fits).                                                                                                                                                                                                                                            |
 
 The short first line is tried as a scale, then as notes with octaves (`C4` is that key), then as a chord, then as a list of notes. The root is drawn in a second color.
+
+**Scales from tonic to tonic.** Without a `range`, a scale or a mode shows two octaves, from its tonic up to the tonic two octaves higher: C major from C4 to C6, D dorian from D4 to D6. The keyboard stays near middle C: a tonic from C to F# starts in middle C's octave, a tonic from G to B starts in the octave below (A minor pentatonic from A3 to A5). A tonic on a black key gets one unlit white key at each end, so the keyboard keeps a clean outline: F# major shows F4 to G6, with F#4 to F#6 lit. Playback runs the scale from the tonic up to the top tonic and back down. Give a `range` to show other keys: then every octave in it stays lit.
+
+````markdown
+```keyboard
+F# major
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">F# major</code></pre></div>
 
 ## Fretboard
 
@@ -433,7 +443,7 @@ shape: E
 G major
 shape: 3nps</code></pre></div>
 
-**All the modes of a key.** `modes: C major` draws C ionian, D dorian, E phrygian… side by side, each with its characteristic note. Other keys in the block apply to every mode.
+**All the modes of a key.** `modes: C major` draws C ionian, D dorian, E phrygian… side by side, each with its characteristic note. Other keys in the block apply to every mode. On a keyboard without a `range`, each mode goes from its own tonic to its tonic.
 
 ````markdown
 ```keyboard
@@ -447,9 +457,9 @@ columns: 4
 range: C4-B4
 columns: 4</code></pre></div>
 
-**Fingering** (keyboards): on a scale, `fingering: 1 2 3 1 2 3 4 5` puts one finger on each note of one octave, from the root up to the root above. Without a `range`, the keyboard shows only that octave, starting in middle C's octave. Give it a `range` and every octave in the range stays lit, and every key gets its finger: the pattern repeats each octave, and the root where two octaves meet takes the thumb. Over two octaves, C major is 1 2 3 1 2 3 4 1 2 3 1 2 3 4 5. `labels` works too: the labels stay on the keys, and the finger numbers get their own row under them. Fingers go from 1 (thumb) to 5 (little finger).
+**Fingering** (keyboards): on a scale, `fingering: 1 2 3 1 2 3 4 5` puts one finger on each note of one octave, from the root up to the root above. The pattern repeats each octave, and the root where two octaves meet takes the thumb: over two octaves, C major is 1 2 3 1 2 3 4 1 2 3 1 2 3 4 5. Without a `range`, the keyboard shows two octaves from the tonic, as for any scale, with fingers on both. Give it a `range` and every octave in the range stays lit, and every key gets its finger. `labels` works too: the labels stay on the keys, and the finger numbers get their own row under them. Fingers go from 1 (thumb) to 5 (little finger).
 
-`fingering: auto` gives the standard fingering of a major or harmonic minor scale, as method books teach it, for the right hand. `fingering: auto left` gives the left hand's, an octave lower. The title says which hand, unless you give a `title`. Other scales need their fingers written.
+`fingering: auto` gives the standard fingering of a major or harmonic minor scale, as method books teach it, for the right hand. `fingering: auto left` gives the left hand's, an octave lower (C major from C3 to C5). The title says which hand, unless you give a `title`. Other scales need their fingers written.
 
 ````markdown
 ```keyboard

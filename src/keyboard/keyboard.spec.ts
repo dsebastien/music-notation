@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { keyRangeOf, parseKeyRange, renderKeyboard } from './keyboard.js'
+import {
+    keyRangeOf,
+    parseKeyRange,
+    renderKeyboard,
+    scaleKeysFrom,
+    scaleTonicOf
+} from './keyboard.js'
 import { chordNoteSet, listNoteSet, scaleNoteSet } from '../theory/note-set.js'
 
 describe('keyboard ranges', () => {
@@ -13,7 +19,22 @@ describe('keyboard ranges', () => {
 
     it('covers whole octaves around exact pitches, two octaves otherwise', () => {
         expect(keyRangeOf(listNoteSet('A3 C#4 E4')!)).toEqual([48, 71])
-        expect(keyRangeOf(scaleNoteSet('C major')!)).toEqual([60, 83])
+        expect(keyRangeOf(chordNoteSet('Cmaj7')!)).toEqual([60, 83])
+        expect(keyRangeOf(listNoteSet('C E G')!)).toEqual([60, 83])
+    })
+
+    it('draws a scale over two octaves, tonic to tonic, nearest middle C', () => {
+        expect(keyRangeOf(scaleNoteSet('C major')!)).toEqual([60, 84])
+        expect(keyRangeOf(scaleNoteSet('D dorian')!)).toEqual([62, 86])
+        expect(keyRangeOf(scaleNoteSet('F# major')!)).toEqual([66, 90])
+        // From G, the tonic below middle C.
+        expect(keyRangeOf(scaleNoteSet('G major')!)).toEqual([55, 79])
+        expect(keyRangeOf(scaleNoteSet('A minor pentatonic')!)).toEqual([57, 81])
+        expect(scaleTonicOf(scaleNoteSet('C major')!, -1)).toBe(48)
+        expect(scaleTonicOf(chordNoteSet('C')!)).toBeNull()
+        expect(scaleKeysFrom(scaleNoteSet('C major pentatonic')!, 60)).toEqual([
+            60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84
+        ])
     })
 })
 
@@ -52,6 +73,33 @@ describe('renderKeyboard', () => {
             '3',
             '5'
         ])
+    })
+
+    it('lights a scale without a range from its tonic to the tonic two octaves up', () => {
+        const el = renderKeyboard(document, scaleNoteSet('F# major')!)
+        const whites = [...el.querySelectorAll('.mn-key-white')].map((k) =>
+            k.getAttribute('data-midi')
+        )
+        // From the white key below F#4 to the white key above F#6.
+        expect([whites[0], whites.at(-1)]).toEqual(['65', '91'])
+        // F4 is the scale's E#, but it lies below the tonic: unlit, unplayed.
+        expect(el.querySelector('[data-midi="65"]')?.getAttribute('class')).not.toContain('mn-on')
+        const played = el.getAttribute('data-mn-pitches')!.split(' ').map(Number)
+        expect([played[0], played.at(-1), played.length]).toEqual([66, 90, 15])
+        // With a range, every octave stays lit.
+        const ranged = renderKeyboard(document, scaleNoteSet('F# major')!, { range: [65, 77] })
+        expect(ranged.querySelector('[data-midi="65"]')?.getAttribute('class')).toContain('mn-on')
+    })
+
+    it('draws faint notes only between the tonics of a scale drawn tonic to tonic', () => {
+        // F# dorian against F# major: E# is faint, but not on the F4 key below the tonic.
+        const el = renderKeyboard(document, scaleNoteSet('F# dorian')!, {
+            marks: { ghosts: new Set([5]) }
+        })
+        expect(el.querySelector('[data-midi="65"]')?.getAttribute('class')).not.toContain(
+            'mn-ghost'
+        )
+        expect(el.querySelector('[data-midi="77"]')?.getAttribute('class')).toContain('mn-ghost')
     })
 
     it('extends a range that starts or ends on a black key to the next white key', () => {

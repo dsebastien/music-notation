@@ -52,8 +52,32 @@ export function parseKeyRange(text: string): [number, number] | null {
         : null
 }
 
-/** Whole octaves around the notes: exact pitches, or two octaves from C4 for pitch classes. */
+/**
+ * Where a scale or mode drawn without a range starts: its tonic, from G3 up to F#4, so its two
+ * octaves sit nearest middle C's (C major C4-C6, A minor pentatonic A3-A5, F# major F#4-F#6).
+ * `octave: -1` for the left hand, an octave lower. Null for anything else than a scale of pitch
+ * classes (chords, lists, exact pitches).
+ */
+export function scaleTonicOf(set: NoteSet, octave = 0): number | null {
+    if (set.pitches || set.list || !set.scaleType || set.root === null) return null
+    return 55 + ((((set.root - 7) % 12) + 12) % 12) + 12 * octave
+}
+
+/** A scale's keys over two octaves, from its tonic up to the tonic two octaves above. */
+export function scaleKeysFrom(set: NoteSet, tonic: number): number[] {
+    const chromas = new Set(set.members.map((m) => m.chroma))
+    const keys: number[] = []
+    for (let midi = tonic; midi <= tonic + 24; midi++) if (chromas.has(midi % 12)) keys.push(midi)
+    return keys
+}
+
+/**
+ * The keys shown by default: a scale's two octaves from tonic to tonic (see `scaleTonicOf`);
+ * whole octaves around exact pitches; two octaves from C4 for other pitch classes.
+ */
 export function keyRangeOf(set: NoteSet): [number, number] {
+    const tonic = scaleTonicOf(set)
+    if (tonic !== null) return [tonic, tonic + 24]
     if (!set.pitches?.length) return [60, 83]
     const low = Math.min(...set.pitches)
     const high = Math.max(...set.pitches)
@@ -66,6 +90,10 @@ export function renderKeyboard(
     options: KeyboardOptions = {}
 ): SVGElement {
     let [from, to] = options.range ?? keyRangeOf(set)
+    // A scale without a range: lit from its tonic up to the tonic two octaves above, so a black
+    // key tonic's white key below (F# major's F) stays unlit and the run goes tonic to tonic.
+    const tonic = options.range ? null : scaleTonicOf(set)
+    if (tonic !== null) set = { ...set, pitches: scaleKeysFrom(set, tonic) }
     // Start and end on white keys, so the outline stays clean.
     if (isBlack(from)) from--
     if (isBlack(to)) to++
@@ -138,14 +166,19 @@ export function renderKeyboard(
         )
     }
 
+    // Faint notes (a compared scale's, a chord's outside the scale) stay between a scale's first
+    // and last drawn keys: nothing past the tonics of a scale drawn tonic to tonic.
+    const lit = set.scaleType && !set.list && set.pitches?.length ? set.pitches : null
+    const ghostAt = (midi: number) =>
+        (options.marks?.ghosts?.has(((midi % 12) + 12) % 12) ?? false) &&
+        (!lit || (midi >= Math.min(...lit) && midi <= Math.max(...lit)))
     const keyClass = (midi: number, black: boolean) => {
         const member = memberOf(set, midi)
-        const chroma = ((midi % 12) + 12) % 12
         const base = black ? 'mn-key-black' : 'mn-key-white'
         const hand = options.hands?.get(midi)
         if (member)
             return `${base} mn-on${markClasses(set, member.chroma, options.marks)}${hand ? ` mn-hand-${hand}` : ''}`
-        return options.marks?.ghosts?.has(chroma) ? `${base} mn-ghost` : base
+        return ghostAt(midi) ? `${base} mn-ghost` : base
     }
     // Labels sit near the player's end of the key.
     const caption = (midi: number, point: [number, number], black: boolean) => {
@@ -168,7 +201,7 @@ export function renderKeyboard(
                 'data-midi': midi,
                 'data-mn-note':
                     memberOf(set, midi)?.name ??
-                    (options.marks?.ghosts?.has(((midi % 12) + 12) % 12)
+                    (ghostAt(midi)
                         ? (options.marks?.ghostNames?.get(((midi % 12) + 12) % 12) ??
                           nameOf(midi, set.preferFlats))
                         : undefined)
@@ -188,7 +221,7 @@ export function renderKeyboard(
                 'data-midi': black,
                 'data-mn-note':
                     memberOf(set, black)?.name ??
-                    (options.marks?.ghosts?.has(((black % 12) + 12) % 12)
+                    (ghostAt(black)
                         ? (options.marks?.ghostNames?.get(((black % 12) + 12) % 12) ??
                           nameOf(black, set.preferFlats))
                         : undefined)

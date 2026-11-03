@@ -200,11 +200,18 @@ describe('playback bar', () => {
         renderBlock('keyboard', 'D dorian', h, { play: { player } })
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         const midis = calls[0]!.events.map((e) => e.midi)
-        // Drawn C4 to B5: D4 up to B5, down to C4, back up to D4.
+        // Drawn tonic to tonic, D4 to D6: up to D6 and back down to D4.
         expect(midis[0]).toBe(62)
         expect(midis.at(-1)).toBe(62)
-        expect(Math.max(...midis)).toBe(83)
-        expect(Math.min(...midis)).toBe(60)
+        expect(Math.max(...midis)).toBe(86)
+        expect(Math.min(...midis)).toBe(62)
+        expect(midis).toHaveLength(15 + 14)
+        // A black key tonic: F# major drawn from F4, played F#4 up to F#6 and back (no E#4).
+        const f = host()
+        renderBlock('keyboard', 'F# major', f, { play: { player } })
+        ;(f.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const run = calls.at(-1)!.events.map((e) => e.midi)
+        expect([run[0], Math.max(...run), Math.min(...run), run.at(-1)]).toEqual([66, 90, 66, 66])
         const m = host()
         renderBlock('keyboard', 'modes: C major\nrange: C4-B4', m, { play: { player } })
         const firsts = [...m.querySelectorAll('.mn-play-toggle')].map((button) => {

@@ -457,18 +457,28 @@ describe('scales and modes', () => {
         )
     })
 
-    it('shows a scale fingering on one octave', () => {
+    it('shows a scale fingering over two octaves, tonic to tonic', () => {
         const h = host()
         renderBlock('keyboard', 'C major\nfingering: 1 2 3 1 2 3 4 5', h)
-        expect([...h.querySelectorAll('.mn-key-label')].map((l) => l.textContent)).toEqual([
-            '1',
-            '2',
-            '3',
-            '1',
-            '2',
-            '3',
-            '4',
-            '5'
+        expect([...h.querySelectorAll('.mn-key-label')].map((l) => l.textContent).join(' ')).toBe(
+            '1 2 3 1 2 3 4 1 2 3 1 2 3 4 5'
+        )
+        expect(h.querySelector('svg')?.getAttribute('data-mn-pitches')?.split(' ')).toEqual([
+            '60',
+            '62',
+            '64',
+            '65',
+            '67',
+            '69',
+            '71',
+            '72',
+            '74',
+            '76',
+            '77',
+            '79',
+            '81',
+            '83',
+            '84'
         ])
     })
 })

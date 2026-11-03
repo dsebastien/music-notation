@@ -23,7 +23,13 @@ import { parseChordPro } from '../chords/chordpro.js'
 import { renderChart } from '../chords/chart.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
 import { parseTuning } from '../fretboard/tuning.js'
-import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.js'
+import {
+    keyRangeOf,
+    parseKeyRange,
+    renderKeyboard,
+    scaleKeysFrom,
+    scaleTonicOf
+} from '../keyboard/keyboard.js'
 import {
     autoFingeringHand,
     parseFingerList,
@@ -551,10 +557,11 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const range = field(block, 'range')
     handOf(block, options)
     // A scale's fingering: one octave from the root, fingers in order (or `auto`: the standard
-    // fingering of a major or harmonic minor scale, #68). Without a range the keyboard shows that
-    // octave (middle C's; the octave below for the left hand); with one, every octave stays lit
-    // and every key of the scale gets its finger. A chord's fingering covers one octave from the
-    // first root inside the range (or the lowest one).
+    // fingering of a major or harmonic minor scale, #68). Without a range the keyboard shows two
+    // octaves from the tonic, as an unfingered scale (an octave lower for the left hand), with
+    // fingers in both; with one, every octave stays lit and every key of the scale gets its
+    // finger. A chord's fingering covers one octave from the first root inside the range (or the
+    // lowest one).
     const fingering = field(block, 'fingering')
     const keys = range ? rangeOf(range) : undefined
     let fingers: Map<number, string> | undefined
@@ -591,9 +598,8 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
                 if (chromas.includes(midi % 12)) scaleKeys.push(midi)
             }
         } else {
-            const start = (autoHand === 'left' ? 48 : 60) + set.root
-            scaleKeys.push(...chromas.map((c) => start + ((c - set.root! + 12) % 12)), start + 12)
-            scaleKeys.sort((a, b) => a - b)
+            // Two octaves from the tonic, as without fingering (the left hand an octave lower).
+            scaleKeys.push(...scaleKeysFrom(set, scaleTonicOf(set, autoHand === 'left' ? -1 : 0)!))
             set.pitches = scaleKeys
         }
         fingers = scaleFingers(scaleKeys, set.root, chromas, octave)
@@ -655,14 +661,15 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         title,
         label: labelField(block, fingers ? 'fingers' : 'notes', fingers !== undefined),
         fingers,
-        // A fingered scale shows its octave, up to the root above.
-        range: keyRange(
-            keys
-                ? keys
-                : fingers && set.pitches
-                  ? [Math.min(...set.pitches), Math.max(...set.pitches)]
-                  : keyRangeOf(set)
-        ),
+        // Fingered keys show from the lowest to the highest (a scale: tonic to tonic); without a
+        // range, a scale shows its two octaves from the tonic and other notes keyRangeOf's.
+        range: keys
+            ? keyRange(keys)
+            : fingers && set.pitches
+              ? keyRange([Math.min(...set.pitches), Math.max(...set.pitches)])
+              : scaleTonicOf(set) === null
+                ? keyRange(keyRangeOf(set))
+                : undefined,
         orientation: orientationOf(block, options.orientation?.keyboard),
         marks: marksOf(block, set)
     })
