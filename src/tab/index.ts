@@ -42,12 +42,27 @@ export interface TabOptions {
     player?: boolean
     /** Called once alphaTab's API exists (before the score is drawn). */
     onApi?: (api: AT.AlphaTabApi) => void
+    /**
+     * The Tab / Score / Both control in the player bar (default true; Music Practice #83): a click
+     * draws the block again in that view, without changing its text. Shown when the score has a
+     * stringed staff (drums and piano have no tablature, so they have one view only).
+     */
+    views?: boolean
+    /**
+     * Called by **Keep this view** with the view chosen, so the app writes `staves:` in the block.
+     * Without it, the control has no Keep this view.
+     */
+    onKeepView?: (staves: Staves) => void
+    /** The view of a block with no `staves:` line (default: the block's language). */
+    defaultStaves?: Staves
 }
 
 export type Staves = 'tab' | 'score' | 'both'
 
 export interface TabSource {
     staves: Staves
+    /** Whether the block has a `staves:` line (else `staves` is the language's default). */
+    stavesWritten: boolean
     /** A file to draw instead of alphaTex (`[[Song.gp]]` or a path). */
     file: string | null
     /** Tracks to draw (1-based); all by default. */
@@ -67,7 +82,14 @@ const SETTING = /^\s*(staves|file|tracks?)\s*:\s*(.*)$/i
  */
 export function parseTabSource(language: 'tab' | 'score', source: string): TabSource {
     const lines = source.split(/\r?\n/)
-    const out: TabSource = { staves: language, file: null, tracks: null, tex: '', texLine: 0 }
+    const out: TabSource = {
+        staves: language,
+        stavesWritten: false,
+        file: null,
+        tracks: null,
+        tex: '',
+        texLine: 0
+    }
     let i = 0
     for (; i < lines.length; i++) {
         const line = lines[i]!
@@ -82,6 +104,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
                 throw new Error(`staves: use tab, score or both, got "${value}"`)
             }
             out.staves = v
+            out.stavesWritten = true
         } else if (key === 'file') {
             // [[Song.gp|Alias]], [[Song.gp#Heading]]: the file.
             out.file =
@@ -476,6 +499,78 @@ function playerBar(
     }
 }
 
+/** Whether a score has a staff with tablature (stringed, not drums) among the tracks drawn. */
+function hasTablature(score: { tracks: { staves: StaffView[] }[] }, tracks: number[] | null) {
+    return score.tracks.some(
+        (track, i) =>
+            (!tracks || tracks.includes(i + 1)) &&
+            track.staves.some((staff) => !staff.isPercussion && staff.tuning.length > 0)
+    )
+}
+
+const VIEWS: { staves: Staves; label: string; what: string }[] = [
+    { staves: 'tab', label: 'Tab', what: 'tablature' },
+    { staves: 'score', label: 'Score', what: 'standard notation' },
+    { staves: 'both', label: 'Both', what: 'standard notation and tablature' }
+]
+
+/**
+ * The view control of the player bar (Music Practice #83): Tab, Score, Both, the view drawn
+ * pressed. `own` is the block's view (its `staves:` line, else the default, which the button's
+ * title says). A click calls `choose`; **Keep this view** (only with `keep`) shows while the view
+ * drawn isn't the block's own, and calls `keep` with it.
+ */
+function viewControl(
+    doc: Document,
+    own: { staves: Staves; written: boolean },
+    choose: (staves: Staves) => void,
+    keep?: (staves: Staves) => void
+): HTMLElement {
+    const group = html(doc, 'span', 'mn-tab-views')
+    group.setAttribute('role', 'group')
+    group.setAttribute('aria-label', 'View')
+    let current = own.staves
+    const keepButton = keep ? html(doc, 'button', 'mn-tab-keep', 'Keep this view') : null
+    const buttons = VIEWS.map(({ staves, label, what }) => {
+        const b = html(doc, 'button', 'mn-tab-view', label)
+        b.type = 'button'
+        b.dataset['staves'] = staves
+        const mine =
+            staves !== own.staves
+                ? ''
+                : own.written
+                  ? ` (this block's staves: line)`
+                  : ' (the default: the block has no staves: line)'
+        b.title = `Draw as ${what}${mine}`
+        b.addEventListener('click', () => {
+            if (staves === current) return
+            current = staves
+            show()
+            choose(staves)
+        })
+        group.appendChild(b)
+        return b
+    })
+    const show = () => {
+        for (const b of buttons) {
+            const on = b.dataset['staves'] === current
+            b.classList.toggle('mn-on', on)
+            b.setAttribute('aria-pressed', String(on))
+        }
+        if (keepButton) {
+            keepButton.hidden = current === own.staves
+            keepButton.title = `Write staves: ${current} at the top of the block`
+        }
+    }
+    if (keepButton && keep) {
+        keepButton.type = 'button'
+        keepButton.addEventListener('click', () => keep(current))
+        group.appendChild(keepButton)
+    }
+    show()
+    return group
+}
+
 /**
  * Draws a ```tab or ```score block into `host`, with its player bar. Never throws and `ready`
  * never rejects: a mistake (in the alphaTex, a missing or unreadable file, no alphaTab) shows an
@@ -514,6 +609,15 @@ export function renderTab(
             // The caller may still be placing `el` on the page: colors are read once it's there.
             await Promise.resolve()
             const parsed = parseTabSource(language, source)
+            // The block's own view, and the one drawn (the view control changes it, #83).
+            const own = {
+                staves: parsed.stavesWritten
+                    ? parsed.staves
+                    : (options.defaultStaves ?? parsed.staves),
+                written: parsed.stavesWritten
+            }
+            let view = own.staves
+            let tablature = false
             const at = options.alphaTab
             if (!at?.AlphaTabApi) throw new Error("alphaTab isn't loaded")
             const surface = html(doc, 'div', 'mn-tab-surface')
@@ -549,8 +653,14 @@ export function renderTab(
                 return
             }
             options.onApi?.(current)
+            /** Slash and numbered staves as written: `both` shows them again after a switch. */
+            let written: { showSlash: boolean; showNumbered: boolean }[] = []
             current.scoreLoaded.on((score) => {
-                chooseStaves(parsed.staves, score)
+                written = score.tracks.flatMap((t) =>
+                    t.staves.map((s) => ({ showSlash: s.showSlash, showNumbered: s.showNumbered }))
+                )
+                chooseStaves(view, score)
+                tablature = hasTablature(score, parsed.tracks)
                 hideDefaultDynamics(score, parsed.file ? null : parsed.tex)
             })
             hideCredit(current, surface)
@@ -560,6 +670,26 @@ export function renderTab(
                 if (options.player !== false) {
                     bar = playerBar(doc, current, at, assets)
                     el.appendChild(bar.bar)
+                    // Drums and piano have one view only: no control then.
+                    if (options.views !== false && tablature)
+                        bar.bar.appendChild(
+                            viewControl(
+                                doc,
+                                own,
+                                (staves) => {
+                                    // Drawn again from the loaded score: the player, its song
+                                    // and soundfont stay (only the staves change, not the sound).
+                                    view = staves
+                                    const score = current.score
+                                    if (gone || !score) return
+                                    const all = score.tracks.flatMap((t) => t.staves)
+                                    all.forEach((staff, i) => Object.assign(staff, written[i]))
+                                    chooseStaves(staves, score)
+                                    current.render()
+                                },
+                                options.onKeepView
+                            )
+                        )
                     // Touch screens have no hover: a tap on the score shows the bar.
                     el.addEventListener('pointerdown', (event) => {
                         if (
