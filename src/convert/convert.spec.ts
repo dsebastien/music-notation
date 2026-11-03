@@ -693,12 +693,19 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
     })
 
     it('joins bars across many rows in linear time', () => {
-        const start = performance.now()
         const row = rows(['|0---0---0---0---|0---', '|----------------|----'])
         const next = rows(['|0---0---0---|', '|------------|'])
-        const tex = textTabToAlphaTex(Array(5_000).fill(`${row}\n\n${next}`).join('\n\n'))!
-        expect(tex.split('|')).toHaveLength(10_000)
-        expect(performance.now() - start).toBeLessThan(1000)
+        const tab = (n: number) => Array(n).fill(`${row}\n\n${next}`).join('\n\n')
+        const time = (n: number) => {
+            const start = performance.now()
+            const tex = textTabToAlphaTex(tab(n))!
+            expect(tex.split('|')).toHaveLength(2 * n)
+            return performance.now() - start
+        }
+        time(500) // warm-up
+        // Twice the rows takes about twice the time; a quadratic join would take four times.
+        // A ratio, not a wall-clock limit, so a slow CI runner doesn't fail it.
+        expect(time(5_000)).toBeLessThan(3 * time(2_500) + 50)
     })
 
     it('joins drum bars split across rows', () => {
