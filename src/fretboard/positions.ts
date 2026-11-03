@@ -158,20 +158,22 @@ export function scalePosition(
 /**
  * Every position in neck order, position 1 first: the first in its lowest octave, each next one in
  * the lowest octave at or above the previous one (by their lowest frets), or in its own lowest
- * octave when that would go past fret 36. Null for a position that doesn't fit the system.
+ * octave when that would go past fret 36 (or `maxFret`: a capo leaves fewer frets). Null for a
+ * position that doesn't fit the system.
  * With `numbering: 'minor'`, a major pentatonic starts from its relative minor's box 1.
  */
 export function neckPositions(
     set: NoteSet,
     tuning: number[],
     system: PositionSystem,
-    numbering: Numbering = 'root'
+    numbering: Numbering = 'root',
+    maxFret: number = MAX_FRET
 ): (Cell[] | null)[] {
     let floor = 0
     return Array.from({ length: positionCount(set, system) }, (_, i) => {
         const octaves = octavesOf(set, tuning, system, fromRoot(set, system, i + 1, numbering))
         const cells =
-            octaves.find((c) => lowestFret(c) >= floor && highestFret(c) <= MAX_FRET) ??
+            octaves.find((c) => lowestFret(c) >= floor && highestFret(c) <= maxFret) ??
             octaves[0] ??
             null
         if (cells) floor = lowestFret(cells)

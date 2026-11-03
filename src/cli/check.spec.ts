@@ -211,6 +211,19 @@ describe('rows a block draws itself', () => {
     })
 })
 
+test('--describe says where the capo is and what the shape sounds', () => {
+    const [chord] = checkNote('a.md', '```chord\nA x02220\ncapo: 2\n```', document)[0]!
+        .diagrams as GuitarChordDiagram[]
+    expect(chord).toMatchObject({ chord: 'A', capo: 2, fretsFrom: 'capo', sounds: 'B' })
+    expect(chord!.strings.map((s) => s.note)).toEqual([null, 'B2', 'F#3', 'B3', 'D#4', 'F#4'])
+    const [board] = checkNote('a.md', '```fretboard\nE minor\ncapo: 3\n```', document)[0]!
+        .diagrams as FretboardDiagram[]
+    expect(board).toMatchObject({ capo: 3, tuning: ['G', 'C', 'F', 'A#', 'D', 'G'] })
+    // No capo: nothing added.
+    const [plain] = checkNote('a.md', '```chord\nA x02220\n```', document)[0]!.diagrams
+    expect(plain).not.toHaveProperty('capo')
+})
+
 describe('review fixes', () => {
     test('empty tab and score blocks are empty, not errors (templates scaffold them)', () => {
         const reports = checkNote('t.md', '```tab\n```\n\n```score\n\n```\n', document)

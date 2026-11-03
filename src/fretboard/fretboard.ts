@@ -33,6 +33,17 @@ export interface FretboardOptions {
     marks?: NoteMarks
     /** Only notes on these strings (indexes, lowest first): triads on a string set. */
     strings?: number[]
+    /**
+     * A capo on this fret: drawn as a bar, the strings sound from it (their names too), and a
+     * caption says "Capo N". `frets` and `cells` count from the capo unless `fretsFrom` is `nut`.
+     */
+    capo?: number
+    /**
+     * `capo` (default): frets count from the capo, which sits where the nut is drawn (inlays stay
+     * on the real neck's frets). `nut`: frets count from the nut, the capo is drawn on its fret
+     * and nothing behind it is shown.
+     */
+    fretsFrom?: 'capo' | 'nut'
 }
 
 const STRING_GAP = 20
@@ -41,6 +52,8 @@ const OPEN_W = 30
 /** Room beyond the low string, for the fret numbers. */
 const NUMBERS = 30
 const TITLE = 22
+/** Room under the neck for the caption (the capo). */
+const CAPTION = 18
 const SINGLE_INLAYS = new Set([3, 5, 7, 9, 15, 17, 19, 21])
 
 export function renderFretboard(
@@ -48,12 +61,21 @@ export function renderFretboard(
     set: NoteSet,
     options: FretboardOptions = {}
 ): SVGElement {
-    const tuning = options.tuning ?? STANDARD_TUNING
+    const given = options.tuning ?? STANDARD_TUNING
+    const capo = options.capo && options.capo > 0 ? options.capo : 0
+    // From the nut, the frets are the real neck's; from the capo, the strings sound from it.
+    const fromNut = capo > 0 && options.fretsFrom === 'nut'
+    const tuning = capo && !fromNut ? given.map((p) => p + capo) : given
+    // Every string's name is what it sounds with the capo on.
+    const names = given.map((p) => p + capo)
+    // Inlays sit on the real neck's frets.
+    const real = (fret: number) => fret + (fromNut ? 0 : capo)
+    const caption = capo ? `Capo ${capo}` : undefined
     const cells = options.cells
     const played = cells ? new Set(cells.map((c) => `${c.string}:${c.fret}`)) : null
     const [from, to] = cells?.length
         ? [Math.min(...cells.map((c) => c.fret)), Math.max(...cells.map((c) => c.fret))]
-        : (options.frets ?? [0, 12])
+        : (options.frets ?? (fromNut ? [capo, capo + 12] : [0, 12]))
     const first = Math.max(from, 1)
     const strings = tuning.length
     const label = options.label ?? 'notes'
@@ -72,20 +94,33 @@ export function renderFretboard(
         low: NUMBERS,
         high: 12,
         top: options.title ? TITLE : 0,
-        minWidth: titleWidth(options.title)
+        minWidth: Math.max(titleWidth(options.title), titleWidth(caption))
     })
     // Neck coordinates: strings across (lowest first), from the open strings along.
     const across = (string: number) => string * STRING_GAP
     const wire = (fret: number) => openW + (fret - first + 1) * FRET_W
     const center = (fret: number) => (fret === 0 ? OPEN_W / 2 : wire(fret) - FRET_W / 2)
 
+    const height = frame.height + (caption ? CAPTION : 0)
     const root = svgRoot(
         doc,
         frame.width,
-        frame.height,
+        height,
         'mn-fretboard',
-        `${options.title ?? `Fretboard: ${set.title}`}${describeMarks(set, options.marks)}`
+        `${options.title ?? `Fretboard: ${set.title}`}${caption ? `, ${caption.toLowerCase()}` : ''}${describeMarks(set, options.marks)}`
     )
+    if (caption) {
+        root.appendChild(
+            svgText(doc, caption, {
+                'class': 'mn-caption',
+                'x': frame.width / 2,
+                'y': height - 6,
+                'text-anchor': 'middle'
+            })
+        )
+        root.setAttribute('data-mn-capo', String(capo))
+        root.setAttribute('data-mn-frets-from', fromNut ? 'nut' : 'capo')
+    }
     if (options.title) {
         root.appendChild(
             svgText(doc, options.title, {
@@ -105,8 +140,8 @@ export function renderFretboard(
     // outer two on 4 strings or fewer).
     const pair = (strings > 4 ? 1.5 : 0.5) * STRING_GAP
     for (let fret = first; fret <= to; fret++) {
-        if (SINGLE_INLAYS.has(fret)) inlay(acrossLength / 2, fret)
-        if (fret % 12 === 0) {
+        if (SINGLE_INLAYS.has(real(fret))) inlay(acrossLength / 2, fret)
+        if (real(fret) % 12 === 0) {
             inlay(acrossLength - pair, fret)
             inlay(pair, fret)
         }
@@ -117,12 +152,29 @@ export function renderFretboard(
             doc,
             frame.at(acrossLength, openW),
             frame.at(0, openW),
-            first === 1 ? 'mn-nut' : 'mn-fret'
+            first === 1 && (!capo || fromNut) ? 'mn-nut' : 'mn-fret'
         )
     )
     for (let fret = first; fret <= to; fret++) {
         root.appendChild(
             svgLine(doc, frame.at(acrossLength, wire(fret)), frame.at(0, wire(fret)), 'mn-fret')
+        )
+    }
+    // The capo: where the nut is drawn (frets from the capo), or on its fret (from the nut).
+    const capoAt = fromNut
+        ? capo >= first && capo <= to
+            ? center(capo)
+            : null
+        : first === 1
+          ? openW
+          : null
+    if (capo && capoAt !== null) {
+        root.appendChild(
+            svg(doc, 'rect', {
+                class: 'mn-capo',
+                ...frame.box(-8, capoAt - 4, acrossLength + 8, capoAt + 4),
+                rx: 3
+            })
         )
     }
     // Highest string first, so the document reads top to bottom in the default orientation.
@@ -134,7 +186,7 @@ export function renderFretboard(
             svgLine(doc, frame.at(across(s), 0), frame.at(across(s), wire(to)), 'mn-string')
         )
         // Before the neck: above it when vertical, ending next to it when horizontal.
-        const name = nameOf(open, set.preferFlats)
+        const name = nameOf(names[s]!, set.preferFlats)
         root.appendChild(
             vertical
                 ? svgLabel(doc, name, frame.at(across(s), -10), 'mn-string-name')
@@ -151,7 +203,10 @@ export function renderFretboard(
             const [cx, cy] = point
             const member = memberOf(set, open + fret)
             const chroma = (open + fret) % 12
-            const hidden = options.strings !== undefined && !options.strings.includes(s)
+            // Nothing sounds behind the capo.
+            const hidden =
+                (options.strings !== undefined && !options.strings.includes(s)) ||
+                (fromNut && fret < capo)
             if (!member || hidden || (played && !played.has(`${s}:${fret}`))) {
                 // A parent scale's note missing here: a faint ring.
                 if (!member && !hidden && options.marks?.ghosts?.has(chroma)) {

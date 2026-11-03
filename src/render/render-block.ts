@@ -25,9 +25,11 @@ import {
     CAGED_SHAPES,
     neckPositions,
     numberingOf,
+    MAX_FRET,
     positionCount,
     relativeMinorOf
 } from '../fretboard/positions.js'
+import { capoTuning, parseCapo } from '../chord/capo.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import {
     fingerVoicing,
@@ -207,11 +209,16 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const tuningText = block.fields.get('tuning')
     // numbering: minor numbers a major pentatonic's positions from its relative minor.
     const numbering = numberingOf(block.fields.get('numbering'), set, system)
+    // With a capo, positions are found from it as if it were the nut (an invalid capo fails in
+    // the diagram); their frets count from it unless they count from the nut.
+    const capo = capoIn(block)
+    const shift = block.fields.get('frets-from')?.trim().toLowerCase() === 'nut' ? capo : 0
     const neck = neckPositions(
         set,
-        (tuningText && parseTuning(tuningText)) || STANDARD_TUNING,
+        capoTuning((tuningText && parseTuning(tuningText)) || STANDARD_TUNING, capo),
         system,
-        numbering
+        numbering,
+        MAX_FRET - capo
     )
     const numbered = numbering === 'minor' ? ['numbering: minor'] : []
     // Short, so the titles don't widen every diagram of the row.
@@ -219,7 +226,7 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const fretsOf = (n: number) => {
         const cells = neck[n - 1]
         if (!cells?.length) return []
-        const frets = cells.map((c) => c.fret)
+        const frets = cells.map((c) => c.fret + shift)
         return [`frets: ${Math.min(...frets)}-${Math.max(...frets)}`]
     }
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
@@ -249,6 +256,17 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
         return [`scale: ${scale}`, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
+}
+
+/** A block's capo fret (0 without one, or when it isn't valid: the diagram says so). */
+function capoIn(block: BlockSource): number {
+    const text = block.fields.get('capo')
+    if (!text?.trim()) return 0
+    try {
+        return parseCapo(text)
+    } catch {
+        return 0
+    }
 }
 
 /** Keys that choose which voicings `voicings:` draws; they don't reach the diagrams. */
@@ -406,7 +424,9 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const shared = SHARED_KEYS.chord
     const others = [...fields].filter(
         ([key]) =>
-            !VOICING_FILTERS.includes(key) && !['symbol', 'chord', 'name', 'title'].includes(key)
+            !VOICING_FILTERS.includes(key) &&
+            // The frets are found as played from the capo: frets-from is for frets you write.
+            !['symbol', 'chord', 'name', 'title', 'frets-from'].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -515,7 +535,18 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
     if (!diagrams.length) throw new Error('No triad fits on these strings: try another string set')
     const shared = SHARED_KEYS.chord
     const others = [...fields].filter(
-        ([key]) => !['triads', 'key', 'inversion', 'symbol', 'chord', 'name', 'title'].includes(key)
+        ([key]) =>
+            ![
+                'triads',
+                'key',
+                'inversion',
+                'symbol',
+                'chord',
+                'name',
+                'title',
+                // The frets are found as played from the capo: frets-from is for frets you write.
+                'frets-from'
+            ].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -612,8 +643,9 @@ function transitionParts(language: DiagramLanguage, source: string): string[] | 
         return chord.symbol
     }
     const shared = SHARED_KEYS.chord
+    // Held and found frets count from the capo, as played: frets-from doesn't apply.
     const header = [...fields]
-        .filter(([key]) => key === 'columns' || shared.includes(key))
+        .filter(([key]) => key === 'columns' || (shared.includes(key) && key !== 'frets-from'))
         .map(([key, v]) => `${key}: ${v}`)
     const diagram = (
         symbol: string,

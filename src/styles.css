@@ -335,6 +335,27 @@
     stroke: var(--mn-root);
 }
 
+/* A capo: a bar across the strings, in the text color but lighter than the dots. */
+.mn-svg .mn-capo {
+    fill: var(--mn-fg);
+    opacity: 0.55;
+}
+
+/* A string the capo plays (frets counted from the nut): a ring on the capo. */
+.mn-svg .mn-capo-open {
+    fill: var(--mn-bg);
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-capo-open.mn-root {
+    stroke: var(--mn-root);
+}
+
+.mn-svg .mn-caption {
+    fill: var(--mn-muted);
+}
+
 .mn-svg .mn-muted,
 .mn-svg .mn-base-fret,
 .mn-svg .mn-fret-number,

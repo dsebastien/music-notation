@@ -21,9 +21,20 @@ export {
     parseFingers,
     baseFretOf,
     STANDARD_TUNING,
+    capoCaption,
     type FrettedVoicing,
     type GuitarDiagramOptions
 } from './chord/guitar.js'
+export {
+    soundingChord,
+    soundsLike,
+    fretsFromCapo,
+    capoTuning,
+    parseCapo,
+    parseFretsFrom,
+    MAX_CAPO,
+    type FretsFrom
+} from './chord/capo.js'
 export {
     generateVoicings,
     fingerVoicing,

@@ -128,7 +128,9 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
         .sort((a, b) => a - b)
         .filter((midi) => !toGuitar || (midi >= 40 && midi <= 88))
     if (!pitches.length) return null
-    const chord = diagram.getAttribute('data-mn-chord')
+    // A shape played with a capo: the chord it sounds (an A shape with a capo on 2 is B).
+    const sounds = diagram.getAttribute('data-mn-sounds')
+    const chord = sounds ?? diagram.getAttribute('data-mn-chord')
     const named = diagram.getAttribute('data-mn-set')
     let set: NoteSet | null =
         (chord && chordNoteSet(chord)) ||
@@ -161,7 +163,10 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
         (set.root !== null || written === 'notes' || written === 'none')
             ? written
             : 'notes'
-    const title = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    const heading = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    // A piano plays what the guitar sounds: the title says which chord that is.
+    const title =
+        sounds && heading ? `${heading} (sounds ${sounds})` : (heading ?? sounds ?? undefined)
     // A fretboard and a keyboard share their orientation; a chord diagram's is its own.
     const orientation =
         diagram.getAttribute('data-mn-orientation') === 'vertical' ? 'vertical' : undefined

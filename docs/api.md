@@ -58,6 +58,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).
 - `transposeChord(symbol, semitones, preferFlats?)`, `transposeKey(key, semitones)`.
+- Capo: `renderGuitarDiagram` and `renderFretboard` take `capo` (a fret) and `fretsFrom` (`'capo'`, the default: frets count from the capo, drawn where the nut is; `'nut'`: the real neck); `renderGuitarDiagram` also takes `sounds` (the chord it sounds, for the caption). `soundingChord(shape, capo)` names the chord a shape sounds (`A` with a capo on 2 is `B`, spelled for its key), `soundsLike(chord, shape, capo)` checks one, `fretsFromCapo(frets, capo)` turns frets from the nut into frets from the capo, `capoTuning(tuning, capo)` gives what the open strings sound; `parseCapo`, `parseFretsFrom`, `capoCaption(capo, sounds?)`, `MAX_CAPO` (12).
 - `chordNoteSet(symbol)`, `scaleNoteSet(name)`, `listNoteSet(text, root?)`: the notes, root, degrees and intervals that keyboards and fretboards draw (a list's intervals count from `root`).
 
 ## Styles
