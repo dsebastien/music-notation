@@ -88,8 +88,6 @@ interface DiagramData {
     kind: PlayKind
     pitches: number[]
     sound: Sound
-    /** A scale's root (chroma), for runs from root to root. */
-    root: number | null
 }
 
 function dataOf(diagram: Element): DiagramData | null {
@@ -102,10 +100,7 @@ function dataOf(diagram: Element): DiagramData | null {
     return {
         kind: diagram.getAttribute('data-mn-play') === 'chord' ? 'chord' : 'scale',
         pitches,
-        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar',
-        root: Number.isInteger(Number(diagram.getAttribute('data-mn-root') ?? 'x'))
-            ? Number(diagram.getAttribute('data-mn-root'))
-            : null
+        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar'
     }
 }
 
@@ -265,7 +260,7 @@ function barFor(
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        playing = play(sequenceOf(data.kind, data.pitches, settings, data.root), () => {
+        playing = play(sequenceOf(data.kind, data.pitches, settings), () => {
             playing = null
             if (settings.loop && wrap.isConnected) start()
             else show()

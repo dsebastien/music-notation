@@ -228,7 +228,7 @@ describe('review fixes', () => {
         expect(performance.now() - start).toBeLessThan(500)
     })
 
-    test('a list with a root plays every note written, not root to root', () => {
+    test('a list with a root draws and checks', () => {
         const [report] = checkNote(
             'r.md',
             '```keyboard\nnotes: C4 E4 G4 C5 E5\nroot: C\n```\n',
@@ -236,8 +236,6 @@ describe('review fixes', () => {
         )
         expect(report!.status).toBe('ok')
         const host = document.createElement('div')
-        renderBlock('keyboard', 'notes: C4 E4 G4 C5 E5\nroot: C', host)
-        expect(host.querySelector('svg')!.hasAttribute('data-mn-root')).toBe(false)
         // An empty root: line is no root.
         expect(renderBlock('keyboard', 'notes: C E G\nroot:', host).ok).toBe(true)
     })

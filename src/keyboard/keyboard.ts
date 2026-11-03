@@ -200,7 +200,5 @@ export function renderKeyboard(
     root.setAttribute('data-mn-set', set.title)
     root.setAttribute('data-mn-labels', label)
     root.setAttribute('data-mn-orientation', vertical ? 'vertical' : 'horizontal')
-    // Playback runs a scale from root to root; a list (even with a root) plays every note written.
-    if (set.root !== null && !set.list) root.setAttribute('data-mn-root', String(set.root))
     return root
 }

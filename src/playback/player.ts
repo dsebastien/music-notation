@@ -42,15 +42,13 @@ export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 40 }
 const RING = 2.5
 
 /**
- * The notes a diagram plays: a chord strums low to high and rings; a scale goes up and back down
- * (the top note once), each note one beat long.
+ * The notes a diagram plays: a chord strums low to high and rings; a scale plays every note drawn,
+ * up and back down (the top note once), each note one beat long.
  */
 export function sequenceOf(
     kind: PlayKind,
     pitches: readonly number[],
-    options: SequenceOptions = DEFAULT_SEQUENCE,
-    /** A scale's root (chroma): the run goes from the lowest root to the highest one. */
-    root: number | null = null
+    options: SequenceOptions = DEFAULT_SEQUENCE
 ): NoteEvent[] {
     if (!pitches.length) return []
     if (kind === 'chord') {
@@ -64,12 +62,7 @@ export function sequenceOf(
     }
     const bpm = Number.isFinite(options.bpm) ? options.bpm : DEFAULT_SEQUENCE.bpm
     const beat = 60 / Math.min(240, Math.max(20, bpm))
-    let up = [...pitches].sort((a, b) => a - b)
-    if (root !== null) {
-        const roots = up.filter((p) => ((p % 12) + 12) % 12 === root)
-        if (roots.length >= 2)
-            up = up.filter((p) => p >= roots[0]! && p <= roots[roots.length - 1]!)
-    }
+    const up = [...pitches].sort((a, b) => a - b)
     const order = [...up, ...up.slice(0, -1).reverse()]
     return order.map((midi, i) => ({ midi, time: i * beat, duration: beat * 0.95 }))
 }

@@ -199,7 +199,5 @@ export function renderFretboard(
     root.setAttribute('data-mn-labels', label)
     root.setAttribute('data-mn-orientation', orientation)
     root.setAttribute('data-mn-frets', `${from}-${to}`)
-    // Playback runs a scale from root to root; a list (even with a root) plays every note written.
-    if (set.root !== null && !set.list) root.setAttribute('data-mn-root', String(set.root))
     return root
 }

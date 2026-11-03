@@ -101,16 +101,26 @@ describe('playback bar', () => {
         expect(calls[2]!.events).toEqual([{ midi: 64, time: 0, duration: 1.5 }])
     })
 
-    it('plays a fretboard as a scale, from root to root', () => {
+    it('plays every note of a fretboard box, up and back down', () => {
         const { player, calls } = recorder()
         const h = host()
         renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: { player } })
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         const midis = calls[0]!.events.map((e) => e.midi)
-        // From the lowest A to the highest A of the box, and back.
-        expect(midis[0]).toBe(45)
-        expect(Math.max(...midis)).toBe(69)
-        expect(midis.length).toBe(21)
+        // All 12 dots, from A2 to the top C5 (outside the roots), and back.
+        const up = [45, 48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72]
+        expect(midis).toEqual([...up, ...up.slice(0, -1).reverse()])
+    })
+
+    it('plays the dots outside the roots of a box', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 2', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const midis = calls[0]!.events.map((e) => e.midi)
+        // Box 2 has only two As (A3, A4): its 12 dots still all play.
+        expect(midis.slice(0, 12)).toEqual([48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74])
+        expect(midis.length).toBe(23)
     })
 
     it('uses a player given later through a function', () => {
