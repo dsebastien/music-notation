@@ -148,6 +148,27 @@ describe('followNotes', () => {
         expect(litOf(s)).toEqual(['60/'])
     })
 
+    it('lights a short note again when its start report comes after the fallback run ended', () => {
+        const { win, advance, pending } = fakeWindow()
+        const s = draw('keyboard', 'C major')
+        const events: NoteEvent[] = [{ midi: 60, time: 0, duration: 1.5 }]
+        const follower = followNotes(win, s, noteTargets(s, events, 'scale'), events)
+        advance(2000)
+        expect(litOf(s)).toEqual([])
+        expect(pending()).toBe(0)
+        // A soundfont that loaded slowly sounds the note now.
+        follower.heard()
+        expect(litOf(s)).toEqual(['60/'])
+        advance(1499)
+        expect(litOf(s)).toEqual(['60/'])
+        advance(2)
+        expect(litOf(s)).toEqual([])
+        expect(pending()).toBe(0)
+        // Only the first report counts.
+        follower.heard()
+        expect(litOf(s)).toEqual([])
+    })
+
     it('stops and clears once the diagram leaves the page', () => {
         const { win, advance, pending } = fakeWindow()
         const s = draw('keyboard', 'C major')

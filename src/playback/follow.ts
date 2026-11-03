@@ -78,7 +78,10 @@ export function noteTargets(
 }
 
 export interface Follower {
-    /** The notes started sounding now (a player's `onStart`); only the first call counts. */
+    /**
+     * The notes started sounding now (a player's `onStart`); only the first call counts, also
+     * after a run from the play call ended by itself, but not after `stop()`.
+     */
     heard(): void
     /** Unlights every note and cancels the timers. */
     stop(): void
@@ -103,6 +106,8 @@ export function followNotes(
     const lit = new Set<Element>()
     let origin: number | null = null
     let heard = false
+    // Stopped by the caller (or the drawing left the page): a late start report changes nothing.
+    // A run that ended by itself still lets the first report light the notes again.
     let stopped = false
     let timer: ReturnType<typeof win.setTimeout> | undefined
     let fallback: ReturnType<typeof win.setTimeout> | undefined
@@ -111,12 +116,15 @@ export function followNotes(
         for (const el of lit) el.classList.remove(PLAYING_CLASS)
         lit.clear()
     }
-    const stop = () => {
-        stopped = true
+    const end = () => {
         win.clearTimeout(timer)
         win.clearTimeout(fallback)
         timer = fallback = undefined
         clear()
+    }
+    const stop = () => {
+        stopped = true
+        end()
     }
     const tick = () => {
         timer = undefined
@@ -141,7 +149,7 @@ export function followNotes(
                 el.classList.add(PLAYING_CLASS)
                 lit.add(el)
             }
-        if (next === Infinity) return stop()
+        if (next === Infinity) return end()
         // A millisecond past the boundary, so the next tick lands on the far side of it.
         timer = win.setTimeout(tick, (next - t) * 1000 + 1)
     }
