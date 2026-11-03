@@ -55,7 +55,15 @@ describe('voiceLead', () => {
         expect(c).toEqual([60, 64, 67])
         expect(ce![0]).toBe(46)
         expect(ce!.slice(1)).toEqual([60, 64, 67])
-        expect(bad).toBeNull()
+        expect(bad).toBeNull() // A bass that is the chord's third or seventh isn't doubled above (G/B: no B over B2).
+        const [, gb] = voiceLead(['C', 'G/B', 'Am'])
+        expect(gb!.slice(1).some((p) => p % 12 === 11)).toBe(false)
+        expect(gb![0]! % 12).toBe(11)
+        const [, c7] = voiceLead(['F', 'C7/Bb'])
+        expect(c7!.slice(1).some((p) => p % 12 === 10)).toBe(false)
+        // A root or fifth bass stays in the chord above (C/G keeps its G).
+        const [, cg] = voiceLead(['F', 'C/G'])
+        expect(cg!.slice(1).some((p) => p % 12 === 7)).toBe(true)
     })
 
     it('voices a ii-V-I as the textbook does (#63)', () => {

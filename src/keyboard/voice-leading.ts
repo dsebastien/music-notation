@@ -103,8 +103,8 @@ function stacked(chromas: number[], first: number, low: number): number[] {
 /**
  * MIDI pitches for each chord, low to high: the first in root position nearest middle C, each next
  * one in the close-position inversion that moves least from the one before (see the module
- * comment), its lowest note within F3–G4. A slash chord's bass sounds below. Null for a chord that
- * doesn't read.
+ * comment), its lowest note within F3–G4. A slash chord's bass sounds below (its third or seventh
+ * not doubled in the chord). Null for a chord that doesn't read.
  */
 export function voiceLead(symbols: readonly string[]): (number[] | null)[] {
     let previous: number[] | null = null
@@ -113,9 +113,12 @@ export function voiceLead(symbols: readonly string[]): (number[] | null)[] {
         if (!set) return null
         const bassName = splitChordSymbol(symbol)?.bass
         const bass = bassName ? chromaOf(bassName) : null
-        // A bass outside the chord only sounds below it.
+        // A bass outside the chord only sounds below it; a bass that is the third or the seventh
+        // isn't doubled above (G/B: B2 under G3 D4), as pianoVoicing does. A root or fifth stays.
+        const doubled = (interval: string | null) =>
+            interval === null || interval.startsWith('3') || interval.startsWith('7')
         const tones = set.members
-            .filter((m) => !(bass !== null && m.chroma === bass && m.degree === null))
+            .filter((m) => !(bass !== null && m.chroma === bass && doubled(m.interval)))
             .map((m) => m.chroma)
         const candidates: Scored<number[]>[] = []
         for (let first = 0; first < (previous ? tones.length : 1); first++) {
