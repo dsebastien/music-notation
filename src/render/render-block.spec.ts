@@ -359,6 +359,44 @@ describe('rows after review', () => {
         expect(h.querySelectorAll('.mn-keyboard')).toHaveLength(2)
     })
 
+    it('shares piano voicing keys: a rootless ii-V-I', () => {
+        const h = host()
+        const result = renderBlock(
+            'chord',
+            'instrument: piano\nvoicing: rootless\noctave: 4\nhands: left+right\n---\nDm7\n---\nG7\n---\nCmaj7',
+            h
+        )
+        expect([result.ok, result.error]).toEqual([true, null])
+        const pitches = [...h.querySelectorAll('.mn-keyboard')].map((svg) =>
+            svg.getAttribute('data-mn-pitches')
+        )
+        // Rootless A on Dm7: F A C E; the same block with each key written per chord agrees.
+        const each = host()
+        renderBlock(
+            'chord',
+            ['Dm7', 'G7', 'Cmaj7']
+                .map(
+                    (c) =>
+                        `${c}\ninstrument: piano\nvoicing: rootless\noctave: 4\nhands: left+right`
+                )
+                .join('\n---\n'),
+            each
+        )
+        expect(pitches).toEqual(
+            [...each.querySelectorAll('.mn-keyboard')].map((svg) =>
+                svg.getAttribute('data-mn-pitches')
+            )
+        )
+        expect(pitches).toHaveLength(3)
+        expect(
+            renderBlock(
+                'chord',
+                'instrument: piano\ninversion: 1\nfingering: auto\n---\nC\n---\nF',
+                host()
+            ).ok
+        ).toBe(true)
+    })
+
     it('hints at the shareable keys when a first part meant as settings draws as a diagram', () => {
         const result = renderBlock('chord', 'tuning: DADGAD\ncolums: 2\n---\nG 320003', host())
         expect(result.error).toContain('shared settings before the first "---" may only hold')
