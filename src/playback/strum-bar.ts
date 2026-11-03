@@ -89,6 +89,9 @@ export function strumBarFor(
     drawing.parentNode?.insertBefore(wrap, drawing)
     wrap.appendChild(drawing)
     const bar = html(doc, 'div', 'mn-play')
+    // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
+    // click on the block, which opens its source.
+    bar.addEventListener('mousedown', (event) => event.stopPropagation())
     bar.setAttribute('role', 'group')
     bar.setAttribute('aria-label', 'Play the strumming pattern')
     wrap.appendChild(bar)

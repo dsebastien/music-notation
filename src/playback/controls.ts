@@ -266,6 +266,9 @@ function barFor(
     diagram.parentNode?.insertBefore(wrap, diagram)
     wrap.appendChild(diagram)
     const bar = html(doc, 'div', 'mn-play')
+    // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
+    // click on the block, which opens its source.
+    bar.addEventListener('mousedown', (event) => event.stopPropagation())
     bar.setAttribute('role', 'group')
     // Named after the diagram, so a page with many bars reads clearly.
     const name = accessibleName(diagram)

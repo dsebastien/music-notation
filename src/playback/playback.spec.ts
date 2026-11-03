@@ -443,6 +443,20 @@ describe('playback bar', () => {
     })
 })
 
+describe('the bar keeps its presses', () => {
+    it("doesn't let a press in the bar reach the page (an editor would open the block)", () => {
+        const h = document.body.appendChild(document.createElement('div'))
+        let reached = 0
+        h.addEventListener('mousedown', () => reached++)
+        renderBlock('chord', 'A x02220', h, { play: {} })
+        h.querySelector('.mn-play-toggle')!.dispatchEvent(new Event('mousedown', { bubbles: true }))
+        expect(reached).toBe(0)
+        h.querySelector('svg')!.dispatchEvent(new Event('mousedown', { bubbles: true }))
+        expect(reached).toBe(1)
+        h.remove()
+    })
+})
+
 describe('choosing the other instrument redraws the diagram', () => {
     const host = () => document.body.appendChild(document.createElement('div'))
     const choose = (h: HTMLElement, value: 'guitar' | 'piano') => {
