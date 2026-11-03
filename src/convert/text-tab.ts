@@ -1,13 +1,14 @@
 /**
  * Plain-text tabs (the kind pasted from the web) → alphaTex, so they draw and play as ```tab
- * blocks (#25, #37). Durations come from the spacing between columns (#66): a bar is a 4/4 bar,
- * and its beats sit on the coarsest grid (whole notes to sixteenths) their columns fit; else every
- * beat is an eighth. A bar split across two rows is joined, and a short first bar is a pickup
- * (#70). Techniques (bends, hammer-ons, pull-offs, slides, vibrato, dead notes, natural
- * harmonics, palm mute lines) become alphaTex effects. Guitar and bass tabs (strings named by
- * letter, by number, or not at all; short excerpts on the strings they show, one string on a
- * six-string guitar) and drum tabs (one line per drum: `HH|x-x-…`, `S |----o---`) are read; text
- * after a line's last bar line (`| let ring`) becomes an annotation.
+ * blocks (#25, #37). Durations come from the spacing between columns (#66): a bar is a bar of the
+ * meter the typical bars show (3/4, 6/8, 12/8, else 4/4), and its beats sit on the coarsest grid
+ * (whole notes to sixteenths) their columns fit; else every beat is an eighth. A bar split across
+ * two rows is joined, and a short first bar is a pickup (#70). Techniques (bends, hammer-ons,
+ * pull-offs, slides, vibrato, dead notes, natural harmonics, palm mute lines) become alphaTex
+ * effects. Guitar and bass tabs (strings named by letter, by number, or not at all; short
+ * excerpts on the strings they show, one string on a six-string guitar) and drum tabs (one line
+ * per drum: `HH|x-x-…`, `S |----o---`) are read; text after a line's last bar line
+ * (`| let ring`) becomes an annotation.
  */
 import { parseTuning } from '../fretboard/tuning.js'
 import { chromaOf, noteOf } from '../theory/pitch.js'
@@ -573,6 +574,7 @@ const drumBeatAt =
 
 /** Note values by length in sixteenths, longest first: sixteenths, alphaTex duration, dotted. */
 const VALUES: [number, number, boolean][] = [
+    [24, 1, true],
     [16, 1, false],
     [12, 2, true],
     [8, 2, false],
@@ -594,8 +596,25 @@ function valuesOf(sixteenths: number): { duration: number; dotted: boolean }[] {
     return out
 }
 
-/** The grids a 4/4 bar's beats may sit on, coarsest first: whole notes to sixteenths. */
-const GRIDS = [1, 2, 4, 8, 16]
+/**
+ * A meter: its time signature, a bar's and a beat's length in sixteenths, and the grids a bar's
+ * beats may sit on (divisions of the bar), coarsest first.
+ */
+export interface Meter {
+    ts: [number, number]
+    length: number
+    beat: number
+    grids: number[]
+}
+
+/** 4/4: whole notes to sixteenths. */
+const COMMON: Meter = { ts: [4, 4], length: 16, beat: 4, grids: [1, 2, 4, 8, 16] }
+/** 3/4: a dotted half, quarters, eighths, sixteenths. */
+const THREE_FOUR: Meter = { ts: [3, 4], length: 12, beat: 4, grids: [1, 3, 6, 12] }
+/** 6/8: a dotted half, dotted quarters, eighths, sixteenths. */
+const SIX_EIGHT: Meter = { ts: [6, 8], length: 12, beat: 6, grids: [1, 2, 6, 12] }
+/** 12/8: a dotted whole, dotted halves, dotted quarters, eighths, sixteenths. */
+const TWELVE_EIGHT: Meter = { ts: [12, 8], length: 24, beat: 6, grids: [1, 2, 4, 12, 24] }
 
 /**
  * True when beats `cols` apart keep their spacing at positions `at`: equal gaps the same length,
@@ -627,7 +646,8 @@ function fit(
     n: number,
     [origin, span]: [number, number],
     slack: number,
-    ties: boolean
+    ties: boolean,
+    bar: number
 ): { at: number[]; error: number } | null {
     const step = span / n
     // Ties only on a grid that falls on columns (a tab written a sixteenth a column, say).
@@ -639,25 +659,30 @@ function fit(
         const k = Math.round(exact)
         const off = Math.abs(exact - k) * step
         // A column off is 1.0000000000000004 off once divided and multiplied back.
-        if (k < 0 || k >= n || off > slack + 1e-9 || (at.length && k * (16 / n) <= at.at(-1)!))
+        if (k < 0 || k >= n || off > slack + 1e-9 || (at.length && k * (bar / n) <= at.at(-1)!))
             return null
         error = Math.max(error, off)
-        at.push(k * (16 / n))
+        at.push(k * (bar / n))
     }
-    if (!ties && at.some((p, i) => !PLAIN.has((at[i + 1] ?? 16) - p))) return null
+    if (!ties && at.some((p, i) => !PLAIN.has((at[i + 1] ?? bar) - p))) return null
     return keepsSpacing(cols, at) ? { at, error } : null
 }
 
 /**
  * Where a bar's beats fall, in sixteenths from its start, read from their columns (from the bar's
- * start), on the coarsest grid of a 4/4 bar (whole notes to sixteenths) that fits: first within
+ * start), on the coarsest grid of a bar of `meter` (4/4: whole notes to sixteenths) that fits: first within
  * 0.4 of a column and with plain note values, then within a column (a tab written a column off),
  * then on a grid that falls on columns, with ties. A grid step is a column wide at least, and
  * equal gaps get equal lengths. The bar runs from `pad` (the dashes every bar starts with) to
  * its end, or `pad` columns less; when the first beat comes later, from its start too (a rest
  * first). Null when nothing fits (a sketch, not a rhythm).
  */
-export function positionsOf(cols: number[], width: number, pad: number): number[] | null {
+export function positionsOf(
+    cols: number[],
+    width: number,
+    pad: number,
+    meter: Meter = COMMON
+): number[] | null {
     if (!cols.length) return []
     const spans: [number, number][] = [
         [pad, width - pad],
@@ -669,9 +694,9 @@ export function positionsOf(cols: number[], width: number, pad: number): number[
         [1, false],
         [0.4, true]
     ] as const)
-        for (const n of GRIDS) {
+        for (const n of meter.grids) {
             const fits = spans
-                .map((span) => fit(cols, n, span, slack, ties))
+                .map((span) => fit(cols, n, span, slack, ties, meter.length))
                 .filter((f) => f !== null)
             if (fits.length) return fits.reduce((a, b) => (b.error < a.error ? b : a)).at
         }
@@ -682,13 +707,17 @@ export function positionsOf(cols: number[], width: number, pad: number): number[
 export type Rhythm = { beat: number; sixteenths: number }[]
 
 /**
- * Rests from `at` sixteenths to `end` (the end of a 4/4 bar), showing the beats (r8 r4, not r4.).
+ * Rests from `at` sixteenths to `end` (the end of the bar), showing the beats: up to the next
+ * eighth, eighths up to the next beat, then a rest a beat long (two beats on the first or middle
+ * beat of a four-beat bar: r8 r4 r2 in 4/4, r8 r4. in 6/8).
  */
-function restsFrom(at: number, end = 16): Rhythm {
+function restsFrom(at: number, meter: Meter, end = meter.length): Rhythm {
     const out: Rhythm = []
+    const { beat, length: bar } = meter
     for (let p = at; p < end;) {
-        let length = p % 2 ? 1 : p % 4 ? 2 : p % 8 === 0 && p <= 8 ? 8 : 4
-        while (length > end - p) length /= 2
+        const half = bar === 4 * beat && p % (2 * beat) === 0 && p <= bar / 2 ? [2 * beat] : []
+        const lengths = p % 2 ? [1] : p % beat ? [2, 1] : [...half, beat, 2, 1]
+        const length = lengths.find((n) => n <= end - p)!
         out.push({ beat: -1, sixteenths: length })
         p += length
     }
@@ -698,10 +727,10 @@ function restsFrom(at: number, end = 16): Rhythm {
 /**
  * A bar's rhythm when no grid fits its columns (see positionsOf): the bar's most frequent gap
  * between beats is an eighth (a sixteenth when eighths overrun the bar), other gaps a whole number
- * of them (one at least), the last beat one, and rests fill the rest of the 4/4 bar. Every beat a
- * sixteenth when even that is too long.
+ * of them (one at least), the last beat one, and rests fill the rest of the bar (4/4 unless
+ * `meter` says). Every beat a sixteenth when even that is too long.
  */
-export function sketchRhythmOf(cols: number[]): Rhythm {
+export function sketchRhythmOf(cols: number[], meter: Meter = COMMON): Rhythm {
     const gaps = cols.slice(1).map((c, i) => c - cols[i]!)
     const counts = new Map<number, number>()
     for (const g of gaps) counts.set(g, (counts.get(g) ?? 0) + 1)
@@ -715,8 +744,11 @@ export function sketchRhythmOf(cols: number[]): Rhythm {
             (_, i) => eighth * (i < gaps.length ? Math.max(1, Math.round(gaps[i]! / unit!)) : 1)
         )
         const total = lengths.reduce((a, b) => a + b, 0)
-        if (total > 16) continue
-        return [...lengths.map((sixteenths, beat) => ({ beat, sixteenths })), ...restsFrom(total)]
+        if (total > meter.length) continue
+        return [
+            ...lengths.map((sixteenths, beat) => ({ beat, sixteenths })),
+            ...restsFrom(total, meter)
+        ]
     }
     return cols.map((_, beat) => ({ beat, sixteenths: 1 }))
 }
@@ -741,36 +773,40 @@ interface Measure {
  * A bar's rhythm from its columns (see positionsOf), else a sketch's (see sketchRhythmOf). The
  * start or end of a bar is placed in a bar of the tab's `typical` width.
  */
-function rhythmOf(m: Measure, typical: number): Rhythm {
+function rhythmOf(m: Measure, typical: number, meter: Meter): Rhythm {
+    const bar = meter.length
     const span = m.part === 'whole' ? m.width : typical
     const shift = m.part === 'end' ? typical - m.width : 0
     const cols = m.beats.map((b) => b.col + shift)
     if (m.part === 'start' && cols.length) {
         // A bar's start: its last beat lasts to the fragment's end, rests fill the bar.
-        const at = positionsOf([...cols, m.width], span, m.pad)
+        const at = positionsOf([...cols, m.width], span, m.pad, meter)
         if (at) {
             const end = at.pop()!
             const out: Rhythm = at[0]! > 0 ? [{ beat: -1, sixteenths: at[0]! }] : []
             at.forEach((p, beat) => out.push({ beat, sixteenths: (at[beat + 1] ?? end) - p }))
-            return [...out, ...restsFrom(end)]
+            return [...out, ...restsFrom(end, meter)]
         }
     }
-    const at = positionsOf(cols, span, m.pad)
+    const at = positionsOf(cols, span, m.pad, meter)
     if (!at) {
-        const sketch = sketchRhythmOf(m.beats.map((b) => b.col))
+        const sketch = sketchRhythmOf(
+            m.beats.map((b) => b.col),
+            meter
+        )
         if (m.part !== 'end') return sketch
         const notes = sketch.filter((e) => e.beat >= 0)
         const total = notes.reduce((sum, e) => sum + e.sixteenths, 0)
-        return m.pickup ? notes : [...restsFrom(0, 16 - total), ...notes]
+        return m.pickup ? notes : [...restsFrom(0, meter, bar - total), ...notes]
     }
     const first = at[0]!
     const out: Rhythm =
         first === 0 || m.pickup
             ? []
             : m.part === 'end'
-              ? restsFrom(0, first)
+              ? restsFrom(0, meter, first)
               : [{ beat: -1, sixteenths: first }]
-    at.forEach((p, beat) => out.push({ beat, sixteenths: (at[beat + 1] ?? 16) - p }))
+    at.forEach((p, beat) => out.push({ beat, sixteenths: (at[beat + 1] ?? bar) - p }))
     return out
 }
 
@@ -814,6 +850,78 @@ function typicalWidth(rows: Row[]): number | null {
     if (widths.length < 2) return null
     widths.sort((a, b) => a - b)
     return widths[widths.length >> 1]!
+}
+
+/** The most frequent of `values`, the smallest when two are as frequent; undefined when none. */
+function mostFrequent(values: number[]): { value: number; count: number } | undefined {
+    const counts = new Map<number, number>()
+    for (const v of values) counts.set(v, (counts.get(v) ?? 0) + 1)
+    let best: { value: number; count: number } | undefined
+    for (const [value, count] of counts)
+        if (!best || count > best.count || (count === best.count && value < best.value))
+            best = { value, count }
+    return best
+}
+
+/**
+ * The tab's meter, from its typical bars: a bar line on each side, notes, and the typical width
+ * (a column more or less). The narrowest gap between their beats at least half as frequent as
+ * the most frequent one is a unit; a bar holds as
+ * many units as fit its width (half a unit left over is no unit), or up to its last beat. When
+ * 2/3 of the typical bars, their beats on the units (within 0.4 column), hold the same count
+ * (two bars at least): 3 units are 3/4; 6 are 6/8, or 3/4 when more bars group them in twos than
+ * in threes (beats only on units 0 2 4 or 0 3, or bass notes, the lowest string's when it doesn't
+ * sound on every beat, so); 12 are 12/8. Else, or with any other count, 4/4.
+ */
+function meterOf(rows: Row[], typical: number | null): Meter {
+    if (typical === null) return COMMON
+    const bars: { bar: Bar; pad: number }[] = []
+    for (const row of rows)
+        row.bars.forEach((bar, i) => {
+            const closed = (i > 0 || !row.openStart) && (i < row.bars.length - 1 || !row.openEnd)
+            const width = bar.end - bar.start
+            if (closed && bar.beats.length && Math.abs(width - typical) <= 1)
+                bars.push({ bar, pad: row.pad })
+        })
+    const gaps = new Map<number, number>()
+    for (const { bar } of bars)
+        for (let i = 1; i < bar.beats.length; i++) {
+            const gap = bar.beats[i]!.col - bar.beats[i - 1]!.col
+            gaps.set(gap, (gaps.get(gap) ?? 0) + 1)
+        }
+    // The narrowest gap at least half as frequent as the most frequent one (a shuffle's eighths).
+    const top = Math.max(0, ...gaps.values())
+    const unit = Math.min(...[...gaps].filter(([, n]) => n * 2 >= top).map(([gap]) => gap))
+    if (bars.length < 2 || !Number.isFinite(unit)) return COMMON
+    const counts: number[] = []
+    /** Bars grouping six units in twos (3/4) and in threes (6/8). */
+    let twos = 0
+    let threes = 0
+    for (const { bar, pad } of bars) {
+        const exact = bar.beats.map((b) => (b.col - bar.start - pad) / unit)
+        if (exact.some((u) => Math.abs(u - Math.round(u)) * unit > 0.4 + 1e-9)) {
+            counts.push(0)
+            continue
+        }
+        const at = exact.map(Math.round)
+        const count = Math.max(Math.ceil((bar.end - bar.start - pad) / unit - 0.5), at.at(-1)! + 1)
+        counts.push(count)
+        if (count !== 6) continue
+        const lowest = bar.beats.reduce(
+            (low, b) => b.notes.reduce((l, n) => Math.max(l, n.string ?? 0), low),
+            0
+        )
+        const bass = at.filter((_, i) => bar.beats[i]!.notes.some((n) => n.string === lowest))
+        for (const group of [at, bass.length < at.length ? bass : []]) {
+            if (group.some((u) => u !== 0 && u % 2 === 0) && group.every((u) => u % 2 === 0)) twos++
+            else if (group.includes(3) && group.every((u) => u % 3 === 0)) threes++
+        }
+    }
+    const most = mostFrequent(counts)!
+    if (most.count * 3 < bars.length * 2) return COMMON
+    if (most.value === 3) return THREE_FOUR
+    if (most.value === 6) return twos > threes ? THREE_FOUR : SIX_EIGHT
+    return most.value === 12 ? TWELVE_EIGHT : COMMON
 }
 
 /**
@@ -941,11 +1049,15 @@ function tied(notes: TexNote[], pieces: number): TexNote[][] {
  * Bars as alphaTex: each beat its length (a length no note value has is tied to the rest of it),
  * a whole rest for an empty bar, annotations on the last beat that sounds.
  */
-function texOf(bars: TexBar[]): string {
+function texOf(bars: TexBar[], meter: Meter): string {
     let duration = 0
     const out = bars.map(({ beats, rhythm, text, pickup }) => {
         const items: { notes: TexNote[]; duration: number; dotted: boolean }[] = []
-        if (!beats.length) items.push({ notes: [], duration: 1, dotted: false })
+        if (!beats.length)
+            for (const value of meter === COMMON
+                ? [{ duration: 1, dotted: false }]
+                : valuesOf(meter.length))
+                items.push({ notes: [], ...value })
         for (const { beat, sixteenths } of rhythm) {
             const values = valuesOf(sixteenths)
             const notes = tied(beat >= 0 ? beats[beat]! : [], values.length)
@@ -997,17 +1109,24 @@ export function textTabToAlphaTex(text: string): string | null {
         }
     }
     const typical = typicalWidth(rows)
+    const meter = meterOf(rows, typical)
     const bars: TexBar[] = measuresOf(rows, typical).map((m) => ({
         beats: m.beats.map((b) => b.notes),
-        rhythm: rhythmOf(m, typical ?? 0),
+        rhythm: rhythmOf(m, typical ?? 0, meter),
         text: m.text,
         pickup: m.pickup
     }))
     if (!bars.length) return null
+    const ts = meter === COMMON ? [] : [`\\ts ${meter.ts.join(' ')}`]
     if (first.kind === 'drums')
-        return ['\\instrument percussion', '\\articulation defaults', texOf(bars)].join('\n')
+        return [
+            '\\instrument percussion',
+            '\\articulation defaults',
+            ...ts,
+            texOf(bars, meter)
+        ].join('\n')
     const standard = tuning?.join(' ') === BY_COUNT[6]!.join(' ')
     const header =
         tuning && !standard ? [`\\tuning (${tuning.map((m) => noteOf(m)).join(' ')})`] : []
-    return [...header, texOf(bars)].join('\n')
+    return [...header, ...ts, texOf(bars, meter)].join('\n')
 }
