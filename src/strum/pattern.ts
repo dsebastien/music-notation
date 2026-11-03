@@ -7,6 +7,7 @@
  * - one symbol per slot, with rests: `D - D U - U D U`, `D-DU-UDU`, `D . D U . U D U`;
  * - strums only, placed by the hand's motion (down on the beat, up between): `D DU UDU`,
  *   `DDUUDU`, `D D D D`, and `D-D-U-U-D-U` (dashes between strums as separators);
+ * - arrows for D and U: `↓ ↓↑ ↑↓↑`;
  * - a chord line above a pattern line (each chord starts on the slot below it), or `[G]` in the
  *   pattern; a line of counts (`1 & 2 & 3 & 4 &`) is skipped.
  */
@@ -58,10 +59,16 @@ const FIELD = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/
 const COUNTS = /^(?:\d+|&|\+|e|a|and|trip|let|ta)(?:\s+(?:\d+|&|\+|e|a|and|trip|let|ta))*$/i
 const isCountLine = (line: string) => /\d/.test(line) && COUNTS.test(line.trim())
 
-const STROKES: Record<string, Stroke> = { d: 'down', u: 'up', x: 'mute' }
+const STROKES: Record<string, Stroke> = {
+    'd': 'down',
+    'u': 'up',
+    'x': 'mute',
+    '↓': 'down',
+    '↑': 'up'
+}
 const RESTS = new Set(['-', '.', '_'])
 const HELP =
-    'write D (down), U (up), X (muted), - (no strum), > after a strum for an accent, (U) for a ghost strum, [G] for a chord change'
+    'write D or ↓ (down), U or ↑ (up), X (muted), - (no strum), > after a strum for an accent, (U) for a ghost strum, [G] for a chord change'
 
 const BOTH = 'A strum is either accented (D>) or a ghost strum ((D)), not both'
 
@@ -114,6 +121,8 @@ interface Unit {
     chord: string | null
     /** Column in its line. */
     column: number
+    /** Written at the start of a token (after a space or a bar line), not glued to a symbol. */
+    spaced: boolean
 }
 
 /** A run of units ended by `|` or the end of a line: one or more whole bars. */
@@ -144,12 +153,15 @@ function readLine(line: string, lineIndex: number): Segment[] {
     let accentNext = false
     let chordNext: string | null = null
     let previous: Unit | null = null
+    // A symbol was written since the last space or bar line.
+    let glued = false
     for (let i = 0; i < line.length; i++) {
         const c = line[i]!
         const units = segments[segments.length - 1]!.units
         const lower = c.toLowerCase()
         if (c === ' ' || c === '\t') {
             previous = null
+            glued = false
             continue
         }
         if (c === '[') {
@@ -164,6 +176,7 @@ function readLine(line: string, lineIndex: number): Segment[] {
             if (ghost) throw new Error('A bar line inside ( ): close the ghost strums first')
             if (units.length) segments.push({ units: [], line: lineIndex })
             previous = null
+            glued = false
             continue
         }
         if (c === '>') {
@@ -200,8 +213,10 @@ function readLine(line: string, lineIndex: number): Segment[] {
             accent: !isRest && accentNext,
             ghost: !isRest && ghost,
             chord: chordNext,
-            column: i
+            column: i,
+            spaced: !glued
         }
+        glued = true
         accentNext = false
         chordNext = null
         units.push(unit)
@@ -269,8 +284,10 @@ function place(segment: Segment, at: number, perBar: number, perBeat: number): P
     const slots: number[] = []
     const gaps: boolean[] = []
     for (const unit of strums) {
-        // Muted strums take the next slot, down or up (a chuck on the beat or between).
-        const gap = unit.stroke !== 'mute' && upAt(at) !== (unit.stroke === 'up')
+        // A muted strum glued to a strum (DX) takes the next slot, down or up (a chuck on the beat
+        // or between); written alone (D X D X), it's a down strum's motion, like D D D D.
+        const down = unit.stroke === 'down' || (unit.stroke === 'mute' && unit.spaced)
+        const gap = (unit.stroke !== 'mute' || unit.spaced) && upAt(at) === down
         if (gap) at++
         slots.push(at++)
         gaps.push(gap)

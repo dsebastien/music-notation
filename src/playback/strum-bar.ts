@@ -9,7 +9,7 @@ import { strumVoicing } from '../strum/voicing.js'
 import type { Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
-import { followNotes, START_WAIT } from './follow.js'
+import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
 
 const STROKES = new Set<Stroke>(['down', 'up', 'mute', 'rest'])
 
@@ -100,11 +100,22 @@ export function strumBarFor(
         const here = wrap.ownerDocument.defaultView ?? win
         const chosen = playerFor(here, options)
         return {
-            // Says when its notes start like the player it wraps (the light one does too).
-            reportsStart: chosen.reportsStart === true,
+            // Says when its notes start like the player it wraps (the light one does too), or
+            // once the player it wraps was seen saying it, here or on another bar.
+            reportsStart: startsReported(chosen),
             play(events: NoteEvent[], opts: Parameters<NotePlayer['play']>[1]) {
+                const onStart = opts.onStart
+                const given = onStart
+                    ? {
+                          ...opts,
+                          onStart: () => {
+                              sawStart(chosen)
+                              onStart()
+                          }
+                      }
+                    : opts
                 try {
-                    return chosen.play(events, opts)
+                    return chosen.play(events, given)
                 } catch {
                     return lightFor(here).play(events, opts)
                 }

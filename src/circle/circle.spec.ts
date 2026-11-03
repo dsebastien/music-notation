@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { renderBlock } from '../render/render-block.js'
-import type { NoteEvent, NotePlayer } from '../playback/player.js'
+import { sequenceOf, type NoteEvent, type NotePlayer } from '../playback/player.js'
+import { noteTargets } from '../playback/follow.js'
 import { chordPitches, pretty } from './circle.js'
 import { describeBlock } from '../cli/describe.js'
 
@@ -159,5 +160,64 @@ describe('circle helpers', () => {
         expect(chordPitches('F#')).toEqual([66, 70, 73])
         expect(chordPitches('G7')).toEqual([55, 59, 62, 65])
         expect(chordPitches('nope')).toEqual([])
+    })
+})
+
+describe('following the scale on the circle', () => {
+    // The bar plays the key's scale: each note lights its chord's cell and chip (the root's pitch
+    // class), never a chord outside the key or of another quality on the same root.
+    const lit = (key: string) => {
+        const h = host()
+        renderBlock('circle', `key: ${key}`, h)
+        const svg = h.querySelector('svg[data-mn-pitches]')!
+        const pitches = svg.getAttribute('data-mn-pitches')!.split(' ').map(Number)
+        const events = sequenceOf('scale', pitches)
+        return noteTargets(svg, events, 'scale').map((targets, i) => [
+            events[i]!.midi,
+            targets
+                .map(
+                    (el) =>
+                        `${el.getAttribute('class')!.split(' ')[0]}:${el.getAttribute('data-mn-chord')}`
+                )
+                .sort()
+                .join(' ')
+        ])
+    }
+
+    it('lights the key chord on each scale note', () => {
+        const c = lit('C')
+        expect(c.slice(0, 8)).toEqual([
+            [60, 'mn-circle-cell:C mn-circle-chip:C'],
+            [62, 'mn-circle-cell:Dm mn-circle-chip:Dm'],
+            [64, 'mn-circle-cell:Em mn-circle-chip:Em'],
+            [65, 'mn-circle-cell:F mn-circle-chip:F'],
+            [67, 'mn-circle-cell:G mn-circle-chip:G'],
+            [69, 'mn-circle-cell:Am mn-circle-chip:Am'],
+            [71, 'mn-circle-cell:Bdim mn-circle-chip:Bdim'],
+            [72, 'mn-circle-cell:C mn-circle-chip:C']
+        ])
+        // Down again, the same chords.
+        expect(c[14]).toEqual(c[0])
+    })
+
+    it('lights every note in other keys and modes', () => {
+        for (const key of ['G', 'F#', 'Bb', 'A minor', 'D dorian']) {
+            const notes = lit(key)
+            for (const [midi, targets] of notes) {
+                expect(`${key} ${midi}: ${(targets as string).split(' ').length}`).toBe(
+                    `${key} ${midi}: 2`
+                )
+            }
+        }
+        expect(lit('A minor')[0]).toEqual([69, 'mn-circle-cell:Am mn-circle-chip:Am'])
+    })
+
+    it('still plays a clicked cell outside the key', () => {
+        const h = host()
+        renderBlock('circle', 'key: C', h)
+        const ab = cell(h, 'major', 'Ab')!
+        expect(ab.getAttribute('data-midi')).toBe('56')
+        expect(ab.hasAttribute('data-mn-chroma')).toBe(false)
+        expect(cell(h, 'major', 'C')!.getAttribute('data-mn-chroma')).toBe('0')
     })
 })

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { renderBlock } from '../render/render-block.js'
 import type { NoteEvent, NotePlayer } from './player.js'
+import { START_WAIT } from './follow.js'
 
 const host = () => document.body.appendChild(document.createElement('div'))
 
@@ -75,5 +76,31 @@ describe('strum playback bar', () => {
         expect(lit()).toEqual(['0'])
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(lit()).toEqual([])
+    })
+
+    it('waits for the start of a player seen reporting it, even without reportsStart', async () => {
+        let start: (() => void) | undefined
+        const player: NotePlayer = {
+            play(_events, options) {
+                start = options.onStart
+                return { stop() {} }
+            }
+        }
+        const h = host()
+        renderBlock('strum', 'D - D U - U D U\ntempo: 60', h, { play: { player } })
+        const toggle = h.querySelector('.mn-play-toggle') as HTMLButtonElement
+        const lit = () =>
+            [...h.querySelectorAll('.mn-playing')].map((el) => el.getAttribute('data-mn-beat'))
+        toggle.click()
+        start!()
+        expect(lit()).toEqual(['0'])
+        toggle.click()
+        // Played again, nothing lights from the play call: the bar waits for the start report.
+        toggle.click()
+        await new Promise((resolve) => setTimeout(resolve, START_WAIT + 50))
+        expect(lit()).toEqual([])
+        start!()
+        expect(lit()).toEqual(['0'])
+        toggle.click()
     })
 })

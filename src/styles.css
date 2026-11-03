@@ -708,19 +708,6 @@
     stroke: none;
 }
 
-/* Following the notes: the dot, key or string mark that sounds while a diagram plays. Last in the
-   file and with enough specificity to win over root, characteristic and highlighted keys. */
-.mn-playable .mn-svg [data-midi].mn-playing {
-    fill: var(--mn-playing);
-    stroke: var(--mn-fg);
-    stroke-width: 2.5;
-}
-
-.mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
-.mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
-    fill: var(--mn-on-playing);
-}
-
 /* Following a strumming pattern: the slot that plays gets a band and its strum the playing
    color (the band keeps it visible for a muted strum and in any theme). */
 .mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-cell {
@@ -877,4 +864,21 @@
 .mn-svg .mn-circle-key-notes {
     font-size: 9px;
     fill: var(--mn-muted);
+}
+
+/* Following the notes: the dot, key or string mark that sounds while a diagram plays. Last in the
+   file and more specific than any other mark (a root, a characteristic note, a passing key), so
+   the playing color always wins. Most specific selector first: the tests' DOM (happy-dom) weighs
+   a selector list by its first match. */
+.mn-playable .mn-svg .mn-passing.mn-root[data-midi].mn-playing,
+.mn-playable .mn-svg .mn-passing[data-midi].mn-playing,
+.mn-playable .mn-svg [data-midi].mn-playing {
+    fill: var(--mn-playing);
+    stroke: var(--mn-fg);
+    stroke-width: 2.5;
+}
+
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
+    fill: var(--mn-on-playing);
 }

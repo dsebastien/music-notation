@@ -886,11 +886,12 @@ chord: Em</code></pre></div>
 Write the pattern the way you find it on the web. Each slot is one subdivision of the beat (an 8th by default):
 
 - One symbol a slot, with rests: `D - D U - U D U`, `D-DU-UDU`, `D . D U . U D U`.
-- Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same.
+- Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same. An `X` written alone moves like a down strum (`D X D X` is `D - X - D - X -`); glued after a strum, it takes the next slot (`D DX UDU` is `D - D X - U D U`).
+- Arrows: `↓ ↓↑ ↑↓↑` reads as `D DU UDU`.
 
 | Symbol      | Meaning                                                                    |
 | ----------- | -------------------------------------------------------------------------- |
-| `D` / `U`   | A down / up strum (any case).                                              |
+| `D` / `U`   | A down / up strum (any case). `↓` / `↑` work too.                          |
 | `X`         | A muted strum (a percussive chuck).                                        |
 | `-` `.` `_` | No strum: the hand moves but misses the strings.                           |
 | `D>`        | An accent: played louder. `>D` works too.                                  |

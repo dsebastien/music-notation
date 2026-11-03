@@ -3,7 +3,8 @@
  * chords on their leading tones, each key's signature, and a chosen key's diatonic chords marked
  * on the wheel with their numerals, its tonic and its IV and V neighbours set apart. A row of the
  * key's chords sits under the wheel. Keys and chords carry their notes (`data-midi`, the root,
- * and `data-mn-strum`, the chord) so playback can play them on a click.
+ * and `data-mn-strum`, the chord) so playback can play them on a click; the key's chords also
+ * carry their root's pitch class (`data-mn-chroma`) so they light while the scale plays.
  */
 import { Key } from 'tonal'
 import { svg, svgRoot, svgText } from '../render/dom.js'
@@ -189,7 +190,9 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
                 'd': slice(outer, inner, position, top),
                 'data-mn-chord': symbol,
                 'data-midi': pitches[0],
-                'data-mn-strum': pitches.join(' ')
+                'data-mn-strum': pitches.join(' '),
+                // A chord of the key lights while the scale plays its root.
+                'data-mn-chroma': chord && pitches.length ? pitches[0]! % 12 : undefined
             })
             const name = chord ? pretty(chord.symbol) : pretty(defaults[ring][position]!)
             const title = svg(doc, 'title')
@@ -271,7 +274,8 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
             'rx': 5,
             'data-mn-chord': chord.symbol,
             'data-midi': pitches[0],
-            'data-mn-strum': pitches.join(' ')
+            'data-mn-strum': pitches.join(' '),
+            'data-mn-chroma': pitches.length ? pitches[0]! % 12 : undefined
         })
         const tip = svg(doc, 'title')
         tip.textContent = `${chord.numeral}: ${pretty(chord.symbol)}`

@@ -40,6 +40,23 @@ describe('parseStrum: the ways patterns are written', () => {
         expect(written('D (D U) U - U D U')).toBe('D (D) (U) U - U D U')
     })
 
+    it('puts a muted strum written alone on the next down slot, one glued to a strum on the next slot', () => {
+        expect(written('D X D X')).toBe('D - X - D - X -')
+        expect(written('X X X X')).toBe('X - X - X - X -')
+        expect(written('D U X U')).toBe('D U X U - - - -')
+        expect(written('D DX UDU')).toBe('D - D X - U D U')
+        expect(written('DX DX')).toBe('D X D X - - - -')
+        expect(written('D [G]X')).toBe('D - [G]X - - - - -')
+        // Triplets: down, up, down in each beat; an X alone takes a down slot.
+        expect(written('D X X\nsubdivision: triplets')).toBe('D - X X - - - - - - - -')
+    })
+
+    it('reads arrows as down and up strums', () => {
+        expect(written('↓ ↓↑ ↑↓↑')).toBe('D - D U - U D U')
+        expect(written('↓ - ↓ ↑ - ↑ ↓ ↑')).toBe('D - D U - U D U')
+        expect(written('↓> (↑) X ↑ ↓ ↑ X ↑')).toBe('D> (U) X U D U X U')
+    })
+
     it('skips a line of counts', () => {
         expect(written('1 & 2 & 3 & 4 &\nD - D U - U D U')).toBe('D - D U - U D U')
         expect(written('D-DU-UDU\n1 + 2 + 3 + 4 +')).toBe('D - D U - U D U')
