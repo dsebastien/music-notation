@@ -3,11 +3,11 @@
  * blocks (#25, #37). Durations come from the spacing between columns (#66): a bar is a 4/4 bar,
  * and its beats sit on the coarsest grid (whole notes to sixteenths) their columns fit; else every
  * beat is an eighth. A bar split across two rows is joined, and a short first bar is a pickup
- * (#70). Techniques (bends, hammer-ons, pull-offs, slides, vibrato, dead notes,
- * natural harmonics, palm mute lines) become alphaTex effects. Guitar and bass tabs (strings named
- * by letter, by number, or not at all; short excerpts on the strings they show) and drum tabs (one
- * line per drum: `HH|x-x-…`, `S |----o---`) are read; text after a line's last bar line
- * (`| let ring`) becomes an annotation.
+ * (#70). Techniques (bends, hammer-ons, pull-offs, slides, vibrato, dead notes, natural
+ * harmonics, palm mute lines) become alphaTex effects. Guitar and bass tabs (strings named by
+ * letter, by number, or not at all; short excerpts on the strings they show, one string on a
+ * six-string guitar) and drum tabs (one line per drum: `HH|x-x-…`, `S |----o---`) are read; text
+ * after a line's last bar line (`| let ring`) becomes an annotation.
  */
 import { parseTuning } from '../fretboard/tuning.js'
 import { chromaOf, noteOf } from '../theory/pitch.js'
@@ -442,11 +442,12 @@ export function techniquesOf(body: string): StringLine {
 }
 
 /**
- * A column of a string system: its notes (string from 1, the highest), `x` a dead note, with the
- * effects `techniquesOf` found and palm mute (`pm`) in the muted ranges.
+ * A column of a string system: its notes (string from 1, the highest, or line `i`'s string
+ * `numbers[i]`), `x` a dead note, with the effects `techniquesOf` found and palm mute (`pm`) in
+ * the muted ranges.
  */
 const stringBeatAt =
-    (lines: StringLine[], muted: Set<number>) =>
+    (lines: StringLine[], muted: Set<number>, numbers: number[] = []) =>
     (padded: string[], col: number): { beat: TexNote[]; skip: number; at: number } => {
         const beat: TexNote[] = []
         const strings = new Set<number>()
@@ -458,7 +459,7 @@ const stringBeatAt =
             const c = padded[i]![at]
             const pm = muted.has(at) ? ['pm'] : []
             if (c === 'x' || c === 'X') {
-                beat.push({ tex: `x.${i + 1}`, effects: pm })
+                beat.push({ tex: `x.${numbers[i] ?? i + 1}`, effects: pm })
                 strings.add(i)
                 return
             }
@@ -467,9 +468,9 @@ const stringBeatAt =
             if (note.width === 2 && at === col) wide = true
             if (padded[i]![at - 1] === '<') start = Math.min(start, at - 1)
             beat.push({
-                tex: `${note.fret}.${i + 1}`,
+                tex: `${note.fret}.${numbers[i] ?? i + 1}`,
                 effects: [...(lines[i]!.effects.get(at) ?? []), ...pm],
-                string: i + 1
+                string: numbers[i] ?? i + 1
             })
             strings.add(i)
         }
@@ -536,6 +537,24 @@ function tuningOf(names: (string | null)[]): number[] | null {
         if (tuning) return tuning.reverse()
     }
     return BY_COUNT[strings] ?? null
+}
+
+/**
+ * A six-string guitar with a lone string on it (as MIDI): standard tuning, the string where a
+ * standard guitar has it, else in place of the nearest one. The tuning, highest first, and the
+ * string's number.
+ */
+function onGuitar(midi: number): { tuning: number[]; string: number } {
+    const tuning = [...BY_COUNT[6]!]
+    let index = tuning.indexOf(midi)
+    if (index < 0) {
+        index = tuning.reduce(
+            (best, m, i) => (Math.abs(m - midi) < Math.abs(tuning[best]! - midi) ? i : best),
+            0
+        )
+        tuning[index] = midi
+    }
+    return { tuning, string: index + 1 }
 }
 
 /** A column of a drum system: its hits, as alphaTex notes. */
@@ -959,6 +978,10 @@ export function textTabToAlphaTex(text: string): string | null {
     const systems = systemsOf(text)
     const first = systems[0]
     if (!first) return null
+    let tuning = first.kind === 'strings' ? tuningOf(first.names) : null
+    // alphaTab draws no staff for one string: a lone string goes on a six-string guitar.
+    const lone = tuning?.length === 1 ? onGuitar(tuning[0]!) : null
+    if (lone) tuning = lone.tuning
     const rows: Row[] = []
     if (first.kind === 'drums') {
         for (const s of systems)
@@ -966,9 +989,10 @@ export function textTabToAlphaTex(text: string): string | null {
                 rows.push(rowOf(s.lines, barsOf(s.lines, drumBeatAt(s.drums)), s.texts, false))
     } else {
         const same = JSON.stringify(tuningOf(first.names))
+        const strings = lone ? [lone.string] : []
         for (const s of systems) {
             if (s.kind !== 'strings' || JSON.stringify(tuningOf(s.names)) !== same) continue
-            const beatAt = stringBeatAt(s.lines.map(techniquesOf), s.muted)
+            const beatAt = stringBeatAt(s.lines.map(techniquesOf), s.muted, strings)
             rows.push(rowOf(s.lines, barsOf(s.lines, beatAt), s.texts, s.openStart))
         }
     }
@@ -982,7 +1006,6 @@ export function textTabToAlphaTex(text: string): string | null {
     if (!bars.length) return null
     if (first.kind === 'drums')
         return ['\\instrument percussion', '\\articulation defaults', texOf(bars)].join('\n')
-    const tuning = tuningOf(first.names)
     const standard = tuning?.join(' ') === BY_COUNT[6]!.join(' ')
     const header =
         tuning && !standard ? [`\\tuning (${tuning.map((m) => noteOf(m)).join(' ')})`] : []
