@@ -211,8 +211,11 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
             '\\tuning (E4 B3 G3 D3)\n:8 7.4 5.3 5.2 5.1 5.2 5.3 :4 r'
         )
         expect(textTabToAlphaTex('A|--0--|\nE|--3--|')).toContain('\\tuning (A2 E2)')
-        expect(textTabToAlphaTex('e|--0--|')).toContain('\\tuning (E4)')
-        expect(textTabToAlphaTex('E|--0--|')).toContain('\\tuning (E2)')
+        // One string: on a six-string guitar (alphaTab draws no staff for one string).
+        expect(textTabToAlphaTex('e|--0--|')).toBe(':1 0.1')
+        expect(textTabToAlphaTex('E|--0--|')).toBe(':1 0.6')
+        expect(textTabToAlphaTex('C|--3--|')).toBe('\\tuning (E4 B3 G3 C3 A2 E2)\n:1 3.4')
+        expect(load(textTabToAlphaTex('A|--3--|')!).tracks[0]!.staves[0]!.tuning).toHaveLength(6)
         // Three unnamed lines: the guitar's three highest strings.
         expect(textTabToAlphaTex('|--0--|\n|--1--|\n|--0--|')).toBe(
             '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3)'
@@ -227,13 +230,11 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         const tex = textTabToAlphaTex(SAMPLES.letRing)!
         expect(tex).toBe(':1 (0.1 1.2 0.3 2.4 3.5){txt "let ring"}')
         expect(load(tex).tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[0]!.text).toBe('let ring')
-        expect(textTabToAlphaTex(SAMPLES.riff)).toBe('\\tuning (A2)\n:4 0.1 3.1 :2 5.1{txt "x2"}')
-        expect(textTabToAlphaTex('e|------| say "hi"')).toBe(
-            '\\tuning (E4)\n:1 r{txt "say \\"hi\\""}'
-        )
+        expect(textTabToAlphaTex(SAMPLES.riff)).toBe(':4 0.5 3.5 :2 5.5{txt "x2"}')
+        expect(textTabToAlphaTex('e|------| say "hi"')).toBe(':1 r{txt "say \\"hi\\""}')
         expect(load(textTabToAlphaTex('e|------| say "hi"')!)).toBeTruthy()
         // Frets right after the last bar line are music, not text.
-        expect(textTabToAlphaTex('e|--0--|--3--')).toBe('\\tuning (E4)\n:1 0.1 |\n3.1')
+        expect(textTabToAlphaTex('e|--0--|--3--')).toBe(':1 0.1 |\n3.1')
     })
 
     it('reads text with dashes or without a space as an annotation, keeping the string', () => {
@@ -256,7 +257,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         )
         expect(textTabToAlphaTex('e|--0--|2x\nB|--1--|\nG|--0--|')).toContain('{txt "2x"}')
         // Music after the last bar line stays music, harmonics too.
-        expect(textTabToAlphaTex('e|--0--|--<12>--')).toBe('\\tuning (E4)\n:1 0.1 |\n12.1{nh}')
+        expect(textTabToAlphaTex('e|--0--|--<12>--')).toBe(':1 0.1 |\n12.1{nh}')
     })
 
     it('loads every sample in alphaTab', () => {
@@ -401,10 +402,10 @@ describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
     it('ties a length no note value has, and moves a pull-off to the tie', () => {
         // 5 sixteenths, 1, 10: a quarter tied to a sixteenth, a sixteenth, a half tied to an eighth.
         const tex = textTabToAlphaTex('E|0----00---------|')!
-        expect(tex).toBe('\\tuning (E2)\n:4 0.1 :16 -.1 0.1 :2 0.1 :8 -.1')
+        expect(tex).toBe(':4 0.6 :16 -.6 0.6 :2 0.6 :8 -.6')
         expect(rhythmOf(tex)).toBe('4 16~ 16 2 8~')
         const pull = textTabToAlphaTex('B|-8b10r8p56------|')!
-        expect(pull).toBe('\\tuning (B3)\n:4 8.1{b (0 4 0) d} :16 -.1{h} 5.1 :2 6.1')
+        expect(pull).toBe(':4 8.2{b (0 4 0) d} :16 -.2{h} 5.2 :2 6.2')
         expect(
             notesOf(pull).map((n) => [n.fret, n.isTieDestination, n.isHammerPullOrigin])
         ).toEqual([
@@ -417,7 +418,7 @@ describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
 
     it('keeps even notes even when the spacing fits no grid, eighths filling the bar', () => {
         // Evenly spaced, the bar a little short: quarters. Unevenly: eighths, then rests.
-        expect(textTabToAlphaTex('e|--5--8--5--8-|')).toBe('\\tuning (E4)\n:4 5.1 8.1 5.1 8.1')
+        expect(textTabToAlphaTex('e|--5--8--5--8-|')).toBe(':4 5.1 8.1 5.1 8.1')
         expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3 :4 r')
         // Five even notes: five eighths, rests on the beats to the end of the 4/4 bar.
         expect(rhythmOf(textTabToAlphaTex('A|-0-0-0-0-0--|')!)).toBe('8 8 8 8 8 r8 r4')
@@ -451,7 +452,7 @@ describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
     it('fits a beat exactly a column off (no rounding error)', () => {
         // Columns 1 and 9 of 19: 1.0000000000000004 columns off the half-note grid.
         expect(positionsOf([1, 9], 19, 1)).toEqual([0, 8])
-        expect(textTabToAlphaTex('A|-3-------3---------|')).toBe('\\tuning (A2)\n:2 3.1 3.1')
+        expect(textTabToAlphaTex('A|-3-------3---------|')).toBe(':2 3.5 3.5')
     })
 })
 
@@ -478,14 +479,14 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
 
     it('bends a half tone, a whole tone by default, and to a target in parentheses', () => {
         expect(textTabToAlphaTex('e|--7b8--7b--7b(9)-|')).toBe(
-            '\\tuning (E4)\n:4 7.1{b (0 2)} 7.1{b (0 4)} :2 7.1{b (0 4)}'
+            ':4 7.1{b (0 2)} 7.1{b (0 4)} :2 7.1{b (0 4)}'
         )
-        expect(textTabToAlphaTex('G|-7b9r-----------|')).toBe('\\tuning (G3)\n:1 7.1{b (0 4 0)}')
+        expect(textTabToAlphaTex('G|-7b9r-----------|')).toBe(':1 7.3{b (0 4 0)}')
     })
 
     it('slides in and out', () => {
         const tex = textTabToAlphaTex('A|-/5---5\\-\\7---7/|')!
-        expect(tex).toBe('\\tuning (A2)\n:4 5.1{sib} 5.1{sod} 7.1{sia} 7.1{sou}')
+        expect(tex).toBe(':4 5.5{sib} 5.5{sod} 7.5{sia} 7.5{sou}')
         expect(notesOf(tex).map((n) => [n.slideInType, n.slideOutType])).toEqual([
             [alphaTab.model.SlideInType.IntoFromBelow, alphaTab.model.SlideOutType.None],
             [alphaTab.model.SlideInType.None, alphaTab.model.SlideOutType.OutDown],
@@ -566,6 +567,151 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
         textTabToAlphaTex(`${'PM'.repeat(25_000)}\ne|${'0-'.repeat(25_000)}|`)
         textTabToAlphaTex(`e|${'<1>'.repeat(20_000)}|\nB|${'5h'.repeat(25_000)}|`)
         expect(performance.now() - start).toBeLessThan(1000)
+    })
+})
+
+/** Two-string rows (e and B), one per item, a blank line between them. */
+const rows = (...items: [string, string][]) => items.map(([e, b]) => `e${e}\nB${b}`).join('\n\n')
+
+describe('textTabToAlphaTex, bars split across rows (#70)', () => {
+    // Nothing Else Matters, intro (Ultimate Guitar tab 54340): the fourth bar starts at the end of
+    // the first row and ends at the start of the second.
+    const nem = [
+        'e|------0----|------0----|------0----|----',
+        'B|----0---0--|----0---0--|----0---0--|----',
+        'G|--0-------0|--0-------0|--0-------0|--0-',
+        'D|-----------|-----------|-----------|----',
+        'A|-----------|-----------|-----------|----',
+        'E|0----------|0----------|0----------|0---',
+        '',
+        'e|--0---7|7-----7p0----|',
+        'B|0---0--|--0---0---0--|',
+        'G|-------|----0-------0|',
+        'D|-------|-------------|',
+        'A|-------|-------------|',
+        'E|-------|0------------|'
+    ].join('\n')
+
+    it("joins a fragment at the end of a row to the next row's first bar", () => {
+        const tex = textTabToAlphaTex(nem)!
+        const bars = tex.split(' |\n')
+        expect(bars).toHaveLength(5)
+        expect(bars[3]).toBe(':8 0.6 0.3 0.2 0.1 0.2 7.1 :4 r')
+        // The joined bar has the rhythm of the full bars before it.
+        const rhythm = rhythmOf(tex).split(' | ')
+        expect(rhythm[3]).toBe(rhythm[0])
+        expect(rhythm[3]).toBe('8 8 8 8 8 8 r4')
+    })
+
+    it("joins a fragment before a row's first bar line to the bar before it", () => {
+        const tex = textTabToAlphaTex(
+            rows(
+                ['|0---0---0---0---|0---0---|', '|----------------|--------|'],
+                [' 0---0---|0---0---0---0---|', ' --------|----------------|']
+            )
+        )
+        expect(tex).toBe(
+            '\\tuning (E4 B3)\n:4 0.1 0.1 0.1 0.1 |\n0.1 0.1 0.1 0.1 |\n0.1 0.1 0.1 0.1'
+        )
+        // Bar lines on both sides: joined when both are fragments and make a bar together.
+        expect(
+            textTabToAlphaTex(
+                rows(
+                    ['|0---0---0---0---|0---0---|', '|----------------|--------|'],
+                    ['|0---0---|0---0---0---0---|', '|--------|----------------|']
+                )
+            )
+        ).toBe(tex)
+    })
+
+    it('makes a short first bar a pickup bar', () => {
+        const bar = '3---3---3---3---'
+        const closed = textTabToAlphaTex(
+            rows([`|-----0-2-|${bar}|${bar}|`, `|---------|${'-'.repeat(16)}|${'-'.repeat(16)}|`])
+        )!
+        expect(closed).toBe(
+            '\\tuning (E4 B3)\n\\ac :8 0.1 2.1 |\n:4 3.1 3.1 3.1 3.1 |\n3.1 3.1 3.1 3.1'
+        )
+        const score = load(closed)
+        expect(score.masterBars[0]!.isAnacrusis).toBe(true)
+        expect(score.masterBars[1]!.isAnacrusis).toBe(false)
+        // Without a bar line before it, the same.
+        expect(
+            textTabToAlphaTex(
+                rows([` ----0-2-|${bar}|${bar}|`, ` --------|${'-'.repeat(16)}|${'-'.repeat(16)}|`])
+            )
+        ).toBe(closed)
+    })
+
+    it('places a fragment that joins nothing in a bar of the typical width', () => {
+        const full = '0---0---0---0---'
+        const none = '-'.repeat(16)
+        // A pickup into the next bar, after a full bar: rests, then the note.
+        expect(
+            rhythmOf(
+                textTabToAlphaTex(
+                    rows(
+                        [`|${full}|${full}|`, `|${none}|${none}|`],
+                        [` ------3-|${full}|`, ` --------|${none}|`]
+                    )
+                )!
+            )
+        ).toBe('4 4 4 4 | 4 4 4 4 | r2 r4 r8 8 | 4 4 4 4')
+        // The tab's last bar cut short: its notes keep their length, rests fill the bar.
+        expect(
+            rhythmOf(
+                textTabToAlphaTex(rows([`|${full}|${full}|0---0---`, `|${none}|${none}|--------`]))!
+            )
+        ).toBe('4 4 4 4 | 4 4 4 4 | 4 4 r2')
+        // A few dashes after the last bar line are no bar.
+        expect(textTabToAlphaTex(rows([`|${full}|${full}|--`, `|${none}|${none}|--`]))).toBe(
+            textTabToAlphaTex(rows([`|${full}|${full}|`, `|${none}|${none}|`]))
+        )
+    })
+
+    it('keeps short bars that are not fragments as they are', () => {
+        const full = '0---0---0---0---'
+        const none = '-'.repeat(16)
+        // A short bar in a row, and one ending a row followed by a full bar, bar lines on both sides.
+        expect(
+            rhythmOf(
+                textTabToAlphaTex(
+                    rows(
+                        [
+                            `|${full}|0---0---|${full}|0-0-0-0-|`,
+                            `|${none}|--------|${none}|--------|`
+                        ],
+                        [`|${full}|`, `|${none}|`]
+                    )
+                )!
+            )
+        ).toBe('4 4 4 4 | 2 2 | 4 4 4 4 | 4 4 4 4 | 4 4 4 4')
+        // Without two bars between bar lines, there is no typical width: nothing is joined.
+        expect(textTabToAlphaTex(rows(['|--0--|--3--', '|-----|-----']))).toBe(
+            '\\tuning (E4 B3)\n:1 0.1 |\n3.1'
+        )
+    })
+
+    it('joins bars across many rows in linear time', () => {
+        const start = performance.now()
+        const row = rows(['|0---0---0---0---|0---', '|----------------|----'])
+        const next = rows(['|0---0---0---|', '|------------|'])
+        const tex = textTabToAlphaTex(Array(5_000).fill(`${row}\n\n${next}`).join('\n\n'))!
+        expect(tex.split('|')).toHaveLength(10_000)
+        expect(performance.now() - start).toBeLessThan(1000)
+    })
+
+    it('joins drum bars split across rows', () => {
+        const tex = textTabToAlphaTex(
+            [
+                'HH|x-x-x-x-x-x-x-x-|x-x-',
+                ' S|----o-------o---|----',
+                '',
+                'HH|x-x-x-x-x-x-|',
+                ' S|o-------o---|'
+            ].join('\n')
+        )!
+        expect(rhythmOf(tex)).toBe('8 8 8 8 8 8 8 8 | 8 8 8 8 8 8 8 8')
     })
 })
 

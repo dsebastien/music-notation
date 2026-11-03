@@ -2,11 +2,12 @@
  * Plain-text tabs (the kind pasted from the web) → alphaTex, so they draw and play as ```tab
  * blocks (#25, #37). Durations come from the spacing between columns (#66): a bar is a 4/4 bar,
  * and its beats sit on the coarsest grid (whole notes to sixteenths) their columns fit; else every
- * beat is an eighth. Techniques (bends, hammer-ons, pull-offs, slides, vibrato, dead notes,
- * natural harmonics, palm mute lines) become alphaTex effects. Guitar and bass tabs (strings named
- * by letter, by number, or not at all; short excerpts on the strings they show) and drum tabs (one
- * line per drum: `HH|x-x-…`, `S |----o---`) are read; text after a line's last bar line
- * (`| let ring`) becomes an annotation.
+ * beat is an eighth. A bar split across two rows is joined, and a short first bar is a pickup
+ * (#70). Techniques (bends, hammer-ons, pull-offs, slides, vibrato, dead notes, natural
+ * harmonics, palm mute lines) become alphaTex effects. Guitar and bass tabs (strings named by
+ * letter, by number, or not at all; short excerpts on the strings they show, one string on a
+ * six-string guitar) and drum tabs (one line per drum: `HH|x-x-…`, `S |----o---`) are read; text
+ * after a line's last bar line (`| let ring`) becomes an annotation.
  */
 import { parseTuning } from '../fretboard/tuning.js'
 import { chromaOf, noteOf } from '../theory/pitch.js'
@@ -101,8 +102,11 @@ function articulationOf(drum: Drum, hit: string): string {
 const effectOf = (hit: string) => (hit === 'X' || hit === 'O' ? ['ac'] : hit === 'g' ? ['g'] : [])
 
 interface TabLine {
-    /** As a string line: its name (letter or number), what follows it, and where that starts. */
-    string: { name: string | null; body: string; offset: number } | null
+    /**
+     * As a string line: its name (letter or number), what follows it, where that starts, and
+     * whether a bar line comes before it (`e|`, not `e`).
+     */
+    string: { name: string | null; body: string; offset: number; barred: boolean } | null
     /** As a drum line: the drum and what follows its name. */
     drum: { drum: Drum; name: string; body: string; lettered: boolean } | null
     /** Text after the last bar line. */
@@ -141,7 +145,7 @@ function tabLineOf(raw: string): TabLine | null {
         (line.match(/-/g)?.length ?? 0) >= 4 &&
         (line.includes('|') || /^\s*[A-Ga-g][#b]?\s*[-|:]/.test(line))
     )
-        string = { name: m[1] ?? null, body, offset: m[0].length }
+        string = { name: m[1] ?? null, body, offset: m[0].length, barred: /[|:]$/.test(m[0]) }
     let drum: TabLine['drum'] = null
     const d = DRUM_LINE.exec(line)
     const name = d ? d[1]!.toLowerCase().replace(/[ .-]/g, '') : ''
@@ -159,6 +163,8 @@ type System =
           texts: string[]
           /** Palm-muted columns (in the lines' columns), from a PM line above. */
           muted: Set<number>
+          /** True when no bar line comes before its first bar (`e ---3|5---`). */
+          openStart: boolean
       }
     | { kind: 'drums'; drums: Drum[]; lines: string[]; texts: string[] }
 
@@ -238,7 +244,8 @@ function stringSystems(run: TabLine[], above: string | null = null): System[] {
         if (index === 0 && above !== null)
             for (const [a, b] of palmMutesOf(above))
                 for (let col = Math.max(a, offset); col <= b; col++) muted.add(col - offset)
-        return [{ kind: 'strings', names, lines, texts: textsOf(part), muted }]
+        const openStart = part.some((l) => !l.string!.barred)
+        return [{ kind: 'strings', names, lines, texts: textsOf(part), muted, openStart }]
     })
 }
 
@@ -435,11 +442,12 @@ export function techniquesOf(body: string): StringLine {
 }
 
 /**
- * A column of a string system: its notes (string from 1, the highest), `x` a dead note, with the
- * effects `techniquesOf` found and palm mute (`pm`) in the muted ranges.
+ * A column of a string system: its notes (string from 1, the highest, or line `i`'s string
+ * `numbers[i]`), `x` a dead note, with the effects `techniquesOf` found and palm mute (`pm`) in
+ * the muted ranges.
  */
 const stringBeatAt =
-    (lines: StringLine[], muted: Set<number>) =>
+    (lines: StringLine[], muted: Set<number>, numbers: number[] = []) =>
     (padded: string[], col: number): { beat: TexNote[]; skip: number; at: number } => {
         const beat: TexNote[] = []
         const strings = new Set<number>()
@@ -451,7 +459,7 @@ const stringBeatAt =
             const c = padded[i]![at]
             const pm = muted.has(at) ? ['pm'] : []
             if (c === 'x' || c === 'X') {
-                beat.push({ tex: `x.${i + 1}`, effects: pm })
+                beat.push({ tex: `x.${numbers[i] ?? i + 1}`, effects: pm })
                 strings.add(i)
                 return
             }
@@ -460,9 +468,9 @@ const stringBeatAt =
             if (note.width === 2 && at === col) wide = true
             if (padded[i]![at - 1] === '<') start = Math.min(start, at - 1)
             beat.push({
-                tex: `${note.fret}.${i + 1}`,
+                tex: `${note.fret}.${numbers[i] ?? i + 1}`,
                 effects: [...(lines[i]!.effects.get(at) ?? []), ...pm],
-                string: i + 1
+                string: numbers[i] ?? i + 1
             })
             strings.add(i)
         }
@@ -529,6 +537,24 @@ function tuningOf(names: (string | null)[]): number[] | null {
         if (tuning) return tuning.reverse()
     }
     return BY_COUNT[strings] ?? null
+}
+
+/**
+ * A six-string guitar with a lone string on it (as MIDI): standard tuning, the string where a
+ * standard guitar has it, else in place of the nearest one. The tuning, highest first, and the
+ * string's number.
+ */
+function onGuitar(midi: number): { tuning: number[]; string: number } {
+    const tuning = [...BY_COUNT[6]!]
+    let index = tuning.indexOf(midi)
+    if (index < 0) {
+        index = tuning.reduce(
+            (best, m, i) => (Math.abs(m - midi) < Math.abs(tuning[best]! - midi) ? i : best),
+            0
+        )
+        tuning[index] = midi
+    }
+    return { tuning, string: index + 1 }
 }
 
 /** A column of a drum system: its hits, as alphaTex notes. */
@@ -655,11 +681,14 @@ export function positionsOf(cols: number[], width: number, pad: number): number[
 /** A bar's events: a beat (its index) or a rest (-1), and its length in sixteenths. */
 export type Rhythm = { beat: number; sixteenths: number }[]
 
-/** Rests from `at` sixteenths to the end of a 4/4 bar, showing the beats (r8 r4, not r4.). */
-function restsFrom(at: number): Rhythm {
+/**
+ * Rests from `at` sixteenths to `end` (the end of a 4/4 bar), showing the beats (r8 r4, not r4.).
+ */
+function restsFrom(at: number, end = 16): Rhythm {
     const out: Rhythm = []
-    for (let p = at; p < 16;) {
-        const length = p % 2 ? 1 : p % 4 ? 2 : p % 8 === 0 && p <= 8 ? 8 : 4
+    for (let p = at; p < end;) {
+        let length = p % 2 ? 1 : p % 4 ? 2 : p % 8 === 0 && p <= 8 ? 8 : 4
+        while (length > end - p) length /= 2
         out.push({ beat: -1, sixteenths: length })
         p += length
     }
@@ -692,12 +721,55 @@ export function sketchRhythmOf(cols: number[]): Rhythm {
     return cols.map((_, beat) => ({ beat, sixteenths: 1 }))
 }
 
-/** A bar's rhythm from its columns (see positionsOf), else a sketch's (see sketchRhythmOf). */
-function rhythmOf(bar: Bar, pad: number): Rhythm {
-    const cols = bar.beats.map((b) => b.col - bar.start)
-    const at = positionsOf(cols, bar.end - bar.start, pad)
-    if (!at) return sketchRhythmOf(cols)
-    const out: Rhythm = at[0]! > 0 ? [{ beat: -1, sixteenths: at[0]! }] : []
+/** A bar to write: its beats (columns from its start), its width, and how its length is read. */
+interface Measure {
+    beats: Beat[]
+    width: number
+    /** The dashes its row writes before beat 1 (see padOf). */
+    pad: number
+    /**
+     * `whole`: a bar, as long as its width; `start` or `end`: a bar's start or end (a fragment
+     * that joins no other), a bar the tab's typical width long.
+     */
+    part: 'whole' | 'start' | 'end'
+    /** The tab's first bar, a pickup (an anacrusis): its beats only, no rests before them. */
+    pickup: boolean
+    text: string | null
+}
+
+/**
+ * A bar's rhythm from its columns (see positionsOf), else a sketch's (see sketchRhythmOf). The
+ * start or end of a bar is placed in a bar of the tab's `typical` width.
+ */
+function rhythmOf(m: Measure, typical: number): Rhythm {
+    const span = m.part === 'whole' ? m.width : typical
+    const shift = m.part === 'end' ? typical - m.width : 0
+    const cols = m.beats.map((b) => b.col + shift)
+    if (m.part === 'start' && cols.length) {
+        // A bar's start: its last beat lasts to the fragment's end, rests fill the bar.
+        const at = positionsOf([...cols, m.width], span, m.pad)
+        if (at) {
+            const end = at.pop()!
+            const out: Rhythm = at[0]! > 0 ? [{ beat: -1, sixteenths: at[0]! }] : []
+            at.forEach((p, beat) => out.push({ beat, sixteenths: (at[beat + 1] ?? end) - p }))
+            return [...out, ...restsFrom(end)]
+        }
+    }
+    const at = positionsOf(cols, span, m.pad)
+    if (!at) {
+        const sketch = sketchRhythmOf(m.beats.map((b) => b.col))
+        if (m.part !== 'end') return sketch
+        const notes = sketch.filter((e) => e.beat >= 0)
+        const total = notes.reduce((sum, e) => sum + e.sixteenths, 0)
+        return m.pickup ? notes : [...restsFrom(0, 16 - total), ...notes]
+    }
+    const first = at[0]!
+    const out: Rhythm =
+        first === 0 || m.pickup
+            ? []
+            : m.part === 'end'
+              ? restsFrom(0, first)
+              : [{ beat: -1, sixteenths: first }]
     at.forEach((p, beat) => out.push({ beat, sixteenths: (at[beat + 1] ?? 16) - p }))
     return out
 }
@@ -705,6 +777,119 @@ function rhythmOf(bar: Bar, pad: number): Rhythm {
 /** The dashes a system writes before beat 1 of a bar: the fewest before a first beat, 3 at most. */
 const padOf = (bars: Bar[]) =>
     bars.reduce((pad, b) => (b.beats.length ? Math.min(pad, b.beats[0]!.col - b.start) : pad), 3)
+
+/** A system's bars, as read. */
+interface Row {
+    bars: Bar[]
+    /** The dashes its bars start with (see padOf). */
+    pad: number
+    texts: string[]
+    /** No bar line before its first bar (`e ---3|5---`), or after its last (`|0---`). */
+    openStart: boolean
+    openEnd: boolean
+}
+
+function rowOf(lines: string[], bars: Bar[], texts: string[], openStart: boolean): Row {
+    const width = Math.max(...lines.map((l) => l.length))
+    return {
+        bars,
+        pad: padOf(bars),
+        texts,
+        openStart: openStart && bars[0]?.start === 0,
+        openEnd: bars.at(-1)?.end === width
+    }
+}
+
+/**
+ * A typical bar's width in columns: the median (the upper one) of the bars with notes and a bar
+ * line on each side. Null when there are fewer than two: fragments can't be told apart then.
+ */
+function typicalWidth(rows: Row[]): number | null {
+    const widths: number[] = []
+    for (const row of rows)
+        row.bars.forEach((bar, i) => {
+            const closed = (i > 0 || !row.openStart) && (i < row.bars.length - 1 || !row.openEnd)
+            if (closed && bar.beats.length) widths.push(bar.end - bar.start)
+        })
+    if (widths.length < 2) return null
+    widths.sort((a, b) => a - b)
+    return widths[widths.length >> 1]!
+}
+
+/**
+ * The bars to write, joining bars split across rows (#70). A fragment is a bar 2/3 of a typical
+ * bar wide at most. A row's last bar, a fragment, joins the next row's first bar when no bar line
+ * ends the row (without notes, it's left out then), or when that bar is a fragment too and no bar
+ * line starts its row or the two are a typical bar wide at most (a quarter more). A fragment before
+ * a row's first bar line that joins nothing is a bar's end (a pickup into the next bar); the tab's
+ * first bar, a fragment, is a pickup bar; a row's last bar, a fragment without a bar line after
+ * it, that joins nothing is a bar's start.
+ */
+function measuresOf(rows: Row[], typical: number | null): Measure[] {
+    const short = (width: number) => typical !== null && width <= (typical * 2) / 3
+    const out: Measure[] = []
+    /** A row's last bar, joining the next row's first bar. */
+    let carry: Measure | null = null
+    rows.forEach((row, r) => {
+        const before = out.length
+        const next = rows[r + 1]
+        row.bars.forEach((bar, i) => {
+            const beats = bar.beats.map((b) => ({ notes: b.notes, col: b.col - bar.start }))
+            let m: Measure = {
+                beats,
+                width: bar.end - bar.start,
+                pad: row.pad,
+                part: 'whole',
+                pickup: false,
+                text: null
+            }
+            const joined = i === 0 && carry !== null
+            if (carry && i === 0) {
+                // The next row's dashes before beat 1 aren't time.
+                const shift = carry.width - row.pad
+                m = {
+                    ...carry,
+                    beats: [
+                        ...carry.beats,
+                        ...beats.map((b) => ({ notes: b.notes, col: b.col + shift }))
+                    ],
+                    width: carry.width + m.width - row.pad
+                }
+                carry = null
+            }
+            if (i === row.bars.length - 1 && short(m.width)) {
+                const after = next?.bars[0]
+                const together = after ? m.width + after.end - after.start - next.pad : 0
+                if (
+                    after &&
+                    (row.openEnd ||
+                        (short(after.end - after.start) &&
+                            (next.openStart || together <= typical! * 1.25)))
+                ) {
+                    if (m.beats.length || !row.openEnd) carry = m
+                    return
+                }
+                if (row.openEnd && !joined) {
+                    if (!m.beats.length) return
+                    m.part = 'start'
+                }
+            }
+            const first = !out.length
+            if (i === 0 && !joined && m.part === 'whole' && short(m.width) && m.beats.length)
+                if (first || row.openStart) {
+                    m.part = 'end'
+                    m.pickup = first
+                }
+            out.push(m)
+        })
+        const target = carry ?? (out.length > before ? out.at(-1)! : null)
+        if (row.texts.length && target) {
+            const text = row.texts.join(' / ')
+            target.text = target.text ? `${target.text} / ${text}` : text
+        }
+    })
+    return out
+}
 
 /** An alphaTex string: quotes and backslashes escaped. */
 const quoted = (text: string) => `"${text.replace(/[\\"]/g, (c) => `\\${c}`)}"`
@@ -723,6 +908,8 @@ interface TexBar {
     beats: TexNote[][]
     rhythm: Rhythm
     text: string | null
+    /** A pickup bar (alphaTex's `\\ac`). */
+    pickup?: boolean
 }
 
 /** Effects that lead to the next note (hammer-on, pull-off, slides): on a tied note's end. */
@@ -756,7 +943,7 @@ function tied(notes: TexNote[], pieces: number): TexNote[][] {
  */
 function texOf(bars: TexBar[]): string {
     let duration = 0
-    const out = bars.map(({ beats, rhythm, text }) => {
+    const out = bars.map(({ beats, rhythm, text, pickup }) => {
         const items: { notes: TexNote[]; duration: number; dotted: boolean }[] = []
         if (!beats.length) items.push({ notes: [], duration: 1, dotted: false })
         for (const { beat, sixteenths } of rhythm) {
@@ -767,7 +954,7 @@ function texOf(bars: TexBar[]): string {
         let annotated = items.length - 1
         while (annotated > 0 && !items[annotated]!.notes.length) annotated--
         if (!items[annotated]!.notes.length) annotated = items.length - 1
-        return items
+        const tex = items
             .map((item, i) => {
                 const effects = item.dotted ? ['d'] : []
                 if (text && i === annotated) effects.push(`txt ${quoted(text)}`)
@@ -776,6 +963,7 @@ function texOf(bars: TexBar[]): string {
                 return head + beatTex(item.notes, effects)
             })
             .join(' ')
+        return pickup ? `\\ac ${tex}` : tex
     })
     return out.join(' |\n')
 }
@@ -790,32 +978,34 @@ export function textTabToAlphaTex(text: string): string | null {
     const systems = systemsOf(text)
     const first = systems[0]
     if (!first) return null
-    const bars: TexBar[] = []
-    const add = (systemBars: Bar[], texts: string[]) => {
-        const at = bars.length
-        const pad = padOf(systemBars)
-        bars.push(
-            ...systemBars.map((bar) => ({
-                beats: bar.beats.map((b) => b.notes),
-                rhythm: rhythmOf(bar, pad),
-                text: null
-            }))
-        )
-        if (texts.length && bars.length > at) bars[bars.length - 1]!.text = texts.join(' / ')
-    }
+    let tuning = first.kind === 'strings' ? tuningOf(first.names) : null
+    // alphaTab draws no staff for one string: a lone string goes on a six-string guitar.
+    const lone = tuning?.length === 1 ? onGuitar(tuning[0]!) : null
+    if (lone) tuning = lone.tuning
+    const rows: Row[] = []
     if (first.kind === 'drums') {
         for (const s of systems)
-            if (s.kind === 'drums') add(barsOf(s.lines, drumBeatAt(s.drums)), s.texts)
-        if (!bars.length) return null
-        return ['\\instrument percussion', '\\articulation defaults', texOf(bars)].join('\n')
+            if (s.kind === 'drums')
+                rows.push(rowOf(s.lines, barsOf(s.lines, drumBeatAt(s.drums)), s.texts, false))
+    } else {
+        const same = JSON.stringify(tuningOf(first.names))
+        const strings = lone ? [lone.string] : []
+        for (const s of systems) {
+            if (s.kind !== 'strings' || JSON.stringify(tuningOf(s.names)) !== same) continue
+            const beatAt = stringBeatAt(s.lines.map(techniquesOf), s.muted, strings)
+            rows.push(rowOf(s.lines, barsOf(s.lines, beatAt), s.texts, s.openStart))
+        }
     }
-    const tuning = tuningOf(first.names)
-    const same = JSON.stringify(tuning)
-    for (const s of systems) {
-        if (s.kind !== 'strings' || JSON.stringify(tuningOf(s.names)) !== same) continue
-        add(barsOf(s.lines, stringBeatAt(s.lines.map(techniquesOf), s.muted)), s.texts)
-    }
+    const typical = typicalWidth(rows)
+    const bars: TexBar[] = measuresOf(rows, typical).map((m) => ({
+        beats: m.beats.map((b) => b.notes),
+        rhythm: rhythmOf(m, typical ?? 0),
+        text: m.text,
+        pickup: m.pickup
+    }))
     if (!bars.length) return null
+    if (first.kind === 'drums')
+        return ['\\instrument percussion', '\\articulation defaults', texOf(bars)].join('\n')
     const standard = tuning?.join(' ') === BY_COUNT[6]!.join(' ')
     const header =
         tuning && !standard ? [`\\tuning (${tuning.map((m) => noteOf(m)).join(' ')})`] : []
