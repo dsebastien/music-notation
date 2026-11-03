@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 (2026-11-03)
+
+- **The other instrument, drawn**: the play bar's sound menu now redraws the diagram for the instrument you choose, with the same notes. A guitar chord or a fretboard becomes a keyboard with those exact keys, and a keyboard becomes a fretboard. The title, the root and the note, degree or interval labels come along. Choose the diagram's own instrument to get its drawing back. A click on a note plays it on either drawing.
+- **Piano through the soundfont**: the soundfont player now plays piano, not only guitar. Before, in apps that use it (Music Practice does), keyboards and piano chords played nothing, and choosing Piano on a fretboard changed nothing.
+- **Fingering on note lists**: `fingering:` works on keyboard note lists, one finger per note in the order written, so you can draw five-finger and hand positions. `notes: C D E F G` with `fingering: 1 2 3 4 5` puts fingers 1 to 5 on C4 to G4, and `labels:` works as for scales. Before, the line was ignored (#55).
+- `root:` in a `chord` block is now an error that says it only applies to note lists on fretboards and keyboards. Before, it did nothing (#56).
+- Five notes or more that only move by steps within an octave are no longer named as a chord: `C4 D4 E4 F4 G4` is a hand position, not Dm11/C, and gets no root marks. Chords with a step in them keep their names, from Cadd9 and Csus2 to four-note jazz clusters such as Cmaj9/B (#57).
+
 ## 0.6.0 (2026-11-03)
 
 - **A root for note lists**: `root: C` gives a list of notes (`notes: C Eb Gb A`) a root, on fretboards and keyboards. `labels: intervals` and `labels: degrees` then count from it, and the root gets the root color when it is in the list. It doesn't have to be (#33).
