@@ -94,7 +94,7 @@ export function renderBlock(
     }
     let text = source
     // An empty block in a note draws from the note's properties, when they describe one.
-    if (!text.trim() && isDiagramLanguage(language)) {
+    if (!text.trim() && (isDiagramLanguage(language) || language === 'strum')) {
         const fromProperties = propertiesSource(language, options, host)
         if (fromProperties) {
             text = fromProperties
@@ -198,7 +198,7 @@ function chartInstrument(
 
 /** An empty block's source from the note's properties (an object, or a function returning one). */
 function propertiesSource(
-    language: DiagramLanguage,
+    language: DiagramLanguage | 'strum',
     options: RenderOptions,
     host: Element
 ): string | null {

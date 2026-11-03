@@ -529,7 +529,9 @@ describe('blocks from properties', () => {
 
     it('says nothing when the properties describe no block', () => {
         expect(blockFromProperties('chord', { tags: ['type/music/guitar/chord'] })).toBeNull()
-        expect(blockFromProperties('fretboard', guitar)).toBeNull()
+        // A guitar chord note's empty fretboard draws its arpeggio, as in Music Practice (#56).
+        expect(blockFromProperties('fretboard', guitar)).toBe('arpeggio: A')
+        expect(blockFromProperties('keyboard', guitar)).toBeNull()
         expect(blockFromProperties('chords', guitar)).toBeNull()
     })
 
