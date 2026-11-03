@@ -16,6 +16,8 @@ Pick a block type, write its source, and see it drawn as you type. Separate diag
         <option value="fretboard">fretboard</option>
         <option value="chords">chords</option>
         <option value="strum">strum</option>
+        <option value="progression">progression</option>
+        <option value="circle">circle</option>
     </select>
     <label for="mn-orientation">Orientation</label>
     <select id="mn-orientation">
