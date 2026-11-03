@@ -118,7 +118,8 @@ describe('numeralOf', () => {
     it('writes Nashville numbers', () => {
         expect(numeralOf('Em', 'G', 'nashville')).toBe('6m')
         expect(numeralOf('D7', 'G', 'nashville')).toBe('5⁷')
-        expect(numeralOf('Am7', 'G', 'nashville')).toBe('2m7')
+        expect(numeralOf('Am7', 'G', 'nashville')).toBe('2m⁷')
+        expect(numeralOf('Cmaj7', 'G', 'nashville')).toBe('4maj⁷')
         expect(numeralOf('F', 'G', 'nashville')).toBe('b7')
         expect(numeralOf('C/E', 'C', 'nashville')).toBe('1/3')
     })

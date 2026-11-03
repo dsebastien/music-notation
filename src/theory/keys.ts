@@ -239,24 +239,28 @@ const SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹'
 /** Digits as superscript: "7" → "⁷". */
 const superscript = (digits: string) => [...digits].map((d) => SUPERSCRIPT[Number(d)]).join('')
 
+/** Every number of a chord quality raised: "7" → "⁷", "m7" → "m⁷", "7sus4" → "⁷sus⁴". */
+const raised = (quality: string) => quality.replace(/\d+/g, superscript)
+
 /**
- * The Nashville number for a chord on a degree: "b7", "6m", "2m7", and "5⁷" (a seventh right after
- * the number is raised, as charts write it, so it doesn't read as 57).
+ * The Nashville number for a chord on a degree: "b7", "6m", "2m⁷", "1maj⁷" and "5⁷" (every number
+ * of the chord's quality is raised, as charts write it, so 57 doesn't read as fifty-seven).
  */
 export function nashvilleText(degree: Degree, suffix: string): string {
-    const quality = nashvilleQuality(suffix).replace(/^\d+/, superscript)
-    return `${degree.accidental}${degree.number}${quality}`
+    return `${degree.accidental}${degree.number}${raised(nashvilleQuality(suffix))}`
 }
 
 /**
- * A typed Nashville number as charts print it: a seventh (or any number) right after the degree
- * is raised, "57" → "5⁷", "b713" → "b7¹³"; "2m7", "5/3" and roman numerals stay as written.
+ * A typed Nashville number as charts print it: every number after the degree is raised, "57" →
+ * "5⁷", "2-7" → "2-⁷", "1maj7" → "1maj⁷", "57sus4" → "5⁷sus⁴", "b713" → "b7¹³"; a bass after a
+ * slash ("5/3") and roman numerals stay as written.
  */
-export const raisedNashville = (token: string): string =>
-    token.replace(
-        /^([b#♭♯]?[1-7])(\d+)/,
-        (_, degree: string, digits: string) => `${degree}${superscript(digits)}`
-    )
+export const raisedNashville = (token: string): string => {
+    const [head, ...bass] = token.split('/')
+    const m = /^([b#♭♯]?[1-7])(.*)$/.exec(head!)
+    if (!m) return token
+    return [`${m[1]}${raised(m[2]!)}`, ...bass].join('/')
+}
 
 /** "5⁷" → "57": superscript digits as plain ones. */
 export const plainDigits = (text: string): string =>

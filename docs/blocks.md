@@ -588,7 +588,7 @@ The chords line can go before or after the keys, and a long progression can take
 
 **Minor keys.** Write `i iv v` (or `V`), `bIII bVI bVII`. The plain `III`, `VI` and `VII` mean the same chords (C, F and G in A minor), and `vii°` is the chord on the raised seventh (G#dim in A minor). `#vi` raises the sixth (F#m in A minor).
 
-**Nashville numbers.** `1 5 6m 4`: a plain number is a major chord, `m` or `-` makes it minor (`6m`, `2-7`), and `b7`, `5/3` (the bass) work as above. A seventh right after the number is shown raised, `5⁷`, so it doesn't read as fifty-seven. You can type `57` or `5⁷`.
+**Nashville numbers.** `1 5 6m 4`: a plain number is a major chord, `m` or `-` makes it minor (`6m`, `2-7`), and `b7`, `5/3` (the bass) work as above. Every number after the degree is shown raised, `5⁷`, `2-⁷`, `1maj⁷`, `5⁷sus⁴`, so 57 doesn't read as fifty-seven; a bass after a slash stays as written (`5/3`). You can type `57` or `5⁷`.
 
 **Key changes.** `---` starts a new section with its own `key:`. Settings before the first `---` apply to every section.
 

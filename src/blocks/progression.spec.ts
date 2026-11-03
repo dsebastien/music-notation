@@ -58,11 +58,30 @@ describe('progression block', () => {
         expect(h.querySelector('svg')).toBeNull()
     })
 
-    it('raises a typed Nashville seventh: 57 shows 5⁷', () => {
+    it('raises typed Nashville extensions: 57 shows 5⁷, 2-7 2-⁷', () => {
         const h = host()
-        renderBlock('progression', '1 47 57 2m7 5/3\nkey: C\ndiagrams: no', h)
-        expect(texts(h, 'mn-progression-numeral')).toEqual(['1', '4⁷', '5⁷', '2m7', '5/3'])
-        expect(texts(h, 'mn-progression-name')).toEqual(['C', 'F7', 'G7', 'Dm7', 'G/E'])
+        renderBlock('progression', '1 47 57 2m7 5/3 2-7 1maj7 57sus4\nkey: C\ndiagrams: no', h)
+        // Every extension raised alike, the bass after a slash as written.
+        expect(texts(h, 'mn-progression-numeral')).toEqual([
+            '1',
+            '4⁷',
+            '5⁷',
+            '2m⁷',
+            '5/3',
+            '2-⁷',
+            '1maj⁷',
+            '5⁷sus⁴'
+        ])
+        expect(texts(h, 'mn-progression-name')).toEqual([
+            'C',
+            'F7',
+            'G7',
+            'Dm7',
+            'G/E',
+            'Dm7',
+            'Cmaj7',
+            'G7sus4'
+        ])
     })
 
     it('reads a blues in its key: I7 IV7 V7', () => {
