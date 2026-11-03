@@ -1,7 +1,7 @@
 # Business Rules
 
 - **Block languages**: `chord`, `chords`, `keyboard`, `fretboard` (0.1); `tab` and its alias `score` (0.5); `strum`, `progression`, `circle` (0.8). Fence names are stable API: never rename one.
-- **Block syntax**: `key: value` lines, keys case-insensitive, last value wins; an optional first line without a key is the block's shorthand. Any other line without a key is an error.
+- **Block syntax**: `key: value` lines, keys case-insensitive, last value wins; an optional first line without a key is the block's shorthand. Any other line without a key is an error, except in `strum` (pattern lines) and `progression` (chord lines, anywhere among the keys).
 - **Empty blocks** (only whitespace) render nothing, successfully: templates scaffold empty blocks.
 - **Errors**: a block with a mistake renders an inline message (what's wrong and what to write) and never throws. On Publish its source stays visible.
 - **Publish**: blocks are rendered once (`data-mp-rendered` on the `<pre>`: `pending`, `done`, `error`); the source `<pre>` is hidden only after a successful render; the page is watched (MutationObserver, one pass per frame) because Publish swaps content as you navigate.
