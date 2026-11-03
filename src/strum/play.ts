@@ -80,6 +80,8 @@ export interface StrumEventOptions {
     tail?: number
     /** Varies the small differences between strums from pass to pass (the pass's number). */
     seed?: number
+    /** The most time between a strum's strings, in seconds: 0.012 by default (0 a block). */
+    spread?: number
 }
 
 /**
@@ -218,7 +220,10 @@ export function strumEvents(
         const muted = s.stroke === 'mute'
         // A chuck slaps the strings nearly at once.
         const spread =
-            Math.min(0.012, (slot * 0.4) / Math.max(1, strings.length)) * (muted ? 0.5 : 1)
+            Math.min(
+                Math.max(0, options.spread ?? 0.012),
+                (slot * 0.4) / Math.max(1, strings.length)
+            ) * (muted ? 0.5 : 1)
         const velocity = strumVelocity(s, up, inBar, pulse, seed, i)
         strings.forEach((midi, k) => {
             const time = at + k * spread

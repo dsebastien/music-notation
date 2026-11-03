@@ -196,16 +196,39 @@ export { renderStrum, type StrumOptions } from './strum/render.js'
 export { strumVoicing, DEFAULT_STRUM_CHORD } from './strum/voicing.js'
 export {
     playStrum,
+    runPasses,
     strumEvents,
     scoreOf,
     STRUM_VELOCITY,
     STRUM_STRESS,
     strumVelocity,
     tempoOf,
+    type Pass,
+    type PassMaker,
     type PlayStrumOptions,
     type StrumEventOptions,
+    type StrumFollower,
+    type StrumSettings,
+    type StrumTiming,
     type StrumScore
 } from './strum/play.js'
+export {
+    playProgression,
+    progressionEvents,
+    progressionPitches,
+    runProgression,
+    followTimes,
+    PROGRESSION_STRUMS,
+    MAX_PROGRESSION_BARS,
+    type PlayProgressionOptions,
+    type ProgressionBar,
+    type ProgressionChanges,
+    type ProgressionChordInput,
+    type ProgressionEventOptions,
+    type ProgressionHandle,
+    type ProgressionSettings,
+    type ProgressionStrum
+} from './playback/progression.js'
 export {
     findScales,
     findKey,
