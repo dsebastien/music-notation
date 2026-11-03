@@ -411,12 +411,16 @@ function isTonic(symbol: string, key: MusicalKey): boolean {
     return third?.interval === (key.mode === 'minor' ? '3m' : '3M')
 }
 
-/** A major or dominant chord a fifth above another chord's root (D7 → G). */
+/**
+ * A major or dominant chord a fifth above another chord's root (D7 → G); a major seventh chord
+ * isn't a dominant (Cmaj7 → Fmaj7 is I → IV).
+ */
 function resolves(from: string, to: string): boolean {
     const a = chordNoteSet(from)
     const b = chordNoteSet(to)
     if (!a || !b || a.root === null || b.root === null) return false
-    const major = a.members.some((m) => m.interval === '3M')
+    const major =
+        a.members.some((m) => m.interval === '3M') && !a.members.some((m) => m.interval === '7M')
     return major && (a.root - b.root + 12) % 12 === 7
 }
 

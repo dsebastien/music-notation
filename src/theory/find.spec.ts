@@ -283,6 +283,9 @@ describe('findKey', () => {
         expect(key('Dm C G')).toBe('D minor')
         expect(findKey('Dm G7 C')!.clear).toBe(true)
         expect(key('C E7 Am')).toBe('A minor')
+        // A major seventh chord isn't a dominant: Cmaj7 → Fmaj7 is I → IV, not V → I.
+        expect(key('Cmaj7 Fmaj7')).toBe('C major')
+        expect(findScales('Cmaj7 Fmaj7')[0]!.name).toBe('C major')
     })
 
     it('names the mode a minor or major key plays in', () => {
