@@ -22,7 +22,9 @@ notes/Chords.md:39: chord: diagram 2: "x" has 1 fingers for 6 strings
 
 The exit code is 0 when every block draws, 1 when a block has a mistake, and 2 when the command itself is wrong (an unknown option, a file that doesn't exist).
 
-It finds blocks in ``` and ~~~ fences, in callouts and in lists. For tab and score blocks, it checks only the settings lines, because the music itself needs alphaTab. In Obsidian, an empty block in a note with properties draws from those properties. The check doesn't read properties, so it counts that block as skipped.
+It finds blocks in ``` and ~~~ fences, in callouts and in lists. It ignores blocks inside `%% %%` and `<!-- -->` comments and in indented code (a fence indented by 4 spaces outside a list), because Obsidian doesn't draw them. For tab and score blocks, it checks only the settings lines, because the music itself needs alphaTab.
+
+The last line of the output counts the blocks. **Empty** blocks have nothing in them, so they draw nothing. Templates often have them, and they are not mistakes. **Skipped** blocks are the ones the check can't draw. An empty diagram block in a note with properties is one: Obsidian draws it from those properties, and the check doesn't read them. A tab or score block whose settings lines are fine is another, since its music needs alphaTab.
 
 ## What a block draws
 
