@@ -445,18 +445,16 @@ shape: E
 G major
 shape: 3nps</code></pre></div>
 
-**All the modes of a key.** `modes: C major` draws C ionian, D dorian, E phrygian… side by side, each with its characteristic note. Other keys in the block apply to every mode. On a keyboard without a `range`, each mode goes from its own tonic to its tonic.
+**All the modes of a key.** `modes: C major` draws C ionian, D dorian, E phrygian… side by side, each with its characteristic note. Other keys in the block apply to every mode. On a keyboard without a `range`, each mode goes from its own tonic to its tonic, so you see and hear where each one starts. With a `range` such as `C4-B4`, every mode lights the same seven white keys: only the root and the characteristic note show the difference, and each one still plays from its own tonic.
 
 ````markdown
 ```keyboard
 modes: C major
-range: C4-B4
 columns: 4
 ```
 ````
 
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">modes: C major
-range: C4-B4
 columns: 4</code></pre></div>
 
 **Fingering** (keyboards): on a scale, `fingering: 1 2 3 1 2 3 4 5` puts one finger on each note of one octave, from the root up to the root above. The pattern repeats each octave, and the root where two octaves meet takes the finger that carries the pattern on, as method books write it: over two octaves, C major is 1 2 3 1 2 3 4 1 2 3 1 2 3 4 5, and Bb major written `2 1 2 3 1 2 3 4` puts 4 on the middle Bb, so the thumb can pass under to C. Without a `range`, the keyboard shows two octaves from the tonic, as for any scale, with fingers on both. Give it a `range` and every octave in the range stays lit, and every key gets its finger. `labels` works too: the labels stay on the keys, and the finger numbers get their own row under them. Fingers go from 1 (thumb) to 5 (little finger).
@@ -776,7 +774,7 @@ Text always stays upright. Apps using the library can set the default orientatio
 
 Apps that turn playback on (Music Practice does, and Obsidian Publish pages through `publish.js`) add a small bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens):
 
-- **Play / stop**: a guitar chord strums from the low string up (about 12 ms between strings), then rings. A piano chord is struck as a block; a keyboard that lights a chord in every octave plays one voicing of it (root position from the lowest root, a slash chord's bass at the bottom, or its fingered keys); when the range is too narrow for every chord tone, it plays the lit keys. A scale, mode or arpeggio starts on its tonic: it goes up to the highest note drawn, down to the lowest, and back up to the tonic, so every note drawn plays. A list without a root goes from the lowest note up and back down. The run swells a little going up and eases coming down; the first note and the tonics lean a little, and with a chord over a scale, its notes are slightly louder than the passing notes. A list of notes with exact keys (`notes: C4 E4 G4`, or a list with a `fingering`) plays in the order written, then back: `notes: G F E D C` with `fingering: 5 4 3 2 1` plays G down to C and back up to G.
+- **Play / stop**: a guitar chord strums from the low string up (about 12 ms between strings), then rings. A piano chord is struck as a block. A keyboard with `chord:` lights the voicing it plays, not the chord's notes in every octave: root position from the lowest root, a slash chord's bass at the bottom, or its fingered keys (`chord: G7` lights and plays G4 B4 D5 F5); when the range is too narrow for every chord tone, it lights and plays every chord note in it. A scale, mode or arpeggio starts on its tonic: it goes up to the highest note drawn, down to the lowest, and back up to the tonic, so every note drawn plays. A list without a root goes from the lowest note up and back down. The run swells a little going up and eases coming down; the first note and the tonics lean a little, and with a chord over a scale, its notes are slightly louder than the passing notes. A list of notes with exact keys (`notes: C4 E4 G4`, or a list with a `fingering`) plays in the order written, then back: `notes: G F E D C` with `fingering: 5 4 3 2 1` plays G down to C and back up to G.
 - **Loop**.
 - **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum (12 ms on guitar and 0 on piano by default; once you move it, it stays when you change the sound).
 - **Volume**, and **sound**: guitar or piano.

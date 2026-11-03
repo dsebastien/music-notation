@@ -349,6 +349,18 @@ describe('playback bar', () => {
         expect(strumsOf(Number.NaN)).toEqual({ guitar: 12, piano: 0 })
     })
 
+    it('lights only the voicing a keyboard chord plays', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'chord: G7', h, { play: { player } })
+        const lit = [...h.querySelectorAll('.mn-on')].map((k) =>
+            Number(k.getAttribute('data-midi'))
+        )
+        expect(lit).toEqual([67, 71, 74, 77])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual(lit)
+    })
+
     it('plays a list of notes in the order written, then back', () => {
         const { player, calls } = recorder()
         const h = host()

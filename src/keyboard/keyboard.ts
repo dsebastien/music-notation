@@ -107,6 +107,15 @@ export function renderKeyboard(
     if (isBlack(to)) to++
     const whites: number[] = []
     for (let midi = from; midi <= to; midi++) if (!isBlack(midi)) whites.push(midi)
+    // A chord without exact keys lights what it plays: its fingered keys, else one voicing (root
+    // position from its lowest root key), not its notes in every octave.
+    if (options.playAs === 'chord' && !set.pitches) {
+        const keys: number[] = []
+        for (let midi = from; midi <= to; midi++) if (memberOf(set, midi)) keys.push(midi)
+        const fingered = keys.filter((midi) => options.fingers?.has(midi))
+        const voicing = fingered.length ? fingered : chordVoicingIn(set, from, to)
+        if (voicing?.length) set = { ...set, pitches: voicing }
+    }
 
     const vertical = options.orientation === 'vertical'
     const top = options.title ? TITLE : 0
@@ -305,14 +314,9 @@ export function renderKeyboard(
             root.appendChild(mark)
         }
     }
-    // What playback plays: the highlighted keys, low to high; a chord lit in every octave plays
-    // one voicing of it: its fingered keys, else root position from its lowest root.
+    // What playback plays: the highlighted keys, low to high (a chord: the voicing lit above).
     let played: number[] = []
     for (let midi = from; midi <= to; midi++) if (memberOf(set, midi)) played.push(midi)
-    if (options.playAs === 'chord' && !set.pitches) {
-        const fingered = played.filter((midi) => options.fingers?.has(midi))
-        played = fingered.length ? fingered : (chordVoicingIn(set, from, to) ?? played)
-    }
     // A list of exact keys (notes: G4 F4 E4, or a fingered list) plays in the order written.
     const written =
         set.list && set.pitches && options.playAs !== 'chord'
