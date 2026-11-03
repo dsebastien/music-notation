@@ -131,7 +131,7 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
 
 ```js
 ;(() => {
-    const VERSION = '0.6.0'
+    const VERSION = '0.7.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
     const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard'])
