@@ -545,7 +545,7 @@ staves: both
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
 
-These keys go on the first lines, and the alphaTex follows. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
+These keys go on the first lines, and the alphaTex follows. Drums have no tablature: a `tab` block with a percussion track (`\instrument percussion`) shows notation too. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
