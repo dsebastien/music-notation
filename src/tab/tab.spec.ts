@@ -100,14 +100,37 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
         playerPositionChanged = emitter()
         soundFontLoaded = emitter()
         playerReady = emitter()
+        scoreLoaded = emitter()
         loaded: unknown = null
-        tex(text: string) {
+        /** The score alphaTab would draw, after the scoreLoaded handlers ran. */
+        score: alphaTab.model.Score | null = null
+        tex(text: string, tracks?: number[] | 'all') {
             this.loaded = text
-            queueMicrotask(() => (error ? this.error.fire(error) : this.renderFinished.fire()))
+            queueMicrotask(() => {
+                if (error) return this.error.fire(error)
+                this.show(alphaTab.importer.ScoreLoader.loadAlphaTex(text), tracks)
+            })
         }
-        load(bytes: Uint8Array) {
+        load(bytes: Uint8Array, tracks?: number[]) {
             this.loaded = bytes
-            queueMicrotask(() => this.renderFinished.fire())
+            queueMicrotask(() => {
+                // Not a real score file in most tests (no zip): only the drawing is faked then.
+                const zip = bytes[0] === 0x50 && bytes[1] === 0x4b
+                this.show(
+                    zip ? alphaTab.importer.ScoreLoader.loadScoreFromBytes(bytes) : null,
+                    tracks
+                )
+            })
+            return true
+        }
+        show(score: alphaTab.model.Score | null, tracks?: number[] | 'all') {
+            if (score) {
+                // Like alphaTab: scoreLoaded fires before the drawing.
+                this.score = score
+                this.scoreLoaded.fire(score)
+            }
+            void tracks
+            this.renderFinished.fire()
         }
         loadSoundFont() {}
         destroy() {}
@@ -332,29 +355,67 @@ describe('renderTab, drums (#37)', () => {
         font: 'data:font/woff2;base64,',
         soundFont: new Uint8Array()
     }
-    /** The stave profile renderTab asks alphaTab for. */
-    async function profileOf(language: 'tab' | 'score', source: string) {
+    /** The stave profile renderTab asks alphaTab for, and what each staff shows. */
+    async function stavesOf(language: 'tab' | 'score', source: string, bytes?: Uint8Array) {
         const mod = fakeAlphaTab()
         let profile: unknown
-        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => object
+        const made: { score: alphaTab.model.Score | null }[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => {
+            score: alphaTab.model.Score | null
+        }
         ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
             constructor(...args: unknown[]) {
                 super(...args)
                 profile = (args[1] as { display: { staveProfile: unknown } }).display.staveProfile
+                made.push(this)
             }
         }
         const h = document.createElement('div')
         document.body.appendChild(h)
-        await renderTab(language, source, h, { alphaTab: mod, assets }).ready
+        await renderTab(language, source, h, {
+            alphaTab: mod,
+            assets,
+            resolveFile: () => Promise.resolve(bytes ?? null)
+        }).ready
         h.remove()
-        return profile
+        const staves = made[0]!.score!.tracks.map((t) =>
+            t.staves
+                .map((s) =>
+                    [
+                        s.showStandardNotation ? 'score' : '',
+                        s.showTablature ? 'tab' : '',
+                        s.showSlash ? 'slash' : '',
+                        s.showNumbered ? 'numbered' : ''
+                    ]
+                        .filter(Boolean)
+                        .join('+')
+                )
+                .join(' ')
+        )
+        return { profile, staves }
     }
 
-    it('draws a percussion track as notation in a tab block: drums have no tablature', async () => {
-        const drums = textTabToAlphaTex('HH|x-x-x-x-|\nS |--o---o-|\nB |o---o---|')!
-        expect(await profileOf('tab', drums)).toBe('ScoreTab')
-        expect(await profileOf('tab', ':8 0.1 3.1')).toBe('Tab')
-        expect(await profileOf('score', drums)).toBe('Score')
-        expect(await profileOf('tab', `staves: both\n${drums}`)).toBe('ScoreTab')
+    const drums = textTabToAlphaTex('HH|x-x-x-x-|\nS |--o---o-|\nB |o---o---|')!
+    const band = `\\track "Guitar"\n:4 3.3 0.2 1.2 0.1\n\\track "Drums"\n${drums}`
+
+    it('draws drums as notation in a tab block, staff by staff: drums have no tablature', async () => {
+        expect(await stavesOf('tab', drums)).toEqual({ profile: 'Default', staves: ['score'] })
+        expect((await stavesOf('tab', ':8 0.1 3.1')).staves).toEqual(['tab'])
+        // The guitar keeps its tablature only; the drums get notation.
+        expect((await stavesOf('tab', band)).staves).toEqual(['tab', 'score'])
+        expect((await stavesOf('score', band)).staves).toEqual(['score', 'score'])
+        expect((await stavesOf('tab', `staves: both\n${band}`)).staves).toEqual([
+            'score+tab',
+            'score'
+        ])
+    })
+
+    it('chooses the staves of a score file too (Guitar Pro drums in a tab block)', async () => {
+        const gp = exportGp7(alphaTab as unknown as AlphaTabModule, band)
+        expect((await stavesOf('tab', 'file: [[Band.gp]]', gp)).staves).toEqual(['tab', 'score'])
+        expect((await stavesOf('score', 'file: [[Band.gp]]', gp)).staves).toEqual([
+            'score',
+            'score'
+        ])
     })
 })
