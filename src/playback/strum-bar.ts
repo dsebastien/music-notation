@@ -68,6 +68,12 @@ export function scoreFromDrawing(drawing: Element): StrumScore | null {
     }
 }
 
+/** The drawn time signature's beat unit (8 in 6/8); 8 when unknown. */
+function unitOf(drawing: Element): number {
+    const unit = Number(/^\d+\/(\d+)$/.exec(drawing.getAttribute('data-mn-time') ?? '')?.[1])
+    return Number.isInteger(unit) && unit > 0 ? unit : 8
+}
+
 /** A metronome, for the count-in. */
 const COUNT_IN = 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7'
 
@@ -94,7 +100,7 @@ export function strumBarFor(
         bpm: tempoOf(
             drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo)
                 ? tempo
-                : countedTempoOf(options.bpm, compound),
+                : countedTempoOf(options.bpm, compound, unitOf(drawing)),
             compound
         ),
         countIn: false,

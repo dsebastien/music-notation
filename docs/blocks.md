@@ -999,7 +999,7 @@ A line of only `D`s reads as strums: write `[D]` in the pattern instead. A line 
 
 A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which time or subdivision would fit. Strums only that run past a bar and fill less than half of the next one are a mistake too (`D DU UDU` in 3/4 is a 4/4 pattern): the message says how many slots a bar has. Put a `|` where each bar ends to write a short last bar on purpose (`D DU UDU | D`).
 
-The tempo counts the beat you tap your foot to: a quarter in 4/4 and 3/4, a dotted quarter in 6/8, 9/8 and 12/8 (three 8ths), an 8th in 3/8. Without `tempo:`, the app's tempo counts quarters: in 6/8, 9/8 and 12/8 the pattern plays at two thirds of it (90 quarters a minute is 60 dotted quarters). In 6/8, 9/8 and 12/8 the counts 1, 4 (7, 10) are drawn and played as the beats.
+The tempo counts the beat you tap your foot to: a quarter in 4/4 and 3/4, a dotted quarter in 6/8, 9/8 and 12/8 (three 8ths), an 8th in 3/8. Without `tempo:`, the app's tempo counts quarters: in 6/8, 9/8 and 12/8 the pattern plays at two thirds of it (90 quarters a minute is 60 dotted quarters; in 6/16, 120 dotted 8ths). In 6/8, 9/8 and 12/8 the counts 1, 4 (7, 10) are drawn and played as the beats.
 
 Swing and shuffle: `swing: yes` plays the second 8th of each beat on the third triplet, the way swing and blues are played; the pattern is still written in 8ths. A percentage from 50 (straight) to 75 sets how late it comes: `swing: 60%` is a light swing. With `subdivision: 16ths`, the 16ths swing. Swing doesn't go with 6/8 (it already has three 8ths a beat) or with triplets. `subdivision: triplets` with `D - U` on each beat is the same shuffle, written out.
 

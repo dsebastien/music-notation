@@ -261,7 +261,8 @@ export function renderStrumBlock(
     // The app's bpm counts quarters: in 6/8, 9/8 and 12/8 the counted beat is a dotted quarter.
     const bpm = countedTempoOf(
         typeof options.play === 'object' ? options.play.bpm : undefined,
-        pattern.compound
+        pattern.compound,
+        pattern.beatUnit
     )
     return renderStrum(doc, pattern, {
         voicing: (chord) => strumVoicing(chord, tuning, options.voicings),

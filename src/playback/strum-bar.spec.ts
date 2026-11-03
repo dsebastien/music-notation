@@ -66,6 +66,8 @@ describe('strum playback bar', () => {
         expect(value('D D U D D U\ntime: 6/8', 90)).toBe('60')
         expect(value('D DU D DU D DU D DU\ntime: 12/8', 120)).toBe('80')
         expect(value('D DU D DU D DU\ntime: 9/8', 100)).toBe('67')
+        // In 6/16 the counted beat is a dotted 8th: 90 quarters a minute is 120 of them.
+        expect(value('D D U D D U\ntime: 6/16\nsubdivision: 16ths', 90)).toBe('120')
         // Simple time, and a pattern's own tempo, as they are.
         expect(value('D DU UDU', 90)).toBe('90')
         expect(value('D D U D D U\ntime: 6/8\ntempo: 72', 90)).toBe('72')
