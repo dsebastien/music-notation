@@ -5,12 +5,13 @@
 import { Note } from 'tonal'
 import { chordNoteSet } from './note-set.js'
 import { parseChord } from './chord-symbol.js'
-import { splitChordSymbol } from './pitch.js'
+import { chromaOf, splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
 import { inKey } from './find.js'
 import {
     degreeOf,
     isMinorMode,
+    keyNotes,
     nashvilleText,
     plainDigits,
     readKey,
@@ -154,11 +155,34 @@ export function readNumeral(token: string, key: string | MusicalKey): string | n
     )
 }
 
+/**
+ * A note as the key spells it when the key has that pitch (Fdim in F# is E#dim, the leading tone's
+ * chord; a minor key's raised 7th counts: Abdim7 in A minor is G#dim7); else as written.
+ */
+function keySpelling(note: string, key: MusicalKey): string {
+    const chroma = chromaOf(note)
+    const notes = keyNotes(key)
+    if (isMinorMode(key.mode) && notes.length === 7) notes.push(Note.transpose(notes[6]!, '1A'))
+    if (notes.includes(note)) return note
+    return notes.find((n) => chromaOf(n) === chroma) ?? note
+}
+
 /** The degree of a chord's root, and the symbol's suffix and bass. */
 function partsOf(symbol: string) {
     const parts = splitChordSymbol(symbol)
     if (!parts || !parseChord(symbol)) return null
     return { root: parts.root, suffix: canonicalSuffix(parts.suffix), bass: parts.bass }
+}
+
+/** partsOf, with the root and bass spelled as the key spells those pitches. */
+function partsIn(symbol: string, key: MusicalKey) {
+    const parts = partsOf(symbol)
+    if (!parts) return null
+    return {
+        root: keySpelling(parts.root, key),
+        suffix: parts.suffix,
+        bass: parts.bass ? keySpelling(parts.bass, key) : null
+    }
 }
 
 /** A minor key's diminished chord on its raised 7th is the leading tone's vii°, written plain. */
@@ -208,7 +232,7 @@ export function harmonicFunction(
     key: string | MusicalKey
 ): HarmonicFunction | null {
     const k = keyOf(key)
-    const parts = partsOf(symbol)
+    const parts = k ? partsIn(symbol, k) : null
     if (!k || !parts || !chordNoteSet(symbol)) return null
     const plain = `${parts.root}${parts.suffix}`
     const minor = isMinorMode(k.mode)
@@ -239,7 +263,7 @@ export function numeralOf(
     style: 'roman' | 'nashville' = 'roman'
 ): string | null {
     const k = keyOf(key)
-    const parts = partsOf(symbol)
+    const parts = k ? partsIn(symbol, k) : null
     if (!k || !parts || !chordNoteSet(symbol)) return null
     const minor = isMinorMode(k.mode)
     const text = (degree: Degree, suffix: string) =>

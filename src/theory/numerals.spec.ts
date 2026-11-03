@@ -128,6 +128,22 @@ describe('numeralOf', () => {
     })
 })
 
+describe('chords spelled another way than the key', () => {
+    it('take the key’s spelling of a pitch it has', () => {
+        expect(numeralOf('Fdim', 'F#')).toBe('vii°')
+        expect(harmonicFunction('Fdim', 'F#')).toBe('dominant')
+        expect(numeralOf('Gb/Bb', 'F#')).toBe('I/3')
+        expect(numeralOf('C#/F', 'F#')).toBe('V/7')
+        expect(numeralOf('Abdim7', 'Am')).toBe('vii°7')
+        expect(harmonicFunction('Abdim7', 'Am')).toBe('dominant')
+        expect(numeralOf('C#m', 'Db')).toBe('i')
+        expect(harmonicFunction('C#m', 'Db')).toBe('borrowed')
+        expect(
+            progressionChords('F# B C# Fdim', 'F#')?.map((c) => `${c.numeral} ${c.function}`)
+        ).toEqual(['I tonic', 'IV subdominant', 'V dominant', 'vii° dominant'])
+    })
+})
+
 describe('harmonicFunction', () => {
     it('gives each chord its function', () => {
         const fns = (numerals: string, key: string) =>
