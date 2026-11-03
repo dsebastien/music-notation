@@ -208,7 +208,9 @@ export function pluckedString(
         for (let i = 0; i < period; i++) line[i] = (line[i]! - mean) / peak
     }
     // Lower notes ring longer, as on a guitar.
-    const loss = (0.004 - Math.min(0.0035, 0.00004 * (90 - midi))) * (options.damping ?? 1)
+    const damping =
+        options.damping !== undefined && Number.isFinite(options.damping) ? options.damping : 1
+    const loss = (0.004 - Math.min(0.0035, 0.00004 * (90 - midi))) * damping
     const decay = 1 - Math.min(0.02, Math.max(0.0001, loss))
     let at = 0
     for (let i = 0; i < out.length; i++) {

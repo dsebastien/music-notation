@@ -55,6 +55,7 @@ export {
     DEFAULT_STRUM,
     type NoteEvent,
     type NotePlayer,
+    type PluckOptions,
     type PlayHandle,
     type PlayKind,
     type Sound,
