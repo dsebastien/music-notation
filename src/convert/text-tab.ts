@@ -558,6 +558,24 @@ function onGuitar(midi: number): { tuning: number[]; string: number } {
     return { tuning, string: index + 1 }
 }
 
+/**
+ * Strings of a standard guitar (as MIDI, highest first) on a six-string guitar (#71): a lone string
+ * (see onGuitar), or 2 to 5 neighbouring strings in their places (e B G D are strings 1 to 4, A E
+ * strings 5 and 6), so an excerpt shows a guitar's staff. The tuning, highest first, and each
+ * string's number; null for other tunings (basses, 7-string guitars, open tunings).
+ */
+function placedOnGuitar(tuning: number[]): { tuning: number[]; strings: number[] } | null {
+    if (tuning.length === 1) {
+        const { tuning: six, string } = onGuitar(tuning[0]!)
+        return { tuning: six, strings: [string] }
+    }
+    const standard = BY_COUNT[6]!
+    if (tuning.length > 5) return null
+    const at = tuning.map((m) => standard.indexOf(m))
+    if (at[0]! < 0 || at.some((i, k) => i !== at[0]! + k)) return null
+    return { tuning: [...standard], strings: at.map((i) => i + 1) }
+}
+
 /** A column of a drum system: its hits, as alphaTex notes. */
 const drumBeatAt =
     (drums: Drum[]) =>
@@ -1165,9 +1183,10 @@ export function textTabToAlphaTex(text: string): string | null {
     const first = systems[0]
     if (!first) return null
     let tuning = first.kind === 'strings' ? tuningOf(first.names) : null
-    // alphaTab draws no staff for one string: a lone string goes on a six-string guitar.
-    const lone = tuning?.length === 1 ? onGuitar(tuning[0]!) : null
-    if (lone) tuning = lone.tuning
+    // alphaTab draws no staff for one string, and a guitarist reads a few strings on a guitar's
+    // staff: they go on a six-string guitar, each in its place.
+    const placed = tuning ? placedOnGuitar(tuning) : null
+    if (placed) tuning = placed.tuning
     const rows: Row[] = []
     if (first.kind === 'drums') {
         for (const s of systems)
@@ -1175,7 +1194,7 @@ export function textTabToAlphaTex(text: string): string | null {
                 rows.push(rowOf(s.lines, barsOf(s.lines, drumBeatAt(s.drums)), s.texts, false))
     } else {
         const same = JSON.stringify(tuningOf(first.names))
-        const strings = lone ? [lone.string] : []
+        const strings = placed?.strings ?? []
         for (const s of systems) {
             if (s.kind !== 'strings' || JSON.stringify(tuningOf(s.names)) !== same) continue
             const beatAt = stringBeatAt(s.lines.map(techniquesOf), s.muted, strings)

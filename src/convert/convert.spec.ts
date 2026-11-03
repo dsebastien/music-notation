@@ -196,30 +196,25 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
 
     it('reads strings numbered 1 to 6 as standard tuning', () => {
         expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3 :4 r')
-        expect(textTabToAlphaTex('1|--0--|\n2|--1--|\n3|--0--|')).toBe(
-            '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3)'
-        )
-        expect(textTabToAlphaTex('3|--0--|\n4|--2--|\n5|--2--|')).toContain('\\tuning (G3 D3 A2)')
+        expect(textTabToAlphaTex('1|--0--|\n2|--1--|\n3|--0--|')).toBe(':1 (0.1 1.2 0.3)')
+        expect(textTabToAlphaTex('3|--0--|\n4|--2--|\n5|--2--|')).toBe(':1 (0.3 2.4 2.5)')
     })
 
     it('reads short excerpts on the strings they show, in guitar octaves', () => {
         const three = textTabToAlphaTex(SAMPLES.threeStrings)!
-        expect(three).toBe('\\tuning (E4 B3 G3)\n:4 5.1 8.1 (5.1 8.2) 5.2')
-        expect(load(three).tracks[0]!.staves[0]!.tuning).toEqual([64, 59, 55])
+        expect(three).toBe(':4 5.1 8.1 (5.1 8.2) 5.2')
+        // On a six-string guitar's staff, each string in its place (#71).
+        expect(load(three).tracks[0]!.staves[0]!.tuning).toEqual([64, 59, 55, 50, 45, 40])
         // The four highest strings: E4 B3 G3 D3, not an octave below.
-        expect(textTabToAlphaTex(SAMPLES.topFour)).toBe(
-            '\\tuning (E4 B3 G3 D3)\n:8 7.4 5.3 5.2 5.1 5.2 5.3 :4 r'
-        )
-        expect(textTabToAlphaTex('A|--0--|\nE|--3--|')).toContain('\\tuning (A2 E2)')
+        expect(textTabToAlphaTex(SAMPLES.topFour)).toBe(':8 7.4 5.3 5.2 5.1 5.2 5.3 :4 r')
+        expect(textTabToAlphaTex('A|--0--|\nE|--3--|')).toBe(':1 (0.5 3.6)')
         // One string: on a six-string guitar (alphaTab draws no staff for one string).
         expect(textTabToAlphaTex('e|--0--|')).toBe(':1 0.1')
         expect(textTabToAlphaTex('E|--0--|')).toBe(':1 0.6')
         expect(textTabToAlphaTex('C|--3--|')).toBe('\\tuning (E4 B3 G3 C3 A2 E2)\n:1 3.4')
         expect(load(textTabToAlphaTex('A|--3--|')!).tracks[0]!.staves[0]!.tuning).toHaveLength(6)
         // Three unnamed lines: the guitar's three highest strings.
-        expect(textTabToAlphaTex('|--0--|\n|--1--|\n|--0--|')).toBe(
-            '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3)'
-        )
+        expect(textTabToAlphaTex('|--0--|\n|--1--|\n|--0--|')).toBe(':1 (0.1 1.2 0.3)')
         // Bass names, lowest first E A D G or B E A D G, are an octave below.
         expect(textTabToAlphaTex('G|--0--|\nD|-----|\nA|-----|\nE|-----|\nB|-----|')).toContain(
             '\\tuning (G2 D2 A1 E1 B0)'
@@ -249,11 +244,11 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
             )
         ).toBe(`${chord}{txt "slide -- slowly"}`)
         expect(textTabToAlphaTex('e|--0--|-----| repeat --- 4x\nB|--1--|-----|')).toBe(
-            '\\tuning (E4 B3)\n:1 (0.1 1.2) |\nr{txt "repeat --- 4x"}'
+            ':1 (0.1 1.2) |\nr{txt "repeat --- 4x"}'
         )
         // A count right after the bar line is text, not a bar with fret 2.
         expect(textTabToAlphaTex('e|--0--|x2\nB|--1--|\nG|--0--|')).toBe(
-            '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3){txt "x2"}'
+            ':1 (0.1 1.2 0.3){txt "x2"}'
         )
         expect(textTabToAlphaTex('e|--0--|2x\nB|--1--|\nG|--0--|')).toContain('{txt "2x"}')
         // Music after the last bar line stays music, harmonics too.
@@ -373,11 +368,10 @@ describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
         const tex = textTabToAlphaTex(RIFFS.smoke)!
         expect(tex).toBe(
             [
-                '\\tuning (G3 D3)',
-                ':4 (0.1 0.2) (3.1 3.2) :2 (5.1 5.2) |',
-                ':4 (0.1 0.2) (3.1 3.2) :8 (6.1 6.2) :4 (5.1 5.2){d} |',
-                '(0.1 0.2) (3.1 3.2) :2 (5.1 5.2) |',
-                ':4 (3.1 3.2) :2 (0.1 0.2){d}'
+                ':4 (0.3 0.4) (3.3 3.4) :2 (5.3 5.4) |',
+                ':4 (0.3 0.4) (3.3 3.4) :8 (6.3 6.4) :4 (5.3 5.4){d} |',
+                '(0.3 0.4) (3.3 3.4) :2 (5.3 5.4) |',
+                ':4 (3.3 3.4) :2 (0.3 0.4){d}'
             ].join('\n')
         )
         expect(rhythmOf(tex)).toBe('4 4 2 | 4 4 8 4. | 4 4 2 | 4 2.')
@@ -461,7 +455,6 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
         const tex = textTabToAlphaTex(RIFFS.lick)!
         expect(tex).toBe(
             [
-                '\\tuning (E4 B3 G3)',
                 ':2 8.2{b (0 4 0) h} :4 5.2 7.2 |',
                 ':8 5.1{h} 7.1{h} 5.1 8.2 5.2{sl} :4 7.2{v d}'
             ].join('\n')
@@ -498,14 +491,14 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
     it('keeps dead notes as percussive notes', () => {
         const tex = textTabToAlphaTex(RIFFS.chug)!
         expect(tex).toBe(
-            '\\tuning (G3 D3 A2)\n:8 (2.1 2.2 0.3) (x.1 x.2 x.3) (2.1 2.2 0.3) (x.1 x.2 x.3) (2.1 2.2 0.3) (x.1 x.2 x.3) (2.1 2.2 0.3) (x.1 x.2 x.3)'
+            ':8 (2.3 2.4 0.5) (x.3 x.4 x.5) (2.3 2.4 0.5) (x.3 x.4 x.5) (2.3 2.4 0.5) (x.3 x.4 x.5) (2.3 2.4 0.5) (x.3 x.4 x.5)'
         )
         expect(notesOf(tex).filter((n) => n.isDead)).toHaveLength(12)
     })
 
     it('reads natural harmonics, starting at their bracket', () => {
         const tex = textTabToAlphaTex('e|-<12>---<7>-----|\nB|-<12>---<7>-----|')!
-        expect(tex).toBe('\\tuning (E4 B3)\n:2 (12.1{nh} 12.2{nh}) (7.1{nh} 7.2{nh})')
+        expect(tex).toBe(':2 (12.1{nh} 12.2{nh}) (7.1{nh} 7.2{nh})')
         expect(
             notesOf(tex).every((n) => n.harmonicType === alphaTab.model.HarmonicType.Natural)
         ).toBe(true)
@@ -610,9 +603,7 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
                 [' 0---0---|0---0---0---0---|', ' --------|----------------|']
             )
         )
-        expect(tex).toBe(
-            '\\tuning (E4 B3)\n:4 0.1 0.1 0.1 0.1 |\n0.1 0.1 0.1 0.1 |\n0.1 0.1 0.1 0.1'
-        )
+        expect(tex).toBe(':4 0.1 0.1 0.1 0.1 |\n0.1 0.1 0.1 0.1 |\n0.1 0.1 0.1 0.1')
         // Bar lines on both sides: joined when both are fragments and make a bar together.
         expect(
             textTabToAlphaTex(
@@ -629,9 +620,7 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
         const closed = textTabToAlphaTex(
             rows([`|-----0-2-|${bar}|${bar}|`, `|---------|${'-'.repeat(16)}|${'-'.repeat(16)}|`])
         )!
-        expect(closed).toBe(
-            '\\tuning (E4 B3)\n\\ac :8 0.1 2.1 |\n:4 3.1 3.1 3.1 3.1 |\n3.1 3.1 3.1 3.1'
-        )
+        expect(closed).toBe('\\ac :8 0.1 2.1 |\n:4 3.1 3.1 3.1 3.1 |\n3.1 3.1 3.1 3.1')
         const score = load(closed)
         expect(score.masterBars[0]!.isAnacrusis).toBe(true)
         expect(score.masterBars[1]!.isAnacrusis).toBe(false)
@@ -687,9 +676,7 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
             )
         ).toBe('4 4 4 4 | 2 2 | 4 4 4 4 | 4 4 4 4 | 4 4 4 4')
         // Without two bars between bar lines, there is no typical width: nothing is joined.
-        expect(textTabToAlphaTex(rows(['|--0--|--3--', '|-----|-----']))).toBe(
-            '\\tuning (E4 B3)\n:1 0.1 |\n3.1'
-        )
+        expect(textTabToAlphaTex(rows(['|--0--|--3--', '|-----|-----']))).toBe(':1 0.1 |\n3.1')
     })
 
     it('joins bars across many rows in linear time', () => {
@@ -806,6 +793,22 @@ describe('textTabToAlphaTex, the meter from the typical bar', () => {
 })
 
 describe('textTabToAlphaTex, rhythm of unbarred and uneven tabs (#71)', () => {
+    it('puts an excerpt of a few guitar strings on a six-string guitar, each in its place', () => {
+        // Before: a two- or four-string instrument (\\tuning (A2 E2), (E4 B3 G3 D3)).
+        expect(textTabToAlphaTex('A|--3--5--|--7--5--|\nE|--------|--------|')).toBe(
+            ':2 3.5 5.5 |\n7.5 5.5'
+        )
+        expect(textTabToAlphaTex('e|--0--3--|\nB|--1--0--|\nG|--0--0--|\nD|--2--0--|')).toBe(
+            ':2 (0.1 1.2 0.3 2.4) (3.1 0.2 0.3 0.4)'
+        )
+        // Three lines without names: a guitar's top three strings.
+        expect(textTabToAlphaTex('|--0--|\n|--1--|\n|--0--|')).toBe(':1 (0.1 1.2 0.3)')
+        // Basses keep their own staff.
+        expect(textTabToAlphaTex('G|--5--|\nD|--5--|\nA|-----|\nE|--3--|')).toContain(
+            '\\tuning (G2 D2 A1 E1)'
+        )
+    })
+
     it('splits a line with no bar lines into 4/4 bars, an eighth its most frequent gap', () => {
         // Three bars written two columns an eighth, with no bar line between them: one bar
         // before, 21 eighths overran it and every note became a sixteenth.
