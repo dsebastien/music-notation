@@ -264,7 +264,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         let set: NoteSet
         if (pitchesText) {
             const given =
-                ['inversion', 'octave', 'hands'].find((key) => field(block, key)) ??
+                ['inversion', 'octave'].find((key) => field(block, key)) ??
                 (voicingOptions.voicing ? 'voicing' : undefined)
             if (given) {
                 throw new Error(
@@ -286,6 +286,22 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                     previous = midi
                     return midi
                 })
+            }
+            // Hands over given keys: the lowest in the left hand with left+right, else all in one.
+            if (voicingOptions.hands) {
+                const low = Math.min(...set.pitches)
+                hands = new Map(
+                    set.pitches.map((p): [number, 'left' | 'right'] => [
+                        p,
+                        voicingOptions.hands === 'left+right'
+                            ? p === low
+                                ? 'left'
+                                : 'right'
+                            : voicingOptions.hands === 'left'
+                              ? 'left'
+                              : 'right'
+                    ])
+                )
             }
             const known = symbol ? chordNoteSet(symbol) : null
             // A symbol spells the keys (Cdim7: Bbb, as from the symbol alone).

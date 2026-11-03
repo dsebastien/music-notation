@@ -209,6 +209,17 @@ function sharedRange(pitches: (number[] | null)[]): string | null {
     return `${noteOf(from)}-${noteOf(to)}`
 }
 
+/**
+ * Open voicings span more than an octave: without an `octave`, each chord's lowest note goes
+ * within F3 to E4 (octave 3 for roots F to B, 4 for C to E), so a progression doesn't climb (Am7
+ * is A3 E4 G4 C5, not A4 to C6). Undefined when the octave is the block's.
+ */
+function openOctave(symbol: string, options: PianoVoicingOptions): number | undefined {
+    if (options.voicing !== 'open' || options.octave !== undefined) return undefined
+    const root = chordNoteSet(symbol)?.root
+    return root === undefined || root === null ? undefined : root >= 5 ? 3 : 4
+}
+
 /** Each chord's piano keys as its diagram will draw them; null for one that doesn't voice. */
 function pianoKeysOf(
     symbols: string[],
@@ -218,8 +229,13 @@ function pianoKeysOf(
     return symbols.map((symbol, i) => {
         try {
             const next = symbols[i + 1]
-            return pianoPitches(symbol, { ...options, key, ...(next ? { resolvesTo: next } : {}) })
-                .pitches
+            const octave = openOctave(symbol, options)
+            return pianoPitches(symbol, {
+                ...options,
+                key,
+                ...(next ? { resolvesTo: next } : {}),
+                ...(octave !== undefined ? { octave } : {})
+            }).pitches
         } catch {
             return null
         }
@@ -303,12 +319,16 @@ function renderSection(
             ? pianoOptions.voicing
             : null
     const ledStyled = styled !== null && (leading === undefined || led)
+    // Close and open voicings lead too; with both hands, a left-hand bass goes under each chord.
+    const open = pianoOptions.voicing === 'open'
+    const bass = pianoOptions.hands === 'left+right'
     if (led && !styled) {
-        const other = pianoKeys.find((k) => k !== 'voicing' || pianoOptions.voicing !== 'close')
+        // Every voicing style leads: only an octave, or one hand alone, doesn't go with it.
+        const other = pianoKeys.find((k) => k !== 'voicing' && !(k === 'hands' && bass))
         if (other) {
             throw new Error(
-                other === 'voicing'
-                    ? `voice-leading works with close, shell and rootless voicings, not ${pianoOptions.voicing}`
+                other === 'hands'
+                    ? 'voice-leading goes with hands: left+right (a left-hand bass under each chord), not left or right alone'
                     : `Use voice-leading or ${other}, not both`
             )
         }
@@ -318,7 +338,7 @@ function renderSection(
         diagrams && !piano
             ? guitarVoicings(symbols, field(block, 'tuning'), options.voicings)
             : null
-    const pitches = diagrams && piano && led && !styled ? voiceLead(symbols) : null
+    const pitches = diagrams && piano && led && !styled ? voiceLead(symbols, { open, bass }) : null
     const voiced: (LedVoicing | null)[] | null =
         diagrams && piano && ledStyled
             ? voiceLeadVoicings(symbols, {
@@ -378,6 +398,8 @@ function renderSection(
                         // Voice-led keys (below) are the keys to play: the block's voicing
                         // (close, the only one voice-leading allows) isn't passed on with them.
                         for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                        const octave = openOctave(chord.symbol, pianoOptions)
+                        if (octave !== undefined) lines.push(['octave', String(octave)])
                     }
                     if (range) lines.push(['range', range])
                     const midi = pitches?.[i]
@@ -389,6 +411,8 @@ function renderSection(
                             return name ? `${name}${Math.floor(m / 12) - 1}` : noteOf(m)
                         })
                         lines.push(['pitches', spelled.join(' ')])
+                        // The bass in the left hand, the voice-led chord in the right.
+                        if (bass) lines.push(['hands', 'left+right'])
                     }
                 } else if (guitar) {
                     lines.push(['frets', fretsText(guitar[i]!.voicing.frets)])

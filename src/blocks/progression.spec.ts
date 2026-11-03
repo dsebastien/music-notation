@@ -296,9 +296,46 @@ describe('progression block', () => {
         expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\noctave: 3')).toContain(
             'not both'
         )
-        expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: open')).toBe(
-            'voice-leading works with close, shell and rootless voicings, not open'
+        expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nhands: left')).toContain(
+            'voice-leading goes with hands: left+right'
         )
+        // Open voicings lead too, their lowest note within C3-C4 (Am7 doesn't climb to C6).
+        const open = host()
+        renderBlock(
+            'progression',
+            'Imaj7 vi7 ii7 V7\nkey: C\ninstrument: piano\nvoicing: open\nvoice-leading: yes',
+            open
+        )
+        expect(open.querySelector('.mn-error-message')).toBeNull()
+        for (const keys of pitches(open)) {
+            const list = keys!.split(' ').map(Number)
+            expect(list[0]).toBeGreaterThanOrEqual(48)
+            expect(list[0]).toBeLessThanOrEqual(60)
+            expect(list[list.length - 1]).toBeLessThan(77)
+        }
+        // Without voice-leading, open voicings keep their lowest note within F3-E4 too.
+        const spread = host()
+        renderBlock(
+            'progression',
+            'Imaj7 vi7 ii7 V7\nkey: C\ninstrument: piano\nvoicing: open',
+            spread
+        )
+        expect(pitches(spread)).toEqual([
+            '60 67 71 76',
+            '57 64 67 72',
+            '62 69 72 77',
+            '55 62 65 71'
+        ])
+        // Both hands: the root in the left hand, voice-led close chords in the right (pop texture).
+        const pop = host()
+        renderBlock(
+            'progression',
+            'I vi IV V\nkey: G\ninstrument: piano\nvoice-leading: yes\nhands: left+right',
+            pop
+        )
+        expect(pop.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(pop)).toEqual(['43 55 59 62', '40 55 59 64', '48 55 60 64', '50 57 62 66'])
+        expect(pop.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(4)
         expect(
             error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: close')
         ).toBeNull() // voicing: close with voice-leading draws the voice-led keys, with no error in a cell.

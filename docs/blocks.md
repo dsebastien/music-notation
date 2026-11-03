@@ -114,7 +114,7 @@ Shell voicings come in two forms: R-3 (`shell`, the third right above the root: 
 
 The right hand doesn't double the bass when it is the third or the seventh: D/F# is F#3 + D4 A4, not F#3 + D4 F#4 A4. With `hands: left+right`, shell, open and rootless voicings leave the root to the left hand: a Cmaj7 shell is C3 + E4 B4. A close voicing keeps a root or fifth in the bass doubled (C is C3 + C4 E4 G4), as pianists play a left-hand root under a right-hand triad.
 
-`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: `pitches` already says which keys to play.
+`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: `pitches` already says which keys to play. Only `hands` works with `pitches`: `left+right` puts the lowest key in the left hand, `left` or `right` every key in that hand.
 
 ## Capo
 
@@ -564,19 +564,19 @@ functions: yes
 key: G
 functions: yes</code></pre></div>
 
-| Key                          | Meaning                                                                                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| chords line                  | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.                                  |
-| `key`                        | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others).                      |
-| `transpose`                  | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                                      |
-| `numerals`                   | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                                                |
-| `functions`                  | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, neapolitan, borrowed or chromatic.                  |
-| `instrument`                 | `guitar` (default, or the note's instrument) or `piano`.                                                                                           |
-| `diagrams`                   | `no` shows only the chord names.                                                                                                                   |
-| `voice-leading`              | `yes` (piano): each chord in the inversion that moves least from the one before. On by default for shell and rootless voicings; `no` turns it off. |
-| `voicing`, `octave`, `hands` | Piano voicings for every chord, as in [piano voicings](#piano-voicings): `voicing: rootless` or `voicing: shell` for a ii-V-I.                     |
-| `tuning`                     | For guitar diagrams, as for chords.                                                                                                                |
-| `title`                      | A title above the progression.                                                                                                                     |
+| Key                          | Meaning                                                                                                                                                                                                            |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| chords line                  | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.                                                                                                  |
+| `key`                        | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others).                                                                                      |
+| `transpose`                  | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                                                                                                      |
+| `numerals`                   | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                                                                                                                |
+| `functions`                  | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, neapolitan, borrowed or chromatic.                                                                                  |
+| `instrument`                 | `guitar` (default, or the note's instrument) or `piano`.                                                                                                                                                           |
+| `diagrams`                   | `no` shows only the chord names.                                                                                                                                                                                   |
+| `voice-leading`              | `yes` (piano): each chord in the inversion that moves least from the one before (close or open, with a left-hand bass with `hands: left+right`). On by default for shell and rootless voicings; `no` turns it off. |
+| `voicing`, `octave`, `hands` | Piano voicings for every chord, as in [piano voicings](#piano-voicings): `voicing: rootless` or `voicing: shell` for a ii-V-I.                                                                                     |
+| `tuning`                     | For guitar diagrams, as for chords.                                                                                                                                                                                |
+| `title`                      | A title above the progression.                                                                                                                                                                                     |
 
 The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
 
@@ -614,7 +614,7 @@ key: D</code></pre></div>
 
 Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`.
 
-**Voice leading** (piano) moves each note of a chord to its own note of the next one, as little as it can, and keeps common tones. With `voice-leading: yes`, each chord takes the close-position inversion that moves least: ii7 V7 Imaj7 in C is D F A C, D F G B, C E G B. The first chord is in root position near middle C, and the lowest note stays between F3 and G4. A slash chord's bass sounds below the chord; when it is the third or the seventh, the chord above doesn't play it again (G/B is B2 D4 G4).
+**Voice leading** (piano) moves each note of a chord to its own note of the next one, as little as it can, and keeps common tones. With `voice-leading: yes`, each chord takes the close-position inversion that moves least: ii7 V7 Imaj7 in C is D F A C, D F G B, C E G B. The first chord is in root position near middle C, and the lowest note stays between F3 and G4. A slash chord's bass sounds below the chord; when it is the third or the seventh, the chord above doesn't play it again (G/B is B2 D4 G4). Add `hands: left+right` for the pop texture: the root in the left hand, the voice-led chords in the right (I vi IV V in G: G2 + G3 B3 D4, E2 + G3 B3 E4, C3 + G3 C4 E4, D3 + A3 D4 F#4). `voicing: open` voice-leads open voicings, the lowest note between C3 and C4. Without voice-leading, open voicings start between F3 and E4, so a progression doesn't climb.
 
 Shell and rootless voicings do this by default. Rootless voicings switch between form A and form B, and shells between R-3 and R-7, so the chords stay around middle C: ii7 V7 Imaj7 with `voicing: rootless` is Dm7 (A) F3 A3 C4 E4, G7 (B) F3 A3 B3 E4, Cmaj7 (A) E3 G3 B3 D4. `voicing: rootless B` or `shell R-7` sets the first chord's form. Shells move their third and seventh as little as they can, and keep the root low (F2 to G3). A shell never puts its third too close above a low root, where the two notes blur (the low interval limits: a minor third not below C3, a major third or a fourth not below Bb2): that chord takes the other form, so Am7 starts A2 G3 C4 (R-7), not A2 C3 G3, and the next chords go on alternating. With `hands: left+right` the third is a tenth above the root, so the R-3 form stays (A2 + C4 G4). `octave` moves everything up or down by octaves (3 is the default). `voice-leading: no` gives every chord the same form and octave.
 

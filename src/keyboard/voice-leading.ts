@@ -7,7 +7,8 @@
  * notes each count their distance to the nearest note of the other chord. Ties go to the voicing
  * that keeps more common tones, then to the one nearer the middle of the range.
  *
- * - `voiceLead`: close position, each chord in the inversion that moves least.
+ * - `voiceLead`: close (or open) position, each chord in the inversion that moves least, with a
+ *   left-hand bass under it when asked.
  * - `voiceLeadVoicings`: shell or rootless voicings, each chord in the form (R-3 or R-7 shells,
  *   rootless A or B) and octave that moves least, so the forms alternate as pianists play them;
  *   never a shell with its third below the low interval limit (A2 C3) when the other form fits.
@@ -101,13 +102,44 @@ function stacked(chromas: number[], first: number, low: number): number[] {
     return out
 }
 
+export interface CloseLeadOptions {
+    /**
+     * Open voicings: each inversion with its second note from the bottom an octave up (C G E),
+     * the lowest note within C3–C4.
+     */
+    open?: boolean
+    /**
+     * A bass for the left hand under every chord (the pop texture): the root, or a slash chord's
+     * bass, at least a fourth under the chord, from octave 3 down. The chord keeps a root or
+     * fifth bass doubled.
+     */
+    bass?: boolean
+}
+
+/** Open voicings' lowest note stays within C3 to C4, nearest G3 on average. */
+const OPEN_LOW = 48
+const OPEN_HIGH = 60
+const OPEN_CENTER = 58
+
 /**
  * MIDI pitches for each chord, low to high: the first in root position nearest middle C, each next
  * one in the close-position inversion that moves least from the one before (see the module
- * comment), its lowest note within F3–G4. A slash chord's bass sounds below (its third or seventh
- * not doubled in the chord). Null for a chord that doesn't read.
+ * comment), its lowest note within F3–G4 (open voicings: see CloseLeadOptions). A slash chord's
+ * bass sounds below (its third or seventh not doubled in the chord). Null for a chord that doesn't
+ * read.
  */
-export function voiceLead(symbols: readonly string[]): (number[] | null)[] {
+export function voiceLead(
+    symbols: readonly string[],
+    options: CloseLeadOptions = {}
+): (number[] | null)[] {
+    const [lowest, highest, center] = options.open
+        ? [OPEN_LOW, OPEN_HIGH, OPEN_CENTER]
+        : [LOW, HIGH, CENTER]
+    // Open: the second note from the bottom an octave up.
+    const spread = (pitches: number[]) =>
+        options.open && pitches.length >= 3
+            ? pitches.map((p, i) => (i === 1 ? p + 12 : p)).sort((a, b) => a - b)
+            : pitches
     let previous: number[] | null = null
     return symbols.map((symbol) => {
         const set = chordNoteSet(symbol)
@@ -123,20 +155,26 @@ export function voiceLead(symbols: readonly string[]): (number[] | null)[] {
             .map((m) => m.chroma)
         const candidates: Scored<number[]>[] = []
         for (let first = 0; first < (previous ? tones.length : 1); first++) {
-            for (let low = LOW; low <= HIGH; low++) {
+            for (let low = lowest; low <= highest; low++) {
                 if ((((low - tones[first]!) % 12) + 12) % 12 !== 0) continue
-                const pitches = stacked(tones, first, low)
+                const pitches = spread(stacked(tones, first, low))
                 candidates.push({
                     value: pitches,
                     cost: previous ? voiceMotion(pitches, previous) : 0,
                     common: previous ? common(pitches, previous) : 0,
-                    center: Math.abs(mean(pitches) - CENTER)
+                    center: Math.abs(mean(pitches) - center)
                 })
             }
         }
         const best = bestOf(candidates)!
         previous = best
-        if (bass === null) return best
+        if (bass === null && !options.bass) return best
+        if (bass === null) {
+            // The pop texture: the root in the left hand, at least a fourth under the chord.
+            let low = 48 + set.root!
+            while (low > best[0]! - 5) low -= 12
+            return [low, ...best]
+        }
         // A bass below the left hand's usual reach of the chord: at least a fourth under it.
         let low = 48 + bass
         while (low > best[0]! - 5) low -= 12
