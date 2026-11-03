@@ -269,6 +269,8 @@ export interface Pass {
     /** Seconds until the next pass starts when it loops (the last note's ring not counted). */
     length: number
     strums: StrumTiming[]
+    /** When each bar starts and how long it lasts (`slot` is the bar's index), when known. */
+    bars?: StrumTiming[]
 }
 
 /** What each pass is made from: the settings read at that pass, the first pass or not, its number. */
@@ -318,7 +320,7 @@ export function runPasses(
     settings: () => StrumSettings,
     timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
     onEnd?: () => void,
-    follow?: (strums: StrumTiming[], player: NotePlayer) => StrumFollower
+    follow?: (strums: StrumTiming[], player: NotePlayer, pass: Pass) => StrumFollower
 ): PlayHandle {
     let stopped = false
     let timer: number | undefined
@@ -348,9 +350,10 @@ export function runPasses(
         const s = settings()
         const id = ++pass
         const looping = s.loop
-        const { events, length, strums } = make(s, first, id)
+        const made = make(s, first, id)
+        const { events, length, strums } = made
         const current = player()
-        const follower = follow?.(strums, current)
+        const follower = follow?.(strums, current, made)
         if (follower) followers.push(follower)
         while (followers.length > 2) followers.shift()
         const called = Date.now()

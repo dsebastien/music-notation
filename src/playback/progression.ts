@@ -226,7 +226,7 @@ export function progressionEvents(
         time: start + b * barLength,
         duration: barLength
     }))
-    return { events, length: start + bars.length * barLength, strums }
+    return { events, length: start + bars.length * barLength, strums, bars: strums }
 }
 
 /** A chord to play: a symbol (or words), or its notes (lowest first) with the name to show. */

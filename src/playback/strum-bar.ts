@@ -6,11 +6,13 @@
 import { html, svg } from '../render/dom.js'
 import {
     countedTempoOf,
-    runStrum,
+    runPasses,
+    strumEvents,
     tempoOf,
-    type StrumScore,
-    type StrumSettings
+    type PassMaker,
+    type StrumScore
 } from '../strum/play.js'
+import type { ProgressionSettings } from './progression.js'
 import { strumVoicing } from '../strum/voicing.js'
 import { isCompound, type Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
@@ -115,7 +117,46 @@ export function strumBarFor(
 ): () => void {
     const score = scoreFromDrawing(drawing)
     if (!score) return () => {}
-    const wrap = html(doc, 'div', 'mn-playable mn-strum-playable')
+    return timedBarFor(doc, win, drawing, options, {
+        cls: 'mn-strum-playable',
+        label: 'Play the strumming pattern',
+        compound: (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat,
+        make: (s, first, id) =>
+            strumEvents(score, {
+                bpm: s.bpm,
+                countIn: first && s.countIn,
+                tail: s.loop ? 0 : 1.2,
+                seed: id
+            })
+    })
+}
+
+/** What a timed bar plays: its passes, and how it's counted. */
+export interface TimedPiece {
+    /** The wrapper's own class, beside `mn-playable`. */
+    cls: string
+    /** The bar's name for screen readers. */
+    label: string
+    /** Counted in dotted beats (6/8): the tempo slider shows ♩. */
+    compound: boolean
+    make: PassMaker
+    /** Shows a click (metronome) button, on or off at the start; none when absent. */
+    click?: boolean
+}
+
+/**
+ * The bar of a piece played in time over a drawing whose slots are `[data-mn-beat]` elements:
+ * play / stop, loop, count-in, click when asked, tempo, volume, sound. Each pass's slots light
+ * as they sound.
+ */
+export function timedBarFor(
+    doc: Document,
+    win: Window,
+    drawing: Element,
+    options: PlayOptions,
+    piece: TimedPiece
+): () => void {
+    const wrap = html(doc, 'div', `mn-playable ${piece.cls}`)
     drawing.parentNode?.insertBefore(wrap, drawing)
     wrap.appendChild(drawing)
     const bar = html(doc, 'div', 'mn-play')
@@ -123,12 +164,12 @@ export function strumBarFor(
     // click on the block, which opens its source.
     bar.addEventListener('mousedown', (event) => event.stopPropagation())
     bar.setAttribute('role', 'group')
-    bar.setAttribute('aria-label', 'Play the strumming pattern')
+    bar.setAttribute('aria-label', piece.label)
     wrap.appendChild(bar)
 
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
-    const compound = (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat
-    const settings: StrumSettings = {
+    const compound = piece.compound
+    const settings: ProgressionSettings = {
         // The app's bpm counts quarters: the same speed in the beat the pattern counts.
         bpm: tempoOf(
             drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo)
@@ -138,6 +179,7 @@ export function strumBarFor(
         ),
         countIn: false,
         loop: false,
+        click: piece.click ?? false,
         sound: options.sound ?? 'guitar',
         volume: clamp(options.volume, 0, 1, 0.8)
     }
@@ -161,8 +203,8 @@ export function strumBarFor(
         // A pattern no longer on the page (redrawn, or the note closed) doesn't play.
         if (!wrap.isConnected) return
         const here = wrap.ownerDocument.defaultView ?? win
-        playing = runStrum(
-            score,
+        playing = runPasses(
+            piece.make,
             player,
             // A loop stops once the drawing leaves the page.
             () => ({ ...settings, loop: settings.loop && wrap.isConnected }),
@@ -198,14 +240,21 @@ export function strumBarFor(
     show()
     bar.appendChild(toggle)
 
-    const pressed = (cls: string, label: string, mark: SVGElement, set: (on: boolean) => void) => {
+    const pressed = (
+        cls: string,
+        label: string,
+        mark: SVGElement,
+        set: (on: boolean) => void,
+        start = false
+    ) => {
         const button = html(doc, 'button', cls)
         button.type = 'button'
         button.appendChild(mark)
         button.title = label
         button.setAttribute('aria-label', label)
-        button.setAttribute('aria-pressed', 'false')
-        let on = false
+        button.setAttribute('aria-pressed', String(start))
+        button.classList.toggle('mn-on', start)
+        let on = start
         button.addEventListener('click', () => {
             on = !on
             set(on)
@@ -224,6 +273,17 @@ export function strumBarFor(
     })
     metronome.appendChild(svg(doc, 'path', { d: COUNT_IN }))
     pressed('mn-play-count', 'Count-in', metronome, (on) => (settings.countIn = on))
+    if (piece.click !== undefined) {
+        const beats = svg(doc, 'svg', {
+            'class': 'mn-play-icon mn-play-icon-loop',
+            'viewBox': '0 0 16 16',
+            'width': 12,
+            'height': 12,
+            'aria-hidden': 'true'
+        })
+        beats.appendChild(svg(doc, 'path', { d: 'M3 5v6M8 5v6M13 5v6' }))
+        pressed('mn-play-click', 'Click', beats, (on) => (settings.click = on), piece.click)
+    }
 
     const slider = (
         label: string,
