@@ -43,8 +43,9 @@ function pageProperties(
 
 /**
  * Playback on the page: on unless `play: false`; `play: { volume, bpm, strum, sound }` sets the
- * defaults. Diagrams use the light synthesizer, or the tab bundle's soundfont once a page with tab
- * blocks has loaded it (`window.musicNotationSoundfontPlayer`).
+ * defaults (`strum` a number for guitar, or `{ guitar, piano }`). Diagrams use the light
+ * synthesizer, or the tab bundle's soundfont once a page with tab blocks has loaded it
+ * (`window.musicNotationSoundfontPlayer`).
  */
 function pagePlay(options: unknown): false | PlayOptions {
     const given = (options as { play?: unknown } | null | undefined)?.play
@@ -61,6 +62,20 @@ function pagePlay(options: unknown): false | PlayOptions {
         if (volume !== undefined) out.volume = volume
         if (bpm !== undefined) out.bpm = bpm
         if (strum !== undefined) out.strum = strum
+        // Or each instrument's: { guitar, piano }.
+        const each = (given as Record<string, unknown>)['strum']
+        if (each && typeof each === 'object') {
+            const of = (key: string) => {
+                const value = (each as Record<string, unknown>)[key]
+                return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+            }
+            const guitar = of('guitar')
+            const piano = of('piano')
+            out.strum = {
+                ...(guitar !== undefined ? { guitar } : {}),
+                ...(piano !== undefined ? { piano } : {})
+            }
+        }
         const sound = (given as Record<string, unknown>)['sound']
         if (sound === 'guitar' || sound === 'piano') out.sound = sound
     }

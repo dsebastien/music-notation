@@ -48,13 +48,28 @@ export interface PlayOptions {
     volume?: number
     /** Scales: notes per minute, 90 by default; also strum patterns' tempo when they have none. */
     bpm?: number
-    /** Chords: milliseconds between strings; by default 12 on guitar, 0 (a block) on piano. */
-    strum?: number
+    /**
+     * Chords: milliseconds between strings; by default 12 on guitar, 0 (a block) on piano. A number
+     * is the guitar's (piano chords stay a block); `{ guitar, piano }` sets each instrument's.
+     */
+    strum?: number | { guitar?: number; piano?: number }
 }
 
 /** A number within bounds; the fallback when it isn't a number at all. */
 export const clamp = (n: number | undefined, lo: number, hi: number, fallback: number) =>
     n === undefined || !Number.isFinite(n) ? fallback : Math.min(hi, Math.max(lo, n))
+
+/**
+ * Each instrument's strum from the app's `strum` option, clamped: a plain number is the guitar's,
+ * so piano chords stay a block unless `{ piano }` is given.
+ */
+export function strumsOf(strum: PlayOptions['strum']): Record<Sound, number> {
+    const given = typeof strum === 'number' ? { guitar: strum } : (strum ?? {})
+    return {
+        guitar: clamp(given.guitar, 0, 200, DEFAULT_STRUM.guitar),
+        piano: clamp(given.piano, 0, 200, DEFAULT_STRUM.piano)
+    }
+}
 
 /** Small icons, drawn so they look the same in every font. */
 const ICONS: Record<'play' | 'stop' | 'loop' | 'volume', string> = {
@@ -259,16 +274,16 @@ function barFor(
     wrap.appendChild(bar)
 
     const firstSound = options.sound ?? data.sound
+    // Each instrument keeps its own strum (a guitar strum, a piano block chord by default); the
+    // slider sets the one of the sound chosen.
+    const strums = strumsOf(options.strum)
     const settings = {
         sound: firstSound,
         volume: clamp(options.volume, 0, 1, 0.8),
         bpm: clamp(options.bpm, 20, 240, DEFAULT_SEQUENCE.bpm),
-        // The instrument's own: a guitar strum, a piano block chord.
-        strum: clamp(options.strum, 0, 200, DEFAULT_STRUM[firstSound]),
+        strum: strums[firstSound],
         loop: false
     }
-    // Set by the app or the slider: then it stays when the sound changes.
-    let strumChosen = options.strum !== undefined && Number.isFinite(options.strum)
     let playing: PlayHandle | null = null
     // The notes lit on the drawing as they sound.
     let lights: Follower | null = null
@@ -419,7 +434,7 @@ function barFor(
                 settings.strum,
                 (n) => {
                     settings.strum = n
-                    strumChosen = true
+                    strums[settings.sound] = n
                 },
                 '≋'
             )
@@ -460,11 +475,9 @@ function barFor(
         // What plays stops first: its notes belong to the drawing that goes away.
         stop()
         settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
-        // A strum nobody set follows the instrument.
-        if (!strumChosen) {
-            settings.strum = DEFAULT_STRUM[settings.sound]
-            showStrum?.(settings.strum)
-        }
+        // Each instrument its own strum.
+        settings.strum = strums[settings.sound]
+        showStrum?.(settings.strum)
         drawFor()
     })
     // An app or a page that starts on the other sound (play: { sound }) shows its drawing.
