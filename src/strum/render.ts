@@ -258,7 +258,7 @@ export function renderStrumBlock(
             `Unknown tuning "${pattern.tuning}": use e.g. tuning: standard, drop d, ukulele or E2 A2 D3 G3 B3 E4`
         )
     if (tuning && tuning.length > 12) throw new Error('At most 12 strings')
-    // The app's bpm counts quarters: in 6/8, 9/8 and 12/8 the counted beat is a dotted quarter.
+    // The app's bpm counts quarters: the same speed in the beat the pattern counts.
     const bpm = countedTempoOf(
         typeof options.play === 'object' ? options.play.bpm : undefined,
         pattern.compound,

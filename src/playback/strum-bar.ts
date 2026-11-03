@@ -68,10 +68,10 @@ export function scoreFromDrawing(drawing: Element): StrumScore | null {
     }
 }
 
-/** The drawn time signature's beat unit (8 in 6/8); 8 when unknown. */
+/** The drawn time signature's beat unit (8 in 6/8); 4 when unknown. */
 function unitOf(drawing: Element): number {
     const unit = Number(/^\d+\/(\d+)$/.exec(drawing.getAttribute('data-mn-time') ?? '')?.[1])
-    return Number.isInteger(unit) && unit > 0 ? unit : 8
+    return Number.isInteger(unit) && unit > 0 ? unit : 4
 }
 
 /** A metronome, for the count-in. */
@@ -96,7 +96,7 @@ export function strumBarFor(
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
     const compound = (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat
     const settings: StrumSettings = {
-        // The app's bpm counts quarters: the counted dotted beat's in compound time.
+        // The app's bpm counts quarters: the same speed in the beat the pattern counts.
         bpm: tempoOf(
             drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo)
                 ? tempo

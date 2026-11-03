@@ -56,7 +56,7 @@ describe('strum playback bar', () => {
         )
     })
 
-    it("reads the app's bpm as quarters: two thirds of it in dotted quarters in compound time", () => {
+    it("reads the app's bpm as quarters, kept at that speed in the beat a pattern counts", () => {
         const value = (src: string, bpm: number) => {
             const h = host()
             renderBlock('strum', src, h, { play: { player: recorder().player, bpm } })
@@ -68,8 +68,15 @@ describe('strum playback bar', () => {
         expect(value('D DU D DU D DU\ntime: 9/8', 100)).toBe('67')
         // In 6/16 the counted beat is a dotted 8th: 90 quarters a minute is 120 of them.
         expect(value('D D U D D U\ntime: 6/16\nsubdivision: 16ths', 90)).toBe('120')
-        // Simple time, and a pattern's own tempo, as they are.
+        // Simple time counts its written beat: halves in 2/2, 8ths in 3/8; quarters as they are.
         expect(value('D DU UDU', 90)).toBe('90')
+        expect(value('D DU DU\ntime: 3/4', 90)).toBe('90')
+        expect(value('D DU UDU\ntime: cut', 90)).toBe('45')
+        expect(value('D U D\ntime: 3/8', 90)).toBe('180')
+        // Within the slider's range.
+        expect(value('D U D\ntime: 3/8', 200)).toBe('240')
+        expect(value('D DU UDU\ntime: cut', 30)).toBe('20')
+        // A pattern's own tempo counts its beat as written.
         expect(value('D D U D D U\ntime: 6/8\ntempo: 72', 90)).toBe('72')
         const { player, calls } = recorder()
         const h = host()
