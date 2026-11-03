@@ -253,6 +253,13 @@ const DEAD = 0.07
 const TICK = 0.03
 
 /**
+ * The pitch of a light synthesizer click (a tick, not a note): 2.8 kHz from MIDI 88 (the bar's
+ * downbeat), 2.1 kHz from 84 (a counted beat), else 1.4 kHz (the other beats).
+ */
+export const clickFrequency = (midi: number): number =>
+    midi >= 88 ? 2800 : midi >= 84 ? 2100 : 1400
+
+/**
  * A percussive note of the light synthesizer: a dead string (the plucked string's attack, damped
  * at once and dulled: a muted strum's chuck; a short piano note on piano) or a metronome click (a
  * high tick, higher for a stronger beat).
@@ -277,8 +284,7 @@ function percussive(
     if (e.kind === 'click') {
         const osc = ctx.createOscillator()
         osc.type = 'triangle'
-        // 2.1 kHz on a strong beat, 1.4 kHz otherwise: a tick, not a note.
-        osc.frequency.value = e.midi >= 84 ? 2100 : 1400
+        osc.frequency.value = clickFrequency(e.midi)
         source = osc
         length = TICK
         env.gain.setValueAtTime(0, at)
