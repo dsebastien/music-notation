@@ -20,10 +20,19 @@ const stringOf = (el: Element): number | null => {
     return Number.isFinite(n) ? n : null
 }
 
+const add = (map: Map<number, Element[]>, n: number, el: Element) => {
+    const list = map.get(n)
+    if (list) list.push(el)
+    else map.set(n, [el])
+}
+
 /**
  * The elements each note lights on a drawing: every element of its pitch (a fretboard may show
  * one pitch on two strings). On a strummed chord, strings that share a pitch light one each, low
- * to high, in the order they sound.
+ * to high, in the order they sound. An element with `data-mn-chroma` (a pitch class, 0-11: a
+ * chord of the key on the circle of fifths) lights for every note of that pitch class instead;
+ * a chord element (`data-mn-strum`) without one never lights: its `data-midi` is only the note
+ * a click plays.
  */
 export function noteTargets(
     drawing: Element,
@@ -31,13 +40,23 @@ export function noteTargets(
     kind: PlayKind
 ): Element[][] {
     const byPitch = new Map<number, Element[]>()
-    for (const el of drawing.querySelectorAll('[data-midi]')) {
+    const byChroma = new Map<number, Element[]>()
+    for (const el of drawing.querySelectorAll('[data-midi], [data-mn-chroma]')) {
+        const chroma = el.getAttribute('data-mn-chroma')
+        if (chroma !== null) {
+            const n = Number(chroma)
+            if (Number.isInteger(n) && n >= 0 && n < 12) add(byChroma, n, el)
+            continue
+        }
+        if (el.hasAttribute('data-mn-strum')) continue
         const midi = Number(el.getAttribute('data-midi'))
-        if (!Number.isFinite(midi)) continue
-        const list = byPitch.get(midi)
-        if (list) list.push(el)
-        else byPitch.set(midi, [el])
+        if (Number.isFinite(midi)) add(byPitch, midi, el)
     }
+    if (byChroma.size)
+        return events.map((e) => [
+            ...(byPitch.get(e.midi) ?? []),
+            ...(byChroma.get(((e.midi % 12) + 12) % 12) ?? [])
+        ])
     // Lowest string first: its number is the highest.
     for (const list of byPitch.values())
         list.sort((a, b) => {
