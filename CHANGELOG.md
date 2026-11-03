@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 (2026-11-03)
+
+- **A root for note lists**: `root: C` gives a list of notes (`notes: C Eb Gb A`) a root, on fretboards and keyboards. `labels: intervals` and `labels: degrees` then count from it, and the root gets the root color when it is in the list. It doesn't have to be (#33).
+- **Positions in neck order**: `positions: all` draws a scale's positions up the neck, each one at or above the one before. A minor pentatonic's boxes 4 and 5 now sit at frets 12–15 and 14–17, not 0–3 and 2–5. A list of positions (`positions: 1 3`) keeps those frets (#34).
+- **One position where you want it**: a single `position:` with `frets:` is drawn inside those frets, so `position: 4` with `frets: 10-17` is box 4 at frets 12–15. When no octave of it fits, the block says so (#34).
+- **Numbering from the relative minor**: `numbering: minor` counts a major pentatonic's positions from its relative minor, as many courses do. A major pentatonic's position 1 is then box 1 of F# minor pentatonic, and the titles add "(from F#m)" (#34).
+- **Check your notes**: `npx @dsebastien/music-notation check notes/` (or `bunx`) draws every notation block of your Markdown files and lists the mistakes, one per line. It exits with 0 when every block draws, 1 when a block has a mistake, and 2 when the command itself is wrong. `--describe` prints what each block draws, and `--json` prints the same as JSON. Like Obsidian, it ignores blocks in comments and in indented code, and it counts empty blocks apart, not as mistakes (#35).
+- For apps and tools: diagrams carry data attributes that describe what they draw (`data-mn-string`, `data-mn-fret`, `data-mn-note`, `data-mn-chord`, `data-mn-set`, `data-mn-frets`, `data-mn-key`).
+
 ## 0.5.3 (2026-11-03)
 
 - Chord symbols written the way chord sheets on the web write them now work: alterations in parentheses (`C7(b9)`, `C7(b5,#9)`, and `C(#5)` for C augmented) and spellings like `Cmaj7b5`, `C-5`, `Cm6/9` and `Csus2sus4` (#40).
