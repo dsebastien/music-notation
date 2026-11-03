@@ -298,7 +298,9 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
                   ? ['shape: 3nps', `position: ${n}`, `title: ${name}, 3nps ${n}${from}`]
                   : [`position: ${n}`, `title: ${name}, box ${n}${from}`]
         const what = arpeggio ? `arpeggio: ${written}` : `scale: ${written}`
-        return [what, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
+        // A chord over the scale (#48) marks its tones in every position.
+        const over = !arpeggio && chordText ? [`chord: ${chordText}`] : []
+        return [what, ...over, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
 }

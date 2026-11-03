@@ -192,3 +192,39 @@ export {
     type StrumEventOptions,
     type StrumScore
 } from './strum/play.js'
+export {
+    findScales,
+    findKey,
+    inKey,
+    scalesForChord,
+    chordsInScale,
+    type ScaleMatch,
+    type FindScalesOptions,
+    type KeyCandidate,
+    type FoundKey,
+    type ScaleChord
+} from './theory/find.js'
+export {
+    readKey,
+    keyNotes,
+    keySignature,
+    keyChords,
+    parentMajor,
+    signatureText,
+    MODES,
+    type Mode,
+    type MusicalKey,
+    type KeySignature,
+    type KeyChord
+} from './theory/keys.js'
+export {
+    progressionChords,
+    progressionChord,
+    readNumeral,
+    numeralOf,
+    harmonicFunction,
+    type ProgressionChord,
+    type HarmonicFunction
+} from './theory/numerals.js'
+export { voiceLead } from './keyboard/voice-leading.js'
+export { renderCircle, type CircleOptions } from './circle/circle.js'

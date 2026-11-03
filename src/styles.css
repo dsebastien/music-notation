@@ -732,3 +732,149 @@
     stroke: var(--mn-fg);
     stroke-width: 3;
 }
+
+/* A chord over a scale (#48): chord tones solid, the scale's other notes hollow (passing notes), so
+   the difference doesn't rest on color alone. */
+.mn-svg .mn-dot.mn-passing {
+    fill: var(--mn-bg);
+    stroke: var(--mn-accent);
+    stroke-width: 2;
+}
+
+.mn-svg .mn-dot.mn-passing.mn-root {
+    stroke: var(--mn-root);
+}
+
+.mn-svg .mn-dot.mn-passing + .mn-dot-text {
+    fill: var(--mn-fg);
+}
+
+.mn-svg .mn-key-white.mn-on.mn-passing {
+    fill: color-mix(in srgb, var(--mn-accent) 25%, var(--mn-key-white));
+}
+
+.mn-svg .mn-key-white.mn-on.mn-passing.mn-root {
+    fill: color-mix(in srgb, var(--mn-root) 25%, var(--mn-key-white));
+}
+
+.mn-svg .mn-key-black.mn-on.mn-passing {
+    fill: color-mix(in srgb, var(--mn-accent) 45%, var(--mn-key-black));
+}
+
+.mn-svg .mn-key-black.mn-on.mn-passing.mn-root {
+    fill: color-mix(in srgb, var(--mn-root) 45%, var(--mn-key-black));
+}
+
+/* Piano keys keep their colors in every theme: a light passing key takes dark text. */
+.mn-svg .mn-key-white.mn-passing + .mn-key-label {
+    fill: var(--mn-key-black);
+}
+
+/* Progressions (#9): one column per chord (numeral, diagram or name, function). */
+.mn-progression-title {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 0.3em;
+}
+
+.mn-progression-section + .mn-progression-section,
+.mn-progression-section-title {
+    margin-top: 0.75em;
+}
+
+.mn-progression-section-title {
+    font-weight: 600;
+}
+
+.mn-progression-key {
+    color: var(--mn-muted);
+    font-size: 0.85em;
+    margin-bottom: 0.3em;
+}
+
+.mn-block .mn-progression-chord {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.mn-progression-numeral {
+    font-weight: 700;
+    font-size: 1.05em;
+    color: var(--mn-accent);
+}
+
+.mn-progression-name {
+    font-weight: 600;
+    min-width: 2.5em;
+}
+
+.mn-progression-function {
+    color: var(--mn-muted);
+    font-size: 0.8em;
+}
+
+/* Circle of fifths (#44): the key's chords tinted, its tonic and neighbours solid. */
+.mn-svg .mn-circle-cell,
+.mn-svg .mn-circle-chip {
+    fill: var(--mn-bg);
+    stroke: var(--mn-faint);
+    stroke-width: 1;
+}
+
+.mn-svg .mn-circle-diatonic {
+    fill: color-mix(in srgb, var(--mn-accent) 22%, var(--mn-bg));
+}
+
+.mn-svg .mn-circle-neighbour {
+    fill: var(--mn-accent);
+}
+
+.mn-svg .mn-circle-tonic {
+    fill: var(--mn-root);
+}
+
+.mn-svg .mn-circle-label {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mn-svg .mn-circle-label-minor {
+    font-size: 11px;
+}
+
+.mn-svg .mn-circle-label-dim {
+    font-size: 9px;
+    font-weight: 400;
+}
+
+.mn-svg .mn-circle-numeral {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.mn-svg text.mn-circle-on {
+    fill: var(--mn-on-accent);
+}
+
+.mn-svg .mn-circle-sig {
+    fill: var(--mn-muted);
+    font-size: 9px;
+}
+
+.mn-svg .mn-circle-sig-key {
+    fill: var(--mn-fg);
+    font-weight: 700;
+}
+
+.mn-svg .mn-circle-key {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mn-svg .mn-circle-key-sig,
+.mn-svg .mn-circle-key-notes {
+    font-size: 9px;
+    fill: var(--mn-muted);
+}

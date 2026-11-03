@@ -43,6 +43,8 @@ export interface NoteMarks {
     ghosts?: Set<number>
     /** The ghosts as the compared scale spells them (C minor's Eb, not D#). */
     ghostNames?: Map<number, string>
+    /** A chord drawn over a scale: its tones in the scale; the scale's other notes are passing. */
+    chordTones?: Set<number>
 }
 
 /** Classes for a highlighted note: root, characteristic, different. */
@@ -51,6 +53,7 @@ export function markClasses(set: NoteSet, chroma: number, marks: NoteMarks = {})
     if (set.root === chroma) classes.push('mn-root')
     else if (marks.characteristic?.has(chroma)) classes.push('mn-char')
     if (marks.different?.has(chroma)) classes.push('mn-diff')
+    if (marks.chordTones) classes.push(marks.chordTones.has(chroma) ? 'mn-tone' : 'mn-passing')
     return classes.length ? ` ${classes.join(' ')}` : ''
 }
 
@@ -60,9 +63,11 @@ export function describeMarks(set: NoteSet, marks: NoteMarks = {}): string {
         set.members.filter((m) => chromas?.has(m.chroma)).map((m) => m.name)
     const characteristic = names(marks.characteristic)
     const different = names(marks.different)
+    const tones = names(marks.chordTones)
     return (
         (characteristic.length ? `, characteristic notes: ${characteristic.join(' ')}` : '') +
-        (different.length ? `, different from the compared scale: ${different.join(' ')}` : '')
+        (different.length ? `, different from the compared scale: ${different.join(' ')}` : '') +
+        (tones.length ? `, chord tones: ${tones.join(' ')}` : '')
     )
 }
 

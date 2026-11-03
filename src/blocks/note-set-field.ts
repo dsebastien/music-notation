@@ -147,5 +147,24 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
             parent.members.filter((m) => !own.has(m.chroma)).map((m) => [m.chroma, m.name])
         )
     }
+    chordOverScale(block, set, marks)
     return marks
+}
+
+/**
+ * `chord:` with `scale:` (#48): the scale stays drawn, the chord's tones in it are marked, its
+ * other notes are passing notes, and chord tones outside the scale are drawn faint (like the notes
+ * of a compared scale).
+ */
+function chordOverScale(block: BlockSource, set: NoteSet, marks: NoteMarks): void {
+    const text = (block.fields.get('chord') ?? block.fields.get('arpeggio'))?.trim()
+    if (!text || block.fields.get('scale') === undefined || !set.scaleType) return
+    const chord = orFail(chordNoteSet(text), `Unknown chord "${text}": use e.g. chord: Am7`)
+    const inScale = new Set(set.members.map((m) => m.chroma))
+    marks.chordTones = new Set(chord.members.map((m) => m.chroma).filter((c) => inScale.has(c)))
+    for (const member of chord.members) {
+        if (inScale.has(member.chroma)) continue
+        ;(marks.ghosts ??= new Set()).add(member.chroma)
+        ;(marks.ghostNames ??= new Map()).set(member.chroma, member.name)
+    }
 }

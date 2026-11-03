@@ -71,6 +71,23 @@ modes: C major
 ```
 ````
 
+Progressions in roman numerals or Nashville numbers, the circle of fifths, and the scale that fits a song's chords:
+
+````markdown
+```progression
+I V vi IV
+key: G
+```
+
+```circle
+key: E minor
+```
+
+```fretboard
+scales-for: G D Em C
+```
+````
+
 ![A Major's easiest voicings, and G triads on the three highest strings](docs/images/voicings.png)
 
 ![G triads on the top strings, and the easiest ways from C to Am](docs/images/triads-transitions.png)
@@ -135,7 +152,15 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
     const VERSION = '0.7.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
-    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard', 'strum'])
+    const BLOCKS = selector([
+        'chord',
+        'chords',
+        'keyboard',
+        'fretboard',
+        'strum',
+        'progression',
+        'circle'
+    ])
     const TABS = selector(['tab', 'score'])
     const requested = new Set()
     const load = (file) => {

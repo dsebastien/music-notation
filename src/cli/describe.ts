@@ -113,6 +113,14 @@ export interface FailedDiagram {
     message: string
 }
 
+/** The circle of fifths: its key and the key's chords. */
+export interface CircleDiagram {
+    type: 'circle'
+    key: string | null
+    /** The key's chords in scale order, with their numerals ("ii Am"). */
+    chords: string[]
+}
+
 export type Diagram =
     | GuitarChordDiagram
     | FretboardDiagram
@@ -120,6 +128,7 @@ export type Diagram =
     | ChartDiagram
     | StrumDiagram
     | FailedDiagram
+    | CircleDiagram
 
 const classes = (el: Element) => (el.getAttribute('class') ?? '').split(/\s+/)
 const has = (el: Element, cls: string) => classes(el).includes(cls)
@@ -128,7 +137,15 @@ const int = (value: string | null) => (value === null ? null : Number(value))
 
 const marksOf = (el: Element) =>
     classes(el).flatMap((c) =>
-        c === 'mn-char' ? ['characteristic'] : c === 'mn-diff' ? ['different'] : []
+        c === 'mn-char'
+            ? ['characteristic']
+            : c === 'mn-diff'
+              ? ['different']
+              : c === 'mn-tone'
+                ? ['chord tone']
+                : c === 'mn-passing'
+                  ? ['passing']
+                  : []
     )
 
 /** A spelled note with its octave: B#3 is MIDI 60, so the octave follows the letter. */
@@ -313,6 +330,15 @@ export function describeBlock(el: Element): Diagram[] {
             return { type: 'error', message: message.replace(/^[a-z]+, /, '') }
         }
         if (has(d, 'mn-chart')) return chart(d)
+        if (has(d, 'mn-circle')) {
+            return {
+                type: 'circle',
+                key: d.getAttribute('data-mn-set'),
+                chords: [...d.querySelectorAll('.mn-circle-chip')].map(
+                    (c) => `${text(c.querySelector('title'))?.replace(': ', ' ') ?? ''}`
+                )
+            } satisfies CircleDiagram
+        }
         if (has(d, 'mn-fretboard')) return fretboard(d)
         if (has(d, 'mn-keyboard')) return keyboard(d)
         if (has(d, 'mn-strum')) return strum(d)
@@ -338,6 +364,10 @@ export function formatDiagram(d: Diagram, n: number): string[] {
     switch (d.type) {
         case 'error':
             return [`${head}error: ${d.message}`]
+        case 'circle':
+            return [
+                `${head}${listed(['circle of fifths', d.key, `chords ${d.chords.join(', ')}`])}`
+            ]
         case 'strum':
             return [
                 `${head}${listed([

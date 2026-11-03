@@ -55,6 +55,9 @@ import {
     scalePosition,
     type Cell
 } from '../fretboard/positions.js'
+import { withScalesFor } from './scales-for.js'
+import { renderProgression } from './progression.js'
+import { renderCircleBlock } from '../circle/circle.js'
 import { renderStrumBlock } from '../strum/render.js'
 
 export interface RenderOptions extends LayoutDefaults {
@@ -679,8 +682,8 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
 /** Diagram languages and their renderers. */
 export const DIAGRAMS: Record<DiagramLanguage, DiagramRenderer> = {
     chord: renderChord,
-    keyboard: renderKeyboardBlock,
-    fretboard: renderFretboardBlock
+    keyboard: withScalesFor(renderKeyboardBlock),
+    fretboard: withScalesFor(renderFretboardBlock)
 }
 
 const fromSource =
@@ -702,9 +705,12 @@ const renderChordsBlock: Renderer = (doc, source, options) =>
 export const RENDERERS = {
     chord: fromSource(renderChord),
     chords: renderChordsBlock,
-    keyboard: fromSource(renderKeyboardBlock),
-    fretboard: fromSource(renderFretboardBlock),
-    strum: renderStrumBlock
+    keyboard: fromSource(DIAGRAMS.keyboard),
+    fretboard: fromSource(DIAGRAMS.fretboard),
+    strum: renderStrumBlock,
+    progression: (doc: Document, source: string, options: RenderOptions) =>
+        renderProgression(doc, source, options, DIAGRAMS.chord),
+    circle: renderCircleBlock
 } satisfies Record<string, Renderer>
 
 export type NotationLanguage = keyof typeof RENDERERS

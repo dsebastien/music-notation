@@ -291,6 +291,7 @@ labels: degrees</code></pre></div>
 | `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                                                                                               |
 | `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`. For a list of notes: one finger per note, in the order written. It works with `labels` and `range` too. |
 | `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                                                                                 |     |
+| `scales-for`           | `scales-for: G D Em C`: the scale that fits these chords. See [which scale fits](#which-scale-fits).                                                                                     |
 
 The short first line is tried as a scale, then as notes with octaves (`C4` is that key), then as a chord, then as a list of notes. The root is drawn in a second color.
 
@@ -462,7 +463,7 @@ Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, m
 
 - `position: 1` to `5`, or `shape: E`, `D`, `C`, `A`, `G`: the chord tones of that CAGED shape. Each shape is the CAGED position of the root's major scale (natural minor for chords with a minor third), keeping only the chord's notes. Chord notes outside that scale (G7's F, Caug's G#) are added on the string that keeps the hand in place.
 - `positions: all` (or a list, `positions: 1 3`) draws the shapes side by side in neck order, each one at or above the one before; `frets:` with one position draws it in the lowest octave inside those frets. These are the same rules as for scale positions.
-- A chord with a position is an arpeggio too (`chord: G7` with `shape: A`). `labels:` works as usual. Arpeggios have no 3NPS positions.
+- A chord with a position is an arpeggio too (`chord: G7` with `shape: A`), unless the block also has a `scale:` (see [a chord over a scale](#which-scale-fits)). `labels:` works as usual. Arpeggios have no 3NPS positions.
 - On a keyboard, `arpeggio:` plays the notes one at a time.
 
 ````markdown
@@ -476,6 +477,120 @@ columns: 3
 <div class="mn-live" markdown="0"><pre><code class="language-fretboard">arpeggio: Am7
 positions: all
 columns: 3</code></pre></div>
+
+## Which scale fits
+
+**Scales for chords.** On a keyboard or a fretboard, `scales-for:` with the chords of a song draws the scale that fits them best. The title names the scale, and any chord notes outside it. `scales-for-notes:` does the same for a list of notes. Other keys (`frets`, `labels`, `position`, `range`…) work as for `scale:`.
+
+````markdown
+```fretboard
+scales-for: G D Em C
+frets: 0-5
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">scales-for: G D Em C
+frets: 0-5</code></pre></div>
+
+The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note.
+
+**A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint. `arpeggio:` works like `chord:` here. With `position:` or `positions:`, you get the scale's positions with the chord tones marked; a chord or arpeggio without `scale:` draws its own [arpeggio positions](#arpeggios).
+
+````markdown
+```fretboard
+scale: A minor pentatonic
+chord: Am7
+frets: 5-8
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">scale: A minor pentatonic
+chord: Am7
+frets: 5-8
+labels: intervals</code></pre></div>
+
+## Progressions
+
+A `progression` block writes a progression once and shows its chords in any key: roman numerals, Nashville numbers or chord names, each chord with its numeral and a diagram.
+
+````markdown
+```progression
+I V vi IV
+key: G
+functions: yes
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">I V vi IV
+key: G
+functions: yes</code></pre></div>
+
+| Key                          | Meaning                                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| first line                   | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.                 |
+| `key`                        | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others).     |
+| `transpose`                  | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                     |
+| `numerals`                   | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                               |
+| `functions`                  | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, borrowed or chromatic.             |
+| `instrument`                 | `guitar` (default, or the note's instrument) or `piano`.                                                                          |
+| `diagrams`                   | `no` shows only the chord names.                                                                                                  |
+| `voice-leading`              | `yes` (piano): each chord in the inversion closest to the one before.                                                             |
+| `voicing`, `octave`, `hands` | Piano voicings for every chord, as in [piano voicings](#piano-voicings): `voicing: shell` for a ii-V-I. Not with `voice-leading`. |
+| `tuning`                     | For guitar diagrams, as for chords.                                                                                               |
+| `title`                      | A title above the progression.                                                                                                    |
+
+**Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C.
+
+**Minor keys.** Write `i iv v` (or `V`), `bIII bVI bVII`. The plain `III`, `VI` and `VII` mean the same chords (C, F and G in A minor), and `vii°` is the chord on the raised seventh (G#dim in A minor). `#vi` raises the sixth (F#m in A minor).
+
+**Nashville numbers.** `1 5 6m 4`: a plain number is a major chord, `m` or `-` makes it minor (`6m`, `2-7`), and `b7`, `5/3` (the bass) work as above. A seventh right after the number is written raised, `5⁷`, so it doesn't read as 57 (typing `57` works).
+
+**Key changes.** `---` starts a new section with its own `key:`. Settings before the first `---` apply to every section.
+
+````markdown
+```progression
+diagrams: no
+---
+I IV V I
+key: C
+---
+I IV V I
+key: D
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">diagrams: no
+---
+I IV V I
+key: C
+---
+I IV V I
+key: D</code></pre></div>
+
+Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`.
+
+## Circle of fifths
+
+A `circle` block draws the circle of fifths: the 12 major keys, their relative minors and the diminished chords, with each key signature around the outside. The chosen key's chords are tinted, with their numerals; its tonic and its IV and V (iv and v in minor) stand out. A row of the key's chords sits under the wheel.
+
+````markdown
+```circle
+key: G
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-circle">key: G</code></pre></div>
+
+| Key          | Meaning                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| `key`        | `G`, `Em`, `F# minor`, `D dorian`, or a first line with the key alone. C major by default.        |
+| `mode`       | `major`, `minor`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `locrian`, `ionian` or `aeolian`. |
+| `chords`     | `triads` (default) or `sevenths`.                                                                 |
+| `neighbours` | `no` draws IV and V like the other chords.                                                        |
+| `title`      | A title above the wheel.                                                                          |
+
+With playback on, a click on a key or a chord plays it, and the play button plays the key's scale.
 
 ## From a note's properties
 

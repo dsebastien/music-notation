@@ -5,7 +5,17 @@
  *
  *   bun scripts/live-examples.ts docs/blocks.md docs/examples.md
  */
-const LANGUAGES = ['chord', 'chords', 'keyboard', 'fretboard', 'tab', 'score', 'strum']
+const LANGUAGES = [
+    'chord',
+    'chords',
+    'keyboard',
+    'fretboard',
+    'progression',
+    'circle',
+    'tab',
+    'score',
+    'strum'
+]
 const LIVE = /\n<div class="mn-live" markdown="0">[\s\S]*?<\/div>\n/g
 const EXAMPLE = /````markdown\n```(\w+)\n([\s\S]*?)\n```\n````\n/g
 
