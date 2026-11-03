@@ -7,6 +7,7 @@
  * draws the same in Obsidian and on Obsidian Publish.
  */
 import { readChord } from '../theory/chord-name.js'
+import { namedPicking } from '../picking/pattern.js'
 
 /** Property names, as Music Practice and the Obsidian Starter Kit write them by default. */
 export interface PropertyNames {
@@ -31,6 +32,8 @@ export interface PropertyNames {
     strumFeel: string
     /** The current BPM: a strumming pattern's tempo (20 to 240). */
     bpmCurrent: string
+    /** Picking patterns (#51): a named pattern ("travis") or the pattern ("p i m a", a bar a line). */
+    pickingPattern: string
 }
 
 export const DEFAULT_PROPERTY_NAMES: PropertyNames = {
@@ -48,7 +51,8 @@ export const DEFAULT_PROPERTY_NAMES: PropertyNames = {
     strumPattern: 'strum_pattern',
     timeSignature: 'time_signature',
     strumFeel: 'strum_feel',
-    bpmCurrent: 'bpm_current'
+    bpmCurrent: 'bpm_current',
+    pickingPattern: 'picking_pattern'
 }
 
 export type Instrument = 'guitar' | 'piano'
@@ -189,6 +193,31 @@ function strumSource(properties: Properties, names: PropertyNames): string | nul
 }
 
 /**
+ * A fingerpicking pattern note's ```picking block (#51): a named pattern (`pattern: travis`) or the
+ * pattern's lines, then its time signature, chord and current BPM as the tempo. Null without a
+ * pattern.
+ */
+function pickingSource(properties: Properties, names: PropertyNames): string | null {
+    const raw = properties[names.pickingPattern]
+    const bars = (Array.isArray(raw) ? raw : [raw])
+        .map((line) => first(line))
+        .flatMap((line) => line.split(/\r?\n/))
+        .map((line) => line.trim())
+        .filter(Boolean)
+    if (!bars.length) return null
+    const time = first(properties[names.timeSignature])
+    const chord = chordOf(properties, names)
+    const bpm = Number(first(properties[names.bpmCurrent]))
+    const named = bars.length === 1 && namedPicking(bars[0]!)
+    return [
+        ...(named ? [`pattern: ${bars[0]}`] : bars),
+        ...(TIME.test(time) ? [`time: ${time}`] : []),
+        ...(chord ? [`chord: ${chord}`] : []),
+        ...(Number.isInteger(bpm) && bpm >= 20 && bpm <= 240 ? [`tempo: ${bpm}`] : [])
+    ].join('\n')
+}
+
+/**
  * The source of a block drawn from a note's properties; null when they don't describe one (a chord
  * block in a scale note, a chord note with no chord yet).
  */
@@ -202,6 +231,7 @@ export function blockFromProperties(
     const get = (name: string) => text(properties, name)
     const lines: string[] = []
     if (language === 'strum') return strumSource(properties, names)
+    if (language === 'picking') return pickingSource(properties, names)
     if (language === 'chord') {
         const symbol = get(names.chordSymbol)
         if (symbol) lines.push(`symbol: ${symbol}`)

@@ -80,6 +80,8 @@ export interface StrumEventOptions {
     tail?: number
     /** Varies the small differences between strums from pass to pass (the pass's number). */
     seed?: number
+    /** The most time between a strum's strings, in seconds: 0.012 by default (0 a block). */
+    spread?: number
 }
 
 /**
@@ -218,7 +220,10 @@ export function strumEvents(
         const muted = s.stroke === 'mute'
         // A chuck slaps the strings nearly at once.
         const spread =
-            Math.min(0.012, (slot * 0.4) / Math.max(1, strings.length)) * (muted ? 0.5 : 1)
+            Math.min(
+                Math.max(0, options.spread ?? 0.012),
+                (slot * 0.4) / Math.max(1, strings.length)
+            ) * (muted ? 0.5 : 1)
         const velocity = strumVelocity(s, up, inBar, pulse, seed, i)
         strings.forEach((midi, k) => {
             const time = at + k * spread
@@ -258,6 +263,19 @@ export interface StrumFollower {
     stop(): void
 }
 
+/** One pass of a piece played in time: its notes, its length in seconds, and what to light. */
+export interface Pass {
+    events: NoteEvent[]
+    /** Seconds until the next pass starts when it loops (the last note's ring not counted). */
+    length: number
+    strums: StrumTiming[]
+    /** When each bar starts and how long it lasts (`slot` is the bar's index), when known. */
+    bars?: StrumTiming[]
+}
+
+/** What each pass is made from: the settings read at that pass, the first pass or not, its number. */
+export type PassMaker = (settings: StrumSettings, first: boolean, id: number) => Pass
+
 /**
  * Plays a score through `player`, pass after pass while `settings().loop` is on. Each next pass
  * is started on a timer at the exact end of the previous one, counted from the first pass's start
@@ -275,6 +293,34 @@ export function runStrum(
     timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
     onEnd?: () => void,
     follow?: (strums: StrumTiming[], player: NotePlayer) => StrumFollower
+): PlayHandle {
+    return runPasses(
+        (s, first, id) =>
+            strumEvents(score, {
+                bpm: s.bpm,
+                countIn: first && s.countIn,
+                tail: s.loop ? 0 : TAIL,
+                seed: id
+            }),
+        player,
+        settings,
+        timers,
+        onEnd,
+        follow
+    )
+}
+
+/**
+ * Plays the passes `make` returns, as `runStrum` plays a strumming pattern's (see there): the
+ * timing of progressions (#46) and picking patterns (#51) too.
+ */
+export function runPasses(
+    make: PassMaker,
+    player: () => NotePlayer,
+    settings: () => StrumSettings,
+    timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
+    onEnd?: () => void,
+    follow?: (strums: StrumTiming[], player: NotePlayer, pass: Pass) => StrumFollower
 ): PlayHandle {
     let stopped = false
     let timer: number | undefined
@@ -304,14 +350,10 @@ export function runStrum(
         const s = settings()
         const id = ++pass
         const looping = s.loop
-        const { events, length, strums } = strumEvents(score, {
-            bpm: s.bpm,
-            countIn: first && s.countIn,
-            tail: looping ? 0 : TAIL,
-            seed: id
-        })
+        const made = make(s, first, id)
+        const { events, length, strums } = made
         const current = player()
-        const follower = follow?.(strums, current)
+        const follower = follow?.(strums, current, made)
         if (follower) followers.push(follower)
         while (followers.length > 2) followers.shift()
         const called = Date.now()

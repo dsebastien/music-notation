@@ -973,3 +973,73 @@
     margin: 0;
     white-space: pre-wrap;
 }
+
+/* Progressions and charts in time (#46): the bar sits above the chords, always shown. */
+.mn-play.mn-play-static {
+    position: static;
+    display: inline-flex;
+    justify-content: flex-start;
+    margin: 0 0 6px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mn-progression-chord.mn-playing {
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--mn-playing) 22%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mn-playing) 70%, transparent);
+}
+
+.mn-chart .mn-chord.mn-playing {
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--mn-playing) 45%, transparent);
+}
+
+/* Picking patterns (#51): a small tab, the fingers and counts under it. */
+.mn-svg .mn-picking-string {
+    stroke: var(--mn-muted);
+    stroke-width: 1;
+}
+
+.mn-svg .mn-picking-bar {
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-picking-gap {
+    fill: var(--mn-bg);
+    stroke: none;
+}
+
+.mn-svg .mn-picking-fret {
+    fill: var(--mn-fg);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.mn-svg .mn-picking-finger {
+    fill: var(--mn-accent);
+    font-size: 11px;
+    font-style: italic;
+}
+
+.mn-svg .mn-picking-finger.mn-picking-thumb {
+    font-weight: 700;
+}
+
+.mn-svg .mn-picking-cell {
+    fill: transparent;
+    stroke: none;
+}
+
+.mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-cell {
+    fill: color-mix(in srgb, var(--mn-playing) 35%, transparent);
+}
+
+.mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-gap {
+    fill: var(--mn-playing);
+}
+
+.mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-fret {
+    fill: var(--mn-on-playing);
+}

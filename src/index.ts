@@ -209,16 +209,39 @@ export { renderStrum, type StrumOptions } from './strum/render.js'
 export { strumVoicing, DEFAULT_STRUM_CHORD } from './strum/voicing.js'
 export {
     playStrum,
+    runPasses,
     strumEvents,
     scoreOf,
     STRUM_VELOCITY,
     STRUM_STRESS,
     strumVelocity,
     tempoOf,
+    type Pass,
+    type PassMaker,
     type PlayStrumOptions,
     type StrumEventOptions,
+    type StrumFollower,
+    type StrumSettings,
+    type StrumTiming,
     type StrumScore
 } from './strum/play.js'
+export {
+    playProgression,
+    progressionEvents,
+    progressionPitches,
+    runProgression,
+    followTimes,
+    PROGRESSION_STRUMS,
+    MAX_PROGRESSION_BARS,
+    type PlayProgressionOptions,
+    type ProgressionBar,
+    type ProgressionChanges,
+    type ProgressionChordInput,
+    type ProgressionEventOptions,
+    type ProgressionHandle,
+    type ProgressionSettings,
+    type ProgressionStrum
+} from './playback/progression.js'
 export {
     findScales,
     findKey,
@@ -268,3 +291,26 @@ export {
     type LedVoicing
 } from './keyboard/voice-leading.js'
 export { renderCircle, type CircleOptions } from './circle/circle.js'
+export {
+    parsePicking,
+    formatPicking,
+    namedPicking,
+    pluckText,
+    PICKING_PATTERNS,
+    MAX_PICKING_BARS,
+    type PickingPattern,
+    type PickingSlot,
+    type Pluck
+} from './picking/pattern.js'
+export { pickingFrets, pluckNote, type PickedNote } from './picking/voicing.js'
+export {
+    playPicking,
+    pickingEvents,
+    pickingScore,
+    PICKING_VELOCITY,
+    type PickingEventOptions,
+    type PickingScore,
+    type PickingScoreOptions,
+    type PlayPickingOptions
+} from './picking/play.js'
+export { renderPicking, type PickingOptions } from './picking/render.js'

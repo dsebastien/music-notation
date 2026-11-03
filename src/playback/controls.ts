@@ -30,6 +30,8 @@ import {
     type Sound
 } from './player.js'
 import { strumBarFor } from './strum-bar.js'
+import { progressionBarFor } from './progression-bar.js'
+import { pickingBarFor } from './picking-bar.js'
 import {
     followNotes,
     noteTargets,
@@ -316,6 +318,12 @@ export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () =
     // Strumming patterns (#22): their own bar, with tempo and count-in.
     for (const pattern of [...el.querySelectorAll('svg[data-mn-strum]')])
         stops.push(strumBarFor(doc, win, pattern, options))
+    // Picking patterns (#51): the same bar, with a click.
+    for (const pattern of [...el.querySelectorAll('svg[data-mn-picking]')])
+        stops.push(pickingBarFor(doc, win, pattern, options))
+    // Progressions and ChordPro charts (#46): one chord a bar, in time.
+    for (const drawing of [...el.querySelectorAll('[data-mn-progression-play]')])
+        stops.push(progressionBarFor(doc, win, drawing, options))
     return () => stops.forEach((stop) => stop())
 }
 
