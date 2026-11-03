@@ -33,10 +33,19 @@ describe('fingerVoicing', () => {
         expect(fingerVoicing([5, 6, 7, 7, 7, 5])).toEqual(['1', '2', '3', '3', '3', '1'])
     })
 
-    it('barres with the index or the ring finger only', () => {
-        // G7 323033 would need a pinky barre on the top strings, Am x02555 a pinky across fret 5.
-        expect(fingerVoicing(frets('323033'))).toBeNull()
+    it('barres with the index or the ring finger, the pinky only on the two highest strings', () => {
+        // Am x02555 would need a pinky across three strings: the ring finger barres them.
         expect(fingerVoicing(frets('x02555'))).toEqual(fingers('x01333'))
+        // Standard 6/9 grips: the pinky on the two highest strings.
+        expect(fingerVoicing(frets('022122'))).toEqual(fingers('023144'))
+        expect(fingerVoicing(frets('x31233'))).toEqual(fingers('x31244'))
+        expect(fingerVoicing(frets('133133'))).toEqual(fingers('123144'))
+        // Only when nothing else works: G7 320033 keeps the ring and the pinky apart.
+        expect(fingerVoicing(frets('320033'))).toEqual(fingers('210034'))
+        // G7 323033: the pinky on the B and E strings (the generator doesn't offer it).
+        expect(fingerVoicing(frets('323033'))).toEqual(fingers('213044'))
+        // The pinky over the G and B strings is no barre.
+        expect(fingerVoicing([3, 1, 2, 4, 4, null])).toBeNull()
         // Two notes at 6 apart and three at 7 would need a pinky barre.
         expect(fingerVoicing([5, 6, 7, 7, 7, 5, 6])).toBeNull()
         expect(fingerVoicing(frets('xx0211'))).toEqual(fingers('xx0211'))
@@ -317,6 +326,10 @@ describe('after the guitar review (#67)', () => {
         before('D', 'x57775', '10-12-12-11-10-10')
         before('Eb', 'x68886', '11-13-13-12-11-11')
         before('Am', '577555', 'x-12-14-14-13-12')
+    })
+
+    it('generates no voicing that needs a pinky barre (G7 323033)', () => {
+        expect(generateVoicings('G7').some((v) => show(v.frets) === '323033')).toBe(false)
     })
 
     it('gives no voicing a middle or pinky barre', () => {

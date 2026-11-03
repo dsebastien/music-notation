@@ -18,8 +18,9 @@ const ALT_TENSIONS = [6, 8, 1, 3]
  * What's wrong with a standard-tuning voicing (lowest string first, null muted) of a chord, in
  * words; null when it plays the chord: every required tone (root, third or sus note, seventh or
  * sixth, altered notes, the highest extension; the perfect fifth and lower extensions may be left
- * out), no other note, the root (a slash chord's bass) lowest, and a hand can finger it. An
- * altered dominant (7alt) sounds the root, third and seventh and at least one of b5, #5, b9, #9.
+ * out), no other note, the root (a slash chord's bass; any note of a dim7) lowest, and a hand can
+ * finger it. An altered dominant (7alt) sounds the root, third and seventh and at least one of b5,
+ * #5, b9, #9.
  */
 export function voicingProblem(symbol: string, frets: readonly (number | null)[]): string | null {
     const info = chordInfo(symbol)
@@ -47,7 +48,9 @@ export function voicingProblem(symbol: string, frets: readonly (number | null)[]
     const pitches = sounding.map((s) => STANDARD_TUNING[s]! + frets[s]!)
     const bass = Math.min(...pitches) % 12
     const wanted = info.bass ?? root
-    if (bass !== wanted) return `has ${nameOf(bass)} in the bass, not ${nameOf(wanted)}`
+    // A diminished seventh is symmetrical: any of its notes may be the bass (Cdim7 xx1212).
+    const anyBass = info.suffix === 'dim7' && info.bass === null
+    if (bass !== wanted && !anyBass) return `has ${nameOf(bass)} in the bass, not ${nameOf(wanted)}`
     if (new Set(pitches).size < pitches.length) return 'plays one pitch on two strings'
     if (!fingerVoicing(frets)) return 'no hand can play it'
     return null
@@ -56,7 +59,8 @@ export function voicingProblem(symbol: string, frets: readonly (number | null)[]
 /**
  * What's wrong with the fingers of a voicing; null when they're fine: one finger (1–4) on each
  * fretted string and none elsewhere, a finger on several strings only as a barre (one fret, the
- * index or the ring finger, every string under it sounding at that fret or higher), and higher
+ * index or the ring finger, every string under it sounding at that fret or higher, or the pinky on
+ * the two highest strings), and higher
  * fingers never on lower frets.
  */
 export function fingeringProblem(
@@ -80,7 +84,11 @@ export function fingeringProblem(
         const fret = frets[list[0]!]!
         if (list.some((s) => frets[s] !== fret)) return `finger ${finger} on two frets`
         if (list.length > 1) {
-            if (finger !== 1 && finger !== 3) return `a barre with finger ${finger}`
+            // The pinky barres only the two highest strings (E6/9 022122, Cm6/9 x31233).
+            const topTwo =
+                list.length === 2 && list[0] === frets.length - 2 && list[1] === frets.length - 1
+            if (finger !== 1 && finger !== 3 && !(finger === 4 && topTwo))
+                return `a barre with finger ${finger}`
             for (let s = list[0]!; s <= list[list.length - 1]!; s++) {
                 const f = frets[s]
                 // Only the index lies over strings fretted higher.
