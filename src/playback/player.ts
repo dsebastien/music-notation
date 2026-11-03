@@ -14,6 +14,12 @@ export interface NoteEvent {
     duration: number
     /** How hard the note is played, MIDI style (1–127); 100 when absent. */
     velocity?: number
+    /**
+     * A percussive sound in place of the note: `muted`, a dead (muted) string, as in a muted
+     * strum's chuck; `click`, a metronome tick (`midi` higher for a stronger beat). Players that
+     * don't know it play the note as written (short).
+     */
+    kind?: 'muted' | 'click'
 }
 
 export interface PlayHandle {
@@ -130,6 +136,68 @@ export function pianoTone(midi: number, sampleRate: number, seconds: number): Fl
     return out
 }
 
+/** How long a dead string and a click sound, in seconds. */
+const DEAD = 0.07
+const TICK = 0.03
+
+/**
+ * A percussive note of the light synthesizer: a dead string (the plucked string's attack, damped
+ * at once and dulled: a muted strum's chuck; a short piano note on piano) or a metronome click (a
+ * high tick, higher for a stronger beat).
+ */
+function percussive(
+    ctx: AudioContext,
+    out: AudioNode,
+    e: NoteEvent,
+    start: number,
+    sound: Sound,
+    stringBuffer: (ctx: AudioContext, midi: number) => AudioBuffer
+): AudioScheduledSourceNode {
+    const at = start + e.time
+    const level =
+        e.velocity === undefined || !Number.isFinite(e.velocity)
+            ? 1
+            : Math.min(127, Math.max(0, e.velocity)) / 100
+    const env = ctx.createGain()
+    env.connect(out)
+    let source: AudioScheduledSourceNode
+    let length: number
+    if (e.kind === 'click') {
+        const osc = ctx.createOscillator()
+        osc.type = 'triangle'
+        // 2.1 kHz on a strong beat, 1.4 kHz otherwise: a tick, not a note.
+        osc.frequency.value = e.midi >= 84 ? 2100 : 1400
+        source = osc
+        length = TICK
+        env.gain.setValueAtTime(0, at)
+        env.gain.linearRampToValueAtTime(0.5 * level || 0.0001, at + 0.001)
+        env.gain.exponentialRampToValueAtTime(0.0001, at + TICK)
+    } else {
+        const dull = ctx.createBiquadFilter()
+        dull.type = 'lowpass'
+        dull.frequency.value = sound === 'guitar' ? 1800 : 2500
+        dull.connect(env)
+        if (sound === 'guitar') {
+            const buffer = ctx.createBufferSource()
+            buffer.buffer = stringBuffer(ctx, e.midi)
+            source = buffer
+        } else {
+            const osc = ctx.createOscillator()
+            osc.type = 'triangle'
+            osc.frequency.value = frequency(e.midi)
+            source = osc
+        }
+        length = DEAD
+        env.gain.setValueAtTime(1.2 * level || 0.0001, at)
+        env.gain.exponentialRampToValueAtTime(0.0001, at + DEAD)
+        source.connect(dull)
+    }
+    if (e.kind === 'click') source.connect(env)
+    source.start(at)
+    source.stop(at + length + 0.02)
+    return source
+}
+
 type AudioContextClass = typeof AudioContext
 
 /** One audio context per window, made on the first play (browsers need a user gesture). */
@@ -188,6 +256,7 @@ export function lightPlayer(win: Window): NotePlayer {
             gain.connect(ctx.destination)
             const start = ctx.currentTime + 0.05
             const sources = events.map((e) => {
+                if (e.kind) return percussive(ctx, gain, e, start, sound, stringBuffer)
                 const at = start + e.time
                 const end = at + e.duration
                 // Each note fades out at its end, so it doesn't click.

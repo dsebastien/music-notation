@@ -167,7 +167,7 @@ describe('createSoundfontPlayer', () => {
         const real = alphaTab as unknown as AlphaTabModule
         const score = real.importer.ScoreLoader.loadAlphaTex(tex)
         expect(score.tracks.map((t) => t.playbackInfo.program).sort((a, b) => a - b)).toEqual([
-            0, 25
+            0, 25, 28
         ])
     })
 })
