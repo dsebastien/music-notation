@@ -238,6 +238,16 @@ describe('playback bar', () => {
         renderBlock('keyboard', 'chord: C\nrange: C4-B5\nfingering: 1 2 4', f, { play: { player } })
         ;(f.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([60, 64, 67])
+        // A slash chord in a narrow range keeps every chord tone: the lit keys.
+        for (const [range, keys] of [
+            ['C4-C5', [60, 64, 67, 72]],
+            ['C4-B4', [60, 64, 67]]
+        ] as const) {
+            const s = host()
+            renderBlock('keyboard', `chord: C/G\nrange: ${range}`, s, { play: { player } })
+            ;(s.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+            expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([...keys])
+        }
         // Every lit key still plays on a click.
         h.querySelector('[data-midi="62"]')!.dispatchEvent(new Event('click', { bubbles: true }))
         expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([62])
