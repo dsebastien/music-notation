@@ -60,6 +60,13 @@ export {
 } from './playback/player.js'
 export { attachPlayback, type PlayOptions } from './playback/controls.js'
 export {
+    followNotes,
+    noteTargets,
+    PLAYING_CLASS,
+    START_WAIT,
+    type Follower
+} from './playback/follow.js'
+export {
     transition,
     smoothProgression,
     type TransitionStep,
@@ -89,9 +96,12 @@ export {
     type Song,
     type Section,
     type Line,
-    type Segment
+    type Segment,
+    type ChordDefinition
 } from './chords/chordpro.js'
 export { renderChart, type ChartOptions } from './chords/chart.js'
+export { chordsUsed } from './chords/chart-diagrams.js'
+export { parseDefinition } from './chords/defines.js'
 export { parseChord, type ParsedChord } from './theory/chord-symbol.js'
 export {
     chromaOf,

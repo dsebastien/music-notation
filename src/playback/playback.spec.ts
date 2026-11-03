@@ -349,3 +349,134 @@ describe('choosing the other instrument redraws the diagram', () => {
         h.remove()
     })
 })
+
+describe('following the notes (#41)', () => {
+    const host = () => document.body.appendChild(document.createElement('div'))
+    const lit = (h: Element) =>
+        [...h.querySelectorAll('.mn-playing')].map((el) => Number(el.getAttribute('data-midi')))
+    /** A player that says when it starts, and hands the test its callbacks. */
+    function reporter() {
+        const starts: (() => void)[] = []
+        const player: NotePlayer = {
+            reportsStart: true,
+            play(_events, options) {
+                if (options.onStart) starts.push(options.onStart)
+                return { stop() {} }
+            }
+        }
+        return { player, starts }
+    }
+    const click = (el: Element) => el.dispatchEvent(new Event('click', { bubbles: true }))
+
+    it('lights each note when the player says it sounds, and Stop clears it', () => {
+        const { player, starts } = reporter()
+        const h = host()
+        renderBlock('keyboard', 'C major\nrange: C4-B4', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // The soundfont may still be loading: nothing lights before the sound.
+        expect(lit(h)).toEqual([])
+        starts[0]!()
+        expect(lit(h)).toEqual([60])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(lit(h)).toEqual([])
+        h.remove()
+    })
+
+    it('lights a strummed guitar chord low to high', async () => {
+        const { player, starts } = reporter()
+        const h = host()
+        renderBlock('chord', 'A x02220', h, { play: { player, strum: 30 } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        starts[0]!()
+        expect(lit(h)).toEqual([45])
+        await new Promise((r) => setTimeout(r, 200))
+        expect(lit(h)).toEqual([45, 52, 57, 61, 64])
+        h.remove()
+    })
+
+    it('clears the lit notes when the sound changes', () => {
+        const { player, starts } = reporter()
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        starts[0]!()
+        expect(lit(h)).toEqual([45])
+        const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        select.value = 'guitar'
+        select.dispatchEvent(new Event('change'))
+        expect(lit(h)).toEqual([])
+        h.remove()
+    })
+
+    it('lights the notes of the redrawn diagram, and only the clicked one on a click', () => {
+        const { player, starts } = reporter()
+        const h = host()
+        renderBlock('fretboard', 'A minor pentatonic\nposition: 1', h, {
+            play: { player, sound: 'piano' }
+        })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        starts[0]!()
+        expect(h.querySelector('.mn-keyboard .mn-playing')?.getAttribute('data-midi')).toBe('45')
+        const f = host()
+        renderBlock('fretboard', 'C major\nfrets: 0-12', f, { play: { player } })
+        const e4 = f.querySelector('[data-midi="64"][data-mn-string="2"]')!
+        click(e4)
+        starts[1]!()
+        expect([...f.querySelectorAll('.mn-playing')]).toEqual([e4])
+        h.remove()
+        f.remove()
+    })
+
+    it('follows a player that never says it started, from shortly after the play', async () => {
+        const { player } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'C major\nrange: C4-B4', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(lit(h)).toEqual([])
+        await new Promise((r) => setTimeout(r, 400))
+        expect(lit(h)).toEqual([60])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(lit(h)).toEqual([])
+        h.remove()
+    })
+
+    it('waits for a player once it has seen it say when it starts', async () => {
+        const starts: (() => void)[] = []
+        // No reportsStart: an app's wrapper around a soundfont player.
+        const player: NotePlayer = {
+            play(_events, options) {
+                if (options.onStart) starts.push(options.onStart)
+                return { stop() {} }
+            }
+        }
+        const h = host()
+        renderBlock('keyboard', 'C major\nrange: C4-B4', h, { play: { player } })
+        const toggle = h.querySelector('.mn-play-toggle') as HTMLButtonElement
+        toggle.click()
+        starts[0]!()
+        expect(lit(h)).toEqual([60])
+        toggle.click()
+        toggle.click()
+        // No fallback timer this time: it waits for the sound.
+        await new Promise((r) => setTimeout(r, 400))
+        expect(lit(h)).toEqual([])
+        starts[1]!()
+        expect(lit(h)).toEqual([60])
+        h.remove()
+    })
+
+    it('keeps no timers for a diagram removed from the page', async () => {
+        const { player, starts } = reporter()
+        const h = host()
+        renderBlock('keyboard', 'C major\nrange: C4-B4', h, { play: { player, bpm: 240 } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        starts[0]!()
+        const key = h.querySelector('.mn-playing')!
+        h.remove()
+        await new Promise((r) => setTimeout(r, 300))
+        expect(key.classList.contains('mn-playing')).toBe(false)
+        expect(h.querySelectorAll('.mn-playing')).toHaveLength(0)
+    })
+})

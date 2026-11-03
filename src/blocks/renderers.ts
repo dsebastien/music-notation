@@ -23,6 +23,7 @@ import { renderChart } from '../chords/chart.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.js'
+import { pianoPitches } from '../keyboard/piano-chord.js'
 import { chordNoteSet, intervalLabel, listNoteSet, type NoteSet } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { parseChord } from '../theory/chord-symbol.js'
@@ -70,6 +71,11 @@ export interface RenderOptions extends LayoutDefaults {
     instrument?: Instrument
     /** A playback bar on chord, keyboard and fretboard diagrams (true for the defaults). */
     play?: boolean | PlayOptions
+    /**
+     * The chords used row of `chords` blocks, when a chart has no `{diagrams}`: `'top'`,
+     * `'bottom'` or `'off'` (the default). Guitar or piano diagrams follow `instrument`.
+     */
+    chartDiagrams?: 'top' | 'bottom' | 'off'
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element
@@ -191,26 +197,6 @@ function shorthand(head: string | null) {
 
 const unrecognized = (written: string) =>
     new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
-
-/** Piano voicing of a chord: root position from octave 4, a slash chord's bass in octave 3. */
-function pianoPitches(symbol: string): NoteSet {
-    const set = orFail(chordNoteSet(symbol), `Unknown chord "${symbol}"`)
-    const bassName = splitChordSymbol(symbol)?.bass
-    const bass = bassName ? chromaOf(bassName) : null
-    const pitches: number[] = []
-    let previous = 59
-    for (const member of set.members) {
-        // A bass outside the chord only sounds below it.
-        if (bass !== null && member.chroma === bass && member.degree === null) continue
-        let midi = 60 + member.chroma
-        while (midi <= previous) midi += 12
-        while (midi - 12 > previous) midi -= 12
-        pitches.push(midi)
-        previous = midi
-    }
-    if (bass !== null) pitches.unshift(48 + bass)
-    return { ...set, pitches }
-}
 
 /** root: in a chord block (or a row it expands into): it only applies to note lists. */
 export const ROOT_FOR_LISTS_ONLY =
@@ -658,7 +644,14 @@ const fromSource =
         render(doc, parseBlockSource(source), options)
 
 const renderChordsBlock: Renderer = (doc, source, options) =>
-    renderChart(doc, parseChordPro(source), { transpose: options.transpose })
+    renderChart(doc, parseChordPro(source), {
+        transpose: options.transpose,
+        ...(options.chartDiagrams ? { diagrams: options.chartDiagrams } : {}),
+        ...(options.instrument ? { instrument: options.instrument } : {}),
+        ...(options.voicings ? { voicings: options.voicings } : {}),
+        ...(options.orientation ? { orientation: options.orientation } : {}),
+        ...(options.hand ? { hand: options.hand } : {})
+    })
 
 /** Block languages (code fence names) and their renderers. */
 export const RENDERERS = {
