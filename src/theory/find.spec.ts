@@ -126,6 +126,10 @@ describe('findScales', () => {
         expect(findScales('A C D Eb E G')[0]!.name).toBe('A minor blues')
         // Seven notes: still major first.
         expect(findScales('C D E F G A B')[0]!.name).toBe('C major')
+        // The first note is the tonic among equals: D E F G A B C is D dorian, not C major.
+        expect(findScales('D E F G A B C')[0]!.name).toBe('D dorian')
+        expect(findScales('G A B C D E F')[0]!.name).toBe('G mixolydian')
+        expect(findScales('A B C D E F G')[0]!.name).toBe('A minor')
     })
 
     it('takes the tonic from the first chord, the last one and V → I moves', () => {

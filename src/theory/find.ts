@@ -186,7 +186,7 @@ function rank(
     onlyTonic: number | null = null
 ): (ScaleMatch & { cost: number })[] {
     const played = [...material.written.keys()]
-    const matches: (ScaleMatch & { cost: number })[] = []
+    const matches: (ScaleMatch & { cost: number; hint: number })[] = []
     for (const type of scaleTypes()) {
         for (let tonic = 0; tonic < 12; tonic++) {
             if (onlyTonic !== null && tonic !== onlyTonic) continue
@@ -211,11 +211,21 @@ function rank(
                     typeCost(type.name) +
                     material.tonicCost(tonic) +
                     missing.length * 0.05 -
-                    (exact ? 2 : 0)
+                    (exact ? 2 : 0),
+                hint: material.tonicCost(tonic)
             })
         }
     }
-    return matches.sort((a, b) => a.cost - b.cost || a.name.localeCompare(b.name))
+    // Ties go to the tonic the material points to (D E F G A B C: D dorian before C major and
+    // A minor), then by name.
+    return matches
+        .sort(
+            (a, b) =>
+                (Math.abs(a.cost - b.cost) > 1e-9 ? a.cost - b.cost : 0) ||
+                a.hint - b.hint ||
+                a.name.localeCompare(b.name)
+        )
+        .map(({ hint: _hint, ...match }) => match)
 }
 
 const strip = ({ cost: _cost, ...match }: ScaleMatch & { cost: number }): ScaleMatch => match
