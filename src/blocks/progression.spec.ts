@@ -269,7 +269,8 @@ describe('progression block', () => {
             'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: rootless A\nhands: left+right',
             rootless
         )
-        expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 52 55 59 62'])
+        // The right hand from F3 up, clear of the left hand: Cmaj7 takes the B form.
+        expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 59 62 64 67'])
         expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)
         // Rootless in a minor key: the dominant takes b9 and b13, the half-diminished chord the
         // key's 9th, and a triad tonic its 6/9 chord (ii-V-i in C minor: Dm7b5 F Ab C Eb, G7 F

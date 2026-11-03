@@ -16,12 +16,15 @@
 import { chordNoteSet } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import {
+    belowLowIntervalLimit,
     pianoVoicing,
     type PianoHands,
     type PianoVoicingOptions,
     type RootlessForm,
     type ShellForm
 } from './piano-chord.js'
+
+export { belowLowIntervalLimit }
 
 /** The lowest note of the upper voices stays within F3 to G4, so a long progression doesn't drift. */
 const LOW = 53
@@ -200,48 +203,19 @@ export interface LedVoicing {
     pitches: number[]
 }
 
-/**
- * The low interval limits: for each interval up to a major tenth (in semitones), the lowest note
- * (MIDI) it may start on and still sound clear on a piano. Below it the two notes blur. The usual
- * arranging table: minor second E3, major second Eb3, minor third C3, major third Bb2, fourth Bb2,
- * tritone B2, fifth Bb1, minor sixth G2, major sixth F2, minor and major seventh F2, minor ninth
- * E2, major ninth Eb2, minor tenth C2, major tenth Bb1. Octaves and wider intervals have none.
- */
-const LOW_INTERVAL_LIMITS: Record<number, number> = {
-    1: 52,
-    2: 51,
-    3: 48,
-    4: 46,
-    5: 46,
-    6: 47,
-    7: 34,
-    8: 43,
-    9: 41,
-    10: 41,
-    11: 41,
-    13: 40,
-    14: 39,
-    15: 36,
-    16: 34
-}
+/** Rootless voicings with both hands: the right hand's lowest note from F3 to F4. */
+const BOTH_HANDS_ROOTLESS: [number, number] = [53, 65]
 
 /**
- * Whether two neighbouring notes of a voicing (pitches low to high) sit below their low interval
- * limit, so the chord sounds muddy: A2 C3 (a minor third under C3) does, A2 G3 C4 doesn't.
+ * After the first chord, rootless voicings start at D3 or above: a long progression that drifts
+ * down is brought back up rather than sitting on C3.
  */
-export function belowLowIntervalLimit(pitches: readonly number[]): boolean {
-    const sorted = [...pitches].sort((a, b) => a - b)
-    return sorted.some((low, i) => {
-        const high = sorted[i + 1]
-        if (high === undefined) return false
-        const limit = LOW_INTERVAL_LIMITS[high - low]
-        return limit !== undefined && low < limit
-    })
-}
+const ROOTLESS_FLOOR = 50
 
 /**
  * Where each form may sit, by its lowest note (MIDI, at the default octave 3). Rootless voicings
- * start between C3 and D4, so they stay in the comping range (C3 to C5). Shells keep their root
+ * start between C3 and D4 (D3 after the first chord: ROOTLESS_FLOOR), so they stay in the comping
+ * range (C3 to C5). Shells keep their root
  * low enough for a bass: an R-7 shell's root from F2 to E3, an R-3 shell's from Ab2 to G3. Each
  * shell window spans twelve semitones, so every root has a place in it.
  */
@@ -287,6 +261,7 @@ export function voiceLeadVoicings(
     // Both hands: a shell's root stays where it was chosen, in the left hand; its third and
     // seventh go to the right hand, an octave up (C3 + E4 B4). A rootless voicing stays put.
     const both = options.hands === 'left+right' && shell
+    const bothRootless = options.hands === 'left+right' && !shell
     const optionsOf = (form: RootlessForm | ShellForm, octave: number): PianoVoicingOptions => ({
         voicing: options.voicing,
         [formKey]: form,
@@ -320,7 +295,9 @@ export function voiceLeadVoicings(
         const candidatesOf = (allowed: (RootlessForm | ShellForm)[]) => {
             const candidates: Candidate[] = []
             for (const form of allowed) {
-                const [low, high] = WINDOWS[form]
+                // Rootless with both hands: the right hand from F3 up, clear of the left hand.
+                const [bottom, high] = bothRootless ? BOTH_HANDS_ROOTLESS : WINDOWS[form]
+                const low = !shell && previous ? Math.max(bottom, ROOTLESS_FLOOR) : bottom
                 for (let octave = 0; octave <= 8; octave++) {
                     const v = voiced(symbol, form, octave)
                     if (!v) continue
@@ -341,16 +318,17 @@ export function voiceLeadVoicings(
         }
         const first = options.form ?? forms[0]!
         let pool = candidatesOf(previous ? forms : [first])
-        if (shell) {
-            // A shell whose third would blur with the root (A2 C3: a minor third under C3) takes
-            // the other form (A2 G3 C4): the first chord in its window, the next ones anywhere.
-            const clear = (list: Candidate[]) =>
-                list.filter((c) => !c.muddy && (previous || c.outside === 0))
-            const other = forms.find((f) => f !== first)!
-            const fallback = previous ? [] : clear(candidatesOf([other]))
-            const kept = clear(pool).length ? clear(pool) : fallback
-            if (kept.length) pool = kept
-        }
+        // A voicing whose notes would blur (a shell's A2 C3, a minor third under C3; a rootless
+        // C3 D3, a second under Eb3) takes the other form (A2 G3 C4; F3 A3 C4 D4): the first
+        // chord in its window, the next ones anywhere.
+        const clear = (list: Candidate[]) =>
+            list.filter((c) => !c.muddy && (previous || c.outside === 0))
+        const other = forms.find((f) => f !== first)!
+        const fallback = previous ? [] : clear(candidatesOf([other]))
+        // The first chord blurring in its window takes the other form there, not an octave up.
+        const blurs = !previous && pool.some((c) => c.muddy && c.outside === 0)
+        const kept = clear(pool).length && !(blurs && fallback.length) ? clear(pool) : fallback
+        if (kept.length) pool = kept
         // Inside a window when one fits; else the nearest to its window (never a null for a chord
         // that takes the voicing).
         const nearest = Math.min(...pool.map((c) => c.outside))

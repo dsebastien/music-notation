@@ -93,6 +93,31 @@ describe('voiceLeadVoicings', () => {
             v ? `${v.options.rootless ?? v.options.shell} ${names(v.pitches)}` : null
         )
 
+    it('keeps rootless voicings clear and out of the low end (#68)', () => {
+        // A long progression comes back up rather than sitting on C3.
+        const cycle = Array.from({ length: 3 }, () => [
+            'Cmaj7',
+            'C7',
+            'Fmaj7',
+            'Fm6',
+            'Em7',
+            'A7',
+            'Dm7',
+            'G7'
+        ]).flat()
+        voiceLeadVoicings(cycle, { voicing: 'rootless' }).forEach((v, i) => {
+            if (i > 0) expect(v!.pitches[0]!).toBeGreaterThanOrEqual(50)
+            expect(belowLowIntervalLimit(v!.pitches)).toBe(false)
+        })
+        // A sus chord whose A form would blur (C3 D3) takes the other one.
+        const sus = voiceLeadVoicings(['G7sus4', 'Cmaj7'], { voicing: 'rootless' })
+        expect(names(sus[0]!.pitches)).toBe('F3 A3 C4 D4')
+        // With both hands, the right hand stays from F3 up, above the left hand's root.
+        voiceLeadVoicings(cycle, { voicing: 'rootless', hands: 'left+right' }).forEach((v) => {
+            expect(v!.pitches[1]!).toBeGreaterThanOrEqual(53)
+        })
+    })
+
     it('alternates rootless A and B around middle C', () => {
         expect(forms(['Dm7', 'G7', 'Cmaj7'], { voicing: 'rootless' })).toEqual([
             'A F3 A3 C4 E4',
