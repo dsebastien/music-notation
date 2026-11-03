@@ -89,10 +89,9 @@ describe('readNumeral', () => {
     it('refuses what does not read', () => {
         for (const token of ['VIII', 'IVv', 'Iv', 'x', 'I/', 'V//V', '8', 'V/9', 'I/V/V'])
             expect(readNumeral(token, 'C')).toBeNull()
-        // Figured bass isn't read: I6 is a sixth chord, V65 and V64 aren't chords.
-        expect(readNumeral('I6', 'C')).toBe('C6')
-        expect(readNumeral('V65', 'C')).toBeNull()
-        expect(readNumeral('V64', 'C')).toBeNull()
+        // Figures that don't fit the chord: a triad's 65, a seventh's 6 or 64 as a bass slash.
+        expect(readNumeral('Imaj765', 'C')).toBeNull()
+        expect(readNumeral('I6/3', 'C')).toBeNull()
         expect(readNumeral('I', 'H')).toBeNull()
         expect(progressionChords('I VIII', 'C')).toBeNull()
     })
@@ -119,7 +118,8 @@ describe('numeralOf', () => {
     it('writes Nashville numbers', () => {
         expect(numeralOf('Em', 'G', 'nashville')).toBe('6m')
         expect(numeralOf('D7', 'G', 'nashville')).toBe('5⁷')
-        expect(numeralOf('Am7', 'G', 'nashville')).toBe('2m7')
+        expect(numeralOf('Am7', 'G', 'nashville')).toBe('2m⁷')
+        expect(numeralOf('Cmaj7', 'G', 'nashville')).toBe('4maj⁷')
         expect(numeralOf('F', 'G', 'nashville')).toBe('b7')
         expect(numeralOf('C/E', 'C', 'nashville')).toBe('1/3')
     })
@@ -276,5 +276,68 @@ describe('progressionChords', () => {
             'V7 F7',
             'Imaj7 Bbmaj7'
         ])
+    })
+})
+
+describe('figured bass', () => {
+    it('reads 6 and 64 as a triad’s inversions, 65 43 42 as a seventh chord’s', () => {
+        const read = (token: string, key = 'C') => readNumeral(token, key)
+        expect(read('I6')).toBe('C/E')
+        expect(read('I64')).toBe('C/G')
+        expect(read('ii6')).toBe('Dm/F')
+        expect(read('IV64')).toBe('F/C')
+        // The Neapolitan sixth: bII6 (or N6) is Db/F, with the Neapolitan's function.
+        expect(read('bII6')).toBe('Db/F')
+        expect(read('N6')).toBe('Db/F')
+        expect(read('N')).toBe('Db')
+        expect(harmonicFunction('Db/F', 'C')).toBe('neapolitan')
+        expect(read('V65')).toBe('G7/B')
+        expect(read('V43')).toBe('G7/D')
+        expect(read('V42')).toBe('G7/F')
+        expect(read('viiø65')).toBe('Bm7b5/D')
+        expect(read('vii°6', 'A minor')).toBe('G#dim/B')
+        expect(read('V65/V')).toBe('D7/F#')
+        // An added sixth is written out; I69 stays a 6/9 chord; Nashville is unchanged.
+        expect(read('Iadd6')).toBe('C6')
+        expect(read('iiadd6')).toBe('Dm6')
+        expect(read('I69')).toBe('C6/9')
+        expect(read('46')).toBe('F6')
+    })
+})
+
+describe('withTonicizations', () => {
+    const analysis = (chords: string, key: string) =>
+        progressionChords(chords, key)!.map((c) => `${c.numeral} ${c.function}`)
+
+    it('reads a ii-V-I to a chord outside the key as a tonicization', () => {
+        // Blue Bossa: Ebm7 Ab7 Dbmaj7 is a ii-V-I in Db, not a chromatic run to a Neapolitan.
+        expect(analysis('Cm7 Ebm7 Ab7 Dbmaj7 Dm7b5 G7 Cm7', 'C minor')).toEqual([
+            'i7 tonic',
+            'ii7/bII tonicization',
+            'V7/bII secondary dominant',
+            'bIImaj7 tonicization',
+            'iiø7 subdominant',
+            'V7 dominant',
+            'i7 tonic'
+        ])
+    })
+
+    it('reads a dominant of the key going to its chord a fifth below as that chord’s V7', () => {
+        // Fly Me to the Moon in A minor: G7 to Cmaj7 is V7/bIII, not bVII7.
+        expect(analysis('Am7 Dm7 G7 Cmaj7', 'A minor')).toEqual([
+            'i7 tonic',
+            'iv7 subdominant',
+            'V7/bIII secondary dominant',
+            'bIIImaj7 tonic'
+        ])
+        // G7 not resolving stays bVII7; V7 to the tonic stays V7; E7 A7 in C stays V7/vi.
+        expect(analysis('Am G7 Am', 'A minor')[1]).toBe('bVII7 subdominant')
+        expect(analysis('Dm7 G7 C', 'C')[1]).toBe('V7 dominant')
+        expect(analysis('C E7 A7 Dm7', 'C').slice(1, 3)).toEqual([
+            'V7/vi secondary dominant',
+            'V7/ii secondary dominant'
+        ])
+        // Written numerals keep their text; the function follows the move.
+        expect(analysis('bVII7 bIII', 'A minor')[0]).toBe('bVII7 secondary dominant')
     })
 })

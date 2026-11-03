@@ -12,10 +12,11 @@ import { parseTuning } from '../fretboard/tuning.js'
 import { pianoOptionsOf, pianoPitches, type PianoVoicingOptions } from '../keyboard/piano-chord.js'
 import { voiceLead, voiceLeadVoicings, type LedVoicing } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
-import { noteOf } from '../theory/pitch.js'
+import { chromaOf, noteOf } from '../theory/pitch.js'
 import { findKey } from '../theory/find.js'
 import {
     isMinorMode,
+    keyNotes,
     keyProblem,
     raisedNashville,
     readKey,
@@ -26,6 +27,7 @@ import {
     numeralOf,
     progressionChord,
     progressionTokens,
+    withTonicizations,
     type NumeralOptions,
     type ProgressionChord
 } from '../theory/numerals.js'
@@ -98,17 +100,10 @@ function transposed(key: MusicalKey, semitones: number): MusicalKey {
     return { tonic: moved.tonic, mode: key.mode, name: `${moved.tonic} ${key.mode}` }
 }
 
-/** Figured bass (V65, V43, ii42, I64): inversions aren't read from it. */
-const FIGURED = /^[b#♭♯]?(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)[°ø+]?(65|64|43|42)$/
-
 const unread = (token: string) =>
-    FIGURED.test(token)
-        ? new Error(
-              `Didn't read "${token}": figured bass isn't read; write the bass after a slash (V7/7 is G7/B in C, I/5 is C/G)`
-          )
-        : new Error(
-              `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
-          )
+    new Error(
+        `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V, I6, V65), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
+    )
 
 const isNashville = (token: string) => /^[b#♭♯]?[1-7]/.test(token)
 
@@ -187,7 +182,8 @@ function sectionOf(block: BlockSource): Section {
         chords.map((c) => c.symbol),
         to
     )
-    if (blues) chords = read({ blues })
+    // Else local ii-V-I moves read from each chord and the next (Ebm7 Ab7 Dbmaj7: ii-V-I in Db).
+    chords = blues ? read({ blues }) : withTonicizations(chords, to)
     others = blues ? [] : others.map((name) => (shift ? transposed(keyOf(name), shift).name : name))
     return { key: to, others, chords, blues, block }
 }
@@ -208,11 +204,33 @@ function sharedRange(pitches: (number[] | null)[]): string | null {
     return `${noteOf(from)}-${noteOf(to)}`
 }
 
+/**
+ * Open voicings span more than an octave: without an `octave`, each chord's lowest note goes
+ * within F3 to E4 (octave 3 for roots F to B, 4 for C to E), so a progression doesn't climb (Am7
+ * is A3 E4 G4 C5, not A4 to C6). Undefined when the octave is the block's.
+ */
+function openOctave(symbol: string, options: PianoVoicingOptions): number | undefined {
+    if (options.voicing !== 'open' || options.octave !== undefined) return undefined
+    const root = chordNoteSet(symbol)?.root
+    return root === undefined || root === null ? undefined : root >= 5 ? 3 : 4
+}
+
 /** Each chord's piano keys as its diagram will draw them; null for one that doesn't voice. */
-function pianoKeysOf(symbols: string[], options: PianoVoicingOptions): (number[] | null)[] {
-    return symbols.map((symbol) => {
+function pianoKeysOf(
+    symbols: string[],
+    options: PianoVoicingOptions,
+    key: readonly number[]
+): (number[] | null)[] {
+    return symbols.map((symbol, i) => {
         try {
-            return pianoPitches(symbol, options).pitches
+            const next = symbols[i + 1]
+            const octave = openOctave(symbol, options)
+            return pianoPitches(symbol, {
+                ...options,
+                key,
+                ...(next ? { resolvesTo: next } : {}),
+                ...(octave !== undefined ? { octave } : {})
+            }).pitches
         } catch {
             return null
         }
@@ -287,6 +305,8 @@ function renderSection(
     }
     // A value that can't be read is the block's mistake, not each chord's.
     const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
+    // Rootless voicings take the key's 9ths and 13ths (G7 in C minor: Ab and Eb).
+    const keyChromas = keyNotes(section.key).map((n) => chromaOf(n)!)
     // Shell and rootless voicings move least from chord to chord unless voice-leading: no (#63):
     // the forms alternate (rootless A and B, shells R-3 and R-7) around middle C.
     const styled =
@@ -294,12 +314,16 @@ function renderSection(
             ? pianoOptions.voicing
             : null
     const ledStyled = styled !== null && (leading === undefined || led)
+    // Close and open voicings lead too; with both hands, a left-hand bass goes under each chord.
+    const open = pianoOptions.voicing === 'open'
+    const bass = pianoOptions.hands === 'left+right'
     if (led && !styled) {
-        const other = pianoKeys.find((k) => k !== 'voicing' || pianoOptions.voicing !== 'close')
+        // Every voicing style leads: only an octave, or one hand alone, doesn't go with it.
+        const other = pianoKeys.find((k) => k !== 'voicing' && !(k === 'hands' && bass))
         if (other) {
             throw new Error(
-                other === 'voicing'
-                    ? `voice-leading works with close, shell and rootless voicings, not ${pianoOptions.voicing}`
+                other === 'hands'
+                    ? 'voice-leading goes with hands: left+right (a left-hand bass under each chord), not left or right alone'
                     : `Use voice-leading or ${other}, not both`
             )
         }
@@ -309,7 +333,7 @@ function renderSection(
         diagrams && !piano
             ? guitarVoicings(symbols, field(block, 'tuning'), options.voicings)
             : null
-    const pitches = diagrams && piano && led && !styled ? voiceLead(symbols) : null
+    const pitches = diagrams && piano && led && !styled ? voiceLead(symbols, { open, bass }) : null
     const voiced: (LedVoicing | null)[] | null =
         diagrams && piano && ledStyled
             ? voiceLeadVoicings(symbols, {
@@ -318,7 +342,8 @@ function renderSection(
                       ? { form: (pianoOptions.rootless ?? pianoOptions.shell)! }
                       : {}),
                   ...(pianoOptions.octave !== undefined ? { octave: pianoOptions.octave } : {}),
-                  ...(pianoOptions.hands ? { hands: pianoOptions.hands } : {})
+                  ...(pianoOptions.hands ? { hands: pianoOptions.hands } : {}),
+                  key: keyChromas
               })
             : null
     // Piano keyboards of a row share one range, so they have the same width.
@@ -327,7 +352,7 @@ function renderSection(
             ? sharedRange(
                   pitches ??
                       voiced?.map((v) => v?.pitches ?? null) ??
-                      pianoKeysOf(symbols, pianoOptions)
+                      pianoKeysOf(symbols, pianoOptions, keyChromas)
               )
             : null
     const row = html(doc, 'div', 'mn-row mn-progression-chords')
@@ -353,6 +378,10 @@ function renderSection(
                 ]
                 if (piano) {
                     lines.push(['instrument', 'piano'])
+                    // Rootless voicings in the key, a dominant knowing where it goes.
+                    lines.push(['key', section.key.name])
+                    const next = chords[i + 1]?.symbol
+                    if (next) lines.push(['resolves-to', next])
                     const led = voiced?.[i]?.options
                     if (led) {
                         // The form and octave voice leading chose, as the chord block reads them.
@@ -364,6 +393,8 @@ function renderSection(
                         // Voice-led keys (below) are the keys to play: the block's voicing
                         // (close, the only one voice-leading allows) isn't passed on with them.
                         for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                        const octave = openOctave(chord.symbol, pianoOptions)
+                        if (octave !== undefined) lines.push(['octave', String(octave)])
                     }
                     if (range) lines.push(['range', range])
                     const midi = pitches?.[i]
@@ -375,6 +406,8 @@ function renderSection(
                             return name ? `${name}${Math.floor(m / 12) - 1}` : noteOf(m)
                         })
                         lines.push(['pitches', spelled.join(' ')])
+                        // The bass in the left hand, the voice-led chord in the right.
+                        if (bass) lines.push(['hands', 'left+right'])
                     }
                 } else if (guitar) {
                     lines.push(['frets', fretsText(guitar[i]!.voicing.frets)])

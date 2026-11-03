@@ -264,7 +264,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         let set: NoteSet
         if (pitchesText) {
             const given =
-                ['inversion', 'octave', 'hands'].find((key) => field(block, key)) ??
+                ['inversion', 'octave'].find((key) => field(block, key)) ??
                 (voicingOptions.voicing ? 'voicing' : undefined)
             if (given) {
                 throw new Error(
@@ -286,6 +286,22 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                     previous = midi
                     return midi
                 })
+            }
+            // Hands over given keys: the lowest in the left hand with left+right, else all in one.
+            if (voicingOptions.hands) {
+                const low = Math.min(...set.pitches)
+                hands = new Map(
+                    set.pitches.map((p): [number, 'left' | 'right'] => [
+                        p,
+                        voicingOptions.hands === 'left+right'
+                            ? p === low
+                                ? 'left'
+                                : 'right'
+                            : voicingOptions.hands === 'left'
+                              ? 'left'
+                              : 'right'
+                    ])
+                )
             }
             const known = symbol ? chordNoteSet(symbol) : null
             // A symbol spells the keys (Cdim7: Bbb, as from the symbol alone).
@@ -321,7 +337,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                 auto = triadFingering(voiced)
                 if (!auto) {
                     throw new Error(
-                        'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position: write the fingers, e.g. fingering: 1 2 3 4 5'
+                        'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position, and rootless and shell voicings one hand can reach: write the fingers, e.g. fingering: 1 2 3 4 5'
                     )
                 }
             }
@@ -555,7 +571,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const range = field(block, 'range')
     handOf(block, options)
     // A scale's fingering: one octave from the root, fingers in order (or `auto`: the standard
-    // fingering of a major or harmonic minor scale, #68). Without a range the keyboard shows two
+    // fingering of a major or minor scale, #68). Without a range the keyboard shows two
     // octaves from the tonic, as an unfingered scale (an octave lower for the left hand), with
     // fingers in both; with one, every octave stays lit and every key of the scale gets its
     // finger. A chord's fingering covers one octave from the first root inside the range (or the
@@ -567,7 +583,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const autoHand = fingering ? autoFingeringHand(fingering) : null
     if (autoHand && (set.root === null || set.list || set.pitches || !set.scaleType)) {
         throw new Error(
-            'fingering: auto goes with a major or harmonic minor scale (scale: G major): write one finger per note, e.g. fingering: 1 2 3 4 5'
+            'fingering: auto goes with a major or minor scale (scale: G major): write one finger per note, e.g. fingering: 1 2 3 4 5'
         )
     }
     if (fingering && set.scaleType && set.root !== null && !set.list && !set.pitches) {
@@ -577,7 +593,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
             const standard = standardScaleFingering(set.root, set.scaleType, autoHand)
             if (!standard) {
                 throw new Error(
-                    `fingering: auto knows the major and harmonic minor scales: write the fingers for ${set.title}, root to root, e.g. fingering: 1 2 3 1 2 3 4 5`
+                    `fingering: auto knows the major, natural minor, harmonic minor and melodic minor scales: write the fingers for ${set.title}, root to root, e.g. fingering: 1 2 3 1 2 3 4 5`
                 )
             }
             octave = standard

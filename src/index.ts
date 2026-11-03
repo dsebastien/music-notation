@@ -242,6 +242,7 @@ export {
     numeralOf,
     harmonicFunction,
     isBluesIn,
+    withTonicizations,
     type NumeralOptions,
     type ProgressionChord,
     type HarmonicFunction

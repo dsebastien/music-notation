@@ -596,10 +596,10 @@ describe('scale fingering on keyboards (#28)', () => {
             'fingering has 7 fingers: C major needs 8, one per note from the root up to the root above'
         )
         expect(error('A minor pentatonic\nfingering: auto')).toContain(
-            'fingering: auto knows the major and harmonic minor scales'
+            'fingering: auto knows the major, natural minor, harmonic minor and melodic minor scales'
         )
         expect(error('notes: C D E\nfingering: auto')).toContain(
-            'fingering: auto goes with a major or harmonic minor scale'
+            'fingering: auto goes with a major or minor scale'
         )
         expect(
             renderBlock(

@@ -6,8 +6,11 @@
 import { accessibleName, html, setAccessibleName, svg } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
+import { chartNoteName, renderGuitarDiagram, STANDARD_TUNING } from '../chord/guitar.js'
+import { generateVoicings } from '../chord/generate.js'
 import {
     chordNoteSet,
+    intervalLabel,
     listNoteSet,
     scaleNoteSet,
     type NoteLabel,
@@ -207,10 +210,55 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
         (set.root !== null || written === 'notes' || written === 'none')
             ? written
             : 'notes'
-    const heading = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    // A hand belongs to the piano: "C major, right hand" is "C major" on a guitar.
+    const shownTitle = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    const heading = toGuitar ? shownTitle?.replace(/,\s*(left|right) hand$/, '') : shownTitle
     // A piano plays what the guitar sounds: the title says which chord that is.
     const title =
         sounds && heading ? `${heading} (sounds ${sounds})` : (heading ?? sounds ?? undefined)
+    // A piano chord on guitar: a grip a guitarist plays (the easiest voicing of the chord), not a
+    // map of its pitches over the neck. An inversion keeps its bass (C first inversion: C/E's
+    // grip); a rootless voicing has no bass of its own.
+    const given = chord ?? named
+    const chordSet = toGuitar && data.kind === 'chord' && given ? chordNoteSet(given) : null
+    const chroma = (midi: number) => ((midi % 12) + 12) % 12
+    const lowest = chroma(Math.min(...data.pitches))
+    const bassName = chordSet?.members.find((m) => m.chroma === lowest)?.name
+    const rooted = data.pitches.some((midi) => chroma(midi) === chordSet?.root)
+    const symbol =
+        given && rooted && !given.includes('/') && bassName && chordSet?.root !== lowest
+            ? `${given}/${bassName}`
+            : given
+    const grip =
+        chordSet && chordSet.root !== null && symbol ? generateVoicings(symbol)[0] : undefined
+    if (grip && chordSet) {
+        const members = chordSet.members
+        const labels =
+            label === 'intervals' || label === 'notes'
+                ? grip.frets.map((fret, s) => {
+                      if (fret === null) return null
+                      const member = members.find(
+                          (m) => m.chroma === (STANDARD_TUNING[s]! + fret) % 12
+                      )
+                      if (!member) return null
+                      return label === 'notes' || member.interval === null
+                          ? chartNoteName(member.name)
+                          : intervalLabel(member.interval)
+                  })
+                : label === 'none'
+                  ? grip.frets.map(() => null)
+                  : null
+        const drawn = renderGuitarDiagram(doc, grip, {
+            ...(title ? { title } : {}),
+            root: chordSet.root,
+            ...(labels ? { labels } : {})
+        })
+        drawn.setAttribute('data-mn-chord', symbol!)
+        const name = accessibleName(diagram)
+        if (name) setAccessibleName(drawn, `${name}, drawn for guitar`)
+        drawn.classList.add('mn-redrawn')
+        return drawn
+    }
     // A fretboard and a keyboard share their orientation; a chord diagram's is its own.
     const orientation =
         diagram.getAttribute('data-mn-orientation') === 'vertical' ? 'vertical' : undefined
@@ -363,7 +411,9 @@ function barFor(
         const events = sequenceOf(data.kind, pitchesShown(), {
             ...settings,
             root: rootShown(),
-            ...(tones ? { tones } : {})
+            ...(tones ? { tones } : {}),
+            // A list of notes plays as written (keyboard data-mn-order), then back.
+            ...(shown.getAttribute('data-mn-order') === 'written' ? { ordered: true } : {})
         })
         playing = play(
             events,

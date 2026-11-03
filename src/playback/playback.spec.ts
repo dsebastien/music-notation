@@ -43,6 +43,13 @@ describe('sequenceOf', () => {
         expect(scaleRun([67, 60, 64])).toEqual([60, 64, 67, 64, 60])
         expect(scaleRun([62], 2)).toEqual([62])
         expect(sequenceOf('scale', drawn, { bpm: 60, strum: 0, root: 2 })[0]!.midi).toBe(62)
+        // A list as written, then back: G F E D C D E F G.
+        const written = sequenceOf('scale', [67, 65, 64, 62, 60], {
+            bpm: 60,
+            strum: 0,
+            ordered: true
+        })
+        expect(written.map((e) => e.midi)).toEqual([67, 65, 64, 62, 60, 62, 64, 65, 67])
     })
 
     it('shapes the touch: a guitar strum leans on the bass, a piano sings its top note (#59)', () => {
@@ -53,23 +60,28 @@ describe('sequenceOf', () => {
         expect(sequenceOf('chord', [60], { bpm: 90, strum: 0 })[0]!.velocity).toBe(100)
     })
 
-    it('accents the first note and the tonics of a run, softer passing notes (#59)', () => {
+    it('shapes a run smoothly: tonics leaning, chord tones slightly louder (#59)', () => {
         const run = sequenceOf('scale', [60, 62, 64, 65, 67, 69, 71, 72], {
             bpm: 90,
             strum: 0,
             root: 0
         })
+        // From 84 at the bottom to 90 at the top, the tonics 4 above.
         expect(run.map((e) => e.velocity)).toEqual([
-            100, 86, 86, 86, 86, 86, 86, 94, 86, 86, 86, 86, 86, 86, 94
+            88, 85, 86, 87, 88, 89, 90, 94, 90, 89, 88, 87, 86, 85, 88
         ])
-        // C major over a G chord: chord tones 90, passing notes 80.
+        // C major over a G chord: chord tones 3 above the passing notes, never a jump of 10.
         const over = sequenceOf('scale', [60, 62, 64, 65, 67, 69, 71], {
             bpm: 90,
             strum: 0,
             root: 0,
             tones: [7, 11, 2]
         })
-        expect(over.slice(0, 7).map((e) => e.velocity)).toEqual([100, 90, 80, 80, 90, 80, 90])
+        const touch = over.slice(0, 7).map((e) => e.velocity)
+        expect(touch).toEqual([88, 88, 86, 87, 91, 89, 93])
+        touch.forEach((v, i) => {
+            if (i > 0) expect(Math.abs(v! - touch[i - 1]!)).toBeLessThanOrEqual(5)
+        })
     })
 
     it('plays nothing without notes', () => {
@@ -330,10 +342,36 @@ describe('playback bar', () => {
         pick.value = 'guitar'
         pick.dispatchEvent(new Event('change'))
         ;(both.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
-        expect(times()).toEqual([0, 30, 60])
+        // On guitar, the chord is a grip: x32010 strums five strings.
+        expect(times()).toEqual([0, 30, 60, 90, 120])
         // Only piano given: guitar keeps its 12 ms.
         expect(strumsOf({ piano: 500 })).toEqual({ guitar: 12, piano: 200 })
         expect(strumsOf(Number.NaN)).toEqual({ guitar: 12, piano: 0 })
+    })
+
+    it('lights only the voicing a keyboard chord plays', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'chord: G7', h, { play: { player } })
+        const lit = [...h.querySelectorAll('.mn-on')].map((k) =>
+            Number(k.getAttribute('data-midi'))
+        )
+        expect(lit).toEqual([67, 71, 74, 77])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual(lit)
+    })
+
+    it('plays a list of notes in the order written, then back', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'notes: G F E D C\nfingering: 5 4 3 2 1', h, { play: { player } })
+        expect(h.querySelector('svg')!.getAttribute('data-mn-pitches')).toBe('67 65 64 62 60')
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual([67, 65, 64, 62, 60, 62, 64, 65, 67])
+        // A scale still runs from its tonic.
+        const scale = host()
+        renderBlock('keyboard', 'scale: C major\nrange: C4-C5', scale, { play: { player } })
+        expect(scale.querySelector('svg')!.hasAttribute('data-mn-order')).toBe(false)
     })
 
     it('plays chord tones over a scale a little louder than passing notes', () => {
@@ -342,10 +380,11 @@ describe('playback bar', () => {
         renderBlock('keyboard', 'scale: C major\nchord: G7\nrange: C4-B4', h, { play: { player } })
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         const touch = new Map(calls[0]!.events.slice(1, 7).map((e) => [e.midi, e.velocity]))
+        // Each chord tone 3 above where the contour puts it (C4 84 up to B4 90).
         expect([touch.get(62), touch.get(65), touch.get(67), touch.get(71)]).toEqual([
-            90, 90, 90, 90
+            88, 90, 91, 93
         ])
-        expect([touch.get(64), touch.get(69)]).toEqual([80, 80])
+        expect([touch.get(64), touch.get(69)]).toEqual([86, 89])
     })
 
     it('runs an arpeggio from its root', () => {
@@ -538,6 +577,38 @@ describe('choosing the other instrument redraws the diagram', () => {
         h.remove()
     })
 
+    it('draws a piano chord as a guitar grip, with its labels and a title without hands', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chord', 'C\ninstrument: piano\nlabels: intervals', h, { play: { player } })
+        choose(h, 'guitar')
+        // The easiest voicing, x32010, not C, E and G over twelve frets.
+        expect(h.querySelector('.mn-fretboard')).toBeNull()
+        const grip = h.querySelector('.mn-guitar-chord')!
+        expect(grip.getAttribute('data-mn-pitches')).toBe('48 52 55 60 64')
+        expect(grip.querySelector('.mn-title')?.textContent).toBe('C')
+        expect([...grip.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)).toEqual([
+            'R',
+            '3',
+            'R'
+        ])
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual([48, 52, 55, 60, 64])
+        // A rootless voicing has no bass to keep: Dm7's own grip.
+        const r = host()
+        renderBlock('chord', 'Dm7\ninstrument: piano\nvoicing: rootless', r, { play: {} })
+        choose(r, 'guitar')
+        expect(r.querySelector('.mn-guitar-chord')?.getAttribute('data-mn-chord')).toBe('Dm7')
+        r.remove()
+        // A scale fingered for one hand drops the hand on guitar.
+        const s = host()
+        renderBlock('keyboard', 'scale: C major\nfingering: auto', s, { play: {} })
+        choose(s, 'guitar')
+        expect(s.querySelector('.mn-fretboard .mn-title')?.textContent).toBe('C major')
+        h.remove()
+        s.remove()
+    })
+
     it('draws a keyboard as a fretboard on guitar, and a click there plays its note', () => {
         const h = host()
         const calls: number[] = []
@@ -571,7 +642,7 @@ describe('choosing the other instrument redraws the diagram', () => {
         renderBlock('keyboard', 'chord: C9\nlabels: intervals', k, { play: {} })
         choose(k, 'guitar')
         expect(
-            [...k.querySelectorAll('.mn-fretboard .mn-dot-text')].map((t) => t.textContent)
+            [...k.querySelectorAll('.mn-guitar-chord .mn-dot-text')].map((t) => t.textContent)
         ).toContain('9')
         h.remove()
         k.remove()

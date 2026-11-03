@@ -245,6 +245,8 @@ describe('findKey', () => {
         expect(key('E A B7 E')).toBe('E major')
         expect(key('C D7 G7 C')).toBe('C major')
         expect(key('Bb F Gm Eb')).toBe('Bb major')
+        // All of Me: secondary dominants (V7/vi V7/ii V7/V) chained, G7 turning back to C.
+        expect(key('C E7 A7 Dm7 E7 Am D7 G7')).toBe('C major')
     })
 
     it('spells the tonic as the chords do', () => {
@@ -264,8 +266,9 @@ describe('findKey', () => {
 
     it('lists the keys that hold every chord first among the others', () => {
         const names = (chords: string) => findKey(chords)!.candidates.map((c) => c.name)
-        expect(names('Am F C G').slice(0, 3)).toEqual(['A minor', 'C major', 'G major'])
-        expect(names('Em C G D').slice(0, 3)).toEqual(['E minor', 'G major', 'D major'])
+        // Only keys holding as many chords as the best: G major lacks F, D major lacks C.
+        expect(names('Am F C G')).toEqual(['A minor', 'C major'])
+        expect(names('Em C G D')).toEqual(['E minor', 'G major'])
         // The best key is still the best score: a borrowed bVII doesn't move C Bb F C to F major.
         expect(names('C Bb F C').slice(0, 2)).toEqual(['C major', 'F major'])
     })

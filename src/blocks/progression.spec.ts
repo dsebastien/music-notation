@@ -58,11 +58,30 @@ describe('progression block', () => {
         expect(h.querySelector('svg')).toBeNull()
     })
 
-    it('raises a typed Nashville seventh: 57 shows 5⁷', () => {
+    it('raises typed Nashville extensions: 57 shows 5⁷, 2-7 2-⁷', () => {
         const h = host()
-        renderBlock('progression', '1 47 57 2m7 5/3\nkey: C\ndiagrams: no', h)
-        expect(texts(h, 'mn-progression-numeral')).toEqual(['1', '4⁷', '5⁷', '2m7', '5/3'])
-        expect(texts(h, 'mn-progression-name')).toEqual(['C', 'F7', 'G7', 'Dm7', 'G/E'])
+        renderBlock('progression', '1 47 57 2m7 5/3 2-7 1maj7 57sus4\nkey: C\ndiagrams: no', h)
+        // Every extension raised alike, the bass after a slash as written.
+        expect(texts(h, 'mn-progression-numeral')).toEqual([
+            '1',
+            '4⁷',
+            '5⁷',
+            '2m⁷',
+            '5/3',
+            '2-⁷',
+            '1maj⁷',
+            '5⁷sus⁴'
+        ])
+        expect(texts(h, 'mn-progression-name')).toEqual([
+            'C',
+            'F7',
+            'G7',
+            'Dm7',
+            'G/E',
+            'Dm7',
+            'Cmaj7',
+            'G7sus4'
+        ])
     })
 
     it('reads a blues in its key: I7 IV7 V7', () => {
@@ -127,7 +146,7 @@ describe('progression block', () => {
         expect(texts(h, 'mn-progression-numeral')).toEqual(['I', 'V', 'vi', 'IV'])
         const unclear = host()
         renderBlock('progression', 'Am F C G\ndiagrams: no', unclear)
-        expect(texts(unclear, 'mn-progression-key')).toEqual(['Key: A minor (or C major, G major)'])
+        expect(texts(unclear, 'mn-progression-key')).toEqual(['Key: A minor (or C major)'])
     })
 
     it('transposes numerals and chord names, spelled for the new key', () => {
@@ -250,8 +269,37 @@ describe('progression block', () => {
             'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: rootless A\nhands: left+right',
             rootless
         )
-        expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 52 55 59 62'])
+        // The right hand from F3 up, clear of the left hand: Cmaj7 takes the B form.
+        expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 59 62 64 67'])
         expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)
+        // Rootless in a minor key: the dominant takes b9 and b13, the half-diminished chord the
+        // key's 9th, and a triad tonic its 6/9 chord (ii-V-i in C minor: Dm7b5 F Ab C Eb, G7 F
+        // Ab B Eb, Cm Eb G A D). A major tonic too (ii7 V7 I in F ends A C D G).
+        const minor = host()
+        renderBlock(
+            'progression',
+            'iiø7 V7 i\nkey: C minor\ninstrument: piano\nvoicing: rootless A',
+            minor
+        )
+        expect(minor.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(minor)).toEqual(['53 56 60 63', '53 56 59 63', '51 55 57 62'])
+        const major = host()
+        renderBlock('progression', 'ii7 V7 I\nkey: F\ninstrument: piano\nvoicing: rootless', major)
+        expect(major.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(major)[2]).toBe('57 60 62 67')
+        // VI7 going to ii in Eb: C7 takes the key's 9th (D) and the b13 (Ab): E Ab Bb D.
+        const six = host()
+        renderBlock(
+            'progression',
+            'Imaj7 VI7 ii7 V7\nkey: Eb\ninstrument: piano\nvoicing: rootless',
+            six
+        )
+        expect(
+            pitches(six)[1]!
+                .split(' ')
+                .map((p) => Number(p) % 12)
+                .sort((a, b) => a - b)
+        ).toEqual([2, 4, 8, 10])
         // A 7sus4 chord takes the voicing too (rootless 4 5 b7 9 or b7 9 4 5; shell R 4 7).
         for (const voicing of ['rootless', 'shell']) {
             const sus = host()
@@ -268,9 +316,46 @@ describe('progression block', () => {
         expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\noctave: 3')).toContain(
             'not both'
         )
-        expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: open')).toBe(
-            'voice-leading works with close, shell and rootless voicings, not open'
+        expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nhands: left')).toContain(
+            'voice-leading goes with hands: left+right'
         )
+        // Open voicings lead too, their lowest note within C3-C4 (Am7 doesn't climb to C6).
+        const open = host()
+        renderBlock(
+            'progression',
+            'Imaj7 vi7 ii7 V7\nkey: C\ninstrument: piano\nvoicing: open\nvoice-leading: yes',
+            open
+        )
+        expect(open.querySelector('.mn-error-message')).toBeNull()
+        for (const keys of pitches(open)) {
+            const list = keys!.split(' ').map(Number)
+            expect(list[0]).toBeGreaterThanOrEqual(48)
+            expect(list[0]).toBeLessThanOrEqual(60)
+            expect(list[list.length - 1]).toBeLessThan(77)
+        }
+        // Without voice-leading, open voicings keep their lowest note within F3-E4 too.
+        const spread = host()
+        renderBlock(
+            'progression',
+            'Imaj7 vi7 ii7 V7\nkey: C\ninstrument: piano\nvoicing: open',
+            spread
+        )
+        expect(pitches(spread)).toEqual([
+            '60 67 71 76',
+            '57 64 67 72',
+            '62 69 72 77',
+            '55 62 65 71'
+        ])
+        // Both hands: the root in the left hand, voice-led close chords in the right (pop texture).
+        const pop = host()
+        renderBlock(
+            'progression',
+            'I vi IV V\nkey: G\ninstrument: piano\nvoice-leading: yes\nhands: left+right',
+            pop
+        )
+        expect(pop.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(pop)).toEqual(['43 55 59 62', '40 55 59 64', '48 55 60 64', '50 57 62 66'])
+        expect(pop.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(4)
         expect(
             error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: close')
         ).toBeNull() // voicing: close with voice-leading draws the voice-led keys, with no error in a cell.
@@ -319,8 +404,12 @@ describe('progression block', () => {
         expect(error('I IV\nkey: D dorian')).toBe(
             'Progression keys are major or minor: write key: D major or key: D minor, got "D dorian"'
         )
-        expect(error('I V65\nkey: C')).toContain("figured bass isn't read")
-        expect(error('I V43\nkey: C')).toContain('V7/7 is G7/B')
+        // Figured bass reads as inversions: I6 is C/E, V65 G7/B.
+        const figured = host()
+        renderBlock('progression', 'I6 IV64 V65 I\nkey: C\ndiagrams: no', figured)
+        expect(texts(figured, 'mn-progression-name')).toEqual(['C/E', 'F/C', 'G7/B', 'C'])
+        expect(texts(figured, 'mn-progression-numeral')).toEqual(['I6', 'IV64', 'V65', 'I'])
+        expect(error('I Imaj765\nkey: C')).toContain('I6, V65')
         expect(error('key: C')).toContain('Add the chords')
         expect(error('I IV\nkey: C\ntranspose: 1.5')).toContain('transpose')
         expect(error('I IV\nkey: C\nfunctions: maybe')).toBe(

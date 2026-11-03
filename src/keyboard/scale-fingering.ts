@@ -1,10 +1,10 @@
 /**
- * Piano scale fingerings (#68): the standard method-book fingerings of the major and harmonic
- * minor scales for each hand, and fingers for every octave of a keyboard.
+ * Piano scale fingerings (#68): the standard method-book fingerings of the major, harmonic minor,
+ * melodic minor (going up) and natural minor scales for each hand, and fingers for every octave of a keyboard.
  *
  * A fingering is written for one octave going up, root to root (8 fingers for a 7-note scale).
- * Over several octaves the pattern repeats and the root where two octaves meet takes the thumb
- * (the finger the pattern gives the root on its thumb side): the right hand's C major is
+ * Over several octaves the pattern repeats and the root where two octaves meet takes the finger
+ * that continues the pattern (junctionFinger): the right hand's C major is
  * 1 2 3 1 2 3 4 | 1 2 3 1 2 3 4 | 5, the left hand's 5 4 3 2 1 3 2 | 1 4 3 2 1 3 2 | 1. Only the
  * lowest and highest roots take the octave's first and last fingers.
  */
@@ -78,19 +78,38 @@ const HARMONIC_MINOR: Record<ScaleHand, Table> = {
     }
 }
 
-/** The scale types with standard fingerings, as tonal names them. */
-export const FINGERED_SCALES = ['major', 'harmonic minor'] as const
+/**
+ * Melodic minor scales going up: the harmonic minor's fingers, but C# and F# (whose raised 6th
+ * and 7th are black keys) take the thumb on their two white keys: C# D# E F# G# A# B# is
+ * 2 3 1 2 3 4 1 2. Natural minor scales share the harmonic minor's (their thumbs fall on the same
+ * white keys).
+ */
+const MELODIC_MINOR: Record<ScaleHand, Table> = {
+    right: { ...HARMONIC_MINOR.right, 1: '23123412', 6: '23123412' },
+    left: HARMONIC_MINOR.left
+}
+
+/** The scale types with standard fingerings, as tonal names them ('minor' is the natural minor). */
+export const FINGERED_SCALES = ['major', 'harmonic minor', 'melodic minor', 'minor'] as const
 
 /**
- * The standard fingering of a major or harmonic minor scale for one octave going up, root to root
- * ("1 2 3 1 2 3 4 5" as 8 fingers); null for another scale.
+ * The standard fingering of a major, harmonic minor, melodic minor (going up) or natural minor
+ * scale for one octave going up, root to root ("1 2 3 1 2 3 4 5" as 8 fingers); null for another
+ * scale.
  */
 export function standardScaleFingering(
     tonic: number,
     type: string,
     hand: ScaleHand
 ): string[] | null {
-    const table = type === 'major' ? MAJOR : type === 'harmonic minor' ? HARMONIC_MINOR : null
+    const table =
+        type === 'major'
+            ? MAJOR
+            : type === 'harmonic minor' || type === 'minor'
+              ? HARMONIC_MINOR
+              : type === 'melodic minor'
+                ? MELODIC_MINOR
+                : null
     const fingers = table?.[hand][((tonic % 12) + 12) % 12]
     return fingers ? [...fingers] : null
 }
@@ -98,7 +117,7 @@ export function standardScaleFingering(
 /**
  * Fingers for every key of a scale in a stretch of the keyboard (`pitches`, low to high), from a
  * one-octave fingering (`octave`: one finger per scale note going up from the root, and the root
- * above). Each note takes its degree's finger; a root takes the thumb where two octaves meet, the
+ * above). Each note takes its degree's finger; a root takes junctionFinger's where two octaves meet, the
  * octave's first finger when it is the lowest key and its last when it is the highest.
  */
 export function scaleFingers(
@@ -113,8 +132,7 @@ export function scaleFingers(
     )
     const first = octave[0]!
     const last = octave[octave.length - 1]!
-    // The root between two octaves: the thumb when one end has it, else the first finger.
-    const junction = first === last ? first : last === '1' ? last : first
+    const junction = junctionFinger(octave)
     const sorted = [...pitches].sort((a, b) => a - b)
     const fingers = new Map<number, string>()
     sorted.forEach((pitch, i) => {
@@ -126,6 +144,32 @@ export function scaleFingers(
         else fingers.set(pitch, junction)
     })
     return fingers
+}
+
+/** Going up the right hand: the next finger, or the thumb passing under. */
+const rightUp = (from: number, to: number) => to === from + 1 || (to === 1 && from !== 1)
+/** Going up the left hand: the next finger down, or a finger crossing over the thumb. */
+const leftUp = (from: number, to: number) => to === from - 1 || (from === 1 && to !== 1)
+
+/**
+ * The finger on a root where two octaves meet: the one that continues the pattern, as method
+ * books write two octaves. It follows the 7th degree's finger and leads to the 2nd degree's (Bb
+ * major with 2 1 2 3 1 2 3 4: A 3, Bb 4, C 1; C major: B 4, C 1, D 2). The hand is the one the
+ * octave's own steps fit. A pattern no hand plays falls back to the thumb when one end has it,
+ * else the first finger.
+ */
+export function junctionFinger(octave: readonly string[]): string {
+    const n = octave.map(Number)
+    const fits = (step: (a: number, b: number) => boolean) =>
+        n.slice(1).filter((f, i) => step(n[i]!, f)).length
+    const step = fits(rightUp) >= fits(leftUp) ? rightUp : leftUp
+    const before = n[n.length - 2]!
+    const after = n[1]!
+    const candidates = [1, 2, 3, 4, 5].filter((f) => step(before, f) && step(f, after))
+    if (candidates.length === 1) return String(candidates[0])
+    const first = octave[0]!
+    const last = octave[octave.length - 1]!
+    return first === last ? first : last === '1' ? last : first
 }
 
 /** A finger list as written ("1 2 3", "5-3-1"): each finger 1 (thumb) to 5; throws otherwise. */

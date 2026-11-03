@@ -481,7 +481,8 @@
     font-weight: 600;
 }
 
-/* Which hand plays each key of a piano chord (hands: left+right): L or R under the keys. */
+/* Which hand plays the keys of a piano chord (hands: left+right): a bracket under each hand's
+   keys, LH or RH under it. */
 .mn-svg .mn-key-hand {
     font-size: 10px;
     font-weight: 600;
@@ -490,6 +491,15 @@
 
 .mn-svg .mn-key-hand.mn-hand-left {
     fill: var(--mn-fg);
+}
+
+.mn-svg .mn-hand-bracket {
+    stroke: var(--mn-muted);
+    stroke-width: 1.2;
+}
+
+.mn-svg .mn-hand-bracket.mn-hand-left {
+    stroke: var(--mn-fg);
 }
 
 /* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that

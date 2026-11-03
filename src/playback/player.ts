@@ -59,11 +59,16 @@ export interface SequenceOptions {
     root?: number | null
     /**
      * Scales: the pitch classes of a chord drawn over the scale; its other notes are passing
-     * notes, played a little softer.
+     * notes, played slightly softer.
      */
     tones?: readonly number[]
     /** The instrument, for the touch of a chord: guitar (the default) or piano. */
     sound?: Sound
+    /**
+     * Scales: play the pitches in the order given, then back (a list of notes as written: G F E
+     * D C, then D E F G), instead of the scale run.
+     */
+    ordered?: boolean
 }
 
 export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 12 }
@@ -125,12 +130,17 @@ export function sequenceOf(
             ? null
             : chromaOf(options.root)
     const tones = options.tones?.length ? new Set(options.tones.map(chromaOf)) : null
-    return scaleRun(pitches, root).map((midi, i) => ({
+    const run = options.ordered
+        ? [...pitches, ...pitches.slice(0, -1).reverse()]
+        : scaleRun(pitches, root)
+    const low = Math.min(...run)
+    const high = Math.max(...run)
+    return run.map((midi, i) => ({
         midi,
         time: i * beat,
         // Legato: each note lasts until the next; players add a short release after it.
         duration: beat,
-        velocity: runVelocity(i, chromaOf(midi), root, tones)
+        velocity: runVelocity(i, midi, low, high, root, tones)
     }))
 }
 
@@ -146,19 +156,23 @@ function chordVelocity(i: number, last: number, sound: Sound): number {
 }
 
 /**
- * A scale note's touch: the first note accented (100), the tonics leaning (94), chord tones over
- * a scale 90 and passing notes 80, other notes 86.
+ * A scale note's touch, as a pianist shapes a run: a smooth contour from 84 on the lowest note to
+ * 90 on the highest (a little louder going up, softer coming down), the first note and the
+ * tonics 4 above it, and over a chord its tones 3 above the passing notes. No two neighbours
+ * differ by more than a few steps, so the run doesn't sound lumpy.
  */
 function runVelocity(
     i: number,
-    chroma: number,
+    midi: number,
+    low: number,
+    high: number,
     root: number | null,
     tones: ReadonlySet<number> | null
 ): number {
-    if (i === 0) return 100
-    if (chroma === root) return 94
-    if (tones) return tones.has(chroma) ? 90 : 80
-    return 86
+    const contour = 84 + (high > low ? (6 * (midi - low)) / (high - low) : 6)
+    const chroma = chromaOf(midi)
+    const lean = i === 0 || chroma === root ? 4 : tones?.has(chroma) ? 3 : 0
+    return Math.round(contour + lean)
 }
 
 /** The end of a sequence, in seconds. */
