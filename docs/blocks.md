@@ -39,10 +39,10 @@ title: A (open)</code></pre></div>
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `symbol`            | Chord symbol (`A`, `F#m7`, `B♭`, `C/G`, `C6/9`) or name in words (`A Major`, `F Sharp Minor 7`, `C Major over G`). Spellings from chord sheets on the web work too: `C7(b9)`, `Cm(add9)`, `Cmaj7b5`, `C-5`. Its root notes are highlighted. Also the title, unless `title` is set. A symbol the library doesn't know still works with `frets`, without root marks. |
 | `frets`             | One per string, lowest string first. `x` = muted, `0` = open. Above fret 9, separate them: `x-10-12-12-11-10`.                                                                                                                                                                                                                                                     |
-| `fingers`           | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre, with its finger number once.                                                                                                                                                                                                                              |
+| `fingers`           | One per string: `1`–`4`, `T` (thumb); `0` or `x` = none. The same finger on the same fret draws a barre, with its finger number once. Frets written without fingers still show a full barre (F `133211`).                                                                                                                                                          |
 | `voicing`           | With only a symbol, the n-th voicing from the built-in database (1 = the most common: the shape a teacher would show first, with the root in the bass). A chord the database doesn't have gets the 4 easiest voicings the library finds from its notes, as in [all the ways to play a chord](#all-the-ways-to-play-a-chord).                                       |
 | `position`          | The first fret shown; at most the lowest fretted note. Computed when absent.                                                                                                                                                                                                                                                                                       |
-| `tuning`            | For other tunings or instruments: `Drop D`, `DADGAD`, `E2 A2 D3 G3`, `ukulele`…                                                                                                                                                                                                                                                                                    |
+| `tuning`            | For other tunings or instruments: `Drop D`, `Drop C`, `Drop B`, `Drop A`, `Double Drop D`, `DADGAD`, `open C`, `open A`, `whole step down`, `C6` (or `Modal C6`), `E2 A2 D3 G3`, `ukulele`…                                                                                                                                                                        |
 | `instrument`        | `piano` draws a keyboard.                                                                                                                                                                                                                                                                                                                                          |
 | `pitches`           | Piano: `A3 C#4 E4`, or `A C# E` (stacked upwards from middle C).                                                                                                                                                                                                                                                                                                   |
 | `fingering`         | Piano: one finger per key, low to high: `5-3-1`. Shown on the keys (`labels: notes` shows note names instead).                                                                                                                                                                                                                                                     |
@@ -156,7 +156,7 @@ labels: intervals</code></pre></div>
 
 ## All the ways to play a chord
 
-`voicings:` draws every playable way to play a guitar chord, easiest first, in a row. The library finds them from the chord's notes, so it works for any chord, any tuning and up to 8 strings.
+`voicings:` draws the ways to play a guitar chord, one diagram per shape: the easiest ones, put in a row up the neck. A shape with its highest strings muted is the same shape and is left out. The library finds them from the chord's notes, so it works for any chord, any tuning and up to 8 strings.
 
 ![A Major's easiest voicings, and G triads on the three highest strings](images/voicings.png)
 
@@ -190,7 +190,7 @@ columns: 4</code></pre></div>
 
 | Key           | Meaning                                                                                                                         |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `voicings`    | `all` (at most 32), or how many: the easiest first.                                                                             |
+| `voicings`    | `all` (at most 32), or how many: the easiest shapes, drawn up the neck.                                                         |
 | `area`        | The frets the fretted notes stay within: `5-9` (`0-3` starts at the nut), or `open` (frets 1–4).                                |
 | `root-string` | The string the bass note is on, counted the way guitarists do: 1 is the highest string, 6 the lowest. `6` gives E-shape chords. |
 | `strings`     | The strings that may sound: `1-3` (the three highest), `2-4`, or a list (`1 2 3`; strings apart, like `1 2 4`, need `gaps`).    |
@@ -203,11 +203,11 @@ columns: 4</code></pre></div>
 
 On a re-entrant tuning (a ukulele's high G string), any chord note may be lowest unless `inversion` says otherwise, so the usual shapes (F `2010`, G `0232`) come first. On 7 or 8 strings, use one of `gaps`, `stretch` and a wide `area` at a time, and `inversion: any` with six `strings` or fewer: there are many more combinations to go through.
 
-Each voicing must sound the root, the third (or the sus note), the seventh or sixth, altered notes and the highest extension; the perfect fifth and lower extensions may be left out. A slash chord keeps its bass lowest. No pitch sounds on two strings at once (except on a ukulele's re-entrant tuning). Fingers are worked out: any finger can hold a note, the index or the ring finger can barre a few strings on one fret (the pinky never, in generated voicings), only the index can lie across strings fretted higher (a full barre), the finger numbers go up with the frets, and at most four fingers in all; the easiest way wins (a small index barre over the top strings, like F `xx3211`, counts as easy). Muted strings between sounding ones are left out unless `gaps: yes`.
+Each voicing must sound the root, the third (or the sus note), the seventh or sixth, altered notes and the highest extension; the perfect fifth and lower extensions may be left out. A slash chord keeps its bass lowest. No pitch sounds on two strings at once (except on a ukulele's re-entrant tuning). Fingers are worked out: any finger can hold a note, the index or the ring finger can barre a few strings on one fret (the pinky never, in generated voicings), only the index can lie across strings fretted higher (a full barre), the finger numbers go up with the frets, and at most four fingers in all; the easiest way wins (a small index barre over the top strings, like F `xx3211`, counts as easy). Muted strings between sounding ones are left out unless `gaps: yes`, except the jazz grips players use that way: the Hendrix grip (C7#9 x3234x), m7b5 (F#m7b5 2x221x) and dim7 (Gdim7 3x232x) from the low E, and the 13 (G13 3x345x).
 
-Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, Em, Dm, their sevenths, sus and add9 shapes), then fewer fingers, a smaller span, no full barre, reach or awkward fingering, the usual shapes (E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), no open string ringing inside a shape up the neck, lower on the neck. Each diagram is titled with the chord and its shape when it has a usual one: Open, C shape, A shape, G shape, E shape, D shape (with a barre or not), Power chord, Triad or Shell.
+Easiest first means: the open chords guitarists learn first (C, A, G, E, D, Am, Em, Dm, their sevenths, sus and add9 shapes), then fewer fingers, a smaller span, no full barre, reach or awkward fingering, the usual shapes (E- and A-shape barres, the CAGED shapes), all strings sounding (a muted high string costs more than a muted low one), no open string ringing inside a shape up the neck, lower on the neck. Each diagram is titled with the chord and its shape when it has a usual one: Open, C shape, A shape, G shape, E shape, D shape (with a barre or not), Power chord, Triad or Shell (three notes: the root lowest, then the third and the seventh or sixth, as x3x45x).
 
-`voicing: 3` (singular) still picks the third voicing of the built-in database (see [Examples](examples.html)).
+`voicing: 3` (singular) still picks the third voicing of the built-in database (see [Examples](examples.html)). In the database, the first voicing of a chord is one you can strum. A grip with a muted string inside the shape comes after the others (Bdim starts with x2343x, not x20x01), except the jazz grips that mute the A string under a root on the low E.
 
 ## Triads on string sets
 
@@ -333,20 +333,20 @@ labels: intervals
 frets: 5-8
 labels: intervals</code></pre></div>
 
-| Key                                          | Meaning                                                                                                                                         |
-| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scale`, `chord`, `notes`, `root`            | As for keyboards.                                                                                                                               |
-| `frets`                                      | Frets shown: `5-8`. `0-12` by default; from `0`, open strings are shown left of the nut.                                                        |
-| `strings`                                    | Only the notes on these strings (1 = the highest): `1-3` shows triads on the top strings.                                                       |
-| `tuning`                                     | `standard` (default), `Drop D`, `DADGAD`, `open G`, `open D`, `open E`, `half step down`, `bass`, `ukulele`, or notes: `DADGAD`, `E1 A1 D2 G2`. |
-| `labels`                                     | `notes` (default), `degrees`, `intervals`, `none`.                                                                                              |
-| `title`                                      | The title shown above.                                                                                                                          |
-| `orientation`                                | `horizontal` (default, the high string on top, as in tabs) or `vertical` (the nut on top, as a chord diagram).                                  |
-| `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                |
-| `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
-| `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
-| `capo`, `frets-from`                         | A capo; `frets` and positions count from it. See [capo](#capo).                                                                                 |
-| `arpeggio`                                   | A chord's notes, labeled with intervals; with `position` or `positions`, its CAGED shapes. See [arpeggios](#arpeggios).                         |
+| Key                                          | Meaning                                                                                                                                                                                                                                                     |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scale`, `chord`, `notes`, `root`            | As for keyboards.                                                                                                                                                                                                                                           |
+| `frets`                                      | Frets shown: `5-8`. `0-12` by default; from `0`, open strings are shown left of the nut.                                                                                                                                                                    |
+| `strings`                                    | Only the notes on these strings (1 = the highest): `1-3` shows triads on the top strings.                                                                                                                                                                   |
+| `tuning`                                     | `standard` (default), `Drop D`, `Drop C`, `Drop B`, `Drop A`, `Double Drop D`, `DADGAD`, `open G`, `open D`, `open E`, `open C`, `open A`, `half step down`, `whole step down`, `C6` (or `Modal C6`), `bass`, `ukulele`, or notes: `DADGAD`, `E1 A1 D2 G2`. |
+| `labels`                                     | `notes` (default), `degrees`, `intervals`, `none`.                                                                                                                                                                                                          |
+| `title`                                      | The title shown above.                                                                                                                                                                                                                                      |
+| `orientation`                                | `horizontal` (default, the high string on top, as in tabs) or `vertical` (the nut on top, as a chord diagram).                                                                                                                                              |
+| `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                                                                                                                            |
+| `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                                                                                                                                   |
+| `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                                                                                                                                  |
+| `capo`, `frets-from`                         | A capo; `frets` and positions count from it. See [capo](#capo).                                                                                                                                                                                             |
+| `arpeggio`                                   | A chord's notes, labeled with intervals; with `position` or `positions`, its CAGED shapes. See [arpeggios](#arpeggios).                                                                                                                                     |
 
 **A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists: in a `chord` block, it's an error that says so.
 
@@ -391,6 +391,7 @@ compare: major</code></pre></div>
 - One position is drawn in the lowest octave where all its notes fit on the neck (box 5 of A minor pentatonic at frets 2–5; E major box 1 at 11–14). Add `frets:` to draw it higher up the neck: with `frets: 10-17`, `position: 4` is box 4 at frets 12–15. If no octave of the position fits inside those frets, the block says so and asks you to widen `frets:` or leave it out.
 - `shape: 3nps` with `position: 1` to `7`: three notes per string, from that degree. Scales with no pentatonic inside (locrian, harmonic minor…) use it for their CAGED positions too.
 - `positions: all` (or a list, `positions: 1 3`) draws the positions side by side in neck order, each one at or above the one before: A minor pentatonic's boxes sit at frets 5–8, 7–10, 9–13, 12–15 and 14–17. A position that would go past fret 36 drops back to its lowest octave. A list puts each position at the frets `all` gives it. With `shape: 3nps`, you get the 3NPS positions.
+- A single position is titled like the diagrams of `positions: all`: `shape: E` on G major is "G major, E shape", `position: 2` on A minor pentatonic "A minor pentatonic, box 2".
 - `numbering: minor` counts a major pentatonic's positions from its relative minor, as many courses do. A major pentatonic's position 1 is then box 1 of F# minor pentatonic, and the titles add "(from F#m)". It only works on major pentatonic scales.
 
 ````markdown
@@ -789,7 +790,7 @@ While it plays, each note lights up on the drawing when you hear it: the dot, th
 
 ![A tab with its player](images/tab.png)
 
-`tab` and `score` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction), then drawn and played by [alphaTab](https://alphatab.net). They show tablature, standard notation, both, or a piano grand staff.
+`tab` and `score` blocks are written in [alphaTex](https://alphatab.net/docs/alphatex/introduction), then drawn and played by [alphaTab](https://alphatab.net). They show tablature, standard notation, both, or a piano grand staff. A plain-text tab pasted from the web (`e|---0---|`) works too. The block draws its alphaTex conversion and keeps your text as you wrote it.
 
 ````markdown
 ```tab
@@ -962,7 +963,7 @@ chord: E7</code></pre></div>
 Write the pattern the way you find it on the web. Each slot is one subdivision of the beat (an 8th by default):
 
 - One symbol a slot, with rests: `D - D U - U D U`, `D-DU-UDU`, `D . D U . U D U`.
-- Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same. An `X` written alone moves like a down strum (`D X D X` is `D - X - D - X -`); glued after a strum, it takes the next slot (`D DX UDU` is `D - D X - U D U`).
+- Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same. An `X` written alone moves like a down strum (`D X D X` is `D - X - D - X -`); glued after a strum, it takes the next slot (`D DX UDU` is `D - D X - U D U`). When this leaves whole beats with no strum at the end of the bar, a note under the pattern says how it was read (`D U D U` in triplets is `D - U D - U`, then 2 empty beats): write a symbol for every slot to place the strums yourself.
 - In triplets, strums only are a shuffle: down on the beat, up on the third triplet (`D U D U` is `D - U D - U`). To strum the middle triplet, write one symbol a slot (`D U D D U D D U D D U D`).
 - Strums only that fill a bar one a slot are read that way (`DUDUDUDU`, `D D U D D U` in 6/8), unless that puts an up strum on a beat in 4/4, 3/4 and the like: then they are placed by the hand's motion.
 - Arrows: `↓ ↓↑ ↑↓↑` reads as `D DU UDU`.
@@ -986,16 +987,16 @@ D DU UDU
 
 A line of only `D`s reads as strums: write `[D]` in the pattern instead. A line of counts (`1 & 2 & 3 & 4 &`) is skipped.
 
-| Key           | Meaning                                                                                                 |
-| ------------- | ------------------------------------------------------------------------------------------------------- |
-| `time`        | The time signature: `4/4` (default), `3/4`, `6/8`, `12/8`, `C`, `cut`…                                  |
-| `subdivision` | `8ths` (default), `16ths` or `triplets` (in x/4). In 6/8, an 8th is one slot.                           |
-| `swing`       | `yes` swings the 8ths (a shuffle feel), `60%` a lighter swing. See below.                               |
-| `chord`       | The chord of the whole pattern (until a change). Without any chord, playback strums E minor.            |
-| `tempo`       | Beats a minute for playback, 20–240. 90 by default; 60 dotted quarters in 6/8, 9/8 and 12/8. See below. |
-| `tuning`      | The open strings chords are played on: `standard` (default), `drop d`, `ukulele`, `D2 A2 D3 G3 B3 E4`…  |
-| `title`       | A title above the pattern.                                                                              |
-| `pattern`     | The pattern, as a key, when you prefer.                                                                 |
+| Key           | Meaning                                                                                                                                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `time`        | The time signature: `4/4` (default), `3/4`, `6/8`, `12/8`, `C`, `cut`…                                                                                                                                             |
+| `subdivision` | `8ths` (default), `16ths` or `triplets` (in x/4). In 6/8, an 8th is one slot.                                                                                                                                      |
+| `swing`       | `yes` swings the 8ths (a shuffle feel), `60%` a lighter swing. See below.                                                                                                                                          |
+| `chord`       | The chord of the whole pattern (until a change). Without any chord, playback strums E minor.                                                                                                                       |
+| `tempo`       | Beats a minute for playback, 20–240. 90 by default; 60 dotted quarters in 6/8, 9/8 and 12/8. See below.                                                                                                            |
+| `tuning`      | The open strings chords are played on: `standard` (default), `drop d`, `drop c`, `drop b`, `drop a`, `double drop d`, `open c`, `open a`, `whole step down`, `c6` (or `modal c6`), `ukulele`, `D2 A2 D3 G3 B3 E4`… |
+| `title`       | A title above the pattern.                                                                                                                                                                                         |
+| `pattern`     | The pattern, as a key, when you prefer.                                                                                                                                                                            |
 
 A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which time or subdivision would fit. Strums only that run past a bar and fill less than half of the next one are a mistake too (`D DU UDU` in 3/4 is a 4/4 pattern): the message says how many slots a bar has. Put a `|` where each bar ends to write a short last bar on purpose (`D DU UDU | D`).
 
