@@ -80,6 +80,8 @@ interface Barre {
     from: number
     to: number
     finger: string
+    /** The strings the finger holds at that fret, lowest first. */
+    strings: number[]
 }
 
 /** Strings held by the same finger on the same fret, across at least two strings. */
@@ -100,7 +102,8 @@ function barresOf(voicing: FrettedVoicing, capoFret: number | null): Barre[] {
             fret: Number(fret),
             from: Math.min(...strings),
             to: Math.max(...strings),
-            finger: finger!
+            finger: finger!,
+            strings
         })
     }
     return barres
@@ -226,7 +229,16 @@ export function renderGuitarDiagram(
         )
     }
 
+    // What each dot says: its finger, or the label asked for.
+    const textOf = (s: number) => (options.labels ? options.labels[s] : voicing.fingers[s]) ?? null
+    // Strings whose text the barre's one label stands for.
+    const quiet = new Set<number>()
     for (const barre of barresOf(voicing, capoFret)) {
+        // One bar says one thing: dots labelled differently (a triad's 5 and R) stay apart.
+        const texts = new Set(barre.strings.map(textOf))
+        if (texts.size > 1) continue
+        // One finger number for the whole bar, on its lowest string.
+        for (const s of barre.strings) if (s !== barre.from) quiet.add(s)
         const middle = along(barre.fret - base + 0.5)
         root.appendChild(
             svg(doc, 'rect', {
@@ -240,13 +252,21 @@ export function renderGuitarDiagram(
     const tuning = options.tuning ?? (strings === 6 ? STANDARD_TUNING : undefined)
     voicing.frets.forEach((fret, s) => {
         // Open and muted marks sit just before the nut.
-        const mark = frame.at(across(s), -8)
+        const markAlong = -8
+        const mark = frame.at(across(s), markAlong)
         // What each mark is, for tools that read diagrams (strings as guitarists count them).
         const string = strings - s
         if (fret === null) {
-            const muted = svgLabel(doc, '×', mark, 'mn-muted')
-            muted.setAttribute('data-mn-string', String(string))
-            root.appendChild(muted)
+            // An x as big and as dark as the open circles.
+            const [x, y] = mark
+            const d = 3.5
+            root.appendChild(
+                svg(doc, 'path', {
+                    'class': 'mn-muted',
+                    'd': `M${x - d} ${y - d}L${x + d} ${y + d}M${x + d} ${y - d}L${x - d} ${y + d}`,
+                    'data-mn-string': string
+                })
+            )
             return
         }
         // From the capo, every string sounds `capo` semitones higher.
@@ -262,9 +282,12 @@ export function renderGuitarDiagram(
             'data-mn-fret': fret,
             ...(open !== undefined ? { 'data-midi': open + fret } : {})
         }
+        const place = (...els: Element[]) => {
+            for (const el of els) root.appendChild(el)
+        }
         if (fret === 0) {
             const [cx, cy] = mark
-            root.appendChild(
+            place(
                 svg(doc, 'circle', {
                     class: `mn-open${isRoot ? ' mn-root' : ''}`,
                     cx,
@@ -275,10 +298,11 @@ export function renderGuitarDiagram(
             )
             return
         }
+        const center = at(s, fret - base + 0.5)
+        const [cx, cy] = center
         if (fret === capoFret) {
             // A string the capo plays: a ring on the capo.
-            const [cx, cy] = at(s, fret - base + 0.5)
-            root.appendChild(
+            place(
                 svg(doc, 'circle', {
                     class: `mn-capo-open${isRoot ? ' mn-root' : ''}`,
                     cx,
@@ -289,19 +313,17 @@ export function renderGuitarDiagram(
             )
             return
         }
-        const center = at(s, fret - base + 0.5)
-        const [cx, cy] = center
-        root.appendChild(
+        const text = quiet.has(s) ? null : textOf(s)
+        place(
             svg(doc, 'circle', {
                 class: `mn-dot${isRoot ? ' mn-root' : ''}${options.marks?.[s] ? ` mn-${options.marks[s]}` : ''}`,
                 cx,
                 cy,
                 r: 7,
                 ...midi
-            })
+            }),
+            ...(text ? [svgLabel(doc, text, center, 'mn-dot-text')] : [])
         )
-        const text = options.labels ? options.labels[s] : voicing.fingers[s]
-        if (text) root.appendChild(svgLabel(doc, text, center, 'mn-dot-text'))
     })
     // What playback plays: the sounding strings, low to high (when the tuning is known).
     if (tuning) {

@@ -363,6 +363,14 @@
     stroke: var(--mn-root);
 }
 
+/* A muted string: an x as big and as dark as an open string's circle. */
+.mn-svg .mn-muted {
+    fill: none;
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
 /* A capo: a bar across the strings, in the text color but lighter than the dots. */
 .mn-svg .mn-capo {
     fill: var(--mn-fg);
@@ -384,7 +392,6 @@
     fill: var(--mn-muted);
 }
 
-.mn-svg .mn-muted,
 .mn-svg .mn-base-fret,
 .mn-svg .mn-fret-number,
 .mn-svg .mn-string-name {

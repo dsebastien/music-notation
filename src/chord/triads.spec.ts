@@ -134,6 +134,26 @@ describe('labels and strings', () => {
         )
     })
 
+    it('draws no barre between triad dots labelled differently', () => {
+        let bars = 0
+        for (const set of ['1-3', '2-4', '3-5', '4-6']) {
+            const h = host()
+            expect(renderBlock('chord', `F\ntriads: ${set}`, h).ok).toBe(true)
+            // The same triads with finger numbers: some are held with a barre.
+            const f = host()
+            renderBlock('chord', `F\ntriads: ${set}\nlabels: fingers`, f)
+            bars += f.querySelectorAll('.mn-barre').length
+            for (const svg of h.querySelectorAll('svg')) {
+                if (!svg.querySelector('.mn-barre')) continue
+                // A bar only joins dots with one label, shown once.
+                expect(svg.querySelectorAll('.mn-dot-text').length).toBeLessThan(
+                    svg.querySelectorAll('.mn-dot').length
+                )
+            }
+        }
+        expect(bars).toBeGreaterThan(0)
+    })
+
     it('shows only some strings on a fretboard', () => {
         const all = host()
         renderBlock('fretboard', 'chord: G\nfrets: 0-5', all)
