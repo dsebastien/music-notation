@@ -40,6 +40,7 @@ import {
     scalePosition,
     type Cell
 } from '../fretboard/positions.js'
+import { renderStrumBlock } from '../strum/render.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -59,7 +60,7 @@ export interface RenderOptions extends LayoutDefaults {
     propertyNames?: Partial<PropertyNames>
     /** The note's instrument; from its tags when absent. */
     instrument?: Instrument
-    /** A playback bar on chord, keyboard and fretboard diagrams (true for the defaults). */
+    /** A playback bar on chord, keyboard and fretboard diagrams and strum patterns (true for the defaults). */
     play?: boolean | PlayOptions
 }
 
@@ -549,7 +550,8 @@ export const RENDERERS = {
     chord: fromSource(renderChord),
     chords: renderChordsBlock,
     keyboard: fromSource(renderKeyboardBlock),
-    fretboard: fromSource(renderFretboardBlock)
+    fretboard: fromSource(renderFretboardBlock),
+    strum: renderStrumBlock
 } satisfies Record<string, Renderer>
 
 export type NotationLanguage = keyof typeof RENDERERS

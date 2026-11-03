@@ -5,7 +5,7 @@ nav_order: 2
 
 # Blocks
 
-A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
+A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, `strum` ([strumming patterns](#strumming-patterns)), or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
 
 ## Chord
 
@@ -588,3 +588,77 @@ Supported:
 - Long lyric lines wrap on narrow screens.
 
 Other directives are ignored.
+
+## Strumming patterns
+
+A strumming pattern on a beat grid: the counts (1 & 2 & …) under each slot, an arrow for each strum, accents, muted strums, and the chord changes above.
+
+````markdown
+```strum
+[G]D - D U [C]- U D U
+title: Old faithful
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">[G]D - D U [C]- U D U
+title: Old faithful</code></pre></div>
+
+````markdown
+```strum
+D> (U) X U D> U X U
+chord: Am
+tempo: 100
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">D&gt; (U) X U D&gt; U X U
+chord: Am
+tempo: 100</code></pre></div>
+
+````markdown
+```strum
+D - D U - U
+time: 6/8
+chord: Em
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">D - D U - U
+time: 6/8
+chord: Em</code></pre></div>
+
+Write the pattern the way you find it on the web. Each slot is one subdivision of the beat (an 8th by default):
+
+- One symbol a slot, with rests: `D - D U - U D U`, `D-DU-UDU`, `D . D U . U D U`.
+- Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same.
+
+| Symbol      | Meaning                                                                    |
+| ----------- | -------------------------------------------------------------------------- |
+| `D` / `U`   | A down / up strum (any case).                                              |
+| `X`         | A muted strum (a percussive chuck).                                        |
+| `-` `.` `_` | No strum: the hand moves but misses the strings.                           |
+| `D>`        | An accent: played louder. `>D` works too.                                  |
+| `(U)`       | A ghost strum: played softly, drawn small. `(D U)` makes both ghost.       |
+| `[G]`       | A chord change on the next slot (a symbol, or words: `[A Minor]`).         |
+| `\|`        | A bar line. Each line and each part between bar lines is one or more bars. |
+
+A line of chords above a pattern line puts each chord on the slot under it (on a gap of `D DU UDU`, on the rest there). This draws the same as the first example:
+
+```text
+G   C
+D DU UDU
+```
+
+A line of only `D`s reads as strums: write `[D]` in the pattern instead. A line of counts (`1 & 2 & 3 & 4 &`) is skipped.
+
+| Key           | Meaning                                                                                                                 |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `time`        | The time signature: `4/4` (default), `3/4`, `6/8`, `12/8`, `C`, `cut`…                                                  |
+| `subdivision` | `8ths` (default), `16ths` or `triplets` (in x/4). In 6/8, an 8th is one slot.                                           |
+| `chord`       | The chord of the whole pattern (until a change). Without any chord, playback strums E minor.                            |
+| `tempo`       | Beats a minute for playback, 20–240 (90 by default). The beat is the time signature's: a quarter in 4/4, an 8th in 6/8. |
+| `tuning`      | The open strings chords are played on: `standard` (default), `drop d`, `ukulele`, `D2 A2 D3 G3 B3 E4`…                  |
+| `title`       | A title above the pattern.                                                                                              |
+| `pattern`     | The pattern, as a key, when you prefer.                                                                                 |
+
+A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which subdivision would fit.

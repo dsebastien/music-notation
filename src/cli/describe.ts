@@ -85,6 +85,18 @@ export interface ChartDiagram {
     sections: string[]
 }
 
+export interface StrumDiagram {
+    type: 'strum'
+    title: string | null
+    /** One symbol a slot, bars separated by `|`, chords in brackets: `[G]D - D U - U D U`. */
+    pattern: string
+    time: string
+    subdivision: string
+    tempo: number | null
+    /** Each chord change and the slot it starts on (from 0). */
+    chords: { beat: number; chord: string }[]
+}
+
 /** A diagram of a row that has a mistake: its message is in the block's error. */
 export interface FailedDiagram {
     type: 'error'
@@ -92,7 +104,12 @@ export interface FailedDiagram {
 }
 
 export type Diagram =
-    GuitarChordDiagram | FretboardDiagram | KeyboardDiagram | ChartDiagram | FailedDiagram
+    | GuitarChordDiagram
+    | FretboardDiagram
+    | KeyboardDiagram
+    | ChartDiagram
+    | StrumDiagram
+    | FailedDiagram
 
 const classes = (el: Element) => (el.getAttribute('class') ?? '').split(/\s+/)
 const has = (el: Element, cls: string) => classes(el).includes(cls)
@@ -244,6 +261,22 @@ function chart(el: Element): ChartDiagram {
     }
 }
 
+function strum(svg: Element): StrumDiagram {
+    const tempo = svg.getAttribute('data-mn-tempo')
+    return {
+        type: 'strum',
+        title: text(svg.querySelector('.mn-title')),
+        pattern: svg.getAttribute('data-mn-strum') ?? '',
+        time: svg.getAttribute('data-mn-time') ?? '',
+        subdivision: svg.getAttribute('data-mn-subdivision') ?? '',
+        tempo: tempo === null ? null : Number(tempo),
+        chords: [...svg.querySelectorAll('[data-mn-beat][data-mn-chord]')].map((el) => ({
+            beat: Number(el.getAttribute('data-mn-beat')),
+            chord: el.getAttribute('data-mn-chord') ?? ''
+        }))
+    }
+}
+
 /** Every diagram a rendered block holds, in order. */
 export function describeBlock(el: Element): Diagram[] {
     return [...el.querySelectorAll('svg.mn-svg, .mn-chart, .mn-cell.mn-error')].map((d) => {
@@ -255,6 +288,7 @@ export function describeBlock(el: Element): Diagram[] {
         if (has(d, 'mn-chart')) return chart(d)
         if (has(d, 'mn-fretboard')) return fretboard(d)
         if (has(d, 'mn-keyboard')) return keyboard(d)
+        if (has(d, 'mn-strum')) return strum(d)
         return guitarChord(d)
     })
 }
@@ -273,6 +307,17 @@ export function formatDiagram(d: Diagram, n: number): string[] {
     switch (d.type) {
         case 'error':
             return [`${head}error: ${d.message}`]
+        case 'strum':
+            return [
+                `${head}${listed([
+                    'strumming pattern',
+                    quoted(d.title),
+                    d.time,
+                    d.subdivision,
+                    d.tempo !== null && `tempo ${d.tempo}`
+                ])}`,
+                `${pad}${d.pattern}`
+            ]
         case 'chart':
             return [
                 `${head}${listed([

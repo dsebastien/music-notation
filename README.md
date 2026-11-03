@@ -110,6 +110,7 @@ if (!result.ok) console.warn(result.error)
 - `renderBlock(language, source, host, options)` appends the rendering to `host` and never throws. It returns `{ ok, el, error, destroy() }`.
 - `@dsebastien/music-notation/voicings` adds about 1,800 guitar voicings, found by chord symbol (`chord` blocks with only a symbol). It's a separate entry point because the data weighs about 230 KB.
 - **Hear the diagrams**: the `play` option adds a playback bar to each diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note.
+- **Strumming patterns**: `strum` blocks draw a pattern (`D DU UDU`, `D - D U - U D U`) on a beat grid with counts, accents, muted and ghost strums and chord changes.
 - **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks (alphaTex, or Guitar Pro and MusicXML files) with [alphaTab](https://alphatab.net), and adds a player. It also converts score files, text tabs and chord sheets, and exports Guitar Pro 7 and MIDI.
 - `generateVoicings(symbol, options)` finds every playable voicing of a chord on any tuning, easiest first, with fingers and shape names; `fingerVoicing(frets)` fingers any voicing.
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
@@ -134,7 +135,7 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
     const VERSION = '0.7.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
-    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard'])
+    const BLOCKS = selector(['chord', 'chords', 'keyboard', 'fretboard', 'strum'])
     const TABS = selector(['tab', 'score'])
     const requested = new Set()
     const load = (file) => {

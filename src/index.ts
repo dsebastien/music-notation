@@ -137,3 +137,17 @@ export {
 } from './blocks/properties.js'
 export { textTabToAlphaTex } from './convert/text-tab.js'
 export { chordSheetToChordPro } from './convert/chord-sheet.js'
+export {
+    parseStrum,
+    formatStrum,
+    countOf,
+    parseTime,
+    parseSubdivision,
+    MAX_STRUM_BARS,
+    type StrumPattern,
+    type StrumSlot,
+    type Stroke,
+    type Subdivision
+} from './strum/pattern.js'
+export { renderStrum, type StrumOptions } from './strum/render.js'
+export { strumVoicing, DEFAULT_STRUM_CHORD } from './strum/voicing.js'
