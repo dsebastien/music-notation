@@ -367,7 +367,7 @@ compare: major</code></pre></div>
 **Positions.** On a fretboard, `position:` draws one place on the neck instead of every note, and the frets shown follow it:
 
 - 5-note scales: the five boxes, `position: 1` to `5` (box 1 starts on the root on the low string).
-- 7-note scales: the five CAGED positions, by number (`position: 1` is the E shape) or by shape: `shape: E` (the root on the low string), then up the neck `D`, `C`, `A`, `G`.
+- 7-note scales: the five CAGED positions, by number (`position: 1` is the E shape) or by shape: `shape: E` (or `E shape`; the root on the low string), then up the neck `D`, `C`, `A`, `G`. Both E strings show the same notes.
 - One position is drawn in the lowest octave where all its notes fit on the neck (box 5 of A minor pentatonic at frets 2–5; E major box 1 at 11–14). Add `frets:` to draw it higher up the neck: with `frets: 10-17`, `position: 4` is box 4 at frets 12–15. If no octave of the position fits inside those frets, the block says so and asks you to widen `frets:` or leave it out.
 - `shape: 3nps` with `position: 1` to `7`: three notes per string, from that degree. Scales with no pentatonic inside (locrian, harmonic minor…) use it for their CAGED positions too.
 - `positions: all` (or a list, `positions: 1 3`) draws the positions side by side in neck order, each one at or above the one before: A minor pentatonic's boxes sit at frets 5–8, 7–10, 9–13, 12–15 and 14–17. A position that would go past fret 36 drops back to its lowest octave. A list puts each position at the frets `all` gives it. With `shape: 3nps`, you get the 3NPS positions.

@@ -264,7 +264,8 @@ describe('scales and modes', () => {
         expect(count(h, '.mn-dot')).toBe(12)
         const shape = host()
         expect(renderBlock('fretboard', 'C major\nshape: E', shape).ok).toBe(true)
-        expect(count(shape, '.mn-dot')).toBe(16)
+        // Both E strings show B, C and D.
+        expect(count(shape, '.mn-dot')).toBe(17)
         expect(renderBlock('fretboard', 'C major\nposition: 6', host()).error).toBe(
             'C major has 5 CAGED positions: use position 1 to 5'
         )

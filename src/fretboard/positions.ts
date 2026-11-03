@@ -258,7 +258,8 @@ function withOther(box: Cell[], chromas: number[] | null, tuning: number[]): Cel
 
 /**
  * Adds the scale notes the pentatonic box leaves out, between its notes, on the string that keeps
- * the hand inside the box's frets; a fret of stretch on either side only when neither string can.
+ * the hand inside the box's frets (a fret of stretch on either side only when neither string can),
+ * and below and above it on the outer strings, inside the position's frets.
  */
 function withOtherNotes(box: Cell[], chromas: number[], tuning: number[]): Cell[] {
     const pitch = (c: Cell) => tuning[c.string]! + c.fret
@@ -282,7 +283,22 @@ function withOtherNotes(box: Cell[], chromas: number[], tuning: number[]): Cell[
             out.push({ string, fret: midi - tuning[string]! })
         }
     }
-    return out
+    // Below the box's lowest note and above its highest, the outer strings take the notes inside
+    // the position's frets too: in standard tuning both E strings then show the same notes.
+    const low = 0
+    const high = tuning.length - 1
+    const lowest = pitch(ordered[0]!)
+    const highest = pitch(ordered[ordered.length - 1]!)
+    const from = Math.min(...out.map((c) => c.fret))
+    const to = Math.max(...out.map((c) => c.fret))
+    const extra: Cell[] = []
+    for (let fret = from; fret <= to; fret++) {
+        const below = tuning[low]! + fret
+        if (below < lowest && chromas.includes(below % 12)) extra.push({ string: low, fret })
+        const above = tuning[high]! + fret
+        if (above > highest && chromas.includes(above % 12)) extra.push({ string: high, fret })
+    }
+    return [...out, ...extra]
 }
 
 /** Parses `position:` and `shape:` for a scale or an arpeggio: the system and the position number. */
@@ -297,7 +313,9 @@ export function positionOf(
     }
     if (shape === undefined || shape === '') return n === null ? null : { system: 'box', n }
     if (shape === '3nps') return { system: '3nps', n: n ?? 1 }
-    const caged = CAGED_SHAPES.findIndex((s) => s.toLowerCase() === shape.replace(/^caged\s*/, ''))
+    // `E`, `CAGED E` or `E shape`, as voicings name their shapes.
+    const letter = shape.replace(/^caged\s*/, '').replace(/[\s-]*shape$/, '')
+    const caged = CAGED_SHAPES.findIndex((s) => s.toLowerCase() === letter)
     if (caged >= 0) return { system: 'caged', n: caged + 1 }
     throw new Error(`Unknown shape "${shapeText}": use C, A, G, E, D or 3nps`)
 }
