@@ -133,7 +133,17 @@ export interface CircleDiagram {
     chords: string[]
 }
 
+/** A fretboard's `exercise:` (#47): the run its tab plays, as `fret.string` (strings from the highest). */
+export interface ExerciseDiagram {
+    type: 'exercise'
+    direction: string
+    rhythm: string
+    tempo: number
+    notes: string[]
+}
+
 export type Diagram =
+    | ExerciseDiagram
     | GuitarChordDiagram
     | FretboardDiagram
     | KeyboardDiagram
@@ -344,7 +354,20 @@ function strum(svg: Element): StrumDiagram {
 
 /** Every diagram a rendered block holds, in order. */
 export function describeBlock(el: Element): Diagram[] {
-    return [...el.querySelectorAll('svg.mn-svg, .mn-chart, .mn-cell.mn-error')].map((d) => {
+    return [
+        ...el.querySelectorAll(
+            'svg.mn-svg, .mn-chart, .mn-cell.mn-error, .mn-exercise, .mn-exercise-tab'
+        )
+    ].map((d) => {
+        if (has(d, 'mn-exercise') || has(d, 'mn-exercise-tab')) {
+            return {
+                type: 'exercise',
+                direction: d.getAttribute('data-mn-exercise') ?? '',
+                rhythm: d.getAttribute('data-mn-rhythm') ?? '',
+                tempo: Number(d.getAttribute('data-mn-tempo')),
+                notes: (d.getAttribute('data-mn-notes') ?? '').split(' ').filter(Boolean)
+            } satisfies ExerciseDiagram
+        }
         if (has(d, 'mn-error')) {
             // The cell says "chord, diagram 2: …": the language is already in the report.
             const message = text(d.querySelector('.mn-error-message')) ?? ''
@@ -385,6 +408,11 @@ export function formatDiagram(d: Diagram, n: number): string[] {
     switch (d.type) {
         case 'error':
             return [`${head}error: ${d.message}`]
+        case 'exercise':
+            return [
+                `${head}${listed(['exercise', d.direction, d.rhythm, `tempo ${d.tempo}`, `${d.notes.length} notes`])}`,
+                `${pad}${d.notes.join(' ')}`
+            ]
         case 'circle':
             return [
                 `${head}${listed(['circle of fifths', d.key, `chords ${d.chords.join(', ')}`])}`
