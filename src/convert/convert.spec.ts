@@ -570,6 +570,16 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
         }
     })
 
+    it('splits a long palm mute or slide line into bars in linear time', () => {
+        // One long bar with no bar lines inside is split into bars of the meter (#71): each
+        // beat goes to its bar in one pass, not one filter of every beat per bar.
+        expectLinear((k) => {
+            const n = 25_000 * k
+            textTabToAlphaTex(`${'PM'.repeat(n / 2)}\ne|${'0-'.repeat(n / 2)}|`)
+            textTabToAlphaTex(`e|${'5/7-'.repeat(n / 4)}|\nB|${'-'.repeat(n)}|`)
+        })
+    })
+
     it('reads techniques in linear time', () => {
         expectLinear((k) => {
             const n = 12_500 * k

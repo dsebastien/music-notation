@@ -1072,13 +1072,17 @@ function splitUnbarred(measures: Measure[], meter: Meter): Measure[] {
         // long at least is several.
         if (eighths <= perBar || m.width - m.pad < span * 1.5) return [m]
         const count = Math.floor((cols.at(-1)! - m.pad) / span) + 1
-        return Array.from({ length: count }, (_, k): Measure => {
-            const from = m.pad + k * span
-            const beats = m.beats
-                .filter(
-                    (b) => (k === 0 || b.col >= from) && (k === count - 1 || b.col < from + span)
-                )
-                .map((b) => ({ notes: b.notes, col: b.col - k * span }))
+        // Each beat goes to one piece: the first whose end is past it, the last for the rest.
+        // One pass over the beats, so a long line stays linear (filtering every beat for every
+        // piece was quadratic). The edges are the same comparisons as `from` and `from + span`.
+        const pieces: Beat[][] = Array.from({ length: count }, () => [])
+        for (const b of m.beats) {
+            let k = Math.min(count - 1, Math.max(0, Math.floor((b.col - m.pad) / span)))
+            while (k < count - 1 && b.col >= m.pad + (k + 1) * span) k++
+            while (k > 0 && b.col < m.pad + k * span) k--
+            pieces[k]!.push({ notes: b.notes, col: b.col - k * span })
+        }
+        return pieces.map((beats, k): Measure => {
             return {
                 beats,
                 width: m.pad + span,
