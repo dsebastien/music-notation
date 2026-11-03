@@ -12,6 +12,7 @@ import {
     type AlphaTabModule,
     type TabResult
 } from './index.js'
+import { alphaTabLoader } from './load.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 
@@ -28,24 +29,8 @@ const SELECTOR = 'pre > code.language-tab, pre > code.language-score'
 /** What each block drew, and from what source, to redraw an edited block and free a removed one. */
 const drawn = new Map<HTMLElement, { result: TabResult; source: string; holder: HTMLElement }>()
 
-let loading: Promise<AlphaTabModule> | null = null
-
-/** alphaTab, from the page or jsDelivr. */
-function alphaTabOf(doc: Document): Promise<AlphaTabModule> {
-    const win = doc.defaultView!
-    if (win.alphaTab) return Promise.resolve(win.alphaTab)
-    loading ??= new Promise<AlphaTabModule>((resolve, reject) => {
-        const script = doc.createElement('script')
-        script.src = alphaTabCdn().script
-        script.onload = () => (win.alphaTab ? resolve(win.alphaTab) : reject(new Error('alphaTab')))
-        script.onerror = () => {
-            loading = null
-            reject(new Error("Couldn't load alphaTab"))
-        }
-        doc.head.appendChild(script)
-    })
-    return loading
-}
+/** alphaTab, from the page or jsDelivr; a failed load is tried again at the next change (#38). */
+const alphaTabOf = alphaTabLoader()
 
 function renderAllTabs(doc: Document): void {
     // Blocks gone from the page (Publish navigated away): free them.
