@@ -281,6 +281,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             if (!chord) throw unrecognized(symbol)
             set = pianoPitches(symbol, voicingOptions)
             const voiced = pianoVoicing(symbol, voicingOptions)!
+            // An inversion is titled with its slash name, as lead sheets write it: C/E (#63).
+            if (voiced.inversion > 0 && !field(block, 'title') && !name) {
+                const bass = set.members.filter((m) => m.interval !== null)[voiced.inversion]
+                if (bass) title = `${chord.symbol}/${bass.name}`
+            }
             if (voiced.hands) {
                 hands = new Map([
                     ...voiced.left.map((p): [number, 'left'] => [p, 'left']),

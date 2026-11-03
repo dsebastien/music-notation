@@ -147,8 +147,8 @@ describe('renderBlock', () => {
     it('keeps a piano bass spelled differently from the chord', () => {
         const h = host()
         renderBlock('chord', 'Cm/D#\ninstrument: piano', h)
-        // D# is Eb, already in the chord: still played as the bass below.
-        expect(h.querySelectorAll('.mn-on')).toHaveLength(4)
+        // D# is Eb, the chord's third: played as the bass below, not doubled above it.
+        expect(h.querySelector('svg')?.getAttribute('data-mn-pitches')).toBe('51 60 67')
     })
 
     it('reads a single note with an octave as that key', () => {

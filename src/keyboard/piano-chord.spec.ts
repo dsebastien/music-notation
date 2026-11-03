@@ -55,16 +55,22 @@ describe('pianoVoicing', () => {
         expect(() => pianoVoicing('C', { voicing: 'shell' })).toThrow(
             'Shell voicings need a third and a seventh or sixth'
         )
+        // R-7: the seventh right above the root, the third a tenth above it.
+        expect(voiced('Dm7', { voicing: 'shell', shell: 'R-7', octave: 3 })).toBe('D3 C4 F4')
+        expect(voiced('G7', { voicing: 'shell', shell: 'R-3', octave: 3 })).toBe('G3 B3 F4')
         expect(() => pianoVoicing('Cmaj7', { voicing: 'shell', inversion: 1 })).toThrow(
             'inversion goes with close or open voicings, not shell'
         )
     })
 
-    it('voices a ii-V-I with rootless A and B forms', () => {
-        // Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A) E G B D: the textbook ii-V-I in C.
-        expect(voiced('Dm7', { voicing: 'rootless' })).toBe('F4 A4 C5 E5')
-        expect(voiced('G7', { voicing: 'rootless', rootless: 'B' })).toBe('F4 A4 B4 E5')
-        expect(voiced('Cmaj7', { voicing: 'rootless', rootless: 'A' })).toBe('E4 G4 B4 D5')
+    it('voices a ii-V-I with rootless A and B forms, in the comping range', () => {
+        // Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A) E G B D: the textbook ii-V-I in C, the lowest
+        // note in octave 3 by default, so every voicing stays between C3 and C5.
+        expect(voiced('Dm7', { voicing: 'rootless' })).toBe('F3 A3 C4 E4')
+        expect(voiced('G7', { voicing: 'rootless', rootless: 'B' })).toBe('F3 A3 B3 E4')
+        expect(voiced('Cmaj7', { voicing: 'rootless', rootless: 'A' })).toBe('E3 G3 B3 D4')
+        expect(voiced('Cm7', { voicing: 'rootless', rootless: 'B' }, true)).toBe('Bb3 D4 Eb4 G4')
+        expect(voiced('Cmaj7', { voicing: 'rootless', octave: 4 })).toBe('E4 G4 B4 D5')
         // And the other way: Dm7 (B) C E F A, G7 (A) B E F A, Cmaj7 (B) B D E G.
         expect(voiced('Dm7', { voicing: 'rootless', rootless: 'B', octave: 4 })).toBe('C4 E4 F4 A4')
         expect(voiced('G7', { voicing: 'rootless', rootless: 'A', octave: 3 })).toBe('B3 E4 F4 A4')
@@ -72,19 +78,28 @@ describe('pianoVoicing', () => {
             'B3 D4 E4 G4'
         )
         // Altered dominants keep their alterations; sixth chords use the sixth as the seventh.
-        expect(voiced('G7b9', { voicing: 'rootless', rootless: 'B' }, true)).toBe('F4 Ab4 B4 E5')
-        expect(voiced('C6', { voicing: 'rootless' })).toBe('E4 G4 A4 D5')
-        expect(() => pianoVoicing('Bm7b5', { voicing: 'rootless' })).toThrow(
-            'Rootless voicings are for major, minor and dominant'
+        expect(voiced('G7b9', { voicing: 'rootless', rootless: 'B' }, true)).toBe('F3 Ab3 B3 E4')
+        expect(voiced('C6', { voicing: 'rootless' })).toBe('E3 G3 A3 D4')
+        // Half-diminished: b3 b5 b7 9 (the natural 9th, locrian #2), or b7 9 b3 b5.
+        expect(voiced('Dm7b5', { voicing: 'rootless' }, true)).toBe('F3 Ab3 C4 E4')
+        expect(voiced('Dm7b5', { voicing: 'rootless', rootless: 'B' }, true)).toBe('C3 E3 F3 Ab3')
+        expect(() => pianoVoicing('Cdim7', { voicing: 'rootless' })).toThrow(
+            'Rootless voicings are for major, minor, dominant and half-diminished'
         )
         expect(() => pianoVoicing('C', { voicing: 'rootless' })).toThrow('not C')
     })
 
     it('splits the hands: the bass in the left hand', () => {
+        // A left-hand root under a right-hand triad: the root is doubled, as pianists play it.
+        const root = pianoVoicing('C', { hands: 'left+right' })!
+        expect(names(root.left)).toBe('C3')
+        expect(names(root.right)).toBe('C4 E4 G4')
+        // An inversion's note goes to the left hand; a third isn't doubled above it.
         const both = pianoVoicing('C', { hands: 'left+right', inversion: 1 })!
-        expect(names(both.left)).toBe('C3')
-        expect(names(both.right)).toBe('E4 G4 C5')
-        expect(names(both.pitches)).toBe('C3 E4 G4 C5')
+        expect(names(both.left)).toBe('E3')
+        expect(names(both.right)).toBe('G4 C5')
+        expect(names(both.pitches)).toBe('E3 G4 C5')
+        // A fifth in the bass is doubled (a 6/4 chord doubles its bass).
         const slash = pianoVoicing('C/G', { hands: 'left+right' })!
         expect(names(slash.left)).toBe('G3')
         expect(names(slash.right)).toBe('C4 E4 G4')
@@ -96,7 +111,22 @@ describe('pianoVoicing', () => {
             voicing: 'rootless',
             rootless: 'B'
         })!
-        expect(names(rootless.pitches)).toBe('G3 F4 A4 B4 E5')
+        expect(names(rootless.pitches)).toBe('G2 F3 A3 B3 E4')
+    })
+
+    it('does not double the bass in the right hand (#63)', () => {
+        // Shell and open voicings leave the root to the left hand.
+        const shell = pianoVoicing('Cmaj7', { hands: 'left+right', voicing: 'shell' })!
+        expect(names(shell.pitches)).toBe('C3 E4 B4')
+        const open = pianoVoicing('C', { hands: 'left+right', voicing: 'open' })!
+        expect(names(open.pitches)).toBe('C3 G4 E5')
+        // A slash chord's third or seventh in the bass, with or without hands.
+        expect(names(pianoVoicing('D/F#', { hands: 'left+right' })!.pitches)).toBe('F#3 D4 A4')
+        expect(voiced('D/F#')).toBe('F#3 D4 A4')
+        expect(voiced('C/Bb', {}, true)).toBe('Bb3 C4 E4 G4')
+        expect(voiced('C7/Bb', {}, true)).toBe('Bb3 C4 E4 G4')
+        expect(names(pianoVoicing('C', { hands: 'left', inversion: 1 })!.left)).toBe('E3 G3 C4')
+        expect(names(pianoVoicing('D/F#', { hands: 'left' })!.left)).toBe('F#2 D3 A3')
     })
 
     it('fingers close triads', () => {
@@ -111,7 +141,8 @@ describe('pianoVoicing', () => {
         expect(fingers({ hands: 'left' })).toBe('5 3 1')
         expect(fingers({ hands: 'left', inversion: 1 })).toBe('5 3 1')
         expect(fingers({ hands: 'left', inversion: 2 })).toBe('5 2 1')
-        expect(fingers({ hands: 'left+right', inversion: 1 })).toBe('5 1 2 5')
+        expect(fingers({ hands: 'left+right' })).toBe('5 1 3 5')
+        expect(fingers({ hands: 'left+right', inversion: 2 })).toBe('5 1 3 5')
         expect(triadFingering(pianoVoicing('Cmaj7')!)).toBeNull()
         expect(triadFingering(pianoVoicing('C', { voicing: 'open' })!)).toBeNull()
         expect(triadFingering(pianoVoicing('C/G')!)).toBeNull()
@@ -132,7 +163,10 @@ describe('pianoVoicing', () => {
         })
         expect(() => read({ inversion: 'any' })).toThrow('inversion: use root, first, second')
         expect(() => read({ voicing: 'drop 2' })).toThrow('voicing: use close, open, shell')
+        expect(read({ voicing: 'shell R-7' })).toEqual({ voicing: 'shell', shell: 'R-7' })
+        expect(read({ voicing: 'Shell r3' })).toEqual({ voicing: 'shell', shell: 'R-3' })
         expect(() => read({ voicing: 'shell b' })).toThrow('voicing: use close')
+        expect(() => read({ voicing: 'rootless R-7' })).toThrow('voicing: use close')
         expect(() => read({ hands: 'three' })).toThrow('hands: use left+right, left or right')
     })
 })
@@ -146,12 +180,20 @@ describe('piano chord blocks', () => {
         const h = host()
         expect(renderBlock('chord', 'C\ninstrument: piano\ninversion: first', h).error).toBeNull()
         expect(keys(h)).toBe('E4 G4 C5')
+        // Titled with its slash name.
+        expect(h.querySelector('.mn-title')?.textContent).toBe('C/E')
+        const second = host()
+        renderBlock('chord', 'Bb\ninstrument: piano\ninversion: 2', second)
+        expect(second.querySelector('.mn-title')?.textContent).toBe('Bb/F')
+        const titled = host()
+        renderBlock('chord', 'C\ninstrument: piano\ninversion: 1\ntitle: Mine', titled)
+        expect(titled.querySelector('.mn-title')?.textContent).toBe('Mine')
         const shell = host()
         renderBlock('chord', 'Cmaj7\ninstrument: piano\nvoicing: shell\noctave: 3', shell)
         expect(keys(shell)).toBe('C3 E3 B3')
         const rootless = host()
         renderBlock('chord', 'G7\ninstrument: piano\nvoicing: rootless B', rootless)
-        expect(keys(rootless)).toBe('F4 A4 B4 E5')
+        expect(keys(rootless)).toBe('F3 A3 B3 E4')
         // The added 9th and 13th are lit and labeled from the root.
         const labeled = host()
         renderBlock(
@@ -176,7 +218,7 @@ describe('piano chord blocks', () => {
     it('marks which hand plays each key', () => {
         const h = host()
         expect(
-            renderBlock('chord', 'C\ninstrument: piano\nhands: left+right\ninversion: 1', h).error
+            renderBlock('chord', 'C\ninstrument: piano\nhands: left+right\ninversion: 2', h).error
         ).toBeNull()
         const svg = h.querySelector('svg')!
         const marks = [...svg.querySelectorAll('.mn-key-hand')].map((el) => [
@@ -184,15 +226,15 @@ describe('piano chord blocks', () => {
             el.textContent
         ])
         expect(marks).toEqual([
-            ['48', 'L'],
-            ['64', 'R'],
+            ['55', 'L'],
             ['67', 'R'],
-            ['72', 'R']
+            ['72', 'R'],
+            ['76', 'R']
         ])
-        expect(svg.querySelector('[data-midi="48"]')?.getAttribute('class')).toContain(
+        expect(svg.querySelector('[data-midi="55"]')?.getAttribute('class')).toContain(
             'mn-hand-left'
         )
-        expect(svg.getAttribute('aria-label')).toBe('C, left hand: C3, right hand: E4 G4 C5')
+        expect(svg.getAttribute('aria-label')).toBe('C/G, left hand: G3, right hand: G4 C5 E5')
     })
 
     it('fingers triads with fingering: auto', () => {

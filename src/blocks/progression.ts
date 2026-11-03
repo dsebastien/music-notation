@@ -10,7 +10,7 @@ import { smoothProgression } from '../chord/transitions.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { pianoOptionsOf, pianoPitches, type PianoVoicingOptions } from '../keyboard/piano-chord.js'
-import { voiceLead } from '../keyboard/voice-leading.js'
+import { voiceLead, voiceLeadVoicings, type LedVoicing } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
 import { findKey } from '../theory/find.js'
@@ -245,7 +245,8 @@ function renderSection(
     const piano = instrument !== 'guitar'
     const diagrams = yes(field(block, 'diagrams'), 'diagrams', true)
     const functions = yes(field(block, 'functions'), 'functions', false)
-    const led = yes(field(block, 'voice-leading'), 'voice-leading', false)
+    const leading = field(block, 'voice-leading')
+    const led = yes(leading, 'voice-leading', false)
     const style = (
         field(block, 'numerals') ??
         (chords.every((c) => isNashville(c.written)) ? 'nashville' : 'roman')
@@ -259,20 +260,51 @@ function renderSection(
     if (pianoKeys.length && !piano) {
         throw new Error(`${pianoKeys[0]} is for piano chords: add instrument: piano`)
     }
-    if (pianoKeys.length && led) {
-        throw new Error(`Use voice-leading or ${pianoKeys[0]}, not both`)
-    }
     // A value that can't be read is the block's mistake, not each chord's.
     const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
+    // Shell and rootless voicings move least from chord to chord unless voice-leading: no (#63):
+    // the forms alternate (rootless A and B, shells R-3 and R-7) around middle C.
+    const styled =
+        pianoOptions.voicing === 'shell' || pianoOptions.voicing === 'rootless'
+            ? pianoOptions.voicing
+            : null
+    const ledStyled = styled !== null && (leading === undefined || led)
+    if (led && !styled) {
+        const other = pianoKeys.find((k) => k !== 'voicing' || pianoOptions.voicing !== 'close')
+        if (other) {
+            throw new Error(
+                other === 'voicing'
+                    ? `voice-leading works with close, shell and rootless voicings, not ${pianoOptions.voicing}`
+                    : `Use voice-leading or ${other}, not both`
+            )
+        }
+    }
     const symbols = chords.map((c) => c.symbol)
     const guitar =
         diagrams && !piano
             ? guitarVoicings(symbols, field(block, 'tuning'), options.voicings)
             : null
-    const pitches = diagrams && piano && led ? voiceLead(symbols) : null
+    const pitches = diagrams && piano && led && !styled ? voiceLead(symbols) : null
+    const voiced: (LedVoicing | null)[] | null =
+        diagrams && piano && ledStyled
+            ? voiceLeadVoicings(symbols, {
+                  voicing: styled,
+                  ...((pianoOptions.rootless ?? pianoOptions.shell)
+                      ? { form: (pianoOptions.rootless ?? pianoOptions.shell)! }
+                      : {}),
+                  ...(pianoOptions.octave !== undefined ? { octave: pianoOptions.octave } : {}),
+                  ...(pianoOptions.hands ? { hands: pianoOptions.hands } : {})
+              })
+            : null
     // Piano keyboards of a row share one range, so they have the same width.
     const range =
-        diagrams && piano ? sharedRange(pitches ?? pianoKeysOf(symbols, pianoOptions)) : null
+        diagrams && piano
+            ? sharedRange(
+                  pitches ??
+                      voiced?.map((v) => v?.pitches ?? null) ??
+                      pianoKeysOf(symbols, pianoOptions)
+              )
+            : null
     const row = html(doc, 'div', 'mn-row mn-progression-chords')
     chords.forEach((chord, i) => {
         const cell = html(doc, 'div', 'mn-cell mn-progression-chord')
@@ -296,7 +328,14 @@ function renderSection(
                 ]
                 if (piano) {
                     lines.push(['instrument', 'piano'])
-                    for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                    const led = voiced?.[i]?.options
+                    if (led) {
+                        // The form and octave voice leading chose, as the chord block reads them.
+                        const form = led.rootless ?? led.shell
+                        lines.push(['voicing', `${led.voicing} ${form}`])
+                        lines.push(['octave', String(led.octave)])
+                        if (led.hands) lines.push(['hands', led.hands])
+                    } else for (const key of pianoKeys) lines.push([key, field(block, key)!])
                     if (range) lines.push(['range', range])
                     const midi = pitches?.[i]
                     if (midi) {
