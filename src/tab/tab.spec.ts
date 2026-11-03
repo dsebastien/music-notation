@@ -318,6 +318,29 @@ describe('renderTab', () => {
             'tab: line 2, column 4: Group not closed.'
         )
     })
+
+    it('draws every part right away, not only once an observer sees it (#82)', async () => {
+        // Lazy loading drew a part only when an IntersectionObserver saw it: on a page that
+        // isn't painted (an Obsidian window on another desktop, a PDF export) every part
+        // stayed empty, with no error.
+        for (const scriptFile of [null, 'blob:alphaTab']) {
+            const mod = fakeAlphaTab()
+            let core: Record<string, unknown> = {}
+            const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => object
+            ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+                constructor(...args: unknown[]) {
+                    super(...args)
+                    core = (args[1] as { core: Record<string, unknown> }).core
+                }
+            }
+            await renderTab('tab', ':8 0.6 0.3 0.2 0.1', host(), {
+                alphaTab: mod,
+                assets: { ...assets, scriptFile }
+            }).ready
+            expect(core['useWorkers']).toBe(Boolean(scriptFile))
+            expect(core['enableLazyLoading']).toBe(false)
+        }
+    })
 })
 
 describe('tab blocks draw only what was written (#66)', () => {
