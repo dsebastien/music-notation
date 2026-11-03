@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import * as alphaTab from '@coderline/alphatab'
-import { textTabToAlphaTex } from './text-tab.js'
+import { palmMutesOf, positionsOf, techniquesOf, textTabToAlphaTex } from './text-tab.js'
 import { chordSheetToChordPro } from './chord-sheet.js'
 
 const six = (lines: string[]) => lines.join('\n')
@@ -11,7 +11,7 @@ describe('textTabToAlphaTex, edge cases', () => {
             textTabToAlphaTex(
                 six(['e|--12--|', 'B|---3--|', 'G|------|', 'D|------|', 'A|------|', 'E|------|'])
             )
-        ).toBe(':8 (12.1 3.2)')
+        ).toBe(':1 (12.1 3.2)')
     })
 
     it('reads repeat signs as bar lines', () => {
@@ -26,7 +26,7 @@ describe('textTabToAlphaTex, edge cases', () => {
                     'E|:-----:|'
                 ])
             )
-        ).toBe(':8 0.1')
+        ).toBe(':1 0.1')
     })
 
     it('tunes basses and 7-string guitars', () => {
@@ -51,7 +51,7 @@ describe('textTabToAlphaTex, edge cases', () => {
             '-------------------',
             ...['e|--3--|', 'B|-----|', 'G|-----|', 'D|-----|', 'A|-----|', 'E|-----|']
         ].join('\n')
-        expect(textTabToAlphaTex(tab)).toBe(':8 0.1 |\n3.1')
+        expect(textTabToAlphaTex(tab)).toBe(':1 0.1 |\n3.1')
     })
 })
 
@@ -135,14 +135,16 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         expect(tex).toContain('(HiHatClosed SnareHit HighTomHit) HighTomHit')
         expect(tex).toContain('(HiHatClosed VeryLowTomHit) VeryLowTomHit')
         expect(load(tex).tracks[0]!.isPercussion).toBe(true)
-        // One line is enough when it names a drum.
-        expect(textTabToAlphaTex('BD|o---o---|')).toContain(':8 KickHit KickHit')
-        expect(textTabToAlphaTex('Snare |----o-------o---|')).toContain(':8 SnareHit SnareHit')
+        // One line is enough when it names a drum (two hits in a bar: halves; the snare on 2 and 4).
+        expect(textTabToAlphaTex('BD|o---o---|')).toContain(':2 KickHit KickHit')
+        expect(textTabToAlphaTex('Snare |----o-------o---|')).toContain(
+            ':4 r :2 SnareHit :4 SnareHit'
+        )
     })
 
     it('keeps B and C lines of dashes only as strings, and reads them as drums with hits', () => {
         expect(textTabToAlphaTex('C|x---x---|\nB|o---o---|')).toContain('CrashHighHit KickHit')
-        // A guitar tab with dead notes is still a guitar tab.
+        // A guitar tab with dead notes is still a guitar tab (#66: the dead notes are kept).
         expect(
             textTabToAlphaTex(
                 six([
@@ -154,7 +156,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
                     'E|--------|'
                 ])
             )
-        ).toBe(':8 (0.1 1.2 0.3 2.4 3.5)')
+        ).toBe(':2 (x.1 x.2 x.3 x.4 x.5) (0.1 1.2 0.3 2.4 3.5)')
     })
 
     it('reads a blank stave as empty bars, one whole rest each', () => {
@@ -177,26 +179,26 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
                 'E|-----|-----|-----|'
             ])
         )!
-        expect(tex).toBe(':8 0.1 |\n:1 r |\n:8 3.1')
+        expect(tex).toBe(':1 0.1 |\nr |\n3.1')
         const bars = load(tex).tracks[0]!.staves[0]!.bars
-        expect(bars.map((b) => b.voices[0]!.beats.map((beat) => beat.duration))).toEqual([
-            [8],
-            [1],
-            [8]
+        expect(bars.map((b) => b.voices[0]!.beats.map((beat) => beat.isRest))).toEqual([
+            [false],
+            [true],
+            [false]
         ])
     })
 
     it('reads strings numbered 1 to 6 as standard tuning', () => {
         expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3')
         expect(textTabToAlphaTex('1|--0--|\n2|--1--|\n3|--0--|')).toBe(
-            '\\tuning (E4 B3 G3)\n:8 (0.1 1.2 0.3)'
+            '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3)'
         )
         expect(textTabToAlphaTex('3|--0--|\n4|--2--|\n5|--2--|')).toContain('\\tuning (G3 D3 A2)')
     })
 
     it('reads short excerpts on the strings they show, in guitar octaves', () => {
         const three = textTabToAlphaTex(SAMPLES.threeStrings)!
-        expect(three).toBe('\\tuning (E4 B3 G3)\n:8 5.1 8.1 (5.1 8.2) 5.2')
+        expect(three).toBe('\\tuning (E4 B3 G3)\n:4 5.1 8.1 (5.1 8.2) 5.2')
         expect(load(three).tracks[0]!.staves[0]!.tuning).toEqual([64, 59, 55])
         // The four highest strings: E4 B3 G3 D3, not an octave below.
         expect(textTabToAlphaTex(SAMPLES.topFour)).toBe(
@@ -207,7 +209,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         expect(textTabToAlphaTex('E|--0--|')).toContain('\\tuning (E2)')
         // Three unnamed lines: the guitar's three highest strings.
         expect(textTabToAlphaTex('|--0--|\n|--1--|\n|--0--|')).toBe(
-            '\\tuning (E4 B3 G3)\n:8 (0.1 1.2 0.3)'
+            '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3)'
         )
         // Bass names, lowest first E A D G or B E A D G, are an octave below.
         expect(textTabToAlphaTex('G|--0--|\nD|-----|\nA|-----|\nE|-----|\nB|-----|')).toContain(
@@ -217,20 +219,20 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
 
     it('reads text after the last bar line as an annotation', () => {
         const tex = textTabToAlphaTex(SAMPLES.letRing)!
-        expect(tex).toBe(':8 (0.1 1.2 0.3 2.4 3.5){txt "let ring"}')
+        expect(tex).toBe(':1 (0.1 1.2 0.3 2.4 3.5){txt "let ring"}')
         expect(load(tex).tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats[0]!.text).toBe('let ring')
-        expect(textTabToAlphaTex(SAMPLES.riff)).toBe('\\tuning (A2)\n:8 0.1 3.1 5.1{txt "x2"}')
+        expect(textTabToAlphaTex(SAMPLES.riff)).toBe('\\tuning (A2)\n:4 0.1 3.1 :2 5.1{txt "x2"}')
         expect(textTabToAlphaTex('e|------| say "hi"')).toBe(
             '\\tuning (E4)\n:1 r{txt "say \\"hi\\""}'
         )
         expect(load(textTabToAlphaTex('e|------| say "hi"')!)).toBeTruthy()
         // Frets right after the last bar line are music, not text.
-        expect(textTabToAlphaTex('e|--0--|--3--')).toBe('\\tuning (E4)\n:8 0.1 |\n3.1')
+        expect(textTabToAlphaTex('e|--0--|--3--')).toBe('\\tuning (E4)\n:1 0.1 |\n3.1')
     })
 
     it('reads text with dashes or without a space as an annotation, keeping the string', () => {
         const strings = ['B|---1---|', 'G|---0---|', 'D|---2---|', 'A|---3---|', 'E|-------|']
-        const chord = ':8 (0.1 1.2 0.3 2.4 3.5)'
+        const chord = ':1 (0.1 1.2 0.3 2.4 3.5)'
         expect(textTabToAlphaTex(['e|---0---|  <-- let ring', ...strings].join('\n'))).toBe(
             `${chord}{txt "<-- let ring"}`
         )
@@ -240,15 +242,15 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
             )
         ).toBe(`${chord}{txt "slide -- slowly"}`)
         expect(textTabToAlphaTex('e|--0--|-----| repeat --- 4x\nB|--1--|-----|')).toBe(
-            '\\tuning (E4 B3)\n:8 (0.1 1.2) |\n:1 r{txt "repeat --- 4x"}'
+            '\\tuning (E4 B3)\n:1 (0.1 1.2) |\nr{txt "repeat --- 4x"}'
         )
         // A count right after the bar line is text, not a bar with fret 2.
         expect(textTabToAlphaTex('e|--0--|x2\nB|--1--|\nG|--0--|')).toBe(
-            '\\tuning (E4 B3 G3)\n:8 (0.1 1.2 0.3){txt "x2"}'
+            '\\tuning (E4 B3 G3)\n:1 (0.1 1.2 0.3){txt "x2"}'
         )
         expect(textTabToAlphaTex('e|--0--|2x\nB|--1--|\nG|--0--|')).toContain('{txt "2x"}')
         // Music after the last bar line stays music, harmonics too.
-        expect(textTabToAlphaTex('e|--0--|--<12>--')).toBe('\\tuning (E4)\n:8 0.1 |\n12.1')
+        expect(textTabToAlphaTex('e|--0--|--<12>--')).toBe('\\tuning (E4)\n:1 0.1 |\n12.1{nh}')
     })
 
     it('loads every sample in alphaTab', () => {
@@ -265,18 +267,18 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
             ...strings.map((n, i) => `${n}|--${i === 0 ? '0' : '-'}--|`),
             ...strings.map((n, i) => `${n}|--${i === 5 ? '3' : '-'}--|`)
         ].join('\n')
-        expect(textTabToAlphaTex(tab)).toBe(':8 0.1 |\n3.6')
+        expect(textTabToAlphaTex(tab)).toBe(':1 0.1 |\n3.6')
         // A tab naming both E strings in capitals is one system.
         expect(
             textTabToAlphaTex(
                 six(['E|--0--|', 'B|-----|', 'G|-----|', 'D|-----|', 'A|-----|', 'E|--3--|'])
             )
-        ).toBe(':8 (0.1 3.6)')
+        ).toBe(':1 (0.1 3.6)')
         expect(textTabToAlphaTex('HH|x-x-x-x-|\nB |o-------|\nHH|x-x-x-x-|\nB |----o---|')).toBe(
             [
                 '\\instrument percussion',
                 '\\articulation defaults',
-                ':8 (HiHatClosed KickHit) HiHatClosed HiHatClosed HiHatClosed |',
+                ':4 (HiHatClosed KickHit) HiHatClosed HiHatClosed HiHatClosed |',
                 'HiHatClosed HiHatClosed (HiHatClosed KickHit) HiHatClosed'
             ].join('\n')
         )
@@ -284,7 +286,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
 
     it('reads + as a closed hi-hat, # as a choke, and skips spaces between bars', () => {
         expect(textTabToAlphaTex('HH|+-+-o-+-|\nC |#-------|')).toContain(
-            ':8 (HiHatClosed CrashHighChoke) HiHatClosed HiHatOpen HiHatClosed'
+            ':4 (HiHatClosed CrashHighChoke) HiHatClosed HiHatOpen HiHatClosed'
         )
         expect(textTabToAlphaTex('HH|x-x-x-x-|  |x-x-x-x-|')).toContain(
             'HiHatClosed |\nHiHatClosed'
@@ -296,7 +298,7 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
             textTabToAlphaTex(
                 six(['eb|--0--|', 'Bb|-----|', 'Gb|-----|', 'Db|-----|', 'Ab|-----|', 'Eb|-----|'])
             )
-        ).toBe('\\tuning (D#4 A#3 F#3 C#3 G#2 D#2)\n:8 0.1')
+        ).toBe('\\tuning (D#4 A#3 F#3 C#3 G#2 D#2)\n:1 0.1')
     })
 
     it('ignores markdown table rules and lone unnamed lines', () => {
@@ -313,6 +315,231 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         textTabToAlphaTex(`e|--0--|${' x'.repeat(50_000)}9`)
         textTabToAlphaTex(`e|--0--|${'-'.repeat(50_000)} let ring`)
         expect(performance.now() - start).toBeLessThan(500)
+    })
+})
+
+/** Each bar's beats as alphaTab reads them: `4`, `8.` (dotted), `r8` (a rest), `4~` (tied). */
+const rhythmOf = (tex: string) =>
+    load(tex)
+        .tracks[0]!.staves[0]!.bars.map((bar) =>
+            bar.voices[0]!.beats.map(
+                (b) =>
+                    `${b.isRest ? 'r' : ''}${b.duration}${'.'.repeat(b.dots)}` +
+                    (b.notes.some((n) => n.isTieDestination) ? '~' : '')
+            ).join(' ')
+        )
+        .join(' | ')
+
+/** The notes alphaTab reads, beat by beat. */
+const notesOf = (tex: string) =>
+    load(tex).tracks[0]!.staves[0]!.bars.flatMap((bar) =>
+        bar.voices[0]!.beats.flatMap((b) => b.notes)
+    )
+
+/** Riffs as they're found on the web, spaced a sixteenth a column or an eighth a column. */
+const RIFFS = {
+    // Deep Purple, Smoke on the Water: G Bb C | G Bb Db C | G Bb C | Bb G.
+    smoke: [
+        'G|-0---3---5-------|-0---3---6-5-----|-0---3---5-------|-3---0-----------|',
+        'D|-0---3---5-------|-0---3---6-5-----|-0---3---5-------|-3---0-----------|'
+    ].join('\n'),
+    smokeEighths: [
+        'G|0-3-5---|0-3-65--|0-3-5---|3-0-----|',
+        'D|0-3-5---|0-3-65--|0-3-5---|3-0-----|'
+    ].join('\n'),
+    // A metal gallop (an eighth and two sixteenths), palm-muted.
+    gallop: ['  PM--------------', 'E|0-000-000-000-00|'].join('\n'),
+    // Dotted eighths (3 + 3 + 2 sixteenths), twice.
+    dotted: 'E|0--0--0-0--0--0-|',
+    // A blues lick: bend, release, pull-off; hammer-on, pull-off, slide, vibrato.
+    lick: [
+        'e|-----------------|-5h7p5-----------|',
+        'B|-8b10r8p5---7----|-------8-5/7~~---|',
+        'G|-----------------|-----------------|'
+    ].join('\n'),
+    // Chords and dead strums, an eighth each.
+    chug: ['G|--2-x-2-x-2-x-2-x-|', 'D|--2-x-2-x-2-x-2-x-|', 'A|--0-x-0-x-0-x-0-x-|'].join('\n')
+}
+
+describe('textTabToAlphaTex, rhythm from the spacing (#66)', () => {
+    it('keeps the rhythm of Smoke on the Water, however wide the bars', () => {
+        const tex = textTabToAlphaTex(RIFFS.smoke)!
+        expect(tex).toBe(
+            [
+                '\\tuning (G3 D3)',
+                ':4 (0.1 0.2) (3.1 3.2) :2 (5.1 5.2) |',
+                ':4 (0.1 0.2) (3.1 3.2) :8 (6.1 6.2) :4 (5.1 5.2){d} |',
+                '(0.1 0.2) (3.1 3.2) :2 (5.1 5.2) |',
+                ':4 (3.1 3.2) :2 (0.1 0.2){d}'
+            ].join('\n')
+        )
+        expect(rhythmOf(tex)).toBe('4 4 2 | 4 4 8 4. | 4 4 2 | 4 2.')
+        // An eighth a column: the same rhythm, and 65 is two frets (6 then 5), not fret 65.
+        expect(textTabToAlphaTex(RIFFS.smokeEighths)).toBe(tex)
+    })
+
+    it('reads sixteenths and dotted notes', () => {
+        expect(rhythmOf(textTabToAlphaTex(RIFFS.gallop)!)).toBe('8 16 16 8 16 16 8 16 16 8 16 16')
+        expect(rhythmOf(textTabToAlphaTex(RIFFS.dotted)!)).toBe('8. 8. 8 8. 8. 8')
+        // Two open strings are two notes (00), not fret 0.
+        expect(notesOf(textTabToAlphaTex('E|0---0---0-00----|')!).map((n) => n.fret)).toEqual([
+            0, 0, 0, 0, 0
+        ])
+    })
+
+    it('starts a bar with a rest when its first beat comes late', () => {
+        expect(textTabToAlphaTex('S |----o-------o---|')).toContain(':4 r :2 SnareHit :4 SnareHit')
+        expect(rhythmOf(textTabToAlphaTex('e|-0---0---|-----0---|')!)).toBe('2 2 | r2 2')
+    })
+
+    it('ties a length no note value has, and moves a pull-off to the tie', () => {
+        // 5 sixteenths, 1, 10: a quarter tied to a sixteenth, a sixteenth, a half tied to an eighth.
+        const tex = textTabToAlphaTex('E|0----00---------|')!
+        expect(tex).toBe('\\tuning (E2)\n:4 0.1 :16 -.1 0.1 :2 0.1 :8 -.1')
+        expect(rhythmOf(tex)).toBe('4 16~ 16 2 8~')
+        const pull = textTabToAlphaTex('B|-8b10r8p56------|')!
+        expect(pull).toBe('\\tuning (B3)\n:4 8.1{b (0 4 0) d} :16 -.1{h} 5.1 :2 6.1')
+        expect(
+            notesOf(pull).map((n) => [n.fret, n.isTieDestination, n.isHammerPullOrigin])
+        ).toEqual([
+            [8, false, false],
+            [8, true, true],
+            [5, false, false],
+            [6, false, false]
+        ])
+    })
+
+    it('keeps even notes even when the spacing fits no grid, eighths as before', () => {
+        // Evenly spaced, the bar a little short: quarters. Unevenly: eighths.
+        expect(textTabToAlphaTex('e|--5--8--5--8-|')).toBe('\\tuning (E4)\n:4 5.1 8.1 5.1 8.1')
+        expect(textTabToAlphaTex(SAMPLES.numbered)).toBe(':8 2.4 0.3 1.2 0.1 1.2 0.3')
+        // Past 8 beats, sixteenths.
+        expect(rhythmOf(textTabToAlphaTex(`e|${'-0'.repeat(9)}-|`)!)).toBe(
+            Array(9).fill('16').join(' ')
+        )
+    })
+
+    it('places beats on the coarsest grid that fits', () => {
+        expect(positionsOf([0, 4, 8], 16, 0)).toEqual([0, 4, 8])
+        expect(positionsOf([1, 5, 9, 11], 17, 1)).toEqual([0, 4, 8, 10])
+        expect(positionsOf([2, 5, 8], 11, 2)).toEqual([0, 4, 8])
+        expect(positionsOf([4, 12], 16, 3)).toEqual([4, 12])
+        expect(positionsOf([0, 1, 3, 5, 7, 9], 11, 0)).toBeNull()
+        expect(positionsOf([], 16, 0)).toEqual([])
+    })
+})
+
+describe('textTabToAlphaTex, techniques (#66)', () => {
+    it('reads a bend, its release and a pull-off as one bent note, then the next', () => {
+        const tex = textTabToAlphaTex(RIFFS.lick)!
+        expect(tex).toBe(
+            [
+                '\\tuning (E4 B3 G3)',
+                ':2 8.2{b (0 4 0) h} :4 5.2 7.2 |',
+                ':8 5.1{h} 7.1{h} 5.1 8.2 5.2{sl} :4 7.2{v d}'
+            ].join('\n')
+        )
+        const notes = notesOf(tex)
+        expect(notes.map((n) => n.fret)).toEqual([8, 5, 7, 5, 7, 5, 8, 5, 7])
+        const bend = notes[0]!
+        expect(bend.bendType).toBe(alphaTab.model.BendType.BendRelease)
+        expect(bend.bendPoints!.map((p) => p.value)).toEqual([0, 4, 4, 0])
+        expect(bend.isHammerPullOrigin).toBe(true)
+        expect(notes[3]!.isHammerPullOrigin).toBe(true)
+        expect(notes[7]!.slideOutType).toBe(alphaTab.model.SlideOutType.Legato)
+        expect(notes[8]!.vibrato).toBe(alphaTab.model.VibratoType.Slight)
+    })
+
+    it('bends a half tone, a whole tone by default, and to a target in parentheses', () => {
+        expect(textTabToAlphaTex('e|--7b8--7b--7b(9)-|')).toBe(
+            '\\tuning (E4)\n:4 7.1{b (0 2)} 7.1{b (0 4)} :2 7.1{b (0 4)}'
+        )
+        expect(textTabToAlphaTex('G|-7b9r-----------|')).toBe('\\tuning (G3)\n:1 7.1{b (0 4 0)}')
+    })
+
+    it('slides in and out', () => {
+        const tex = textTabToAlphaTex('A|-/5---5\\-\\7---7/|')!
+        expect(tex).toBe('\\tuning (A2)\n:4 5.1{sib} 5.1{sod} 7.1{sia} 7.1{sou}')
+        expect(notesOf(tex).map((n) => [n.slideInType, n.slideOutType])).toEqual([
+            [alphaTab.model.SlideInType.IntoFromBelow, alphaTab.model.SlideOutType.None],
+            [alphaTab.model.SlideInType.None, alphaTab.model.SlideOutType.OutDown],
+            [alphaTab.model.SlideInType.IntoFromAbove, alphaTab.model.SlideOutType.None],
+            [alphaTab.model.SlideInType.None, alphaTab.model.SlideOutType.OutUp]
+        ])
+    })
+
+    it('keeps dead notes as percussive notes', () => {
+        const tex = textTabToAlphaTex(RIFFS.chug)!
+        expect(tex).toBe(
+            '\\tuning (G3 D3 A2)\n:8 (2.1 2.2 0.3) (x.1 x.2 x.3) (2.1 2.2 0.3) (x.1 x.2 x.3) (2.1 2.2 0.3) (x.1 x.2 x.3) (2.1 2.2 0.3) (x.1 x.2 x.3)'
+        )
+        expect(notesOf(tex).filter((n) => n.isDead)).toHaveLength(12)
+    })
+
+    it('reads natural harmonics, starting at their bracket', () => {
+        const tex = textTabToAlphaTex('e|-<12>---<7>-----|\nB|-<12>---<7>-----|')!
+        expect(tex).toBe('\\tuning (E4 B3)\n:2 (12.1{nh} 12.2{nh}) (7.1{nh} 7.2{nh})')
+        expect(
+            notesOf(tex).every((n) => n.harmonicType === alphaTab.model.HarmonicType.Natural)
+        ).toBe(true)
+    })
+
+    it('palm-mutes the notes under a PM line', () => {
+        const tex = textTabToAlphaTex(RIFFS.gallop)!
+        expect(notesOf(tex).every((n) => n.isPalmMute)).toBe(true)
+        // Only under the marks, and only from the line right above.
+        const part = textTabToAlphaTex(['   PM---     P.M.', 'E|0-0-0-0-0-0-0-0-|'].join('\n'))!
+        expect(notesOf(part).map((n) => n.isPalmMute)).toEqual([
+            false,
+            true,
+            true,
+            false,
+            false,
+            false,
+            true,
+            true
+        ])
+        expect(textTabToAlphaTex(['PM----', '', 'E|0-0-0-0-|'].join('\n'))).not.toContain('pm')
+        expect(palmMutesOf('  PM----  P.M. - - -|')).toEqual([
+            [2, 7],
+            [10, 20]
+        ])
+        expect(palmMutesOf('Play it muted')).toEqual([])
+    })
+
+    it('finds the techniques of a line in one pass', () => {
+        const { frets, effects } = techniquesOf('-8b10r8p5-12h14~-')
+        expect([...frets].map(([col, f]) => [col, f.fret])).toEqual([
+            [1, 8],
+            [8, 5],
+            [10, 12],
+            [13, 14]
+        ])
+        expect(effects.get(1)).toEqual(['b (0 4 0)', 'h'])
+        expect(effects.get(10)).toEqual(['h'])
+        expect(effects.get(13)).toEqual(['v'])
+    })
+
+    it('loads every riff in alphaTab, each bar a full 4/4 bar', () => {
+        for (const riff of Object.values(RIFFS)) {
+            const bars = load(textTabToAlphaTex(riff)!).tracks[0]!.staves[0]!.bars
+            for (const bar of bars) {
+                const sixteenths = bar.voices[0]!.beats.reduce(
+                    (sum, b) => sum + (16 / b.duration) * (b.dots ? 1.5 : 1),
+                    0
+                )
+                expect(sixteenths).toBe(16)
+            }
+        }
+    })
+
+    it('reads techniques in linear time', () => {
+        const start = performance.now()
+        textTabToAlphaTex(`e|${'1'.repeat(50_000)}|\nB|${'-'.repeat(50_000)}|`)
+        textTabToAlphaTex(`e|-5${'~'.repeat(50_000)}|\nB|${'5b'.repeat(25_000)}|`)
+        textTabToAlphaTex(`${'PM'.repeat(25_000)}\ne|${'0-'.repeat(25_000)}|`)
+        textTabToAlphaTex(`e|${'<1>'.repeat(20_000)}|\nB|${'5h'.repeat(25_000)}|`)
+        expect(performance.now() - start).toBeLessThan(1000)
     })
 })
 
