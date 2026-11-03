@@ -16,7 +16,8 @@ A x02220 x01230
 ```chord
 C/G
 instrument: piano
-fingering: 5-1-2-4
+hands: left+right
+fingering: 5 1 3 5
 ```
 
 ```keyboard

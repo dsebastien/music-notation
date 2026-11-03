@@ -97,8 +97,10 @@ export {
     type PianoVoicingOptions,
     type PianoVoicingStyle,
     type PianoHands,
-    type RootlessForm
+    type RootlessForm,
+    type ShellForm
 } from './keyboard/piano-chord.js'
+export { standardScaleFingering, scaleFingers, type ScaleHand } from './keyboard/scale-fingering.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
 export { parseTuning } from './fretboard/tuning.js'
 export {
@@ -230,5 +232,11 @@ export {
     type ProgressionChord,
     type HarmonicFunction
 } from './theory/numerals.js'
-export { voiceLead } from './keyboard/voice-leading.js'
+export {
+    voiceLead,
+    voiceLeadVoicings,
+    voiceMotion,
+    type VoiceLeadOptions,
+    type LedVoicing
+} from './keyboard/voice-leading.js'
 export { renderCircle, type CircleOptions } from './circle/circle.js'

@@ -147,8 +147,8 @@ describe('renderBlock', () => {
     it('keeps a piano bass spelled differently from the chord', () => {
         const h = host()
         renderBlock('chord', 'Cm/D#\ninstrument: piano', h)
-        // D# is Eb, already in the chord: still played as the bass below.
-        expect(h.querySelectorAll('.mn-on')).toHaveLength(4)
+        // D# is Eb, the chord's third: played as the bass below, not doubled above it.
+        expect(h.querySelector('svg')?.getAttribute('data-mn-pitches')).toBe('51 60 67')
     })
 
     it('reads a single note with an octave as that key', () => {
@@ -512,13 +512,89 @@ describe('scale fingering on keyboards (#28)', () => {
         expect(texts(h, '.mn-key-finger')).toBe('1 2 3 1 2 3 4 5')
     })
 
-    it('starts the fingering on the first root inside the range', () => {
+    it('fingers every octave of the range, the thumb where two octaves meet (#68)', () => {
         const h = document.createElement('div')
         renderBlock('keyboard', 'C major\nfingering: 1 2 3 1 2 3 4 5\nrange: C2-B3', h)
-        expect(texts(h, '.mn-key-label')).toBe('1 2 3 1 2 3 4 5')
+        expect(texts(h, '.mn-key-label')).toBe('1 2 3 1 2 3 4 1 2 3 1 2 3 4')
         expect(h.querySelector('[data-midi="36"]')?.getAttribute('class')).toContain('mn-on')
         // Every octave in the range stays lit.
         expect(h.querySelectorAll('.mn-on')).toHaveLength(14)
+        // Two octaves, root to root: the thumb on C4, the little finger on the top C only.
+        const two = document.createElement('div')
+        renderBlock('keyboard', 'C major\nfingering: 1 2 3 1 2 3 4 5\nrange: C3-C5', two)
+        expect(texts(two, '.mn-key-label')).toBe('1 2 3 1 2 3 4 1 2 3 1 2 3 4 5')
+    })
+
+    it('gives the standard fingering with fingering: auto, for each hand (#68)', () => {
+        const fingered = (source: string) => {
+            const h = document.createElement('div')
+            const result = renderBlock('keyboard', source, h)
+            expect(result.error).toBeNull()
+            // Low to high (white keys draw before black ones).
+            const byKey = [...h.querySelectorAll('[data-midi]')]
+                .map((key) => {
+                    const label = key.nextElementSibling
+                    return label?.classList.contains('mn-key-label')
+                        ? ([Number(key.getAttribute('data-midi')), label.textContent] as const)
+                        : null
+                })
+                .filter((x) => x !== null)
+                .sort((x, y) => x[0] - y[0])
+            return {
+                fingers: byKey.map(([, f]) => f).join(' '),
+                keys: h.querySelector('svg')?.getAttribute('data-mn-pitches'),
+                title: h.querySelector('.mn-title')?.textContent
+            }
+        }
+        expect(fingered('C major\nfingering: auto')).toEqual({
+            fingers: '1 2 3 1 2 3 4 5',
+            keys: '60 62 64 65 67 69 71 72',
+            title: 'C major, right hand'
+        })
+        // The left hand plays the octave below middle C.
+        expect(fingered('C major\nfingering: auto left')).toEqual({
+            fingers: '5 4 3 2 1 3 2 1',
+            keys: '48 50 52 53 55 57 59 60',
+            title: 'C major, left hand'
+        })
+        expect(fingered('scale: F major\nfingering: auto').fingers).toBe('1 2 3 4 1 2 3 4')
+        expect(fingered('scale: Bb major\nfingering: right hand').fingers).toBe('4 1 2 3 1 2 3 4')
+        expect(fingered('scale: Eb harmonic minor\nfingering: left').fingers).toBe(
+            '2 1 4 3 2 1 3 2'
+        )
+        expect(fingered('scale: F# harmonic minor\nfingering: auto').fingers).toBe(
+            '3 4 1 2 3 1 2 3'
+        )
+        // Two octaves of the left hand: the thumb on the middle root, 4 crossing over after it.
+        expect(fingered('C major\nfingering: auto left\nrange: C2-C4').fingers).toBe(
+            '5 4 3 2 1 3 2 1 4 3 2 1 3 2 1'
+        )
+        expect(fingered('C major\nfingering: auto\ntitle: Mine').title).toBe('Mine')
+    })
+
+    it('refuses fingers it cannot use (#68)', () => {
+        const error = (source: string) =>
+            renderBlock('keyboard', source, document.createElement('div')).error
+        expect(error('C major\nfingering: 1 2 3 1 2 3 4 6')).toBe(
+            'fingering: fingers go from 1 (thumb) to 5 (little finger), got "6"'
+        )
+        expect(error('notes: C D E\nfingering: 1 2 0')).toContain('got "0"')
+        expect(error('C major\nfingering: 1 2 3 1 2 3 4')).toBe(
+            'fingering has 7 fingers: C major needs 8, one per note from the root up to the root above'
+        )
+        expect(error('A minor pentatonic\nfingering: auto')).toContain(
+            'fingering: auto knows the major and harmonic minor scales'
+        )
+        expect(error('notes: C D E\nfingering: auto')).toContain(
+            'fingering: auto goes with a major or harmonic minor scale'
+        )
+        expect(
+            renderBlock(
+                'chord',
+                'C\ninstrument: piano\nfingering: 1 3 6',
+                document.createElement('div')
+            ).error
+        ).toContain('got "6"')
     })
 })
 

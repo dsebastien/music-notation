@@ -185,15 +185,40 @@ describe('progression block', () => {
             h
         )
         expect(result.error).toBeNull()
-        // Shells: root, third, seventh.
-        expect(h.querySelectorAll('svg.mn-keyboard')[0]!.getAttribute('data-mn-pitches')).toBe(
-            '62 65 72'
+        // Shells: root, third, seventh, alternating R-3 and R-7 so the third and seventh move least.
+        const pitches = (el: Element) =>
+            [...el.querySelectorAll('svg.mn-keyboard')].map((svg) =>
+                svg.getAttribute('data-mn-pitches')
+            )
+        expect(pitches(h)).toEqual(['50 53 60', '43 53 59', '48 52 59'])
+        // voice-leading: no draws each chord as written.
+        const plain = host()
+        renderBlock(
+            'progression',
+            'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: shell\nvoice-leading: no',
+            plain
         )
+        expect(pitches(plain)).toEqual(['62 65 72', '67 71 77', '60 64 71'])
+        // Rootless A and B around middle C, with the hands.
+        const rootless = host()
+        renderBlock(
+            'progression',
+            'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: rootless A\nhands: left+right',
+            rootless
+        )
+        expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 52 55 59 62'])
+        expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)
         const error = (source: string) => renderBlock('progression', source, host()).error
         expect(error('I V\nkey: C\nvoicing: shell')).toContain('instrument: piano')
         expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\noctave: 3')).toContain(
             'not both'
         )
+        expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: open')).toBe(
+            'voice-leading works with close, shell and rootless voicings, not open'
+        )
+        expect(
+            error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: close')
+        ).toBeNull()
     })
 
     it('takes the piano from the note’s instrument', () => {

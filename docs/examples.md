@@ -377,19 +377,21 @@ instrument: piano
 <div class="mn-live" markdown="0"><pre><code class="language-chord">Am7
 instrument: piano</code></pre></div>
 
-A slash chord with fingering (the bass goes an octave below):
+A slash chord with fingering: the bass in the left hand, an octave below the right hand:
 
 ````markdown
 ```chord
 C/G
 instrument: piano
-fingering: 5-1-2-4
+hands: left+right
+fingering: 5 1 3 5
 ```
 ````
 
 <div class="mn-live" markdown="0"><pre><code class="language-chord">C/G
 instrument: piano
-fingering: 5-1-2-4</code></pre></div>
+hands: left+right
+fingering: 5 1 3 5</code></pre></div>
 
 Exact pitches, for an inversion:
 
@@ -398,14 +400,14 @@ Exact pitches, for an inversion:
 symbol: C
 pitches: E4 G4 C5
 fingering: 1-2-5
-title: C (first inversion)
+title: C/E
 ```
 ````
 
 <div class="mn-live" markdown="0"><pre><code class="language-chord">symbol: C
 pitches: E4 G4 C5
 fingering: 1-2-5
-title: C (first inversion)</code></pre></div>
+title: C/E</code></pre></div>
 
 ## Piano voicings
 
@@ -756,14 +758,26 @@ Degrees on the keys and the fingers in a row under them, over two octaves:
 C major
 fingering: 1 2 3 1 2 3 4 5
 labels: degrees
-range: C3-B4
+range: C3-C5
 ```
 ````
 
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">C major
 fingering: 1 2 3 1 2 3 4 5
 labels: degrees
-range: C3-B4</code></pre></div>
+range: C3-C5</code></pre></div>
+
+The standard fingering of a scale, for the left hand:
+
+````markdown
+```keyboard
+scale: A harmonic minor
+fingering: auto left
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">scale: A harmonic minor
+fingering: auto left</code></pre></div>
 
 ## Scales over chords
 

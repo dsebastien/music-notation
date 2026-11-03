@@ -24,6 +24,12 @@ import { renderFretboard } from '../fretboard/fretboard.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.js'
 import {
+    autoFingeringHand,
+    parseFingerList,
+    scaleFingers,
+    standardScaleFingering
+} from '../keyboard/scale-fingering.js'
+import {
     pianoOptionsOf,
     pianoPitches,
     pianoVoicing,
@@ -281,6 +287,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             if (!chord) throw unrecognized(symbol)
             set = pianoPitches(symbol, voicingOptions)
             const voiced = pianoVoicing(symbol, voicingOptions)!
+            // An inversion is titled with its slash name, as lead sheets write it: C/E (#63).
+            if (voiced.inversion > 0 && !field(block, 'title') && !name) {
+                const bass = set.members.filter((m) => m.interval !== null)[voiced.inversion]
+                if (bass) title = `${chord.symbol}/${bass.name}`
+            }
             if (voiced.hands) {
                 hands = new Map([
                     ...voiced.left.map((p): [number, 'left'] => [p, 'left']),
@@ -290,8 +301,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             if (fingering?.trim().toLowerCase() === 'auto') {
                 auto = triadFingering(voiced)
                 if (!auto) {
+                    // Both hands: a first or third inversion leaves the right hand two notes.
                     throw new Error(
-                        'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
+                        voiced.hands === 'left+right' && voiced.right.length < 3
+                            ? `fingering: auto covers a right hand of three notes: here the left hand takes the bass and the right hand plays ${voiced.right.length}: write the fingers, e.g. fingering: 5 1 4`
+                            : 'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
                     )
                 }
             }
@@ -510,16 +524,13 @@ function dotLabels(
     })
 }
 
-/** Finger per key, low to high ("5-3-1", "1 2 3 1 2 3 4 5"). */
+/** Finger per key, low to high ("5-3-1", "1 2 3 1 2 3 4 5"); fingers are 1 to 5. */
 function fingersFor(pitches: number[], fingering: string): Map<number, string> {
     const sorted = [...pitches].sort((a, b) => a - b)
     const fingers = new Map<number, string>()
-    fingering
-        .split(/[\s,-]+/)
-        .filter(Boolean)
-        .forEach((finger, i) => {
-            if (sorted[i] !== undefined) fingers.set(sorted[i], finger)
-        })
+    parseFingerList(fingering).forEach((finger, i) => {
+        if (sorted[i] !== undefined) fingers.set(sorted[i], finger)
+    })
     return fingers
 }
 
@@ -527,14 +538,54 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const set = noteSetOf(block)
     const range = field(block, 'range')
     handOf(block, options)
-    // A scale's fingering: one octave from the root, fingers in order. Without a range the
-    // keyboard shows that octave (middle C's); with one, every octave stays lit and the fingering
-    // starts on the first root inside it (or the lowest one).
+    // A scale's fingering: one octave from the root, fingers in order (or `auto`: the standard
+    // fingering of a major or harmonic minor scale, #68). Without a range the keyboard shows that
+    // octave (middle C's; the octave below for the left hand); with one, every octave stays lit
+    // and every key of the scale gets its finger. A chord's fingering covers one octave from the
+    // first root inside the range (or the lowest one).
     const fingering = field(block, 'fingering')
     const keys = range ? rangeOf(range) : undefined
     let fingers: Map<number, string> | undefined
-    // A list's root (`root:`) only labels and colors it: no fingering from it.
-    if (fingering && set.root !== null && !set.list && !set.pitches) {
+    let title = field(block, 'title')
+    const autoHand = fingering ? autoFingeringHand(fingering) : null
+    if (autoHand && (set.root === null || set.list || set.pitches || !set.scaleType)) {
+        throw new Error(
+            'fingering: auto goes with a major or harmonic minor scale (scale: G major): write one finger per note, e.g. fingering: 1 2 3 4 5'
+        )
+    }
+    if (fingering && set.scaleType && set.root !== null && !set.list && !set.pitches) {
+        const chromas = set.members.map((m) => m.chroma)
+        let octave: string[]
+        if (autoHand) {
+            const standard = standardScaleFingering(set.root, set.scaleType, autoHand)
+            if (!standard) {
+                throw new Error(
+                    `fingering: auto knows the major and harmonic minor scales: write the fingers for ${set.title}, root to root, e.g. fingering: 1 2 3 1 2 3 4 5`
+                )
+            }
+            octave = standard
+            title ??= `${set.title}, ${autoHand} hand`
+        } else {
+            octave = parseFingerList(fingering)
+            if (octave.length !== chromas.length + 1) {
+                throw new Error(
+                    `fingering has ${octave.length} fingers: ${set.title} needs ${chromas.length + 1}, one per note from the root up to the root above`
+                )
+            }
+        }
+        const scaleKeys: number[] = []
+        if (keys) {
+            for (let midi = keys[0]; midi <= keys[1]; midi++) {
+                if (chromas.includes(midi % 12)) scaleKeys.push(midi)
+            }
+        } else {
+            const start = (autoHand === 'left' ? 48 : 60) + set.root
+            scaleKeys.push(...chromas.map((c) => start + ((c - set.root! + 12) % 12)), start + 12)
+            scaleKeys.sort((a, b) => a - b)
+            set.pitches = scaleKeys
+        }
+        fingers = scaleFingers(scaleKeys, set.root, chromas, octave)
+    } else if (fingering && set.root !== null && !set.list && !set.pitches) {
         let start = 60 + set.root
         if (keys) {
             const first = keys[0] + ((((set.root - keys[0]) % 12) + 12) % 12)
@@ -551,7 +602,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         // written, so G F E D C with 5 4 3 2 1 puts 5 on G. Exact pitches as written; pitch
         // classes each in the octave nearest the note before, the first in middle C's octave (or
         // its first key inside the range): C D E F G is C4 to G4, G F E D C is G4 down to C4.
-        const fingerList = fingering.split(/[\s,-]+/).filter(Boolean)
+        const fingerList = parseFingerList(fingering)
         let pitches = set.pitches
         if (!pitches) {
             const chromas = set.title
@@ -589,7 +640,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
             !set.scaleType && !set.list && set.root !== null && !block.fields.has('arpeggio')
                 ? 'chord'
                 : 'scale',
-        title: field(block, 'title'),
+        title,
         label: labelField(block, fingers ? 'fingers' : 'notes', fingers !== undefined),
         fingers,
         // A fingered scale shows its octave, up to the root above.

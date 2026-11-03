@@ -170,8 +170,8 @@ describe('what blocks draw', () => {
         expect(piano.keys.map((k) => [k.note, k.label, k.root])).toEqual([
             ['D3', '1', false],
             ['Bb4', '2', true],
-            ['D5', '4', false],
-            ['F5', null, false]
+            // The bass (the third) isn't doubled above it.
+            ['F5', '4', false]
         ])
     })
 

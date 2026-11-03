@@ -6,16 +6,25 @@
  *   lists it, 1 = the third).
  * - open: the close voicing with its second note from the bottom raised an octave, so the hand
  *   spans more than an octave and the bass stays: R 5 3 for a triad, R 5 7 3 for a seventh chord.
- * - shell: the root, the third (or the sus note) and the seventh (the sixth in sixth chords),
- *   stacked in that order: C E B for Cmaj7.
+ * - shell: the root, the third (or the sus note) and the seventh (the sixth in sixth chords).
+ *   Form R-3 (default) stacks them in that order (Cmaj7: C E B); form R-7 puts the seventh right
+ *   above the root and the third on top, a tenth above it (C B E).
  * - rootless (jazz, after Bill Evans): no root; form A is 3 5 7 9, form B is 7 9 3 5. Dominant
  *   chords take the 13th in place of the 5th (form A 3 13 b7 9, form B b7 9 3 13), and their altered
- *   9th or 5th when the symbol has one. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A)
+ *   9th or 5th when the symbol has one. Half-diminished chords keep their b5 and take the natural
+ *   9th (locrian #2): Bm7b5 A is D F A C#. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A)
  *   E G B D.
  *
- * The lowest right-hand note is in `octave` (4 by default: middle C's), a slash chord's bass an
- * octave below it. `hands: 'left+right'` puts the bass (a slash chord's, else the root) in the left
- * hand an octave below; `hands: 'left'` plays it all with the left hand (octave 3 by default).
+ * The lowest right-hand note is in `octave` (4 by default: middle C's; 3 for rootless voicings, so
+ * they sit in the usual comping range, C3 to C5), a slash chord's bass an octave below it.
+ * `hands: 'left+right'` puts the bass (a slash chord's, else the root) in the left hand an octave
+ * below; `hands: 'left'` plays it all with the left hand (octave 3 by default).
+ *
+ * No doubled bass: the right hand leaves out the left hand's note (or a slash chord's bass) when
+ * it is the third, the seventh or any note but the root or the fifth (D/F#: F#3 + D4 A4), and in
+ * shell, open and rootless voicings, where the root belongs to the bass (Cmaj7 shell with both
+ * hands: C3 + E4 B4). A close voicing keeps a root or fifth bass doubled (C with both hands: C3 +
+ * C4 E4 G4), as pianists play a left-hand root under a right-hand triad.
  */
 import { Note } from 'tonal'
 import { orFail } from '../blocks/note-set-field.js'
@@ -24,6 +33,8 @@ import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 
 export type PianoVoicingStyle = 'close' | 'open' | 'shell' | 'rootless'
 export type RootlessForm = 'A' | 'B'
+/** Shell forms: R-3 (root, third, seventh) or R-7 (root, seventh, third a tenth above the root). */
+export type ShellForm = 'R-3' | 'R-7'
 export type PianoHands = 'right' | 'left' | 'left+right'
 
 export interface PianoVoicingOptions {
@@ -34,6 +45,8 @@ export interface PianoVoicingOptions {
     voicing?: PianoVoicingStyle
     /** Rootless voicings: form A (3 5 7 9, default) or B (7 9 3 5). */
     rootless?: RootlessForm
+    /** Shell voicings: form R-3 (R 3 7, default) or R-7 (R 7 3). */
+    shell?: ShellForm
     /** Which hand plays what; unset draws no hands. */
     hands?: PianoHands
 }
@@ -79,8 +92,8 @@ function stack(chromas: number[], octave: number): number[] {
 const find = (tones: Tone[], ...intervals: string[]) =>
     intervals.map((i) => tones.find((t) => t.interval === i)).find((t) => t !== undefined)
 
-/** Shell: root, third (or sus note), seventh (or sixth). */
-function shellOf(symbol: string, tones: Tone[]): number[] {
+/** Shell: root, third (or sus note), seventh (or sixth); R-7 puts the seventh below the third. */
+function shellOf(symbol: string, tones: Tone[], form: ShellForm): number[] {
     const root = tones[0]!
     const third = find(tones, '3M', '3m', '4P', '2M')
     const seventh = find(tones, '7m', '7M', '7d', '6M', '13M')
@@ -89,7 +102,9 @@ function shellOf(symbol: string, tones: Tone[]): number[] {
             `Shell voicings need a third and a seventh or sixth (C7, Cmaj7, Cm7, C6): ${symbol} has none`
         )
     }
-    return [root.chroma, third.chroma, seventh.chroma]
+    return form === 'R-7'
+        ? [root.chroma, seventh.chroma, third.chroma]
+        : [root.chroma, third.chroma, seventh.chroma]
 }
 
 /** Rootless form A (3 5 7 9) or B (7 9 3 5), with a dominant's 13th for its 5th. */
@@ -100,10 +115,10 @@ function rootlessOf(symbol: string, tones: Tone[], form: RootlessForm): number[]
     const seventh = find(tones, '7m', '7M')
     // A sixth chord's sixth takes the seventh's place: 3 5 6 9.
     const sixth = seventh ? undefined : find(tones, '6M', '13M')
-    const diminished = third?.interval === '3m' && find(tones, '5d')
-    if (!third || !(seventh ?? sixth) || diminished) {
+    // A diminished seventh has no seventh to keep (7d): it isn't voiced rootless.
+    if (!third || !(seventh ?? sixth)) {
         throw new Error(
-            `Rootless voicings are for major, minor and dominant seventh or sixth chords (Cmaj7, Cm7, C7, C6): not ${symbol}`
+            `Rootless voicings are for major, minor, dominant and half-diminished seventh or sixth chords (Cmaj7, Cm7, C7, Cm7b5, C6): not ${symbol}`
         )
     }
     const sevenChroma = (seventh ?? sixth)!.chroma
@@ -136,7 +151,7 @@ export function pianoVoicing(
     const style = options.voicing ?? 'close'
     const inversion = options.inversion ?? 0
     const hands = options.hands
-    const octave = options.octave ?? (hands === 'left' ? 3 : 4)
+    const octave = options.octave ?? (hands === 'left' || style === 'rootless' ? 3 : 4)
     if (!Number.isInteger(octave) || octave < 0 || octave > 8) {
         throw new Error(`octave: use a number from 0 to 8, got "${octave}"`)
     }
@@ -157,7 +172,7 @@ export function pianoVoicing(
         }
     }
     let chromas: number[]
-    if (style === 'shell') chromas = shellOf(symbol, tones)
+    if (style === 'shell') chromas = shellOf(symbol, tones, options.shell ?? 'R-3')
     else if (style === 'rootless') chromas = rootlessOf(symbol, tones, options.rootless ?? 'A')
     else {
         // The inversion's note lowest, the others in order above it (a slash chord's bass outside
@@ -173,11 +188,20 @@ export function pianoVoicing(
     if (style === 'open') right = right.map((p, i) => (i === 1 ? p + 12 : p)).sort((a, b) => a - b)
     let left: number[] = []
     let bass: number[] = []
-    if (hands === 'left+right') {
-        // The left hand holds the bass: a slash chord's, else the root.
-        left = [inOctave(slash ?? tones[0]!.chroma, octave - 1)]
-    } else if (slash !== null) {
-        bass = [inOctave(slash, octave - 1)]
+    // The note under the right hand: the left hand's (a slash chord's, else the root), or a slash
+    // chord's bass. The inversion's note when both hands play (C first inversion: E3 under it).
+    const under =
+        hands === 'left+right'
+            ? (slash ?? (style === 'close' || style === 'open' ? chromas[0]! : tones[0]!.chroma))
+            : slash
+    if (hands === 'left+right') left = [inOctave(under!, octave - 1)]
+    else if (slash !== null) bass = [inOctave(slash, octave - 1)]
+    if (under !== null) {
+        // Not doubled above (see the module comment): kept only for a close voicing's root or fifth.
+        const interval = tones.find((t) => t.chroma === under)?.interval
+        const keep = style === 'close' && (interval === '1P' || interval === '5P')
+        const thinned = keep ? right : right.filter((p) => p % 12 !== under)
+        if (thinned.length) right = thinned
     }
     if (hands === 'left') {
         left = [...bass, ...right]
@@ -284,14 +308,22 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
     }
     const voicing = get('voicing')?.trim().toLowerCase()
     if (voicing && !/^\d+$/.test(voicing)) {
-        const m = /^(close|open|shell|rootless)(?:[\s:-]*(?:form\s*)?([ab]))?$/.exec(voicing)
-        if (!m || (m[2] && m[1] !== 'rootless')) {
+        const m = /^(close|open|shell|rootless)(?:[\s:-]*(?:form\s*)?([ab]|r\s*-?\s*[37]))?$/.exec(
+            voicing
+        )
+        const form = m?.[2]?.replace(/[\s-]/g, '').toUpperCase()
+        const fits =
+            !form ||
+            (m![1] === 'rootless' && /^[AB]$/.test(form)) ||
+            (m![1] === 'shell' && /^R[37]$/.test(form))
+        if (!m || !fits) {
             throw new Error(
-                `voicing: use close, open, shell, rootless A or rootless B, got "${voicing}"`
+                `voicing: use close, open, shell, shell R-7, rootless A or rootless B, got "${voicing}"`
             )
         }
         options.voicing = m[1] as PianoVoicingStyle
-        if (m[2]) options.rootless = m[2].toUpperCase() as RootlessForm
+        if (form && m[1] === 'rootless') options.rootless = form as RootlessForm
+        if (form && m[1] === 'shell') options.shell = `R-${form[1]}` as ShellForm
     }
     const hands = get('hands')?.trim().toLowerCase().replace(/\s+/g, '')
     if (hands) {
