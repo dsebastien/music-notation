@@ -117,6 +117,21 @@ describe('a chord over a scale', () => {
         )
     })
 
+    it('refuses chord and arpeggio together', () => {
+        for (const source of [
+            'arpeggio: Am7\nchord: C',
+            'scale: C major\narpeggio: Am7\nchord: C',
+            'arpeggio: Am7\nchord: C\npositions: all'
+        ]) {
+            expect(renderBlock('fretboard', source, host()).error).toBe(
+                'Use chord or arpeggio, not both'
+            )
+        }
+        expect(renderBlock('keyboard', 'arpeggio: Am7\nchord: C', host()).error).toBe(
+            'Use chord or arpeggio, not both'
+        )
+    })
+
     it('leaves a chord alone without a scale', () => {
         const h = host()
         renderBlock('keyboard', 'chord: G7', h)

@@ -35,7 +35,8 @@ export interface ScaleMatch {
 export interface FindScalesOptions {
     /**
      * How to read the items: note names or chord symbols. By default, chords when any item isn't
-     * a plain note name (G D Em C); "G C D" reads as three notes unless you say chords.
+     * a plain note name (G D Em C); "G C D" reads as three notes unless you say chords. Notes with
+     * octaves (C4 E4 G4) are notes, unless every one could be a power chord (A5 D5 E5).
      */
     as?: 'notes' | 'chords'
     /** Scales with up to this many outside notes are listed too (after the others); 1 by default. */
@@ -183,8 +184,14 @@ function rank(
 
 const strip = ({ cost: _cost, ...match }: ScaleMatch & { cost: number }): ScaleMatch => match
 
-/** Whether every item is a plain note name (C, F#, Bb): A5 D5 E5 are power chords. */
-const allNotes = (items: string[]) => items.every((i) => noteName(i) !== null)
+/**
+ * Whether the items are notes: plain note names (C, F#, Bb), or notes with octaves (C4 E4 G4)
+ * unless every one could be a power chord (A5 D5 E5 are power chords).
+ */
+const allNotes = (items: string[]) =>
+    items.every((i) => noteName(i) !== null) ||
+    (items.every((i) => /^[A-Ga-g][#♯b♭]?-?\d$/.test(i) && noteName(withoutOctave(i)) !== null) &&
+        !items.every((i) => /^[A-G][#♯b♭]?5$/.test(i)))
 
 /**
  * The scales that hold some notes, or the tones of some chords, best first: fewer outside notes

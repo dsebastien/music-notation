@@ -21,6 +21,16 @@ import {
 
 const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
 
+/** The chord of `chord:` or `arpeggio:` (they name the same thing: both is a mistake). */
+export function chordField(block: BlockSource): string | undefined {
+    const chord = block.fields.get('chord')
+    const arpeggio = block.fields.get('arpeggio')
+    if (chord !== undefined && arpeggio !== undefined) {
+        throw new Error('Use chord or arpeggio, not both')
+    }
+    return chord ?? arpeggio
+}
+
 /**
  * `scale:`, `chord:` (or `arpeggio:`) or `notes:`; a shorthand first line is tried as each, in that order. `root:`
  * gives a list its intervals and degrees; a shorthand line with a root is read as a list first.
@@ -28,7 +38,7 @@ const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
 export function noteSetOf(block: BlockSource): NoteSet {
     const scale = block.fields.get('scale')
     // An arpeggio is a chord's notes, one at a time (`arpeggio: Am7`).
-    const chord = block.fields.get('chord') ?? block.fields.get('arpeggio')
+    const chord = chordField(block)
     const notes = block.fields.get('notes')
     // An empty `root:` line is no root, like other empty keys.
     const root = block.fields.get('root')?.trim() || undefined
@@ -157,7 +167,7 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
  * of a compared scale).
  */
 function chordOverScale(block: BlockSource, set: NoteSet, marks: NoteMarks): void {
-    const text = (block.fields.get('chord') ?? block.fields.get('arpeggio'))?.trim()
+    const text = chordField(block)?.trim()
     if (!text || block.fields.get('scale') === undefined || !set.scaleType) return
     const chord = orFail(chordNoteSet(text), `Unknown chord "${text}": use e.g. chord: Am7`)
     const inScale = new Set(set.members.map((m) => m.chroma))

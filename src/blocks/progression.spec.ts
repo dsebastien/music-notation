@@ -184,7 +184,11 @@ describe('progression block', () => {
         expect(error('I IV\nkey: H')).toContain('Unknown key "H"')
         expect(error('i iv\nkey: Gbm')).toBe('Gb minor needs 9 flats: write F# minor')
         expect(error('I IV\nkey: Fb')).toBe('Fb major needs 8 flats: write E major')
-        expect(error('I IV\nkey: D dorian')).toContain('Unknown key "D dorian"')
+        expect(error('I IV\nkey: D dorian')).toBe(
+            'Progression keys are major or minor: write key: D major or key: D minor, got "D dorian"'
+        )
+        expect(error('I V65\nkey: C')).toContain("figured bass isn't read")
+        expect(error('I V43\nkey: C')).toContain('V7/7 is G7/B')
         expect(error('key: C')).toContain('Add the chords')
         expect(error('I IV\nkey: C\ntranspose: 1.5')).toContain('transpose')
         expect(error('I IV\nkey: C\nfunctions: maybe')).toBe(

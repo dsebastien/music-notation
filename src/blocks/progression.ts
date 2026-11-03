@@ -62,6 +62,11 @@ function keyOf(text: string): MusicalKey {
     const key = readKey(text)
     const mode =
         key?.mode === 'ionian' ? 'major' : key?.mode === 'aeolian' ? 'minor' : (key?.mode ?? null)
+    if (key && mode !== 'major' && mode !== 'minor') {
+        throw new Error(
+            `Progression keys are major or minor: write key: ${key.tonic} major or key: ${key.tonic} minor, got "${text}"`
+        )
+    }
     if (!key || (mode !== 'major' && mode !== 'minor')) {
         throw new Error(`Unknown key "${text}": use e.g. key: G, key: Em or key: F# minor`)
     }
@@ -78,10 +83,17 @@ function transposed(key: MusicalKey, semitones: number): MusicalKey {
     return keyOf(moved)
 }
 
+/** Figured bass (V65, V43, ii42, I64): inversions aren't read from it. */
+const FIGURED = /^[b#♭♯]?(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)[°ø+]?(65|64|43|42)$/
+
 const unread = (token: string) =>
-    new Error(
-        `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
-    )
+    FIGURED.test(token)
+        ? new Error(
+              `Didn't read "${token}": figured bass isn't read; write the bass after a slash (V7/7 is G7/B in C, I/5 is C/G)`
+          )
+        : new Error(
+              `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
+          )
 
 const isNashville = (token: string) => /^[b#♭♯]?[1-7]/.test(token)
 

@@ -21,6 +21,7 @@ import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { resolveScalesFor } from '../blocks/scales-for.js'
+import { chordField } from '../blocks/note-set-field.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import {
     CAGED_SHAPES,
@@ -221,7 +222,7 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const value = block.fields.get('positions')?.trim()
     if (value === undefined) return null
     // A scale, or a chord: its arpeggio (`arpeggio: Am7`, `chord: Am7`, or a shorthand chord).
-    const chordText = block.fields.get('arpeggio') ?? block.fields.get('chord')
+    const chordText = chordField(block)
     const scaleText = block.fields.get('scale') ?? (chordText === undefined ? block.head : null)
     const scaleSet = scaleText ? scaleNoteSet(scaleText) : null
     const written = scaleSet ? scaleText! : (chordText ?? block.head)

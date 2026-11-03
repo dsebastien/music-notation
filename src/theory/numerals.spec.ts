@@ -82,6 +82,10 @@ describe('readNumeral', () => {
     it('refuses what does not read', () => {
         for (const token of ['VIII', 'IVv', 'Iv', 'x', 'I/', 'V//V', '8', 'V/9', 'I/V/V'])
             expect(readNumeral(token, 'C')).toBeNull()
+        // Figured bass isn't read: I6 is a sixth chord, V65 and V64 aren't chords.
+        expect(readNumeral('I6', 'C')).toBe('C6')
+        expect(readNumeral('V65', 'C')).toBeNull()
+        expect(readNumeral('V64', 'C')).toBeNull()
         expect(readNumeral('I', 'H')).toBeNull()
         expect(progressionChords('I VIII', 'C')).toBeNull()
     })
