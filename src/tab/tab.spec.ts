@@ -20,13 +20,20 @@ describe('parseTabSource', () => {
     it('reads the settings on top, then the alphaTex', () => {
         expect(parseTabSource('tab', ':4 3.3 0.2')).toEqual({
             staves: 'tab',
+            stavesWritten: false,
             file: null,
             tracks: null,
             tex: ':4 3.3 0.2',
             texLine: 0
         })
         const parsed = parseTabSource('score', 'staves: both\ntracks: 1 2\n\n:4 3.3')
-        expect(parsed).toMatchObject({ staves: 'both', tracks: [1, 2], tex: ':4 3.3', texLine: 3 })
+        expect(parsed).toMatchObject({
+            staves: 'both',
+            stavesWritten: true,
+            tracks: [1, 2],
+            tex: ':4 3.3',
+            texLine: 3
+        })
         expect(parseTabSource('tab', 'file: [[Songs/Blues.gp|Blues]]').file).toBe('Songs/Blues.gp')
     })
 
@@ -133,6 +140,12 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
             }
             void tracks
             this.renderFinished.fire()
+        }
+        /** Redraws asked for after the first drawing (the view control). */
+        renders = 0
+        render() {
+            this.renders++
+            queueMicrotask(() => this.renderFinished.fire())
         }
         loadSoundFont() {}
         destroy() {}
@@ -277,10 +290,20 @@ describe('renderTab', () => {
         const h = host()
         const result = renderTab('tab', ':4 3.3', h, { alphaTab: fakeAlphaTab(), assets })
         expect(await result.ready).toEqual({ ok: true, error: null })
-        const labels = [...h.querySelectorAll('.mn-tab-bar button')].map((b) =>
-            b.getAttribute('aria-label')
+        const labels = [...h.querySelectorAll('.mn-tab-bar button')].map(
+            (b) => b.getAttribute('aria-label') ?? b.textContent
         )
-        expect(labels).toEqual(['Play', 'Stop', 'Loop', 'Metronome', 'Count-in'])
+        // Then the view control (#83).
+        expect(labels).toEqual([
+            'Play',
+            'Stop',
+            'Loop',
+            'Metronome',
+            'Count-in',
+            'Tab',
+            'Score',
+            'Both'
+        ])
         expect(h.querySelector('.mn-tab-time')?.textContent).toBe('')
     })
 
@@ -522,5 +545,128 @@ describe('renderTab, drums (#37)', () => {
             'score',
             'score'
         ])
+    })
+})
+
+describe('renderTab, the view control (Music Practice #83)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    type Made = { score: alphaTab.model.Score | null; renders: number }
+    async function draw(
+        language: 'tab' | 'score',
+        source: string,
+        options: Partial<Parameters<typeof renderTab>[3]> = {}
+    ) {
+        const mod = fakeAlphaTab()
+        const made: Made[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => Made
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(this)
+            }
+        }
+        const h = document.createElement('div')
+        const result = renderTab(language, source, h, { alphaTab: mod, assets, ...options })
+        await result.ready
+        const api = made[0]!
+        const buttons = () =>
+            [...h.querySelectorAll<HTMLButtonElement>('.mn-tab-views .mn-tab-view')].map(
+                (b) => `${b.textContent}${b.getAttribute('aria-pressed') === 'true' ? '*' : ''}`
+            )
+        const click = (label: string) =>
+            [...h.querySelectorAll<HTMLButtonElement>('.mn-tab-views button')]
+                .find((b) => b.textContent === label)!
+                .click()
+        const keep = () => h.querySelector<HTMLButtonElement>('.mn-tab-keep')
+        const staves = () =>
+            api.score!.tracks.map((t) =>
+                t.staves
+                    .map((s) =>
+                        [s.showStandardNotation ? 'score' : '', s.showTablature ? 'tab' : '']
+                            .filter(Boolean)
+                            .join('+')
+                    )
+                    .join(' ')
+            )
+        return { h, api, buttons, click, keep, staves }
+    }
+
+    const drums = textTabToAlphaTex('HH|x-x-x-x-|\nS |--o---o-|\nB |o---o---|')!
+    const band = `\\track "Guitar"\n:4 3.3 0.2 1.2 0.1\n\\track "Drums"\n${drums}`
+
+    it('shows Tab, Score and Both in the bar, the view drawn pressed', async () => {
+        const tab = await draw('tab', ':4 3.3 0.2')
+        expect(tab.buttons()).toEqual(['Tab*', 'Score', 'Both'])
+        // No staves: line: the pressed button says it's the default.
+        const title = tab.h.querySelector<HTMLButtonElement>('[data-staves="tab"]')!.title
+        expect(title).toContain('the default')
+        expect((await draw('score', ':4 3.3 0.2')).buttons()).toEqual(['Tab', 'Score*', 'Both'])
+        const both = await draw('tab', 'staves: both\n:4 3.3 0.2')
+        expect(both.buttons()).toEqual(['Tab', 'Score', 'Both*'])
+        expect(both.h.querySelector<HTMLButtonElement>('[data-staves="both"]')!.title).toContain(
+            "this block's staves: line"
+        )
+    })
+
+    it('draws the loaded score again in the view clicked, without loading it again', async () => {
+        const { api, buttons, click, staves } = await draw('tab', ':4 3.3 0.2')
+        const score = api.score
+        click('Score')
+        expect(buttons()).toEqual(['Tab', 'Score*', 'Both'])
+        expect(staves()).toEqual(['score'])
+        expect(api.renders).toBe(1)
+        expect(api.score).toBe(score)
+        click('Both')
+        expect(staves()).toEqual(['score+tab'])
+        click('Both')
+        expect(api.renders).toBe(2)
+    })
+
+    it('shows slash staves again in Both after another view hid them', async () => {
+        const { api, click } = await draw('tab', 'staves: both\n\\staff {slash tabs}\n:4 3.3 0.2')
+        const staff = () => api.score!.tracks[0]!.staves[0]!
+        expect(staff().showSlash).toBe(true)
+        click('Tab')
+        expect(staff().showSlash).toBe(false)
+        click('Both')
+        expect(staff().showSlash).toBe(true)
+    })
+
+    it('has no view control for drums or piano alone, and keeps it for a band', async () => {
+        expect((await draw('tab', drums)).buttons()).toEqual([])
+        expect((await draw('score', ':4 C4 E4 G4')).buttons()).toEqual([])
+        // Only the drums drawn (tracks: 2): one view.
+        expect((await draw('tab', `tracks: 2\n${band}`)).buttons()).toEqual([])
+        const mixed = await draw('score', band)
+        expect(mixed.buttons()).toEqual(['Tab', 'Score*', 'Both'])
+        mixed.click('Tab')
+        expect(mixed.staves()).toEqual(['tab', 'score'])
+    })
+
+    it('offers Keep this view only with onKeepView, once the view differs', async () => {
+        expect((await draw('tab', ':4 3.3')).keep()).toBeNull()
+        const kept: string[] = []
+        const block = await draw('tab', ':4 3.3', { onKeepView: (s) => kept.push(s) })
+        expect(block.keep()!.hidden).toBe(true)
+        block.click('Score')
+        expect(block.keep()!.hidden).toBe(false)
+        block.keep()!.click()
+        expect(kept).toEqual(['score'])
+        block.click('Tab')
+        expect(block.keep()!.hidden).toBe(true)
+    })
+
+    it('leaves the control out with views: false, and takes the app default view', async () => {
+        expect((await draw('tab', ':4 3.3', { views: false })).buttons()).toEqual([])
+        const text = await draw('score', ':4 3.3', { defaultStaves: 'tab' })
+        expect(text.buttons()).toEqual(['Tab*', 'Score', 'Both'])
+        expect(text.staves()).toEqual(['tab'])
+        // A staves: line wins over the app default.
+        const written = await draw('score', 'staves: score\n:4 3.3', { defaultStaves: 'tab' })
+        expect(written.buttons()).toEqual(['Tab', 'Score*', 'Both'])
     })
 })

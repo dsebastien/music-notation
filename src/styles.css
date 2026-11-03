@@ -317,6 +317,25 @@
     opacity: 0.8;
 }
 
+/* The view control (Tab, Score, Both): one segmented group, the view drawn in the accent color. */
+.mn-tab-views {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding-left: 6px;
+    border-left: 1px solid var(--mn-faint);
+}
+
+.mn-play .mn-tab-views .mn-tab-keep {
+    margin-left: 4px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.mn-play .mn-tab-views .mn-tab-keep[hidden] {
+    display: none;
+}
+
 .mn-tab-hidden {
     position: absolute;
     width: 1px;
