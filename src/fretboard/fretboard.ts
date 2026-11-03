@@ -155,7 +155,21 @@ export function renderFretboard(
             if (!member || hidden || (played && !played.has(`${s}:${fret}`))) {
                 // A parent scale's note missing here: a faint ring.
                 if (!member && !hidden && options.marks?.ghosts?.has(chroma)) {
-                    root.appendChild(svg(doc, 'circle', { class: 'mn-ghost', cx, cy, r: 7 }))
+                    root.appendChild(
+                        svg(doc, 'circle', {
+                            'class': 'mn-ghost',
+                            cx,
+                            cy,
+                            'r': 7,
+                            'data-mn-ghost-string': strings - s,
+                            'data-mn-fret': fret,
+                            'data-mn-note':
+                                options.marks?.ghostNames?.get(chroma) ??
+                                nameOf(chroma, set.preferFlats),
+                            // Not data-midi: a ghost isn't a note to click and play.
+                            'data-mn-pitch': open + fret
+                        })
+                    )
                 }
                 continue
             }

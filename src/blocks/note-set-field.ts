@@ -142,6 +142,9 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
         const theirs = new Set(parent.members.map((m) => m.chroma))
         marks.different = new Set([...own].filter((c) => !theirs.has(c)))
         marks.ghosts = new Set([...theirs].filter((c) => !own.has(c)))
+        marks.ghostNames = new Map(
+            parent.members.filter((m) => !own.has(m.chroma)).map((m) => [m.chroma, m.name])
+        )
     }
     return marks
 }

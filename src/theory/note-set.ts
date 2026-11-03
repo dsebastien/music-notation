@@ -41,6 +41,8 @@ export interface NoteMarks {
     characteristic?: Set<number>
     different?: Set<number>
     ghosts?: Set<number>
+    /** The ghosts as the compared scale spells them (C minor's Eb, not D#). */
+    ghostNames?: Map<number, string>
 }
 
 /** Classes for a highlighted note: root, characteristic, different. */

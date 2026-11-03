@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { parseHTML } from 'linkedom'
 import { checkNote, expand, globToRegExp, run, type BlockReport } from './check.js'
+import { renderBlock } from '../render/render-block.js'
 import type {
     ChartDiagram,
     FretboardDiagram,
@@ -23,6 +24,8 @@ beforeAll(async () => {
     await writeFile(join(dir, 'notes', 'deep', 'bad.md'), 'Text\n\n```keyboard\nH major\n```\n')
     await writeFile(join(dir, 'notes', 'deep', 'other.txt'), '```chord\nHm7\n```\n')
     await writeFile(join(dir, 'crlf.md'), fixture.replace(/\n/g, '\r\n'))
+    await writeFile(join(dir, 'Song {live}.md'), '```chord\nAm\n```\n')
+    await writeFile(join(dir, 'Draft [1].md'), '```chord\nAm\n```\n')
 })
 afterAll(() => rm(dir, { recursive: true, force: true }))
 
@@ -208,6 +211,54 @@ describe('rows a block draws itself', () => {
     })
 })
 
+describe('review fixes', () => {
+    test('empty tab and score blocks are empty, not errors (templates scaffold them)', () => {
+        const reports = checkNote('t.md', '```tab\n```\n\n```score\n\n```\n', document)
+        expect(reports.map((r) => r.status)).toEqual(['empty', 'empty'])
+    })
+
+    test('a long run of spaces in an error message takes no time', () => {
+        const start = performance.now()
+        const [report] = checkNote(
+            's.md',
+            '```keyboard\nnotes: C' + ' '.repeat(40_000) + 'X\n```\n',
+            document
+        )
+        expect(report!.status).toBe('error')
+        expect(performance.now() - start).toBeLessThan(500)
+    })
+
+    test('a list with a root plays every note written, not root to root', () => {
+        const [report] = checkNote(
+            'r.md',
+            '```keyboard\nnotes: C4 E4 G4 C5 E5\nroot: C\n```\n',
+            document
+        )
+        expect(report!.status).toBe('ok')
+        const host = document.createElement('div')
+        renderBlock('keyboard', 'notes: C4 E4 G4 C5 E5\nroot: C', host)
+        expect(host.querySelector('svg')!.hasAttribute('data-mn-root')).toBe(false)
+        // An empty root: line is no root.
+        expect(renderBlock('keyboard', 'notes: C E G\nroot:', host).ok).toBe(true)
+    })
+
+    test("--describe lists the compared scale's ghost notes", () => {
+        const [board] = checkNote(
+            'g.md',
+            '```fretboard\nC major\ncompare: C minor\nfrets: 0-3\n```\n',
+            document
+        )
+        const fret = board!.diagrams[0] as FretboardDiagram
+        expect(fret.ghosts.map((g) => g.note)).toContain('Eb3')
+        const [keys] = checkNote(
+            'k.md',
+            '```keyboard\nC major\ncompare: C minor\nrange: C4-B4\n```\n',
+            document
+        )
+        expect((keys!.diagrams[0] as KeyboardDiagram).ghosts).toEqual(['Eb4', 'Ab4', 'Bb4'])
+    })
+})
+
 describe('globs', () => {
     test('*, ** and {a,b}', () => {
         expect(globToRegExp('*.md').test('a.md')).toBe(true)
@@ -227,6 +278,9 @@ describe('globs', () => {
         expect(await names('notes/deep/other.txt')).toEqual(['notes/deep/other.txt'])
         expect(await names('missing/*.md')).toEqual([])
         expect(expand('missing.md', dir)).rejects.toThrow('missing.md: no such file or folder')
+        // File names with glob characters are files first.
+        expect(await names('Song {live}.md')).toEqual(['Song {live}.md'])
+        expect(await names('Draft [1].md')).toEqual(['Draft [1].md'])
     })
 })
 

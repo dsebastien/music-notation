@@ -51,6 +51,8 @@ export interface FretboardDiagram {
     tuning: string[]
     /** Lowest string first, then by fret. */
     dots: FretboardDot[]
+    /** A compared scale's notes missing here (`compare:`), drawn faint. */
+    ghosts: { string: number; fret: number; note: string }[]
 }
 
 export interface KeyboardKey {
@@ -71,6 +73,8 @@ export interface KeyboardDiagram {
     keyRange: [string, string]
     /** The highlighted keys, low to high. */
     keys: KeyboardKey[]
+    /** A compared scale's notes missing here (`compare:`), drawn faint, low to high. */
+    ghosts: string[]
 }
 
 export interface ChartDiagram {
@@ -165,13 +169,24 @@ function fretboard(svg: Element): FretboardDiagram {
             marks: marksOf(el)
         }))
         .sort((a, b) => b.string - a.string || a.fret - b.fret)
+    const ghosts = [...svg.querySelectorAll('circle[data-mn-ghost-string]')]
+        .map((el) => ({
+            string: Number(el.getAttribute('data-mn-ghost-string')),
+            fret: Number(el.getAttribute('data-mn-fret')),
+            note: spelled(
+                el.getAttribute('data-mn-note') ?? '',
+                Number(el.getAttribute('data-mn-pitch'))
+            )
+        }))
+        .sort((a, b) => b.string - a.string || a.fret - b.fret)
     return {
         type: 'fretboard',
         title: text(svg.querySelector('.mn-title')),
         notes: svg.getAttribute('data-mn-set'),
         fretRange: [range[0] ?? 0, range[1] ?? 0],
         tuning: tuning.reverse(),
-        dots
+        dots,
+        ghosts
     }
 }
 
@@ -205,7 +220,13 @@ function keyboard(svg: Element): KeyboardDiagram {
         chord: svg.getAttribute('data-mn-chord'),
         notes: svg.getAttribute('data-mn-set'),
         keyRange: [noteOf(Math.min(...midis)), noteOf(Math.max(...midis))],
-        keys
+        keys,
+        ghosts: all
+            .filter((el) => has(el, 'mn-ghost'))
+            .map((el) => {
+                const midi = Number(el.getAttribute('data-midi'))
+                return spelled(el.getAttribute('data-mn-note') ?? '', midi)
+            })
     }
 }
 
@@ -302,6 +323,13 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                         .join(', ')}`
                 )
             }
+            if (d.ghosts.length) {
+                lines.push(
+                    `${pad}ghosts (compared scale): ${d.ghosts
+                        .map((g) => `string ${g.string} fret ${g.fret} ${g.note}`)
+                        .join(', ')}`
+                )
+            }
             return lines
         }
         case 'keyboard':
@@ -327,7 +355,10 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                                 .join(' ')
                         )
                         .join(', ') || 'none'
-                }`
+                }`,
+                ...(d.ghosts.length
+                    ? [`${pad}ghosts (compared scale): ${d.ghosts.join(', ')}`]
+                    : [])
             ]
     }
 }

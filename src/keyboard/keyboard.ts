@@ -10,7 +10,7 @@ import {
     type NoteMarks,
     type NoteSet
 } from '../theory/note-set.js'
-import { midiOf } from '../theory/pitch.js'
+import { midiOf, nameOf } from '../theory/pitch.js'
 
 export interface KeyboardOptions {
     /** Lowest and highest MIDI pitch shown; computed from the notes when absent. */
@@ -143,7 +143,12 @@ export function renderKeyboard(
                 ...key(along, WHITE_W, WHITE_H),
                 'rx': 2,
                 'data-midi': midi,
-                'data-mn-note': memberOf(set, midi)?.name
+                'data-mn-note':
+                    memberOf(set, midi)?.name ??
+                    (options.marks?.ghosts?.has(((midi % 12) + 12) % 12)
+                        ? (options.marks?.ghostNames?.get(((midi % 12) + 12) % 12) ??
+                          nameOf(midi, set.preferFlats))
+                        : undefined)
             })
         )
         caption(midi, at(along + WHITE_W / 2, WHITE_H - 13), false)
@@ -158,7 +163,12 @@ export function renderKeyboard(
                 ...key(along, BLACK_W, BLACK_H),
                 'rx': 2,
                 'data-midi': black,
-                'data-mn-note': memberOf(set, black)?.name
+                'data-mn-note':
+                    memberOf(set, black)?.name ??
+                    (options.marks?.ghosts?.has(((black % 12) + 12) % 12)
+                        ? (options.marks?.ghostNames?.get(((black % 12) + 12) % 12) ??
+                          nameOf(black, set.preferFlats))
+                        : undefined)
             })
         )
         caption(black, at(along + BLACK_W / 2, BLACK_H - 13), true)
