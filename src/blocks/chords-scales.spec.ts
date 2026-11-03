@@ -264,7 +264,8 @@ describe('scales and modes', () => {
         expect(count(h, '.mn-dot')).toBe(12)
         const shape = host()
         expect(renderBlock('fretboard', 'C major\nshape: E', shape).ok).toBe(true)
-        expect(count(shape, '.mn-dot')).toBe(16)
+        // Both E strings show B, C and D.
+        expect(count(shape, '.mn-dot')).toBe(17)
         expect(renderBlock('fretboard', 'C major\nposition: 6', host()).error).toBe(
             'C major has 5 CAGED positions: use position 1 to 5'
         )
@@ -303,6 +304,19 @@ describe('scales and modes', () => {
         const named = host()
         renderBlock('fretboard', 'chord: G7\nshape: A\nlabels: notes', named)
         expect(named.querySelector('.mn-dot-text')?.textContent).toMatch(/^[GBDF]$/)
+        // One shape is titled like the shapes of positions: all.
+        expect(titles(named)).toEqual(['G7 arpeggio, A shape'])
+        expect(titles(h)).toEqual(['Am7 arpeggio, E shape'])
+        const two = host()
+        renderBlock('fretboard', 'arpeggio: G7\nposition: 2', two)
+        expect(titles(two)).toEqual(['G7 arpeggio, D shape'])
+        const own = host()
+        renderBlock('fretboard', 'arpeggio: G7\nshape: A\ntitle: Dominant', own)
+        expect(titles(own)).toEqual(['Dominant'])
+        // Scales keep no title unless given one.
+        const scale = host()
+        renderBlock('fretboard', 'C major\nshape: E', scale)
+        expect(titles(scale)).toEqual([])
         const row = host()
         expect(renderBlock('fretboard', 'Am7\npositions: all\ncolumns: 3', row).error).toBeNull()
         expect(titles(row)).toEqual(

@@ -81,3 +81,27 @@ export function svgRoot(
         'aria-label': label
     })
 }
+
+/**
+ * A playable mark (a dot, an open-string circle) with its invisible hit area under it (#69), in one
+ * `.mn-mark` group: a click anywhere in the area plays the mark (the click handler looks up the
+ * group's `data-midi` element). The area is centered on the mark; renderers size it to the mark's
+ * own cell (its string's lane, its fret) so neighbors never share one.
+ */
+export function playableMark(
+    doc: Document,
+    area: { x: number; y: number; width: number; height: number },
+    ...children: Element[]
+): SVGElement {
+    const hit = svg(doc, 'rect', {
+        'class': 'mn-hit',
+        'x': area.x,
+        'y': area.y,
+        'width': area.width,
+        'height': area.height,
+        // Painted (so it takes clicks) but invisible, even without the stylesheet.
+        'fill': 'transparent',
+        'pointer-events': 'all'
+    })
+    return svg(doc, 'g', { class: 'mn-mark' }, [hit, ...children])
+}

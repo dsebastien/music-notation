@@ -460,7 +460,8 @@ describe('every element stays inside its diagram', () => {
             const [cx, cy] = [Number(c.getAttribute('cx')), Number(c.getAttribute('cy'))]
             points.push([cx - r, cy - r], [cx + r, cy + r])
         })
-        svg.querySelectorAll('rect').forEach((r) => {
+        // Hit areas are invisible and centered on their marks: at the edges the diagram clips them.
+        svg.querySelectorAll('rect:not(.mn-hit)').forEach((r) => {
             const [x, y] = [Number(r.getAttribute('x')), Number(r.getAttribute('y'))]
             points.push(
                 [x, y],

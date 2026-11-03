@@ -475,7 +475,13 @@ function barFor(
     wrap.addEventListener('click', (event) => {
         // Not `instanceof Element`: nodes of a popout window have that window's Element.
         const node = event.target as Partial<Element> | null
-        const target = typeof node?.closest === 'function' ? node.closest('[data-midi]') : null
+        // A mark's hit area (#69) plays the mark it surrounds.
+        const target =
+            typeof node?.closest === 'function'
+                ? (node.closest('[data-midi]') ??
+                  node.closest('.mn-mark')?.querySelector('[data-midi]') ??
+                  null)
+                : null
         const midi = Number(target?.getAttribute('data-midi'))
         if (!target || !Number.isFinite(midi)) return
         stop()

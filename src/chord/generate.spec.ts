@@ -79,7 +79,7 @@ describe('generateVoicings', () => {
     it('fingers, names and describes each voicing', () => {
         const f = generateVoicings('F').find((v) => show(v.frets) === '133211')!
         expect(f.fingers).toEqual(fingers('134211'))
-        expect(f.shape).toBe('E-shape barre')
+        expect(f.shape).toBe('E shape')
         expect(f.bassString).toBe(6)
         expect(f.inversion).toBe(0)
         expect(f.baseFret).toBe(1)
@@ -186,10 +186,10 @@ describe('generateVoicings', () => {
 describe('voicingShape', () => {
     it('names the usual shapes', () => {
         expect(voicingShape(frets('x32010'), 'C')).toBe('Open')
-        expect(voicingShape(frets('577655'), 'A')).toBe('E-shape barre')
-        expect(voicingShape(frets('x-3-5-5-5-3'), 'C')).toBe('A-shape barre')
-        expect(voicingShape(frets('x-5-4-2-3-x'), 'D')).toBe('CAGED C')
-        expect(voicingShape(frets('x-x-3-5-6-5'), 'F')).toBe('CAGED D')
+        expect(voicingShape(frets('577655'), 'A')).toBe('E shape')
+        expect(voicingShape(frets('x-3-5-5-5-3'), 'C')).toBe('A shape')
+        expect(voicingShape(frets('x-5-4-2-3-x'), 'D')).toBe('C shape')
+        expect(voicingShape(frets('x-x-3-5-6-5'), 'F')).toBe('D shape')
         expect(voicingShape(frets('x02xxx'), 'A5')).toBe('Power chord')
         expect(voicingShape(frets('xxx553'), 'C')).toBe('Triad')
         expect(voicingShape(frets('3x34xx'), 'G7')).toBe('Shell')
@@ -199,6 +199,13 @@ describe('voicingShape', () => {
     it('says nothing of shapes it does not know', () => {
         expect(voicingShape(frets('x-3-5-0-5-0'), 'C')).toBeNull()
         expect(voicingShape(frets('x32010'), 'Hm')).toBeNull()
+        // A barre that is no CAGED shape has no name ("other barre" told a student nothing).
+        expect(voicingShape(frets('xx3211'), 'F')).toBeNull()
+    })
+
+    it('gives a CAGED shape one name, with a barre or not', () => {
+        expect(voicingShape(frets('x-12-14-14-14-x'), 'A')).toBe('A shape')
+        expect(voicingShape(frets('x-12-14-14-14-12'), 'A')).toBe('A shape')
     })
 })
 
@@ -263,9 +270,9 @@ describe('after the review', () => {
     })
 
     it('names shapes up the neck, from fret 12', () => {
-        expect(voicingShape(frets('12-14-14-13-12-12'), 'E')).toBe('E-shape barre')
-        expect(voicingShape(frets('x-12-14-14-14-12'), 'A')).toBe('A-shape barre')
-        expect(voicingShape(frets('13-15-15-14-13-13'), 'F')).toBe('E-shape barre')
+        expect(voicingShape(frets('12-14-14-13-12-12'), 'E')).toBe('E shape')
+        expect(voicingShape(frets('x-12-14-14-14-12'), 'A')).toBe('A shape')
+        expect(voicingShape(frets('13-15-15-14-13-13'), 'F')).toBe('E shape')
     })
 
     it('calls three-string R 3 7 voicings shells', () => {

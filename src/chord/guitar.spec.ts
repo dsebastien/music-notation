@@ -33,7 +33,10 @@ describe('renderGuitarDiagram', () => {
         )
         expect(el.querySelectorAll('.mn-dot')).toHaveLength(3)
         expect(el.querySelectorAll('.mn-open')).toHaveLength(2)
-        expect(el.querySelector('.mn-muted')?.textContent).toBe('×')
+        // The muted string: an x drawn as two strokes, like the open circles.
+        const muted = el.querySelector('.mn-muted')!
+        expect(muted.tagName.toLowerCase()).toBe('path')
+        expect(muted.getAttribute('data-mn-string')).toBe('6')
         expect(el.querySelector('.mn-nut')).not.toBeNull()
         expect([...el.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)).toEqual([
             '1',
@@ -56,6 +59,51 @@ describe('renderGuitarDiagram', () => {
     })
 })
 
+describe('barres', () => {
+    const texts = (el: Element) =>
+        [...el.querySelectorAll('.mn-dot-text')].map((t) => t.textContent)
+
+    it('draws one bar with one finger number, on its lowest string', () => {
+        const f = renderGuitarDiagram(document, {
+            frets: [1, 3, 3, 2, 1, 1],
+            fingers: ['1', '3', '4', '2', '1', '1']
+        })
+        expect(f.querySelectorAll('.mn-barre')).toHaveLength(1)
+        expect(f.querySelectorAll('.mn-dot')).toHaveLength(6)
+        expect(texts(f)).toEqual(['1', '3', '4', '2'])
+        const bm7 = renderGuitarDiagram(document, {
+            frets: [null, 2, 4, 2, 3, 2],
+            fingers: [null, '1', '3', '1', '2', '1']
+        })
+        expect(texts(bm7)).toEqual(['1', '3', '2'])
+        // The label sits in the A string's dot.
+        const label = bm7.querySelector('.mn-dot-text')!
+        const dot = bm7.querySelector('[data-mn-string="5"]')!
+        expect(label.getAttribute('x')).toBe(dot.getAttribute('cx'))
+    })
+
+    it('draws no bar joining dots labelled differently', () => {
+        // A triad's 5 and R under one finger.
+        const triad = renderGuitarDiagram(
+            document,
+            { frets: [null, null, null, 5, 5, 3], fingers: [null, null, null, '3', '3', '1'] },
+            { labels: [null, null, null, '5', 'R', '3'] }
+        )
+        expect(triad.querySelectorAll('.mn-barre')).toHaveLength(0)
+        expect(texts(triad)).toEqual(['5', 'R', '3'])
+    })
+
+    it('keeps the bar when dots show nothing', () => {
+        const el = renderGuitarDiagram(
+            document,
+            { frets: [1, 3, 3, 2, 1, 1], fingers: ['1', '3', '4', '2', '1', '1'] },
+            { labels: [null, null, null, null, null, null] }
+        )
+        expect(el.querySelectorAll('.mn-barre')).toHaveLength(1)
+        expect(texts(el)).toEqual([])
+    })
+})
+
 describe('renderGuitarDiagram orientation', () => {
     const num = (el: Element | null | undefined, name: string) => Number(el?.getAttribute(name))
     const a = { frets: [null, 0, 2, 2, 2, 0], fingers: [null, null, '1', '2', '3', null] }
@@ -69,7 +117,10 @@ describe('renderGuitarDiagram orientation', () => {
         // The low string (first) is at the bottom.
         expect(num(strings[0], 'y1')).toBeGreaterThan(num(strings[5], 'y1'))
         // The muted mark sits left of the nut.
-        expect(num(el.querySelector('.mn-muted'), 'x')).toBeLessThan(num(nut, 'x1'))
+        const mutedX = Number(
+            /^M([\d.]+)/.exec(el.querySelector('.mn-muted')!.getAttribute('d')!)![1]
+        )
+        expect(mutedX).toBeLessThan(num(nut, 'x1'))
     })
 
     it('horizontal: the base fret goes under the first fret', () => {

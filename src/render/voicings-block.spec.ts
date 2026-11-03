@@ -28,7 +28,7 @@ describe('voicings blocks', () => {
         expect(area.querySelectorAll('.mn-open')).toHaveLength(0)
         const root = host()
         expect(renderBlock('chord', 'C\nvoicings: 3\nroot-string: 6', root).ok).toBe(true)
-        expect(titles(root)[0]).toBe('C, E-shape barre')
+        expect(titles(root)[0]).toBe('C, E shape')
         const triads = host()
         expect(renderBlock('chord', 'G\nvoicings: all\nstrings: 1-3', triads).ok).toBe(true)
         expect(titles(triads)[0]).toBe('G, Triad')

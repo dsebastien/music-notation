@@ -4,6 +4,7 @@
  */
 import {
     baseFretOf,
+    chartNoteName,
     parseFingers,
     parseFrets,
     renderGuitarDiagram,
@@ -53,6 +54,7 @@ import { parseBlockSource, parseRange, parseStrings, type BlockSource } from './
 import type { Instrument, PropertyNames } from './properties.js'
 import { labelField, marksOf, noteSetOf, orFail } from './note-set-field.js'
 import {
+    CAGED_SHAPES,
     isArpeggio,
     MAX_FRET,
     numberingOf,
@@ -519,7 +521,7 @@ function dotLabels(
         const member = set.members.find((m) => m.chroma === (strings[s]! + fret) % 12)
         if (!member) return null
         return value === 'notes' || member.interval === null
-            ? member.name
+            ? chartNoteName(member.name)
             : intervalLabel(member.interval)
     })
 }
@@ -721,8 +723,11 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const stringsText = field(block, 'strings')
     const count = (tuning ?? STANDARD_TUNING).length
     const strings = stringsText ? parseStrings(stringsText, count).map((n) => count - n) : undefined
+    // A single arpeggio shape is titled like the diagrams of `positions:` ("G7 arpeggio, A shape").
+    const shapeTitle =
+        arpeggio && at ? `${set.title} arpeggio, ${CAGED_SHAPES[at.n - 1]} shape` : undefined
     return renderFretboard(doc, set, {
-        title: field(block, 'title'),
+        title: field(block, 'title') ?? shapeTitle,
         ...(strings ? { strings } : {}),
         // Arpeggios (`arpeggio:`, or a chord's position) show intervals unless told otherwise.
         label: labelField(block, arpeggio || block.fields.has('arpeggio') ? 'intervals' : 'notes'),

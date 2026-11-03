@@ -159,6 +159,17 @@ describe('playback bar', () => {
         expect(calls[2]!.events).toEqual([{ midi: 64, time: 0, duration: 1.5 }])
     })
 
+    it('plays the mark around a clicked hit area (#69)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chord', 'A x02220', h, { play: { player } })
+        // Inside the open A string's circle, where only its hit area is.
+        const open = h.querySelector('.mn-open[data-midi="45"]')!
+        const hit = open.closest('.mn-mark')!.querySelector('.mn-hit')!
+        hit.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(calls[0]!.events).toEqual([{ midi: 45, time: 0, duration: 1.5 }])
+    })
+
     it('plays every note of a fretboard box, up and back down', () => {
         const { player, calls } = recorder()
         const h = host()

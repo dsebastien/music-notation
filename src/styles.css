@@ -223,8 +223,17 @@
     background: var(--mn-accent);
 }
 
-.mn-playable [data-midi] {
+.mn-playable [data-midi],
+.mn-playable .mn-hit {
     cursor: pointer;
+}
+
+/* A playable mark's hit area: invisible, but it takes clicks and taps (an open string's circle is
+   only a ring), centered on the mark. */
+.mn-svg .mn-hit {
+    fill: transparent;
+    stroke: none;
+    pointer-events: all;
 }
 
 /* A finger number or note name over a dot or key lets the click reach it. */
@@ -375,6 +384,14 @@
     stroke: var(--mn-root);
 }
 
+/* A muted string: an x as big and as dark as an open string's circle. */
+.mn-svg .mn-muted {
+    fill: none;
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+}
+
 /* A capo: a bar across the strings, in the text color but lighter than the dots. */
 .mn-svg .mn-capo {
     fill: var(--mn-fg);
@@ -396,7 +413,6 @@
     fill: var(--mn-muted);
 }
 
-.mn-svg .mn-muted,
 .mn-svg .mn-base-fret,
 .mn-svg .mn-fret-number,
 .mn-svg .mn-string-name {

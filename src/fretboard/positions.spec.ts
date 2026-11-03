@@ -52,7 +52,7 @@ describe('scale positions, checked against standard charts', () => {
 
     it('draws the CAGED E shape of C major and the first position of A minor', () => {
         expect(byString(scalePosition(scaleNoteSet('C major')!, STANDARD, 'caged', 1))).toEqual([
-            '8,10',
+            '7,8,10',
             '7,8,10',
             '7,9,10',
             '7,9,10',
@@ -76,8 +76,36 @@ describe('scale positions, checked against standard charts', () => {
             '9,10,12',
             '9,10,12',
             '10,12,13',
-            '10,12'
+            '10,12,13'
         ])
+    })
+
+    it('shows the same notes on both E strings in every CAGED position', () => {
+        // The review's cases: G major's E shape (F# at the 2nd fret), its D shape (C at the 8th).
+        const g = (n: number) =>
+            byString(scalePosition(scaleNoteSet('G major')!, STANDARD, 'caged', n))
+        expect(g(1)[0]).toBe('2,3,5')
+        expect(g(1)[5]).toBe('2,3,5')
+        expect(g(2)[0]).toBe('5,7,8')
+        expect(g(2)[5]).toBe('5,7,8')
+        const types = ['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian']
+        for (const root of ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']) {
+            for (const type of types) {
+                for (let n = 1; n <= 5; n++) {
+                    const cells = scalePosition(
+                        scaleNoteSet(`${root} ${type}`)!,
+                        STANDARD,
+                        'caged',
+                        n
+                    )
+                    const strings = byString(cells)
+                    expect(strings[5], `${root} ${type} ${n}`).toBe(strings[0])
+                    // No pitch twice.
+                    const pitches = cells!.map((c) => STANDARD[c.string]! + c.fret)
+                    expect(new Set(pitches).size, `${root} ${type} ${n}`).toBe(pitches.length)
+                }
+            }
+        }
     })
 
     it('keeps every note on the neck in keys at the nut', () => {
@@ -256,6 +284,8 @@ describe('positionOf', () => {
         expect(positionOf('2', undefined)).toEqual({ system: 'box', n: 2 })
         expect(positionOf(undefined, 'E')).toEqual({ system: 'caged', n: 1 })
         expect(positionOf(undefined, 'CAGED G')).toEqual({ system: 'caged', n: 5 })
+        expect(positionOf(undefined, 'G shape')).toEqual({ system: 'caged', n: 5 })
+        expect(positionOf(undefined, 'A-shape')).toEqual({ system: 'caged', n: 4 })
         expect(positionOf('3', '3NPS')).toEqual({ system: '3nps', n: 3 })
         expect(positionOf(undefined, undefined)).toBeNull()
         expect(() => positionOf('0', undefined)).toThrow('position must be a whole number')
