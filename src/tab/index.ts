@@ -174,6 +174,56 @@ function chooseStaves(staves: Staves, score: { tracks: { staves: StaffView[] }[]
     }
 }
 
+/** The part of alphaTab's score read and set to hide its default dynamics. */
+interface DynamicsView {
+    stylesheet: { hideDynamics: boolean }
+    tracks: {
+        staves: { bars: { voices: { beats: { dynamics: number; isRest: boolean }[] }[] }[] }[]
+    }[]
+}
+
+/** alphaTab's `DynamicValue.F`: the dynamic of every beat that has none written. */
+const DEFAULT_DYNAMIC = 5
+
+/**
+ * Hides the dynamics nobody wrote (#66): alphaTab gives every beat forte and draws an "f" at the
+ * start of each staff. They stay when a beat has another dynamic, or the alphaTex writes one
+ * (`{dy f}`) or `\showDynamics`.
+ */
+export function hideDefaultDynamics(score: DynamicsView, tex: string | null): void {
+    if (tex !== null && /\bdy\b|\\showdynamics/i.test(tex)) return
+    const written = score.tracks.some((track) =>
+        track.staves.some((staff) =>
+            staff.bars.some((bar) =>
+                bar.voices.some((voice) =>
+                    voice.beats.some((beat) => !beat.isRest && beat.dynamics !== DEFAULT_DYNAMIC)
+                )
+            )
+        )
+    )
+    if (!written) score.stylesheet.hideDynamics = true
+}
+
+/** The line alphaTab draws under every score. */
+const CREDIT = 'rendered by alphaTab'
+
+/**
+ * Hides the "rendered by alphaTab" line under each score (#66): a part of the drawing of its own,
+ * found by its text once drawn (SVG). alphaTab's license (MPL-2.0) doesn't ask for it on screen;
+ * its notice stays in alphaTab's script, loaded unmodified.
+ */
+function hideCredit(api: AT.AlphaTabApi, surface: HTMLElement): void {
+    const renderer = (api as Partial<AT.AlphaTabApi>).renderer
+    renderer?.partialRenderFinished?.on((e) => {
+        // alphaTab reuses the parts' elements: each one shows again unless it's the credit.
+        for (const part of surface.querySelectorAll<HTMLElement>('.at-surface > div')) {
+            if ((part as { layoutResultId?: string }).layoutResultId !== e.id) continue
+            const credit = typeof e.renderResult === 'string' && e.renderResult.includes(CREDIT)
+            part.style.visibility = credit ? 'hidden' : ''
+        }
+    })
+}
+
 /**
  * A CSS color as rgba(), whatever the theme wrote (oklch(), color(srgb …), names): alphaTab only
  * reads hex and rgb()/rgba(). Read through a canvas; null when it can't be.
@@ -494,7 +544,9 @@ export function renderTab(
             options.onApi?.(current)
             current.scoreLoaded.on((score) => {
                 chooseStaves(parsed.staves, score)
+                hideDefaultDynamics(score, parsed.file ? null : parsed.tex)
             })
+            hideCredit(current, surface)
             let bar: ReturnType<typeof playerBar> | null = null
             current.renderFinished.on(() => {
                 if (settled || gone) return

@@ -6,6 +6,7 @@ import {
     createSoundfontPlayer,
     exportGp7,
     exportMidi,
+    hideDefaultDynamics,
     parseTabSource,
     renderTab,
     scoreToAlphaTex,
@@ -101,6 +102,7 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
         soundFontLoaded = emitter()
         playerReady = emitter()
         scoreLoaded = emitter()
+        renderer = { partialRenderFinished: emitter() }
         loaded: unknown = null
         /** The score alphaTab would draw, after the scoreLoaded handlers ran. */
         score: alphaTab.model.Score | null = null
@@ -315,6 +317,59 @@ describe('renderTab', () => {
         expect(h.querySelector('.mn-error-message')?.textContent).toBe(
             'tab: line 2, column 4: Group not closed.'
         )
+    })
+})
+
+describe('tab blocks draw only what was written (#66)', () => {
+    const at = alphaTab as unknown as AlphaTabModule
+    const hidden = (tex: string, file = false) => {
+        const score = at.importer.ScoreLoader.loadAlphaTex(tex)
+        hideDefaultDynamics(score, file ? null : tex)
+        return score.stylesheet.hideDynamics
+    }
+
+    it('hides the forte alphaTab gives every beat, and keeps written dynamics', () => {
+        expect(hidden(':4 3.3 0.2 1.2 0.1')).toBe(true)
+        expect(hidden(':4 3.3{dy p} 0.2 1.2{dy f} 0.1')).toBe(false)
+        // Written forte, or asked for.
+        expect(hidden(':4 3.3{dy f} 0.2')).toBe(false)
+        expect(hidden('\\showDynamics\n:4 3.3 0.2')).toBe(false)
+        // A file: only its dynamics tell.
+        expect(hidden(':4 3.3 0.2', true)).toBe(true)
+        expect(hidden(':4 3.3{dy pp} 0.2', true)).toBe(false)
+    })
+
+    it('hides the "rendered by alphaTab" line, and shows a reused part again', async () => {
+        const mod = fakeAlphaTab()
+        let api: { renderer: { partialRenderFinished: { fire(e: unknown): void } } } | null = null
+        const h = document.createElement('div')
+        const result = renderTab('score', ':4 3.3', h, {
+            alphaTab: mod,
+            assets: {
+                scriptFile: null,
+                font: 'data:font/woff2;base64,',
+                soundFont: new Uint8Array()
+            },
+            onApi: (a) => (api = a as never)
+        })
+        await result.ready
+        expect(
+            (api as unknown as { score: alphaTab.model.Score }).score.stylesheet.hideDynamics
+        ).toBe(true)
+        // alphaTab's drawing: one element per part, in .at-surface.
+        const surface = h.querySelector('.mn-tab-surface')!
+        const parts = surface.appendChild(document.createElement('div'))
+        parts.className = 'at-surface'
+        const part = parts.appendChild(document.createElement('div'))
+        Object.assign(part, { layoutResultId: 'p1' })
+        api!.renderer.partialRenderFinished.fire({
+            id: 'p1',
+            renderResult: '<svg><text>rendered by alphaTab</text></svg>'
+        })
+        expect(part.style.visibility).toBe('hidden')
+        Object.assign(part, { layoutResultId: 'p2' })
+        api!.renderer.partialRenderFinished.fire({ id: 'p2', renderResult: '<svg><g/></svg>' })
+        expect(part.style.visibility).toBe('')
     })
 })
 
