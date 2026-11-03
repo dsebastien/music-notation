@@ -5,7 +5,7 @@ nav_order: 2
 
 # Blocks
 
-A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, `strum` ([strumming patterns](#strumming-patterns)), or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
+A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, `strum` ([strumming patterns](#strumming-patterns)), `progression` ([progressions](#progressions)), `circle` ([circle of fifths](#circle-of-fifths)), or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
 
 ## Chord
 
@@ -104,7 +104,7 @@ fingering: auto</code></pre></div>
 
 Rootless voicings leave out the root, which a bass player or the left hand plays. Form A is 3 5 7 9, form B is 7 9 3 5. Dominant chords use the 13th instead of the 5th, and keep an altered 9th or 5th when the symbol has one. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A) E G B D. They work for major, minor and dominant seventh and sixth chords; `labels: intervals` shows the added 9th and 13th.
 
-`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: with `pitches`, the keys are already given.
+`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: `pitches` already says which keys to play.
 
 ## Capo
 
@@ -495,7 +495,7 @@ frets: 0-5
 <div class="mn-live" markdown="0"><pre><code class="language-fretboard">scales-for: G D Em C
 frets: 0-5</code></pre></div>
 
-The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note, and notes can have octaves (`C4 E4 G4`).
+The best scale has the fewest notes outside the chords. When several tie, major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note, and notes can have octaves (`C4 E4 G4`).
 
 **A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint. `arpeggio:` works like `chord:` here. With `position:` or `positions:`, you get the scale's positions with the chord tones marked; a chord or arpeggio without `scale:` draws its own [arpeggio positions](#arpeggios).
 
@@ -804,7 +804,7 @@ Supported:
 - Song details: `{title}` (`{t}`), `{subtitle}` (`{st}`), `{artist}`, `{key}`, `{capo}`, `{tempo}`, `{time}`.
 - Sections: verse, chorus, bridge (`{start_of_verse}`, `{sov}`, `{soc}`, `{sob}`…), with an optional label (`{start_of_verse: Verse 2}`); tab and grid sections are shown as written.
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
-- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their place in it: in G moved down to F#, C becomes B and D/F# becomes C#/E#.
+- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their role in the new key: in G moved down to F#, C becomes B and D/F# becomes C#/E#.
 - Long lyric lines wrap on narrow screens.
 - Chord shapes and the chords used row: see below.
 
@@ -855,7 +855,7 @@ A `{define}` or `{chord}` with a mistake shows a message at the top of the chart
 
 ## Strumming patterns
 
-A strumming pattern on a beat grid: the counts (1 & 2 & …) under each slot, an arrow for each strum, accents, muted strums, and the chord changes above.
+A `strum` block draws a strumming pattern on a beat grid: the counts (1 & 2 & …) under each slot, an arrow for each strum, accents, muted strums, and the chord changes above.
 
 ````markdown
 ```strum
@@ -907,7 +907,7 @@ Write the pattern the way you find it on the web. Each slot is one subdivision o
 | `[G]`       | A chord change on the next slot (a symbol, or words: `[A Minor]`).         |
 | `\|`        | A bar line. Each line and each part between bar lines is one or more bars. |
 
-A line of chords above a pattern line puts each chord on the slot under it (on a gap of `D DU UDU`, on the rest there). This draws the same as the first example:
+A line of chords above a pattern line puts each chord on the slot under it (over a gap in `D DU UDU`, on the rest that the gap stands for). This draws the same as the first example:
 
 ```text
 G   C
@@ -928,4 +928,4 @@ A line of only `D`s reads as strums: write `[D]` in the pattern instead. A line 
 
 A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which subdivision would fit.
 
-In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), volume and sound. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low; accents are louder, ghost strums soft, muted strums short. Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the next time round of the loop.
+In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), volume and sound. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low; accents are louder, ghost strums soft, muted strums short. Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the loop's next pass.
