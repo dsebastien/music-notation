@@ -6,6 +6,7 @@
 import { fingerVoicing, generateVoicings, type GeneratedVoicing } from './generate.js'
 import { STANDARD_TUNING } from './guitar.js'
 import { noteOf } from '../theory/pitch.js'
+import type { VoicingLookup } from '../voicings/index.js'
 
 export interface TransitionStep {
     voicing: GeneratedVoicing
@@ -162,32 +163,125 @@ export interface ProgressionStep extends Partial<Omit<TransitionStep, 'voicing'>
     voicing: GeneratedVoicing
 }
 
+export interface ProgressionOptions {
+    /** Open-string pitches (MIDI), lowest string first; standard guitar by default. */
+    tuning?: number[]
+    /** How many of each chord's easiest voicings to weigh (12 by default). */
+    candidates?: number
+    /** The voicing database (see `/voicings`): its voicings of each chord are weighed too, and
+     * preferred. Only used in standard tuning. */
+    voicings?: VoicingLookup
+}
+
+/** How many of a chord's database voicings are weighed. */
+const DATABASE_VOICINGS = 6
+
+/** Frets the lowest fretted note may sit at before a shape counts as far up the neck. */
+const HIGH_POSITION = 5
+
+/** How much a shape's cost weighs against the moves in a progression: a guitarist reads the
+ * shapes first, so a standard shape is worth a few more fingers to place. */
+const SHAPE_WEIGHT = 2
+
+/** The shapes teachers write first. */
+const TEACHER_SHAPES = new Set<GeneratedVoicing['shape']>([
+    'Open',
+    'E-shape barre',
+    'A-shape barre'
+])
+
 /**
- * The voicing of each chord that makes the whole progression easiest: the shapes' ease and the
- * moves between them, together (each chord's easiest 12 voicings are weighed). The first step has
- * no move. Empty when a chord is unknown.
+ * What a shape costs in a progression, besides its moves: its ease; a penalty for each fret it
+ * sits above the 5th (teachers write the shapes near the nut); penalties for a partial shape (no
+ * fifth, the highest string muted, fewer than five strings outside the open chords), a reach, an
+ * open string inside the shape, and a shape other than an open chord or an E- or A-shape barre (a
+ * power chord: its bass above the 5th string); a bonus for the database's voicings (the standard
+ * shapes).
+ */
+function shapeCost(voicing: GeneratedVoicing, fromDatabase: boolean): number {
+    const { frets, shape, reasons } = voicing
+    let cost = 0.4 * voicing.difficulty
+    cost += 0.6 * Math.max(0, lowestFret(frets) - HIGH_POSITION)
+    if (reasons.includes('no fifth')) cost += 1.5
+    if (reasons.includes('reach')) cost += 1
+    if (reasons.includes('open string inside the shape')) cost += 1
+    if (shape === 'Power chord') {
+        // Power chords sit on the low strings.
+        cost += 0.8 * Math.max(0, frets.findIndex((f) => f !== null) - 1)
+    } else {
+        if (frets[frets.length - 1] === null) cost += 1
+        const sounding = frets.filter((f) => f !== null).length
+        if (shape !== 'Open') cost += 0.6 * Math.max(0, Math.min(5, frets.length - 1) - sounding)
+        if (!TEACHER_SHAPES.has(shape)) cost += 0.5
+    }
+    if (fromDatabase) cost -= 0.6
+    return cost
+}
+
+interface Candidate {
+    voicing: GeneratedVoicing
+    cost: number
+}
+
+/** A chord's voicings to weigh: its easiest, and the database's (when it has them). */
+function candidatesOf(
+    symbol: string,
+    tuning: number[],
+    count: number,
+    voicings: VoicingLookup | undefined
+): Candidate[] {
+    const all = generateVoicings(symbol, { tuning })
+    const picked = new Map<GeneratedVoicing, boolean>()
+    for (const v of all.slice(0, count)) picked.set(v, false)
+    if (voicings && sameTuning(tuning, STANDARD_TUNING)) {
+        const byFrets = new Map(all.map((v) => [v.frets.join(','), v]))
+        for (let i = 0; i < DATABASE_VOICINGS; i++) {
+            const found = voicings(symbol, i)
+            if (!found) break
+            // Only shapes the generator plays too: root in the bass, a hand can hold them.
+            const v = byFrets.get(found.frets.join(','))
+            if (v) picked.set(v, true)
+        }
+    }
+    return [...picked].map(([voicing, db]) => ({ voicing, cost: shapeCost(voicing, db) }))
+}
+
+const sameTuning = (a: readonly number[], b: readonly number[]) =>
+    a.length === b.length && a.every((p, i) => p === b[i])
+
+/**
+ * The voicing of each chord that makes the whole progression easiest: the shapes and the moves
+ * between them, together (each chord's easiest 12 voicings are weighed, and the voicing database's
+ * when given). Shapes near the nut, full shapes and the database's standard ones are preferred.
+ * The first step has no move. Empty when a chord is unknown.
  */
 export function smoothProgression(
     chords: readonly string[],
-    options: { tuning?: number[]; candidates?: number } = {}
+    options: ProgressionOptions = {}
 ): ProgressionStep[] {
     const tuning = options.tuning ?? STANDARD_TUNING
-    const lists = chords.map((c) =>
-        generateVoicings(c, { tuning }).slice(0, options.candidates ?? 12)
-    )
+    const count = options.candidates ?? 12
+    const cache = new Map<string, Candidate[]>()
+    const lists = chords.map((c) => {
+        let list = cache.get(c)
+        if (!list) {
+            list = candidatesOf(c, tuning, count, options.voicings)
+            cache.set(c, list)
+        }
+        return list
+    })
     if (!chords.length || lists.some((l) => !l.length)) return []
     // Cheapest way to end on each voicing of each chord, and where it came from.
-    let costs = lists[0]!.map((v) => 0.4 * v.difficulty)
+    let costs = lists[0]!.map((c) => SHAPE_WEIGHT * c.cost)
     const back: number[][] = []
     for (let i = 1; i < lists.length; i++) {
         const prev = lists[i - 1]!
-        const fingersOf = prev.map((v) => v.fingers)
-        const next = lists[i]!.map((v) => {
+        const next = lists[i]!.map(({ voicing, cost }) => {
             let best = Infinity
             let from = 0
             prev.forEach((p, j) => {
-                const step = move(p.frets, fingersOf[j]!, v, tuning)
-                const total = costs[j]! + score(step, v)
+                const step = move(p.voicing.frets, p.voicing.fingers, voicing, tuning)
+                const total = costs[j]! + step.movement + SHAPE_WEIGHT * cost
                 if (total < best) {
                     best = total
                     from = j
@@ -201,9 +295,9 @@ export function smoothProgression(
     const picks: number[] = [costs.indexOf(Math.min(...costs))]
     for (let i = back.length - 1; i >= 0; i--) picks.unshift(back[i]![picks[0]!]!)
     return picks.map((pick, i) => {
-        const voicing = lists[i]![pick]!
+        const voicing = lists[i]![pick]!.voicing
         if (i === 0) return { chord: chords[0]!, voicing }
-        const previous = lists[i - 1]![picks[i - 1]!]!
+        const previous = lists[i - 1]![picks[i - 1]!]!.voicing
         return {
             chord: chords[i]!,
             voicing,

@@ -42,6 +42,7 @@ import {
 } from '../chord/generate.js'
 import { parseFingers, parseFrets } from '../chord/guitar.js'
 import { smoothProgression, transition } from '../chord/transitions.js'
+import type { VoicingLookup } from '../voicings/index.js'
 import { inversionName, keyTriads, triadVoicings, type Triad } from '../chord/triads.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
@@ -108,7 +109,7 @@ export function renderBlock(
             ? (splitParts(text) ??
               modeParts(language, text) ??
               positionParts(language, text) ??
-              transitionParts(language, text) ??
+              transitionParts(language, text, options.voicings) ??
               triadParts(language, text) ??
               voicingParts(language, text))
             : null
@@ -659,7 +660,11 @@ function heldChord(text: string): {
  * marked; `progression: G D Em C` draws the voicings that make the whole progression easiest.
  * Null when the block has neither.
  */
-function transitionParts(language: DiagramLanguage, source: string): string[] | null {
+function transitionParts(
+    language: DiagramLanguage,
+    source: string,
+    voicings?: VoicingLookup
+): string[] | null {
     if (language !== 'chord') return null
     let block: BlockSource
     try {
@@ -736,7 +741,10 @@ function transitionParts(language: DiagramLanguage, source: string): string[] | 
         if (names.length < 2) throw new Error('progression: give two chords or more, e.g. G D Em C')
         if (names.length > MAX_DIAGRAMS)
             throw new Error(`progression: at most ${MAX_DIAGRAMS} chords`)
-        const steps = smoothProgression(names.map(read), options)
+        const steps = smoothProgression(names.map(read), {
+            ...options,
+            ...(voicings ? { voicings } : {})
+        })
         if (!steps.length) throw new Error('No playable voicings for this progression')
         return [
             ...(header.length ? [header.join('\n')] : []),

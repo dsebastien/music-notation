@@ -252,7 +252,7 @@ to: Am
 <div class="mn-live" markdown="0"><pre><code class="language-chord">from: C x32010
 to: Am</code></pre></div>
 
-`count: 5` shows more voicings. Without frets (`from: C`), the block starts from the chord's easiest voicing. For a whole progression, `progression:` picks the voicings that make it easiest overall, the shapes and the moves together:
+`count: 5` shows more voicings. Without frets (`from: C`), the block starts from the chord's easiest voicing. For a whole progression, `progression:` picks the voicings that make it easiest overall, the shapes and the moves together. It prefers the standard shapes a teacher would write: open chords and barre chords near the nut, with the root in the bass:
 
 ````markdown
 ```chord

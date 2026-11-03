@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { smoothProgression, transition } from './transitions.js'
 import { renderBlock } from '../render/render-block.js'
+import { lookupGuitarVoicing, type VoicingLookup } from '../voicings/index.js'
 
 const frets = (text: string) =>
     (/-/.test(text) ? text.split('-') : [...text]).map((t) => (t === 'x' ? null : Number(t)))
@@ -59,6 +60,98 @@ describe('smoothProgression', () => {
         expect(steps[1]!.anchors?.length).toBe(2)
     })
 
+    const shapes = (chords: string, options: { voicings?: VoicingLookup } = {}) =>
+        smoothProgression(chords.split(' '), options).map((s) => show(s.voicing.frets))
+
+    it('writes the shapes a teacher would, near the nut', () => {
+        for (const options of [{}, { voicings: lookupGuitarVoicing }]) {
+            expect(shapes('F# C# D#m B', options)).toEqual(['244322', 'x46664', 'x68876', 'x24442'])
+            expect(shapes('E B C#m A', options)).toEqual(['022100', 'x24442', 'x46654', 'x02220'])
+            expect(shapes('D A Bm G', options)).toEqual(['xx0232', 'x02220', 'x24432', '320003'])
+            expect(shapes('Bb F Gm Eb', options)).toEqual(['x13331', '133211', '355333', 'x68886'])
+            expect(shapes('Ab Eb Fm Db', options)).toEqual(['466544', 'x68886', '133111', 'x46664'])
+            expect(shapes('B F# G#m E', options)).toEqual(['x24442', '244322', '466444', '022100'])
+            expect(shapes('Dm Bb F C', options)).toEqual(['xx0231', 'x13331', '133211', 'x32010'])
+            expect(shapes('D Bm Em A7', options)).toEqual(['xx0232', 'x24432', '022000', 'x02020'])
+        }
+        // The database's open B7; the generator alone prefers the A-shape barre.
+        expect(shapes('Em Am B7 Em', { voicings: lookupGuitarVoicing })).toEqual([
+            '022000',
+            'x02210',
+            'x21202',
+            '022000'
+        ])
+        expect(shapes('Em Am B7 Em')[2]).toBe('x24242')
+        expect(shapes('Gm Cm D7 Gm', { voicings: lookupGuitarVoicing })).toEqual([
+            '355333',
+            'x35543',
+            'xx0212',
+            '355333'
+        ])
+    })
+
+    it('keeps full shapes with the root in the bass in every key', () => {
+        const progressions = [
+            'G D Em C',
+            'C G Am F',
+            'D A Bm G',
+            'A E F#m D',
+            'E B C#m A',
+            'F C Dm Bb',
+            'Bb F Gm Eb',
+            'F# C# D#m B',
+            'Db Ab Bbm Gb',
+            'Eb Bb Cm Ab',
+            'Am F C G',
+            'Em C G D',
+            'Bm G D A',
+            'C#m A E B',
+            'Gm Eb Bb F',
+            'Fm Db Ab Eb'
+        ]
+        for (const options of [{}, { voicings: lookupGuitarVoicing }]) {
+            for (const progression of progressions) {
+                for (const { chord, voicing } of smoothProgression(
+                    progression.split(' '),
+                    options
+                )) {
+                    const where = `${chord} ${show(voicing.frets)} in ${progression}`
+                    const frets = voicing.frets.filter((f): f is number => f !== null)
+                    expect(Math.max(...frets), where).toBeLessThanOrEqual(9)
+                    expect(voicing.inversion, where).toBe(0)
+                    expect(voicing.reasons, where).not.toContain('no fifth')
+                    expect(voicing.frets.at(-1), where).not.toBeNull()
+                    expect(frets.length >= 5 || voicing.shape === 'Open', where).toBe(true)
+                }
+            }
+        }
+    })
+
+    it('weighs the database voicings the generator can play, in standard tuning only', () => {
+        const asked: string[] = []
+        const spy: VoicingLookup = (symbol, index) => {
+            asked.push(symbol)
+            return lookupGuitarVoicing(symbol, index)
+        }
+        // The database's first B has F# in the bass: never picked.
+        expect(shapes('E B', { voicings: spy })).toEqual(['022100', 'x24442'])
+        expect(asked).toContain('B')
+        asked.length = 0
+        const dropD = [38, 45, 50, 55, 59, 64]
+        expect(smoothProgression(['D', 'G'], { tuning: dropD, voicings: spy })).toHaveLength(2)
+        expect(asked).toEqual([])
+    })
+
+    it('stays fast on 32 chords', () => {
+        const chords =
+            'C Am F G Dm7 G7 Cmaj7 E7 Am Dm Bb F C/E G/B F#m7b5 B7 Em Ebmaj7 Ab Db Gb B E A D G C#m F#m G#m D#m Bbm Fm'.split(
+                ' '
+            )
+        const start = performance.now()
+        expect(smoothProgression(chords, { voicings: lookupGuitarVoicing })).toHaveLength(32)
+        expect(performance.now() - start).toBeLessThan(1500)
+    })
+
     it('returns nothing when a chord is unknown', () => {
         expect(smoothProgression(['C', 'Hm'])).toEqual([])
         expect(smoothProgression([])).toEqual([])
@@ -86,6 +179,19 @@ describe('transition blocks', () => {
         expect(renderBlock('chord', 'progression: G D Em C\ncolumns: 4', h).ok).toBe(true)
         expect(titles(h)).toEqual(['G', 'D', 'Em', 'C'])
         expect(renderBlock('chord', 'progression: C, A Minor, F', host()).ok).toBe(true)
+    })
+
+    it('weighs the voicing lookup in progressions', () => {
+        const asked = new Set<string>()
+        const voicings: VoicingLookup = (symbol, index) => {
+            asked.add(symbol)
+            return lookupGuitarVoicing(symbol, index)
+        }
+        expect(renderBlock('chord', 'progression: F# C# D#m B', host(), { voicings }).ok).toBe(true)
+        expect([...asked].sort()).toEqual(['B', 'C#', 'D#m', 'F#'])
+        asked.clear()
+        expect(renderBlock('progression', 'F# C# D#m B', host(), { voicings }).ok).toBe(true)
+        expect([...asked].sort()).toEqual(['B', 'C#', 'D#m', 'F#'])
     })
 
     it('says what to change', () => {

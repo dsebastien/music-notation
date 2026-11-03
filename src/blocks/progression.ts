@@ -7,6 +7,7 @@ import { html } from '../render/dom.js'
 import { splitParts, type BlockSource } from './block-source.js'
 import type { DiagramRenderer, RenderOptions } from './renderers.js'
 import { smoothProgression } from '../chord/transitions.js'
+import type { VoicingLookup } from '../voicings/index.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { pianoOptionsOf, pianoPitches, type PianoVoicingOptions } from '../keyboard/piano-chord.js'
 import { voiceLead } from '../keyboard/voice-leading.js'
@@ -197,10 +198,17 @@ function pianoKeysOf(symbols: string[], options: PianoVoicingOptions): (number[]
 }
 
 /** Guitar voicings that make the section easiest to play, or null when one can't be found. */
-function guitarVoicings(symbols: string[], tuningText: string | undefined) {
+function guitarVoicings(
+    symbols: string[],
+    tuningText: string | undefined,
+    voicings: VoicingLookup | undefined
+) {
     const tuning = tuningText ? parseTuning(tuningText) : null
     if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
-    const steps = smoothProgression(symbols, tuning ? { tuning } : {})
+    const steps = smoothProgression(symbols, {
+        ...(tuning ? { tuning } : {}),
+        ...(voicings ? { voicings } : {})
+    })
     return steps.length === symbols.length ? steps : null
 }
 
@@ -257,7 +265,10 @@ function renderSection(
     // A value that can't be read is the block's mistake, not each chord's.
     const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
     const symbols = chords.map((c) => c.symbol)
-    const guitar = diagrams && !piano ? guitarVoicings(symbols, field(block, 'tuning')) : null
+    const guitar =
+        diagrams && !piano
+            ? guitarVoicings(symbols, field(block, 'tuning'), options.voicings)
+            : null
     const pitches = diagrams && piano && led ? voiceLead(symbols) : null
     // Piano keyboards of a row share one range, so they have the same width.
     const range =

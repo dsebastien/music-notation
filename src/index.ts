@@ -71,7 +71,8 @@ export {
     smoothProgression,
     type TransitionStep,
     type TransitionOptions,
-    type ProgressionStep
+    type ProgressionStep,
+    type ProgressionOptions
 } from './chord/transitions.js'
 export {
     triadVoicings,
