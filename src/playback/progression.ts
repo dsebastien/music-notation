@@ -9,7 +9,7 @@ import { parseTuning } from '../fretboard/tuning.js'
 import { pianoVoicing } from '../keyboard/piano-chord.js'
 import { readChord } from '../theory/chord-name.js'
 import type { VoicingLookup } from '../voicings/index.js'
-import { parseStrum, type StrumPattern } from '../strum/pattern.js'
+import { isCompound, parseStrum, type StrumPattern } from '../strum/pattern.js'
 import {
     runPasses,
     strumEvents,
@@ -46,6 +46,8 @@ export interface ProgressionEventOptions {
     bpm?: number
     /** Beats in a bar, 1 to 16; 4 by default. A pattern's own time signature wins. */
     beatsPerBar?: number
+    /** The note that counts as a beat (4 by default; 8 in 6/8, counted in dotted quarters). */
+    beatUnit?: number
     /** `beats` (a down strum on each beat, by default), `bar` (one strum a bar), `arpeggio`. */
     strum?: ProgressionStrum
     /** A strumming pattern played in each bar instead (its bars in turn, its chords ignored). */
@@ -66,8 +68,6 @@ export interface ProgressionEventOptions {
 const CLICK = { first: 88, beat: 84, other: 81, duration: 0.05 }
 /** The metronome sits under the music; the count-in is as loud as the strum bar's. */
 const CLICK_VELOCITY = { first: 92, beat: 76, other: 62 }
-/** Arpeggios: eighth notes. */
-const ARPEGGIO_SLOTS = 2
 
 /** A strumming pattern's bars, each its slots (as many slots as a bar holds). */
 function patternBars(pattern: StrumPattern): StrumPattern['slots'][] {
@@ -79,12 +79,14 @@ function patternBars(pattern: StrumPattern): StrumPattern['slots'][] {
 }
 
 /**
- * The score of a progression strummed: every bar's slots with its chord's notes. `beats` is a down
- * strum on each beat, `bar` one down strum ringing the bar; a pattern plays its bars in turn.
+ * The score of a progression strummed: every bar's slots (one a written beat) with its chord's
+ * notes. `beats` is a down strum on each counted beat (1 and 4 in 6/8), `bar` one down strum
+ * ringing the bar; a pattern plays its bars in turn.
  */
 function strumScoreOf(
     bars: readonly ProgressionBar[],
     beatsPerBar: number,
+    perPulse: number,
     strum: Exclude<ProgressionStrum, 'arpeggio'>,
     pattern: StrumPattern | null
 ): StrumScore {
@@ -109,12 +111,15 @@ function strumScoreOf(
     return {
         slotsPerBeat: 1,
         beatsPerBar,
-        slotsPerPulse: 1,
+        slotsPerPulse: perPulse,
         swing: null,
         slots: bars.flatMap((bar) =>
             Array.from({ length: beatsPerBar }, (_, beat) => ({
                 ...plain,
-                stroke: strum === 'bar' && beat > 0 ? ('rest' as const) : ('down' as const),
+                stroke:
+                    (strum === 'bar' && beat > 0) || beat % perPulse
+                        ? ('rest' as const)
+                        : ('down' as const),
                 pitches: [...bar.pitches]
             }))
         )
@@ -151,34 +156,39 @@ export function progressionEvents(
     const beatsPerBar = pattern
         ? pattern.beatsPerBar
         : Math.min(16, Math.max(1, Math.round(options.beatsPerBar ?? 4) || 4))
+    const beatUnit = pattern ? pattern.beatUnit : (options.beatUnit ?? 4)
     const strum = options.strum ?? 'beats'
-    const compound = pattern ? (pattern.slotsPerPulse ?? 1) > pattern.slotsPerBeat : false
+    const compound = isCompound(beatsPerBar, beatUnit)
+    // Written beats in a counted one: three in compound time (6/8 counts dotted quarters).
+    const perPulse = compound ? 3 : 1
     const bpm = tempoOf(options.bpm, compound)
     const tail = Math.max(0, options.tail ?? 1)
     const spread = options.spread
-    let events: NoteEvent[]
-    let start: number
+    // The written beat (an 8th in 6/8).
     let beat: number
-    let perPulse: number
+    let events: NoteEvent[]
     if (strum === 'arpeggio' && !pattern) {
-        beat = 60 / bpm
-        perPulse = 1
-        start = options.countIn ? beatsPerBar * beat : 0
-        const slot = beat / ARPEGGIO_SLOTS
+        beat = 60 / bpm / perPulse
+        const start = options.countIn ? beatsPerBar * beat : 0
+        // Eighths: two a quarter, one an eighth in x/8.
+        const slotsPerBeat = beatUnit >= 8 ? 1 : 8 / beatUnit
+        const slot = beat / slotsPerBeat
         const end = start + bars.length * beatsPerBar * beat
         events = []
         bars.forEach((bar, b) => {
             const order = arpeggioOrder(bar.pitches)
             const barStart = start + b * beatsPerBar * beat
             const barEnd = b === bars.length - 1 ? end + tail : barStart + beatsPerBar * beat
-            for (let k = 0; k < beatsPerBar * ARPEGGIO_SLOTS && order.length; k++) {
+            const slots = Math.max(1, Math.round(beatsPerBar * slotsPerBeat))
+            for (let k = 0; k < slots && order.length; k++) {
                 const time = barStart + k * slot
+                const counted = k % (slotsPerBeat * perPulse) === 0
                 // Each note rings to the bar's end (let ring), as a picked chord does.
                 events.push({
                     midi: order[k % order.length]!,
                     time,
                     duration: Math.max(0.06, barEnd - time),
-                    velocity: k === 0 ? 92 : k % ARPEGGIO_SLOTS === 0 ? 80 : 72
+                    velocity: k === 0 ? 92 : counted ? 80 : 72
                 })
             }
         })
@@ -188,14 +198,12 @@ export function progressionEvents(
         const score = strumScoreOf(
             bars,
             beatsPerBar,
+            perPulse,
             strum === 'arpeggio' ? 'beats' : strum,
             pattern
         )
         const pulse = score.slotsPerPulse ?? score.slotsPerBeat
-        const slot = 60 / bpm / pulse
-        beat = slot * score.slotsPerBeat
-        perPulse = pulse / score.slotsPerBeat
-        start = options.countIn ? beatsPerBar * beat : 0
+        beat = (60 / bpm / pulse) * score.slotsPerBeat
         events = strumEvents(score, {
             bpm,
             countIn: options.countIn ?? false,
@@ -204,10 +212,12 @@ export function progressionEvents(
             ...(spread === undefined ? {} : { spread })
         }).events
     }
+    const start = options.countIn ? beatsPerBar * beat : 0
     const barLength = beatsPerBar * beat
+    // The metronome clicks the counted beats (1 and 4 in 6/8).
     if (options.click ?? true)
         bars.forEach((_, b) => {
-            for (let i = 0; i < beatsPerBar; i++)
+            for (let i = 0; i < beatsPerBar; i += perPulse)
                 events.push(clickAt(start + b * barLength + i * beat, i, perPulse, false))
         })
     events.sort((a, b) => a.time - b.time)
@@ -227,6 +237,8 @@ export interface PlayProgressionOptions {
     bpm?: number
     /** Beats in a bar, 1 to 16; 4 by default. A pattern's time signature wins. */
     beatsPerBar?: number
+    /** The note that counts as a beat: 4 by default; 8 in 6/8 (counted in dotted quarters). */
+    beatUnit?: number
     /** `beats` (by default), `bar` or `arpeggio`. */
     strum?: ProgressionStrum
     /** A strumming pattern (a ```strum block's text, or parsed) played in every bar. */
@@ -326,7 +338,7 @@ export interface ProgressionSettings extends StrumSettings {
  */
 export function runProgression(
     bars: readonly ProgressionBar[],
-    options: Pick<ProgressionEventOptions, 'beatsPerBar' | 'strum' | 'pattern'>,
+    options: Pick<ProgressionEventOptions, 'beatsPerBar' | 'beatUnit' | 'strum' | 'pattern'>,
     player: () => NotePlayer,
     settings: () => ProgressionSettings,
     timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
@@ -393,7 +405,9 @@ export function playProgression(
     const win = options.window ?? (typeof window === 'undefined' ? undefined : window)
     const player = options.player ?? (win ? lightPlayer(win) : null)
     if (!player) throw new Error('playProgression needs a player or a window')
-    const compound = pattern ? (pattern.slotsPerPulse ?? 1) > pattern.slotsPerBeat : false
+    const compound = pattern
+        ? pattern.compound
+        : isCompound(options.beatsPerBar ?? 4, options.beatUnit ?? 4)
     const settings: ProgressionSettings = {
         bpm: tempoOf(options.bpm ?? pattern?.tempo, compound),
         countIn: options.countIn ?? false,
@@ -408,6 +422,7 @@ export function playProgression(
         bars,
         {
             ...(options.beatsPerBar === undefined ? {} : { beatsPerBar: options.beatsPerBar }),
+            ...(options.beatUnit === undefined ? {} : { beatUnit: options.beatUnit }),
             ...(options.strum ? { strum: options.strum } : {}),
             pattern
         },

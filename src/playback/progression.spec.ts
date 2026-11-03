@@ -102,6 +102,21 @@ describe('progressionEvents', () => {
         expect(starts).toEqual([0, 1, 1.5, 2, 2.5, 3, 4, 4.5, 5, 5.5])
     })
 
+    it('counts dotted quarters in 6/8: strums and clicks on 1 and 4, arpeggios in eighths', () => {
+        const six = { bpm: 60, beatsPerBar: 6, beatUnit: 8, tail: 0 }
+        const { events, length } = progressionEvents(bars, six)
+        // Two dotted quarters a bar at 60: 2 s a bar.
+        expect(length).toBe(4)
+        expect(clicks(events).map((e) => e.time)).toEqual([0, 1, 2, 3])
+        expect([...new Set(notes(events).map((e) => Math.floor(e.time * 10) / 10))]).toEqual([
+            0, 1, 2, 3
+        ])
+        const picked = notes(progressionEvents(bars, { ...six, strum: 'arpeggio' }).events)
+        // Six eighths a bar, a third of a second each.
+        expect(picked.filter((e) => e.time < 2)).toHaveLength(6)
+        expect(picked[1]!.time).toBeCloseTo(1 / 3)
+    })
+
     it('plays a piano chord as a block', () => {
         const piano = progressionPitches('C', 'piano')
         const { events } = progressionEvents([{ chord: 'C', pitches: piano }], {
