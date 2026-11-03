@@ -341,10 +341,10 @@ describe('scales and modes', () => {
         const own = host()
         renderBlock('fretboard', 'arpeggio: G7\nshape: A\ntitle: Dominant', own)
         expect(titles(own)).toEqual(['Dominant'])
-        // Scales keep no title unless given one.
+        // Scales are titled the same way (#73).
         const scale = host()
         renderBlock('fretboard', 'C major\nshape: E', scale)
-        expect(titles(scale)).toEqual([])
+        expect(titles(scale)).toEqual(['C major, E shape'])
         const row = host()
         expect(renderBlock('fretboard', 'Am7\npositions: all\ncolumns: 3', row).error).toBeNull()
         expect(titles(row)).toEqual(

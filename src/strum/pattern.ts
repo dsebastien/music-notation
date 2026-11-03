@@ -56,6 +56,12 @@ export interface StrumPattern {
     /** Open strings for playback (`tuning:`), as written; null for standard guitar. */
     tuning: string | null
     title: string | null
+    /**
+     * How strums written alone were read when the hand's motion placed them and the bar ends with
+     * whole beats of no strum (`D U D U` in triplets: `D - U D - U` and 2 empty beats), with what
+     * to write instead; null otherwise (#73).
+     */
+    note: string | null
 }
 
 /** Bounds that keep a pattern quick to draw and to hear. */
@@ -509,14 +515,14 @@ export function parseStrum(source: string): StrumPattern {
         throw new Error('Write a strumming pattern, e.g. D - D U - U D U (or D DU UDU)')
 
     // Each segment (a line, or a part between bar lines) is placed on its own.
-    const placed: (Placed & { line: number })[] = []
+    const placed: (Placed & { line: number; start: number })[] = []
     let total = 0
     for (const segment of segments) {
         const here = place(segment, total, perBar, slotsPerBeat, compound)
         if (!here) throw countError(segment.units, beatsPerBar, beatUnit, subdivision)
         if ('spill' in here)
             throw spillError(segment.units, here.spill, beatsPerBar, beatUnit, subdivision)
-        placed.push({ ...here, line: segment.line })
+        placed.push({ ...here, line: segment.line, start: total })
         total = here.end
         if (total > perBar * MAX_STRUM_BARS) break
     }
@@ -560,7 +566,23 @@ export function parseStrum(source: string): StrumPattern {
         }
     }
 
+    // Strums the hand's motion moved, then whole beats of no strum to the end of the bar: say so.
+    let note: string | null = null
+    for (const p of placed) {
+        if (!p.gaps.some(Boolean) || !p.slots.length) continue
+        const last = Math.max(...p.slots)
+        const empty = Math.floor((p.end - last - 1) / slotsPerBeat)
+        if (empty < 1) continue
+        const read = slots
+            .slice(p.start, last + 1)
+            .map((s) => symbolOf(s))
+            .join(' ')
+        note = `Read as ${read}, then ${empty} beat${empty === 1 ? '' : 's'} with no strum: write a symbol for every slot (- for no strum) to place the strums yourself.`
+        break
+    }
+
     return {
+        note,
         slots,
         beatsPerBar,
         beatUnit,

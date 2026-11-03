@@ -251,3 +251,22 @@ describe('countOf', () => {
         expect(countOf(9, 2, 8)).toBe('&')
     })
 })
+
+describe('a pattern the hand places with empty beats after it (#73)', () => {
+    it('says how it was read', () => {
+        const p = parseStrum('D U D U\nsubdivision: triplets')
+        expect(formatStrum(p)).toBe('D - U D - U - - - - - -')
+        expect(p.note).toBe(
+            'Read as D - U D - U, then 2 beats with no strum: write a symbol for every slot (- for no strum) to place the strums yourself.'
+        )
+        expect(parseStrum('D D U').note).toContain('then 2 beats with no strum')
+    })
+
+    it('stays quiet when every slot is written, or nothing was moved', () => {
+        expect(parseStrum('D - U D - U - - - - - -\nsubdivision: triplets').note).toBeNull()
+        expect(parseStrum('D DU UDU').note).toBeNull()
+        // One strum a bar, or strums one a slot: nothing was placed by the hand's motion.
+        expect(parseStrum('D').note).toBeNull()
+        expect(parseStrum('D U D U').note).toBeNull()
+    })
+})

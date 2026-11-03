@@ -41,6 +41,25 @@ export function svgLabel(
     return svgText(doc, text, { 'class': cls, x, 'y': y + 4, 'text-anchor': anchor })
 }
 
+/**
+ * The text in a note dot of radius `r`: a label of three characters or more (bb7, #11, b13) is
+ * smaller and squeezed to the dot's inner width, so it never passes the dot's edge (#73).
+ */
+export function dotLabel(
+    doc: Document,
+    text: string,
+    point: [number, number],
+    r: number
+): SVGElement {
+    const label = svgLabel(doc, text, point, 'mn-dot-text')
+    if ([...text].length >= 3) {
+        label.classList.add('mn-dot-text-long')
+        label.setAttribute('textLength', String(2 * r - 2))
+        label.setAttribute('lengthAdjust', 'spacingAndGlyphs')
+    }
+    return label
+}
+
 /** A <line> between two points. */
 export function svgLine(
     doc: Document,
