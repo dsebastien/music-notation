@@ -56,6 +56,31 @@ describe('strum playback bar', () => {
         )
     })
 
+    it('counts the tempo in dotted quarters in 6/8 (60 by default) and plays the swing', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('strum', 'D D U D D U\ntime: 6/8', h, { play: { player } })
+        const tempo = h.querySelector('input[aria-label="Tempo (BPM)"]') as HTMLInputElement
+        expect(tempo.value).toBe('60')
+        expect(tempo.previousElementSibling?.textContent).toBe('♩.')
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // 8ths at 180 a minute: beat 4 at one second.
+        const starts = [...new Set(calls[0]!.events.map((e) => Math.round(e.time * 100) / 100))]
+        expect(starts.some((t) => Math.abs(t - 1) < 0.001)).toBe(true)
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+
+        const swung = recorder()
+        const h2 = host()
+        renderBlock('strum', 'D U D U D U D U\nswing: yes\ntempo: 60', h2, {
+            play: { player: swung.player }
+        })
+        ;(h2.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // The up strum (high E first) two thirds into the beat.
+        const up = swung.calls[0]!.events.find((e) => e.time > 0.1)!
+        expect(up.time).toBeCloseTo(2 / 3)
+        ;(h2.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+    })
+
     it('lights the slot that plays, and unlights it on stop', () => {
         let start: (() => void) | undefined
         const player: NotePlayer = {

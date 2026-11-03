@@ -6,7 +6,7 @@
 import { html, svg } from '../render/dom.js'
 import { runStrum, tempoOf, type StrumScore, type StrumSettings } from '../strum/play.js'
 import { strumVoicing } from '../strum/voicing.js'
-import type { Stroke } from '../strum/pattern.js'
+import { isCompound, type Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
@@ -41,11 +41,24 @@ export function scoreFromDrawing(drawing: Element): StrumScore | null {
         }
     })
     const perBeat = Number(drawing.getAttribute('data-mn-slots-per-beat'))
-    const beats = Number(/^(\d+)\//.exec(drawing.getAttribute('data-mn-time') ?? '')?.[1])
+    const time = /^(\d+)\/(\d+)$/.exec(drawing.getAttribute('data-mn-time') ?? '')
+    const beats = Number(time?.[1])
+    const slotsPerBeat = Number.isInteger(perBeat) && perBeat > 0 ? perBeat : 2
+    const beatsPerBar = Number.isInteger(beats) && beats > 0 ? beats : 4
+    const swing = Number(drawing.getAttribute('data-mn-swing'))
     return {
         slots,
-        slotsPerBeat: Number.isInteger(perBeat) && perBeat > 0 ? perBeat : 2,
-        beatsPerBar: Number.isInteger(beats) && beats > 0 ? beats : 4
+        slotsPerBeat,
+        beatsPerBar,
+        // Compound time (6/8) counts the tempo in dotted beats of three.
+        slotsPerPulse: isCompound(beatsPerBar, Number(time?.[2])) ? slotsPerBeat * 3 : slotsPerBeat,
+        swing:
+            drawing.hasAttribute('data-mn-swing') &&
+            swing > 0.5 &&
+            swing < 1 &&
+            slotsPerBeat % 2 === 0
+                ? swing
+                : null
     }
 }
 
@@ -69,9 +82,11 @@ export function strumBarFor(
     wrap.appendChild(bar)
 
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
+    const compound = (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat
     const settings: StrumSettings = {
         bpm: tempoOf(
-            drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo) ? tempo : options.bpm
+            drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo) ? tempo : options.bpm,
+            compound
         ),
         countIn: false,
         loop: false,
@@ -218,7 +233,15 @@ export function strumBarFor(
         bar.appendChild(field)
     }
     // Changes apply from the next pass of a loop.
-    slider('Tempo (BPM)', 20, 240, settings.bpm, (n) => (settings.bpm = tempoOf(n)), '♩')
+    // The tempo counts dotted quarters in compound time.
+    slider(
+        'Tempo (BPM)',
+        20,
+        240,
+        settings.bpm,
+        (n) => (settings.bpm = tempoOf(n)),
+        compound ? '♩.' : '♩'
+    )
     slider(
         'Volume',
         0,

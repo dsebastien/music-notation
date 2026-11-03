@@ -919,10 +919,24 @@ chord: Em
 time: 6/8
 chord: Em</code></pre></div>
 
+````markdown
+```strum
+D DU UDU
+swing: yes
+chord: E7
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">D DU UDU
+swing: yes
+chord: E7</code></pre></div>
+
 Write the pattern the way you find it on the web. Each slot is one subdivision of the beat (an 8th by default):
 
 - One symbol a slot, with rests: `D - D U - U D U`, `D-DU-UDU`, `D . D U . U D U`.
 - Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same. An `X` written alone moves like a down strum (`D X D X` is `D - X - D - X -`); glued after a strum, it takes the next slot (`D DX UDU` is `D - D X - U D U`).
+- In triplets, strums only are a shuffle: down on the beat, up on the third triplet (`D U D U` is `D - U D - U`). To strum the middle triplet, write one symbol a slot (`D U D D U D D U D D U D`).
+- Strums only that fill a bar one a slot are read that way (`DUDUDUDU`, `D D U D D U` in 6/8), unless that puts an up strum on a beat in 4/4, 3/4 and the like: then they are placed by the hand's motion.
 - Arrows: `↓ ↓↑ ↑↓↑` reads as `D DU UDU`.
 
 | Symbol      | Meaning                                                                    |
@@ -944,16 +958,21 @@ D DU UDU
 
 A line of only `D`s reads as strums: write `[D]` in the pattern instead. A line of counts (`1 & 2 & 3 & 4 &`) is skipped.
 
-| Key           | Meaning                                                                                                                 |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `time`        | The time signature: `4/4` (default), `3/4`, `6/8`, `12/8`, `C`, `cut`…                                                  |
-| `subdivision` | `8ths` (default), `16ths` or `triplets` (in x/4). In 6/8, an 8th is one slot.                                           |
-| `chord`       | The chord of the whole pattern (until a change). Without any chord, playback strums E minor.                            |
-| `tempo`       | Beats a minute for playback, 20–240 (90 by default). The beat is the time signature's: a quarter in 4/4, an 8th in 6/8. |
-| `tuning`      | The open strings chords are played on: `standard` (default), `drop d`, `ukulele`, `D2 A2 D3 G3 B3 E4`…                  |
-| `title`       | A title above the pattern.                                                                                              |
-| `pattern`     | The pattern, as a key, when you prefer.                                                                                 |
+| Key           | Meaning                                                                                                 |
+| ------------- | ------------------------------------------------------------------------------------------------------- |
+| `time`        | The time signature: `4/4` (default), `3/4`, `6/8`, `12/8`, `C`, `cut`…                                  |
+| `subdivision` | `8ths` (default), `16ths` or `triplets` (in x/4). In 6/8, an 8th is one slot.                           |
+| `swing`       | `yes` swings the 8ths (a shuffle feel), `60%` a lighter swing. See below.                               |
+| `chord`       | The chord of the whole pattern (until a change). Without any chord, playback strums E minor.            |
+| `tempo`       | Beats a minute for playback, 20–240. 90 by default; 60 dotted quarters in 6/8, 9/8 and 12/8. See below. |
+| `tuning`      | The open strings chords are played on: `standard` (default), `drop d`, `ukulele`, `D2 A2 D3 G3 B3 E4`…  |
+| `title`       | A title above the pattern.                                                                              |
+| `pattern`     | The pattern, as a key, when you prefer.                                                                 |
 
-A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which subdivision would fit.
+A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which time or subdivision would fit. Strums only that run past a bar and fill less than half of the next one are a mistake too (`D DU UDU` in 3/4 is a 4/4 pattern): the message says how many slots a bar has. Put a `|` where each bar ends to write a short last bar on purpose (`D DU UDU | D`).
 
-In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), volume and sound. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low; accents are louder, ghost strums soft, muted strums short. Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the loop's next pass.
+The tempo counts the beat you tap your foot to: a quarter in 4/4 and 3/4, a dotted quarter in 6/8, 9/8 and 12/8 (three 8ths), an 8th in 3/8. In 6/8, 9/8 and 12/8 the counts 1, 4 (7, 10) are drawn and played as the beats.
+
+Swing and shuffle: `swing: yes` plays the second 8th of each beat on the third triplet, the way swing and blues are played; the pattern is still written in 8ths. A percentage from 50 (straight) to 75 sets how late it comes: `swing: 60%` is a light swing. With `subdivision: 16ths`, the 16ths swing. Swing doesn't go with 6/8 (it already has three 8ths a beat) or with triplets. `subdivision: triplets` with `D - U` on each beat is the same shuffle, written out.
+
+In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), volume and sound. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low. Up strums are softer than down strums, the beats are stressed (beat 1 most; 1 and 4 in 6/8), and each strum varies a little, as a player's hand does. Accents are louder, ghost strums soft, muted strums a percussive chuck (dead strings). The count-in is a bar of clicks (each 8th in 6/8, 1 and 4 stronger). Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the loop's next pass.

@@ -103,6 +103,8 @@ export interface StrumDiagram {
     time: string
     subdivision: string
     tempo: number | null
+    /** Swung pairs (`swing:`): where the second slot falls, 2/3 for a triplet swing; absent when straight. */
+    swing?: number
     /** Each chord change and the slot it starts on (from 0). */
     chords: { beat: number; chord: string }[]
 }
@@ -307,6 +309,7 @@ function chart(el: Element): ChartDiagram {
 
 function strum(svg: Element): StrumDiagram {
     const tempo = svg.getAttribute('data-mn-tempo')
+    const swing = svg.getAttribute('data-mn-swing')
     return {
         type: 'strum',
         title: text(svg.querySelector('.mn-title')),
@@ -314,6 +317,7 @@ function strum(svg: Element): StrumDiagram {
         time: svg.getAttribute('data-mn-time') ?? '',
         subdivision: svg.getAttribute('data-mn-subdivision') ?? '',
         tempo: tempo === null ? null : Number(tempo),
+        ...(swing === null ? {} : { swing: Number(swing) }),
         chords: [...svg.querySelectorAll('[data-mn-beat][data-mn-chord]')].map((el) => ({
             beat: Number(el.getAttribute('data-mn-beat')),
             chord: el.getAttribute('data-mn-chord') ?? ''
@@ -375,6 +379,10 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                     quoted(d.title),
                     d.time,
                     d.subdivision,
+                    d.swing !== undefined &&
+                        (Math.abs(d.swing - 2 / 3) < 0.001
+                            ? 'swing'
+                            : `swing ${Math.round(d.swing * 100)}%`),
                     d.tempo !== null && `tempo ${d.tempo}`
                 ])}`,
                 `${pad}${d.pattern}`

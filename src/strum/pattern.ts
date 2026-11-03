@@ -35,6 +35,18 @@ export interface StrumPattern {
     subdivision: Subdivision
     /** Slots in one beat (2 for 8ths in 4/4, 1 for 8ths in 6/8). */
     slotsPerBeat: number
+    /**
+     * Compound time (6/8, 9/8, 12/8…): the beat felt and counted for the tempo is a dotted note,
+     * three of the written beats.
+     */
+    compound: boolean
+    /** Slots in one counted beat: `slotsPerBeat`, three times that in compound time. */
+    slotsPerPulse: number
+    /**
+     * Swung pairs of slots (`swing:`): where the second slot of each pair falls, as a fraction of
+     * the pair (2/3 for a triplet swing, a shuffle); null when straight.
+     */
+    swing: number | null
     slotsPerBar: number
     bars: number
     /** The chord for the whole pattern (`chord:`), until a change. */
@@ -49,10 +61,12 @@ export interface StrumPattern {
 /** Bounds that keep a pattern quick to draw and to hear. */
 export const MAX_STRUM_BARS = 16
 export const DEFAULT_TEMPO = 90
+/** The default tempo of compound time, in dotted quarters (8ths at 180 a minute). */
+export const DEFAULT_COMPOUND_TEMPO = 60
 export const MIN_TEMPO = 20
 export const MAX_TEMPO = 240
 
-const KEYS = ['pattern', 'time', 'subdivision', 'chord', 'tempo', 'bpm', 'tuning', 'title']
+const KEYS = ['pattern', 'time', 'subdivision', 'swing', 'chord', 'tempo', 'bpm', 'tuning', 'title']
 const FIELD = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/
 
 /** A line of counts written under or over a pattern ("1 & 2 &", "1 e & a", "1 + 2 +"). */
@@ -83,6 +97,32 @@ export function parseTime(text: string): { beatsPerBar: number; beatUnit: number
     if (!(beats >= 1 && beats <= 16) || ![2, 4, 8, 16].includes(unit))
         throw new Error(`Invalid time "${text}": use e.g. time: 4/4, 3/4 or 6/8`)
     return { beatsPerBar: beats, beatUnit: unit }
+}
+
+/**
+ * Compound time: 6, 9 or 12 (any multiple of 3 from 6) 8ths or 16ths a bar, felt in dotted
+ * beats of three (6/8 is two beats of three 8ths). 3/8 is counted in three.
+ */
+export const isCompound = (beatsPerBar: number, beatUnit: number) =>
+    beatUnit >= 8 && beatsPerBar >= 6 && beatsPerBar % 3 === 0
+
+/**
+ * `swing:` as where the second slot of each pair falls: yes (or on, shuffle, triplet) is 2/3, a
+ * triplet swing; a percentage from 50 (straight) to 75 is that much of the pair; no (or off,
+ * straight) is null. Throws a message.
+ */
+export function parseSwing(text: string): number | null {
+    const t = text.trim().toLowerCase()
+    if (['yes', 'on', 'true', 'swing', 'swung', 'shuffle', 'triplet', 'triplets'].includes(t))
+        return 2 / 3
+    if (['no', 'off', 'false', 'straight', 'none'].includes(t)) return null
+    const m = /^(\d{2}(?:\.\d+)?)\s*%?$/.exec(t)
+    const n = m ? Number(m[1]) : NaN
+    if (!(n >= 50 && n <= 75))
+        throw new Error(
+            `Invalid swing "${text}": write swing: yes (a triplet swing, a shuffle), no, or a percentage from 50 (straight) to 75, e.g. swing: 60%`
+        )
+    return n === 50 ? null : n / 100
 }
 
 /** "8ths", "eighths", "8"; "16ths", "sixteenths", "16"; "triplets". Throws a message. */
@@ -246,6 +286,25 @@ function chordLine(line: string): { chord: string; column: number }[] | null {
     return out.length && !strokeLetters ? out : null
 }
 
+/**
+ * The next slot from `at` that the hand's motion strikes: down on the beat and up between (in
+ * 8ths, even and odd slots; in 16ths, the same on each 8th and 16th); in triplets, a shuffle:
+ * down on the beat, up on the third triplet (the middle one only when written with rests).
+ */
+function nextMotion(
+    at: number,
+    motion: 'down' | 'up' | 'any',
+    perBar: number,
+    perBeat: number
+): number {
+    for (let slot = at; ; slot++) {
+        const pos = perBeat === 3 ? (slot % perBar) % 3 : (slot % perBar) % 2
+        const down = pos === 0
+        const up = perBeat === 3 ? pos === 2 : pos === 1
+        if (motion === 'down' ? down : motion === 'up' ? up : down || up) return slot
+    }
+}
+
 /** Strum, rest, strum, rest… strum: dashes written between strums as separators. */
 const separated = (units: Unit[]) =>
     units.length % 2 === 1 &&
@@ -264,35 +323,93 @@ interface Placed {
  * Places one segment from slot `at`. One symbol a slot when it fills whole bars. Otherwise, when
  * only strums are written (or dashes between strums as separators), the hand's motion places
  * them: down on the beat and up between, so a down strum takes the next even slot of the bar, an
- * up strum the next odd one (in triplets: down, up, down in each beat), and the slots skipped are
- * rests; the segment is padded to the end of its bar. Null when neither reads.
+ * up strum the next odd one (in triplets, a shuffle: down on the beat, up on the third triplet),
+ * and the slots skipped are rests; the segment is padded to the end of its bar. Strums alone that
+ * fill whole bars are one a slot, unless that puts an up strum on a beat or between beats' down
+ * strums in simple time (`D DU UDU` in 3/4 is a 4/4 pattern, not `D D U U D U`). Null when
+ * neither reads; the slots taken when the strums run past a bar and stop early in the next.
  */
-function place(segment: Segment, at: number, perBar: number, perBeat: number): Placed | null {
+function place(
+    segment: Segment,
+    at: number,
+    perBar: number,
+    perBeat: number,
+    compound: boolean
+): Placed | { spill: number } | null {
+    const start = at
     const { units } = segment
-    if (units.length % perBar === 0)
+    const hasRests = units.some((u) => u.stroke === 'rest')
+    // An up strum on an even slot is against the hand's motion (8ths and 16ths in simple time;
+    // triplets and compound time strum D U D, D D U… one a slot).
+    const againstMotion =
+        !hasRests &&
+        !compound &&
+        perBeat % 2 === 0 &&
+        units.some((u, i) => u.stroke === 'up' && i % 2 === 0)
+    if (units.length % perBar === 0 && !againstMotion)
         return {
             units,
             slots: units.map((_, i) => at + i),
             gaps: units.map(() => false),
             end: at + units.length
         }
-    const hasRests = units.some((u) => u.stroke === 'rest')
     if (hasRests && !separated(units)) return null
     const strums = units.filter((u) => u.stroke !== 'rest')
-    const upAt = (slot: number) =>
-        perBeat === 3 ? (slot % perBar) % 3 === 1 : (slot % perBar) % 2 === 1
     const slots: number[] = []
     const gaps: boolean[] = []
     for (const unit of strums) {
-        // A muted strum glued to a strum (DX) takes the next slot, down or up (a chuck on the beat
-        // or between); written alone (D X D X), it's a down strum's motion, like D D D D.
-        const down = unit.stroke === 'down' || (unit.stroke === 'mute' && unit.spaced)
-        const gap = (unit.stroke !== 'mute' || unit.spaced) && upAt(at) === down
-        if (gap) at++
-        slots.push(at++)
-        gaps.push(gap)
+        // A muted strum glued to a strum (DX) takes the next slot the hand passes, down or up (a
+        // chuck on the beat or between); written alone (D X D X), it's a down strum's motion.
+        const motion =
+            unit.stroke === 'up' ? 'up' : unit.stroke === 'down' || unit.spaced ? 'down' : 'any'
+        const slot = nextMotion(at, motion, perBar, perBeat)
+        slots.push(slot)
+        gaps.push(slot > at)
+        at = slot + 1
     }
+    // Strums that run past a bar and fill less than half of the last one: likely a pattern for
+    // another time signature (a 4/4 pattern in 3/4), not a bar of rests.
+    const used = at % perBar
+    if (at > start + perBar && used > 0 && used < perBar / 2) return { spill: at - start }
     return { units: strums, slots, gaps, end: Math.ceil(at / perBar) * perBar }
+}
+
+/** The time signature whose bar is `slots` long, when it's another one: "time: 3/4". */
+function timeFor(slots: number, beatsPerBar: number, beatUnit: number, slotsPerBeat: number) {
+    const beats = slots / slotsPerBeat
+    return Number.isInteger(beats) && beats >= 2 && beats <= 12 && beats !== beatsPerBar
+        ? `time: ${beats}/${beatUnit}`
+        : null
+}
+
+/** "1 bar and 2 slots", "2 bars and 1 slot". */
+const barsAndSlots = (slots: number, perBar: number) => {
+    const bars = Math.floor(slots / perBar)
+    const rest = slots % perBar
+    return `${bars} bar${bars === 1 ? '' : 's'} and ${rest} slot${rest === 1 ? '' : 's'}`
+}
+
+/** Units as written: a space before each one written at a token's start (`D DU UDU`). */
+const asWritten = (units: Unit[]) =>
+    units.map((u, i) => (i && u.spaced ? ' ' : '') + symbolOf(u)).join('')
+
+/**
+ * Strums placed by the hand's motion that run past a bar and stop early in the next one: how many
+ * slots a bar has, and what to write.
+ */
+function spillError(
+    units: Unit[],
+    slots: number,
+    beatsPerBar: number,
+    beatUnit: number,
+    subdivision: Subdivision
+): Error {
+    const perBeat = slotsPerBeatOf(subdivision, beatUnit)
+    const perBar = beatsPerBar * perBeat
+    const time = timeFor(slots, beatsPerBar, beatUnit, perBeat)
+    return new Error(
+        `${beatsPerBar}/${beatUnit} in ${subdivision} has ${perBar} slots a bar, but "${asWritten(units)}" takes ${slots} (${barsAndSlots(slots, perBar)}): put a | where each bar ends${time ? `, or write ${time}` : ''}`
+    )
 }
 
 /** A segment that isn't whole bars: how many slots a bar has, and which subdivision fits. */
@@ -302,8 +419,10 @@ function countError(
     beatUnit: number,
     subdivision: Subdivision
 ): Error {
-    const perBar = beatsPerBar * slotsPerBeatOf(subdivision, beatUnit)
+    const perBeat = slotsPerBeatOf(subdivision, beatUnit)
+    const perBar = beatsPerBar * perBeat
     const n = units.length
+    const time = timeFor(n, beatsPerBar, beatUnit, perBeat)
     const fits = (['8ths', '16ths', 'triplets'] as const).filter((sub) => {
         if (sub === subdivision) return false
         try {
@@ -313,7 +432,7 @@ function countError(
         }
     })
     return new Error(
-        `${beatsPerBar}/${beatUnit} in ${subdivision} has ${perBar} slots a bar, but "${units.map(symbolOf).join(' ')}" has ${n}: fill each bar with - (no strum)${fits.length ? ` or write subdivision: ${fits.join(' or ')}` : ''}`
+        `${beatsPerBar}/${beatUnit} in ${subdivision} has ${perBar} slots a bar, but "${units.map(symbolOf).join(' ')}" has ${n}: fill each bar with - (no strum)${[...(time ? [time] : []), ...fits.map((f) => `subdivision: ${f}`)].map((w, i, all) => `${i ? (i === all.length - 1 ? ' or ' : ', ') : ' or write '}${w}`).join('')}`
     )
 }
 
@@ -329,7 +448,7 @@ export function parseStrum(source: string): StrumPattern {
             const key = m[1]!.toLowerCase()
             if (!KEYS.includes(key))
                 throw new Error(
-                    `Unknown key "${m[1]}": use time, subdivision, chord, tempo, tuning, title or pattern`
+                    `Unknown key "${m[1]}": use time, subdivision, swing, chord, tempo, tuning, title or pattern`
                 )
             if (key === 'pattern') lines.push(m[2]!)
             else fields.set(key === 'bpm' ? 'tempo' : key, m[2]!.trim())
@@ -345,6 +464,23 @@ export function parseStrum(source: string): StrumPattern {
     const subdivision = written ? parseSubdivision(written) : '8ths'
     const slotsPerBeat = slotsPerBeatOf(subdivision, beatUnit)
     const perBar = beatsPerBar * slotsPerBeat
+    const compound = isCompound(beatsPerBar, beatUnit)
+    const swingText = fields.get('swing')
+    const swing = swingText ? parseSwing(swingText) : null
+    if (swing !== null) {
+        if (subdivision === 'triplets')
+            throw new Error(
+                'Triplets and swing are two ways to write a shuffle: keep subdivision: triplets (D - U on each beat), or write 8ths with swing: yes'
+            )
+        if (compound)
+            throw new Error(
+                `${beatsPerBar}/${beatUnit} already has three ${beatUnit === 8 ? '8ths' : '16ths'} a beat: remove swing: (it swings 8ths or 16ths in 4/4, 3/4, 2/4…)`
+            )
+        if (slotsPerBeat % 2)
+            throw new Error(
+                `Swing plays pairs of slots inside a beat, and a beat of ${beatsPerBar}/${beatUnit} in ${subdivision} has one slot: write subdivision: 16ths, or time: 4/4`
+            )
+    }
 
     const tempoText = fields.get('tempo')
     let tempo: number | null = null
@@ -376,8 +512,10 @@ export function parseStrum(source: string): StrumPattern {
     const placed: (Placed & { line: number })[] = []
     let total = 0
     for (const segment of segments) {
-        const here = place(segment, total, perBar, slotsPerBeat)
+        const here = place(segment, total, perBar, slotsPerBeat, compound)
         if (!here) throw countError(segment.units, beatsPerBar, beatUnit, subdivision)
+        if ('spill' in here)
+            throw spillError(segment.units, here.spill, beatsPerBar, beatUnit, subdivision)
         placed.push({ ...here, line: segment.line })
         total = here.end
         if (total > perBar * MAX_STRUM_BARS) break
@@ -428,6 +566,9 @@ export function parseStrum(source: string): StrumPattern {
         beatUnit,
         subdivision,
         slotsPerBeat,
+        compound,
+        slotsPerPulse: compound ? slotsPerBeat * 3 : slotsPerBeat,
+        swing,
         slotsPerBar: perBar,
         bars,
         chord,

@@ -565,6 +565,13 @@ export function renderTab(
 
 /** General MIDI programs for the diagrams' sounds. */
 const PROGRAMS: Record<Sound, number> = { guitar: 25, piano: 0 }
+/**
+ * Percussive notes (`NoteEvent.kind`): a muted string on GM program 28, Electric Guitar (muted),
+ * on its own channel; a click on the percussion channel, GM key 33 (Metronome Click, the key
+ * alphaTab's metronome uses, so it's always loaded).
+ */
+const MUTED = { channel: 1, program: 28 }
+const CLICK = { channel: 9, key: 33 }
 
 /**
  * Seconds the song goes on after the last note ends, so the soundfont's release rings: alphaTab
@@ -594,6 +601,11 @@ export function soundfontPlayer(
             const ticks = (seconds: number) => Math.round(seconds * midi.division)
             handler.addTempo(0, 60)
             handler.addProgramChange(0, 0, 0, PROGRAMS[sound])
+            if (sound === 'guitar' && events.some((e) => e.kind === 'muted'))
+                handler.addProgramChange(0, 0, MUTED.channel, MUTED.program)
+            // The percussion channel takes the drum kit only once told (else it plays preset 0).
+            if (events.some((e) => e.kind === 'click'))
+                handler.addProgramChange(0, 0, CLICK.channel, 0)
             const level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             current.masterVolume = level
             for (const e of events) {
@@ -602,13 +614,20 @@ export function soundfontPlayer(
                     e.velocity === undefined || !Number.isFinite(e.velocity)
                         ? 100
                         : Math.round(Math.min(127, Math.max(1, e.velocity)))
+                // A muted strum's dead strings on the muted guitar, a click on the percussion channel.
+                const channel =
+                    e.kind === 'click'
+                        ? CLICK.channel
+                        : e.kind === 'muted' && sound === 'guitar'
+                          ? MUTED.channel
+                          : 0
                 handler.addNote(
                     0,
                     ticks(e.time),
                     Math.max(1, ticks(e.duration)),
-                    e.midi,
+                    e.kind === 'click' ? CLICK.key : e.midi,
                     velocity,
-                    0
+                    channel
                 )
             }
             const end = Math.max(...events.map((e) => e.time + e.duration), 0)
@@ -702,9 +721,10 @@ export function createSoundfontPlayer(
         if (assets.soundFont instanceof Uint8Array)
             current.loadSoundFont(made.bytes(assets.soundFont), false)
         // The player needs a song loaded to be ready, and alphaTab loads only the soundfont presets
-        // its song uses: one rest per diagram sound, else piano would play nothing.
+        // its song uses: one rest per diagram sound (and the muted guitar of muted strums), else
+        // piano would play nothing.
         current.tex(
-            `\\track "Guitar" \\instrument ${PROGRAMS.guitar} r \\track "Piano" \\instrument ${PROGRAMS.piano} r`
+            `\\track "Guitar" \\instrument ${PROGRAMS.guitar} r \\track "Piano" \\instrument ${PROGRAMS.piano} r \\track "Muted" \\instrument ${MUTED.program} r`
         )
         return ready
     }
