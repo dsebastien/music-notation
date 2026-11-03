@@ -258,6 +258,14 @@ describe('renderBlock with a chart', () => {
         expect(result.el.querySelectorAll('.mn-chart-row .mn-keyboard')).toHaveLength(2)
     })
 
+    it('is not ok when a {chord} has no diagram, and still draws the chart', () => {
+        const host = document.createElement('div')
+        const result = renderBlock('chords', '{chord: Gzz}\n[G]Hello', host, { voicings })
+        expect(result.ok).toBe(false)
+        expect(result.error).toContain('No diagram for Gzz')
+        expect(result.el.querySelector('.mn-chord')?.textContent).toBe('G')
+    })
+
     it('is not ok when a directive has a mistake, and still draws the chart', () => {
         const host = document.createElement('div')
         const result = renderBlock('chords', '{define: Am frets x 0 2 a 1 0}\n[Am]x', host)
