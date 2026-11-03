@@ -113,11 +113,15 @@ export interface CloseLeadOptions {
     open?: boolean
     /**
      * A bass for the left hand under every chord (the pop texture): the root, or a slash chord's
-     * bass, at least a fourth under the chord, from octave 3 down. The chord keeps a root or
-     * fifth bass doubled.
+     * bass, at least a fourth under the chord, from octave 3 down; a slash chord's bass, and the
+     * next chord's, the nearest to the bass before (C C7/Bb F/A: C3 Bb2 A2), not below C2. The
+     * chord keeps a root or fifth bass doubled.
      */
     bass?: boolean
 }
+
+/** A bass line written with slash chords leads down to C2 at most. */
+const BASS_FLOOR = 36
 
 /** Open voicings' lowest note stays within C3 to C4, nearest G3 on average. */
 const OPEN_LOW = 48
@@ -144,6 +148,22 @@ export function voiceLead(
             ? pitches.map((p, i) => (i === 1 ? p + 12 : p)).sort((a, b) => a - b)
             : pitches
     let previous: number[] | null = null
+    // The left hand's last bass, and whether it was a slash chord's.
+    let previousBass: number | null = null
+    let previousSlash = false
+    // The bass under a chord: at least a fourth under it, from octave 3 down, as high as it fits.
+    // A written bass line leads instead: a slash chord's bass, and the bass of the chord right
+    // after one, is the nearest to the bass before (ties: the higher), never below C2 when another
+    // fits, so a stepwise line stays stepwise (C G/B Am C/G F: C3 B2 A2 G2 F2).
+    const bassUnder = (chroma: number, chord: number[], slash: boolean) => {
+        let high = 48 + chroma
+        while (high > chord[0]! - 5) high -= 12
+        const fits: number[] = []
+        for (let p = high; p >= BASS_FLOOR; p -= 12) fits.push(p)
+        if (previousBass === null || !(slash || previousSlash) || !fits.length) return high
+        const from = previousBass
+        return fits.reduce((a, b) => (Math.abs(b - from) < Math.abs(a - from) ? b : a))
+    }
     return symbols.map((symbol) => {
         const set = chordNoteSet(symbol)
         if (!set) return null
@@ -172,15 +192,14 @@ export function voiceLead(
         const best = bestOf(candidates)!
         previous = best
         if (bass === null && !options.bass) return best
-        if (bass === null) {
-            // The pop texture: the root in the left hand, at least a fourth under the chord.
-            let low = 48 + set.root!
-            while (low > best[0]! - 5) low -= 12
-            return [low, ...best]
+        // The pop texture: the root (or a slash chord's bass) in the left hand, at least a fourth
+        // under the chord.
+        const low = bassUnder(bass ?? set.root!, best, bass !== null)
+        // Without hands, a slash chord's bass stands alone: it doesn't lead the next one.
+        if (options.bass) {
+            previousBass = low
+            previousSlash = bass !== null
         }
-        // A bass below the left hand's usual reach of the chord: at least a fourth under it.
-        let low = 48 + bass
-        while (low > best[0]! - 5) low -= 12
         return [low, ...best]
     })
 }
@@ -205,6 +224,15 @@ export interface LedVoicing {
 
 /** Rootless voicings with both hands: the right hand's lowest note from F3 to F4. */
 const BOTH_HANDS_ROOTLESS: [number, number] = [53, 65]
+
+/**
+ * Shells with both hands, after the first chord: the left hand's root anywhere from C2 to G3, and
+ * the right hand's lowest note (the third or the seventh, an octave above the one-hand shell) from
+ * G3 to C5, where the first chord's windows put it. The guide tones lead, so the root goes where they need it (E7 after Bm7b5 D4 A4: E2
+ * under D4 G#4), and the right hand doesn't drift over a long progression.
+ */
+const BOTH_HANDS_SHELL_ROOT: [number, number] = [36, 55]
+const BOTH_HANDS_SHELL_RIGHT: [number, number] = [55, 72]
 
 /**
  * After the first chord, rootless voicings start at D3 or above: a long progression that drifts
@@ -304,12 +332,25 @@ export function voiceLeadVoicings(
                     const lowest = v.pitches[0]!
                     const notes = leading(v.pitches)
                     const sounding = both ? played(symbol, form, octave)?.pitches : v.pitches
+                    // Both-hand shells after the first chord: the root and the right hand each in
+                    // their own window (the right hand's lowest note is the one-hand third or
+                    // seventh, an octave up).
+                    const outside =
+                        both && previous
+                            ? Math.max(
+                                  0,
+                                  BOTH_HANDS_SHELL_ROOT[0] + shift - lowest,
+                                  lowest - BOTH_HANDS_SHELL_ROOT[1] - shift,
+                                  BOTH_HANDS_SHELL_RIGHT[0] + shift - (notes[0]! + 12),
+                                  notes[0]! + 12 - BOTH_HANDS_SHELL_RIGHT[1] - shift
+                              )
+                            : Math.max(0, low + shift - lowest, lowest - high - shift)
                     candidates.push({
                         value: { form, octave },
                         cost: previous ? voiceMotion(notes, previous) : lowest - low - shift,
                         common: previous ? common(notes, previous) : 0,
                         center: Math.abs(mean(v.pitches) - (CENTER - 5 + shift)),
-                        outside: Math.max(0, low + shift - lowest, lowest - high - shift),
+                        outside,
                         muddy: !sounding || belowLowIntervalLimit(sounding)
                     })
                 }
