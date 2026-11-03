@@ -18,6 +18,10 @@
     /* Piano keys keep their real colors in every theme. */
     --mn-key-white: #fafafa;
     --mn-key-black: #222;
+    /* Faint keys (a compared scale's notes, a chord's notes outside the scale): a pale white key, a
+       mid-grey black key, in every theme. */
+    --mn-key-white-faint: #d4d4d8;
+    --mn-key-black-faint: #8c8c8c;
     font-family: var(--font-interface, system-ui, sans-serif);
 }
 
@@ -341,9 +345,17 @@
     stroke-dasharray: 2 2;
 }
 
-.mn-svg .mn-key-white.mn-ghost,
+/* Piano keys keep their colors in every theme (the border color would turn a white key dark grey
+   and hide a black key in dark themes). */
+.mn-svg .mn-key-white.mn-ghost {
+    fill: var(--mn-key-white-faint);
+    stroke: #6b6b6b;
+    stroke-dasharray: 3 2;
+}
+
 .mn-svg .mn-key-black.mn-ghost {
-    fill: var(--mn-faint);
+    fill: var(--mn-key-black-faint);
+    stroke: var(--mn-key-black-faint);
     stroke-dasharray: none;
 }
 
