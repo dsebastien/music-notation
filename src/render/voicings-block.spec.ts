@@ -25,6 +25,17 @@ describe('voicings blocks', () => {
         expect(all.filter((t) => t === 'F')).toEqual([])
     })
 
+    it('keeps a jazz grip over the same voicing with its top string sounding (#72)', () => {
+        const h = host()
+        expect(renderBlock('chord', 'C7#9\nvoicings: all', h).ok).toBe(true)
+        const grips = [...h.querySelectorAll('svg[data-mn-voicing]')].map((s) =>
+            s.getAttribute('data-mn-voicing')
+        )
+        expect(grips).toContain('x3234x')
+        expect(grips).not.toContain('x32340')
+        expect(titles(h)).toContain('C7#9, Hendrix chord')
+    })
+
     it('draws at most 32 with all', () => {
         const h = host()
         expect(renderBlock('chord', 'chord: Em\nvoicings: all', h).ok).toBe(true)

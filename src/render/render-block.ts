@@ -482,7 +482,11 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
         }
     }
     // One diagram per shape, the easiest ones, drawn up the neck (#72).
-    const voicings = distinctShapes(cachedVoicings(chord.symbol, options), wanted)
+    const voicings = distinctShapes(
+        cachedVoicings(chord.symbol, options),
+        wanted,
+        options.tuning ?? STANDARD_TUNING
+    )
     if (!voicings.length) throw new Error(noVoicing(written, chord.symbol, options))
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
     const shared = SHARED_KEYS.chord

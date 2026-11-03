@@ -582,11 +582,14 @@ const JAZZ_GRIPS: readonly { rootString: number; offsets: readonly (number | nul
  * One voicing per shape: leaves out a voicing that is another one of the list with its highest
  * strings muted (A x0222x and 57765x, copies of x02220 and 577655), then draws the rest up the neck (lowest
  * fretted note; ties keep the list's order, the easiest first). `count` voicings are kept, the
- * easiest ones, before they are put in neck order (#72).
+ * easiest ones, before they are put in neck order (#72). In standard tuning (`tuning`, the
+ * default) a known jazz grip is kept and the longer voicing left out: C7#9 shows the Hendrix grip
+ * x3234x, not x32340.
  */
 export function distinctShapes<T extends { frets: readonly (number | null)[] }>(
     voicings: readonly T[],
-    count = voicings.length
+    count = voicings.length,
+    tuning: readonly number[] = STANDARD_TUNING
 ): T[] {
     const sounding = (v: T) => v.frets.flatMap((f, s) => (f === null ? [] : [s]))
     // The same grip with its highest strings muted: its strings are the other's lowest ones.
@@ -600,7 +603,14 @@ export function distinctShapes<T extends { frets: readonly (number | null)[] }>(
             mine.every((s, i) => theirs[i] === s && w.frets[s] === v.frets[s])
         )
     }
-    const kept = voicings.filter((v) => !voicings.some((w) => w !== v && copyOf(v, w)))
+    const standard = sameTuning(tuning, STANDARD_TUNING)
+    const grip = (v: T) => standard && isJazzGrip(v.frets)
+    const kept = voicings.filter(
+        (v) =>
+            !voicings.some(
+                (w) => w !== v && ((copyOf(v, w) && !grip(v)) || (copyOf(w, v) && grip(w)))
+            )
+    )
     const lowest = (v: T) => {
         const fretted = v.frets.filter((f): f is number => f !== null && f > 0)
         return fretted.length ? Math.min(...fretted) : 0
