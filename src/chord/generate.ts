@@ -219,6 +219,9 @@ function bestFingering(frets: readonly (number | null)[]): Fingering | null {
                 const g = sorted[i]!
                 // Only the index finger lies over strings fretted higher, on the lowest fret.
                 if (g.under && (choice[i] !== 1 || g.fret !== lowest)) ok = false
+                // Barres are the index's (F, Bm7) or the ring finger's (the A-shape's 1-3-3-3-1);
+                // teachers don't ask for a middle or pinky barre.
+                if (g.strings.length > 1 && choice[i] !== 1 && choice[i] !== 3) ok = false
                 for (let j = i + 1; j < sorted.length && ok; j++) {
                     // A finger reaches at most one fret past one fret per finger.
                     if (sorted[j]!.fret - g.fret > choice[j]! - choice[i]! + 1) ok = false
@@ -480,6 +483,9 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
         const last = sounding[sounding.length - 1]!
         const inner = last - first + 1 - sounding.length
         const pitches = sounding.map((s) => tuning[s]! + candidate[s]!)
+        // The same pitch on two strings (Cmaj7 x3240x, B3 twice) adds nothing a teacher would show.
+        // Re-entrant tunings play their usual chords that way (ukulele F 2010).
+        if (ascending && new Set(pitches).size < pitches.length) return null
         const chromas = new Set(pitches.map((p) => p % 12))
         // On three strings or fewer, a doubled note can't take the place of a missing one.
         if (sounding.length <= 3 && chromas.size < Math.min(sounding.length, tones.length)) {
@@ -501,7 +507,9 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
         const base = baseFretOf(candidate)
         const reasons: string[] = []
         const usual = standard && OPEN_CHORDS.has(compact(candidate))
-        let difficulty = used + Math.max(0, span - 1) + base * 0.15
+        // Lower on the neck is easier to reach and what teachers show first (Bb x13331 before
+        // 688766, D x57775 before the E shape at fret 10).
+        let difficulty = used + Math.max(0, span - 1) + base * 0.3
         if (barre) {
             // E- and A-shape barres are the barre chords everyone learns; a small barre over two or
             // three strings (F xx3211) is easy.
@@ -534,10 +542,13 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
         }
         // Muted strings: the low ones are usual (the bass starts higher), the high ones harder to
         // keep quiet. Power chords are played that way.
+        const strings = [...allowed]
         if (!power) {
-            const strings = [...allowed]
             difficulty += strings.filter((s) => s < first).length
             difficulty += 1.5 * strings.filter((s) => s > last).length
+        } else if (ascending) {
+            // Power chords sit on the low strings (G5 355xxx, not xxx03x).
+            difficulty += 1.5 * strings.filter((s) => s < first).length
         }
         if (sounding.length < 4 && !power) reasons.push('thin')
         const open = sounding.filter((s) => candidate[s] === 0)

@@ -74,14 +74,14 @@ describe('smoothProgression', () => {
             expect(shapes('Dm Bb F C', options)).toEqual(['xx0231', 'x13331', '133211', 'x32010'])
             expect(shapes('D Bm Em A7', options)).toEqual(['xx0232', 'x24432', '022000', 'x02020'])
         }
-        // The database's open B7; the generator alone prefers the A-shape barre.
+        // The open B7, from the database and from the generator alone.
         expect(shapes('Em Am B7 Em', { voicings: lookupGuitarVoicing })).toEqual([
             '022000',
             'x02210',
             'x21202',
             '022000'
         ])
-        expect(shapes('Em Am B7 Em')[2]).toBe('x24242')
+        expect(shapes('Em Am B7 Em')[2]).toBe('x21202')
         expect(shapes('Gm Cm D7 Gm', { voicings: lookupGuitarVoicing })).toEqual([
             '355333',
             'x35543',

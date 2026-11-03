@@ -29,8 +29,17 @@ describe('fingerVoicing', () => {
     })
 
     it('puts a second barre on the highest fret when needed', () => {
-        // Index across fret 5, two notes at 6, three at 7: the ring finger barres fret 7.
-        expect(fingerVoicing([5, 6, 7, 7, 7, 5, 6])).toEqual(['1', '2', '4', '4', '4', '1', '3'])
+        // Index across fret 5, one note at 6, three at 7: the ring finger barres fret 7.
+        expect(fingerVoicing([5, 6, 7, 7, 7, 5])).toEqual(['1', '2', '3', '3', '3', '1'])
+    })
+
+    it('barres with the index or the ring finger only', () => {
+        // G7 323033 would need a pinky barre on the top strings, Am x02555 a pinky across fret 5.
+        expect(fingerVoicing(frets('323033'))).toBeNull()
+        expect(fingerVoicing(frets('x02555'))).toEqual(fingers('x01333'))
+        // Two notes at 6 apart and three at 7 would need a pinky barre.
+        expect(fingerVoicing([5, 6, 7, 7, 7, 5, 6])).toBeNull()
+        expect(fingerVoicing(frets('xx0211'))).toEqual(fingers('xx0211'))
     })
 
     it("refuses what a hand can't play", () => {
@@ -272,5 +281,50 @@ describe('after the review', () => {
 
     it('knows altered chords', () => {
         expect(generateVoicings('Calt').length).toBeGreaterThan(0)
+    })
+})
+
+describe('after the guitar review (#67)', () => {
+    const pitches = (f: (number | null)[]) =>
+        f.flatMap((n, s) => (n === null ? [] : [[40, 45, 50, 55, 59, 64][s]! + n]))
+
+    it('never plays the same pitch on two strings', () => {
+        expect(rank('Cmaj7', 'x3240x')).toBe(0)
+        expect(rank('C', 'x35050')).toBe(0)
+        for (const symbol of ['C', 'Cmaj7', 'G7', 'Am', 'E7#9', 'D/F#']) {
+            for (const v of generateVoicings(symbol)) {
+                const p = pitches(v.frets)
+                expect(new Set(p).size).toBe(p.length)
+            }
+        }
+    })
+
+    it('ranks lower positions first among the barre shapes', () => {
+        const before = (symbol: string, a: string, b: string) => {
+            expect(rank(symbol, a)).toBeGreaterThan(0)
+            expect(rank(symbol, a)).toBeLessThan(rank(symbol, b))
+        }
+        before('Bb', 'x13331', '688766')
+        before('B', 'x24442', '799877')
+        before('C', 'x35553', '8-10-10-9-8-8')
+        before('D', 'x57775', '10-12-12-11-10-10')
+        before('Eb', 'x68886', '11-13-13-12-11-11')
+        before('Am', '577555', 'x-12-14-14-13-12')
+    })
+
+    it('gives no voicing a middle or pinky barre', () => {
+        for (const symbol of ['Am', 'G7', 'C', 'Bb', 'Cm9', 'E7#9', 'A13']) {
+            for (const v of generateVoicings(symbol)) {
+                for (const finger of ['2', '4']) {
+                    expect(v.fingers.filter((f) => f === finger).length).toBeLessThanOrEqual(1)
+                }
+            }
+        }
+    })
+
+    it('puts power chords on the low strings', () => {
+        expect(generateVoicings('G5')[0]!.bassString).toBe(6)
+        expect(generateVoicings('C5')[0]!.bassString).toBe(5)
+        expect(rank('G5', '355xxx')).toBeLessThanOrEqual(3)
     })
 })
