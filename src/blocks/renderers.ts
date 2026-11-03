@@ -23,7 +23,12 @@ import { renderChart } from '../chords/chart.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { keyRangeOf, parseKeyRange, renderKeyboard } from '../keyboard/keyboard.js'
-import { pianoPitches } from '../keyboard/piano-chord.js'
+import {
+    pianoOptionsOf,
+    pianoPitches,
+    pianoVoicing,
+    triadFingering
+} from '../keyboard/piano-chord.js'
 import { chordNoteSet, intervalLabel, listNoteSet, type NoteSet } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { parseChord } from '../theory/chord-symbol.js'
@@ -220,8 +225,26 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     const capo = capoText ? parseCapo(capoText) : 0
     if (instrument === 'piano' || instrument === 'keyboard' || (pitchesText && !instrument)) {
         if (capo) throw new Error('capo is for guitar and other fretted instruments, not piano')
+        // Inversion, octave, voicing style and hands (#16).
+        const voicingOptions = pianoOptionsOf((key) => field(block, key))
+        const fingering = field(block, 'fingering', 'fingers')
+        let auto: Map<number, string> | null = null
+        let hands: Map<number, 'left' | 'right'> | undefined
         let set: NoteSet
         if (pitchesText) {
+            const given =
+                ['inversion', 'octave', 'hands'].find((key) => field(block, key)) ??
+                (voicingOptions.voicing ? 'voicing' : undefined)
+            if (given) {
+                throw new Error(
+                    `${given} goes with a chord symbol: pitches are already the keys to play`
+                )
+            }
+            if (fingering?.trim().toLowerCase() === 'auto') {
+                throw new Error(
+                    'fingering: auto goes with a chord symbol: write the fingers, e.g. 1 3 5'
+                )
+            }
             set = orFail(listNoteSet(pitchesText), `Invalid pitches "${pitchesText}"`)
             if (!set.pitches) {
                 // Pitch classes only: stack them upwards from octave 4.
@@ -246,12 +269,27 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             }
         } else if (symbol) {
             if (!chord) throw unrecognized(symbol)
-            set = pianoPitches(symbol)
+            set = pianoPitches(symbol, voicingOptions)
+            const voiced = pianoVoicing(symbol, voicingOptions)!
+            if (voiced.hands) {
+                hands = new Map([
+                    ...voiced.left.map((p): [number, 'left'] => [p, 'left']),
+                    ...voiced.right.map((p): [number, 'right'] => [p, 'right'])
+                ])
+            }
+            if (fingering?.trim().toLowerCase() === 'auto') {
+                auto = triadFingering(voiced)
+                if (!auto) {
+                    throw new Error(
+                        'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
+                    )
+                }
+            }
         } else {
             throw new Error('Add a chord symbol or "pitches:"')
         }
-        const fingering = field(block, 'fingering', 'fingers')
-        const fingers = fingering ? fingersFor(set.pitches!, fingering) : new Map<number, string>()
+        const fingers =
+            auto ?? (fingering ? fingersFor(set.pitches!, fingering) : new Map<number, string>())
         const range = field(block, 'range')
         // Checked even though keyboards ignore it, so a typo doesn't go unnoticed.
         handOf(block, options)
@@ -262,6 +300,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                 title,
                 label: labelField(block, fingers.size ? 'fingers' : 'notes', fingers.size > 0),
                 fingers,
+                ...(hands ? { hands } : {}),
                 range: keyRange(range ? rangeOf(range) : keyRangeOf(set)),
                 // Piano chords follow the keyboards' default.
                 orientation: orientationOf(block, options.orientation?.keyboard)

@@ -434,6 +434,17 @@
     font-weight: 600;
 }
 
+/* Which hand plays each key of a piano chord (hands: left+right): L or R under the keys. */
+.mn-svg .mn-key-hand {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-key-hand.mn-hand-left {
+    fill: var(--mn-fg);
+}
+
 /* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that
    also wraps on narrow screens rather than shrinking diagrams to nothing. */
 .mn-block .mn-row {

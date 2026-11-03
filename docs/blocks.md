@@ -58,7 +58,7 @@ title: A (open)</code></pre></div>
 
 Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Five notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G), Csus2 (C D G) and four-note jazz clusters like Cmaj9/B (B C D E). A chord the library doesn't recognize says what to write instead.
 
-A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
+A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below. [Piano voicings](#piano-voicings) change that.
 
 ````markdown
 ```chord
@@ -71,6 +71,38 @@ fingering: 5-1-2-4
 <div class="mn-live" markdown="0"><pre><code class="language-chord">C/G
 instrument: piano
 fingering: 5-1-2-4</code></pre></div>
+
+## Piano voicings
+
+A piano chord from a symbol can be inverted, moved, voiced and split between the hands:
+
+````markdown
+```chord
+C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto</code></pre></div>
+
+| Key         | Meaning                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inversion` | The chord's note in the bass: `root` (or `0`), `first` (`1`, the third), `second` (`2`, the fifth), `third` (`3`, the seventh). C first inversion is E4 G4 C5. A slash chord already has its bass.                              |
+| `octave`    | The octave of the lowest right-hand note: `4` (middle C's) by default, `3` one octave lower.                                                                                                                                    |
+| `voicing`   | `close` (default: the notes stacked as close as they go), `open` (the note above the bass goes up an octave: C G E), `shell` (root, third, seventh: Cmaj7 is C E B), `rootless A` or `rootless B` (jazz).                       |
+| `hands`     | `left+right`: the bass (the root, or a slash chord's bass) in the left hand, an octave below the right hand. `left`: the whole chord in the left hand (octave 3 by default). An L or R under each key says which hand plays it. |
+| `fingering` | `auto`: the usual fingers for a three-note chord in close position (right hand 1 3 5, first inversion 1 2 5; left hand 5 3 1, second inversion 5 2 1). Otherwise, write the fingers.                                            |
+
+Rootless voicings leave out the root, which a bass player or the left hand plays. Form A is 3 5 7 9, form B is 7 9 3 5. Dominant chords use the 13th instead of the 5th, and keep an altered 9th or 5th when the symbol has one. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A) E G B D. They work for major, minor and dominant seventh and sixth chords; `labels: intervals` shows the added 9th and 13th.
+
+`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: with `pitches`, the keys are already given.
 
 ## Capo
 

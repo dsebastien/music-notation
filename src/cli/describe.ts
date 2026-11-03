@@ -69,6 +69,8 @@ export interface KeyboardKey {
     finger: string | null
     root: boolean
     marks: string[]
+    /** The hand that plays it, when the piano chord says (hands: left+right). */
+    hand?: 'left' | 'right'
 }
 
 export interface KeyboardDiagram {
@@ -229,7 +231,12 @@ function keyboard(svg: Element): KeyboardDiagram {
                 label: labelAfter(el, 'mn-key-label'),
                 finger: fingers.get(midi) ?? null,
                 root: has(el, 'mn-root'),
-                marks: marksOf(el)
+                marks: marksOf(el),
+                ...(has(el, 'mn-hand-left')
+                    ? { hand: 'left' as const }
+                    : has(el, 'mn-hand-right')
+                      ? { hand: 'right' as const }
+                      : {})
             }
         })
         .sort((a, b) => a.midi - b.midi)
@@ -375,6 +382,7 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                                 k.note,
                                 extra(k.label, k.root, [
                                     ...(k.finger ? [`finger ${k.finger}`] : []),
+                                    ...(k.hand ? [`${k.hand} hand`] : []),
                                     ...k.marks
                                 ])
                             ]

@@ -88,6 +88,16 @@ export {
     keyRangeOf,
     type KeyboardOptions
 } from './keyboard/keyboard.js'
+export {
+    pianoVoicing,
+    pianoPitches,
+    triadFingering,
+    type PianoVoicing,
+    type PianoVoicingOptions,
+    type PianoVoicingStyle,
+    type PianoHands,
+    type RootlessForm
+} from './keyboard/piano-chord.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
 export { parseTuning } from './fretboard/tuning.js'
 export {

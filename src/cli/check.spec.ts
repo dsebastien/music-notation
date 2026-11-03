@@ -224,6 +224,20 @@ test('--describe says where the capo is and what the shape sounds', () => {
     expect(plain).not.toHaveProperty('capo')
 })
 
+test('--describe says which hand plays each key', () => {
+    const [keyboard] = checkNote(
+        'a.md',
+        '```chord\nC\ninstrument: piano\nhands: left+right\n```',
+        document
+    )[0]!.diagrams as KeyboardDiagram[]
+    expect(keyboard!.keys.map((k) => [k.note, k.hand])).toEqual([
+        ['C3', 'left'],
+        ['C4', 'right'],
+        ['E4', 'right'],
+        ['G4', 'right']
+    ])
+})
+
 describe('review fixes', () => {
     test('empty tab and score blocks are empty, not errors (templates scaffold them)', () => {
         const reports = checkNote('t.md', '```tab\n```\n\n```score\n\n```\n', document)
