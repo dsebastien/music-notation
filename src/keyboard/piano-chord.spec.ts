@@ -143,6 +143,9 @@ describe('pianoVoicing', () => {
         expect(fingers({ hands: 'left', inversion: 2 })).toBe('5 2 1')
         expect(fingers({ hands: 'left+right' })).toBe('5 1 3 5')
         expect(fingers({ hands: 'left+right', inversion: 2 })).toBe('5 1 3 5')
+        // The bass is the third: the right hand keeps two notes (no doubled third).
+        expect(fingers({ hands: 'left+right' }, 'D/F#')).toBe('5 1 5')
+        expect(fingers({ hands: 'left+right', inversion: 1 })).toBe('5 1 4')
         expect(triadFingering(pianoVoicing('Cmaj7')!)).toBeNull()
         expect(triadFingering(pianoVoicing('C', { voicing: 'open' })!)).toBeNull()
         expect(triadFingering(pianoVoicing('C/G')!)).toBeNull()
@@ -245,13 +248,22 @@ describe('piano chord blocks', () => {
         expect(renderBlock('chord', 'G7\ninstrument: piano\nfingering: auto', host()).error).toBe(
             'fingering: auto covers three-note chords in close position: write the fingers, e.g. fingering: 1 2 3 5'
         )
+        // Both hands with the third in the bass: the right hand's two notes get fingers too.
+        const both = (source: string) => {
+            const el = host()
+            expect(renderBlock('chord', source, el).error).toBeNull()
+            return [...el.querySelectorAll('.mn-key-label')]
+                .sort((a, b) => +a.getAttribute('x')! - +b.getAttribute('x')!)
+                .map((l) => l.textContent)
+        }
         expect(
-            renderBlock(
-                'chord',
-                'C\ninstrument: piano\ninversion: 1\nhands: left+right\nfingering: auto',
-                host()
-            ).error
-        ).toContain('the right hand plays 2')
+            both('C\ninstrument: piano\ninversion: 1\nhands: left+right\nfingering: auto')
+        ).toEqual(['5', '1', '4'])
+        expect(both('D/F#\ninstrument: piano\nhands: left+right\nfingering: auto')).toEqual([
+            '5',
+            '1',
+            '5'
+        ])
     })
 
     it('redraws an inversion for guitar with its own pitches', () => {

@@ -225,15 +225,30 @@ export function pianoVoicing(
 /**
  * Fingers for a close triad (`fingering: auto`), low to high: the right hand 1 3 5 in root position
  * and second inversion, 1 2 5 in first; the left hand 5 3 1 in root position and first inversion,
- * 5 2 1 in second; a left-hand bass under a right-hand chord gets 5. Null for anything else.
+ * 5 2 1 in second; a left-hand bass under a right-hand chord gets 5. With both hands, a bass that is
+ * the chord's third leaves the right hand two notes (D/F#: F#3 + D4 A4, C first inversion: E3 + G4
+ * C5): 1 5 a fifth or more apart, 1 4 a fourth or a tritone, 1 3 a third, 1 2 a second. Null for
+ * anything else.
  */
 export function triadFingering(voicing: PianoVoicing): Map<number, string> | null {
     const leftAlone = voicing.hands === 'left'
     const chord = leftAlone ? voicing.left : voicing.right
     const extra = voicing.pitches.filter((p) => !chord.includes(p))
-    if (voicing.style !== 'close' || chord.length !== 3 || voicing.inversion > 2) return null
+    if (voicing.style !== 'close' || voicing.inversion > 2) return null
     // A bass outside the hands (a slash chord without hands) has no finger to give.
     if (extra.length && voicing.hands !== 'left+right') return null
+    // Both hands, the bass not doubled above: the right hand's two notes by their distance.
+    if (chord.length === 2 && voicing.hands === 'left+right' && extra.length) {
+        const span = chord[1]! - chord[0]!
+        const top = span >= 7 ? '5' : span >= 5 ? '4' : span >= 3 ? '3' : '2'
+        const map = new Map<number, string>([
+            [chord[0]!, '1'],
+            [chord[1]!, top]
+        ])
+        for (const p of extra) map.set(p, '5')
+        return map
+    }
+    if (chord.length !== 3) return null
     const fingers = leftAlone
         ? [
               ['5', '3', '1'],
