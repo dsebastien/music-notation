@@ -214,9 +214,14 @@ describe('playback bar', () => {
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         // Root position from G4, not the 8 lit keys from D4.
         expect(calls[0]!.events.map((e) => e.midi)).toEqual([67, 71, 74, 77])
+        // A fingered chord plays its fingered keys.
+        const f = host()
+        renderBlock('keyboard', 'chord: C\nrange: C4-B5\nfingering: 1 2 4', f, { play: { player } })
+        ;(f.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([60, 64, 67])
         // Every lit key still plays on a click.
         h.querySelector('[data-midi="62"]')!.dispatchEvent(new Event('click', { bubbles: true }))
-        expect(calls[1]!.events.map((e) => e.midi)).toEqual([62])
+        expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([62])
     })
 
     it('strums a guitar chord about 12 ms a string, strikes a piano chord as a block (#59)', () => {
