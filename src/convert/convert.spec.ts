@@ -806,6 +806,22 @@ describe('textTabToAlphaTex, the meter from the typical bar', () => {
 })
 
 describe('textTabToAlphaTex, rhythm of unbarred and uneven tabs (#71)', () => {
+    it('splits a line with no bar lines into 4/4 bars, an eighth its most frequent gap', () => {
+        // Three bars written two columns an eighth, with no bar line between them: one bar
+        // before, 21 eighths overran it and every note became a sixteenth.
+        const tex = textTabToAlphaTex(
+            six([
+                'e|--0---0---0-0-0---0-0-0-0-0---0---0-------0-------|',
+                'B|--------------------------------------------------|',
+                'G|--------------------------------------------------|',
+                'D|--------------------------------------------------|',
+                'A|--------------------------------------------------|',
+                'E|--------------------------------------------------|'
+            ])
+        )!
+        expect(rhythmOf(tex)).toBe('4 4 8 8 4 | 8 8 8 8 4 4 | 2 2')
+    })
+
     it('puts the same columns on the same beats in bars of the same width', () => {
         const tex = textTabToAlphaTex(
             six([

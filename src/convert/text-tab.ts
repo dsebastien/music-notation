@@ -1031,6 +1031,48 @@ function measuresOf(rows: Row[], typical: number | null): Measure[] {
     return out
 }
 
+/**
+ * Bars written without bar lines between them (#71): a bar whose columns fit no grid (see
+ * positionsOf) and whose beats need more eighths than a bar of `meter` holds (its most frequent
+ * gap an eighth, the narrowest when two are as frequent; each gap a whole number of them, one at
+ * least; the last beat one), and is a bar and a half of them wide at least, is split into bars
+ * of that many eighths, from its `pad`. A bar between
+ * two beats with no beat of its own is a rest bar; the columns after the last beat's bar aren't a
+ * bar. Each piece is then read as a bar of its own, so quarters and eighths keep their 2:1 gaps.
+ */
+function splitUnbarred(measures: Measure[], meter: Meter): Measure[] {
+    return measures.flatMap((m) => {
+        if (m.part !== 'whole' || m.beats.length < 2) return [m]
+        const cols = m.beats.map((b) => b.col)
+        if (positionsOf(cols, m.width, m.pad, meter)) return [m]
+        const gaps = cols.slice(1).map((c, i) => c - cols[i]!)
+        const unit = mostFrequent(gaps)!.value
+        const eighths = gaps.reduce((sum, g) => sum + Math.max(1, Math.round(g / unit)), 1)
+        const perBar = meter.length / 2
+        const span = unit * perBar
+        // A bar a little too full stays one bar (see sketchRhythmOf); a line a bar and a half
+        // long at least is several.
+        if (eighths <= perBar || m.width - m.pad < span * 1.5) return [m]
+        const count = Math.floor((cols.at(-1)! - m.pad) / span) + 1
+        return Array.from({ length: count }, (_, k): Measure => {
+            const from = m.pad + k * span
+            const beats = m.beats
+                .filter(
+                    (b) => (k === 0 || b.col >= from) && (k === count - 1 || b.col < from + span)
+                )
+                .map((b) => ({ notes: b.notes, col: b.col - k * span }))
+            return {
+                beats,
+                width: m.pad + span,
+                pad: m.pad,
+                part: 'whole',
+                pickup: false,
+                text: k === count - 1 ? m.text : null
+            }
+        })
+    })
+}
+
 /** An alphaTex string: quotes and backslashes escaped. */
 const quoted = (text: string) => `"${text.replace(/[\\"]/g, (c) => `\\${c}`)}"`
 
@@ -1142,7 +1184,7 @@ export function textTabToAlphaTex(text: string): string | null {
     }
     const typical = typicalWidth(rows)
     const meter = meterOf(rows, typical)
-    const bars: TexBar[] = measuresOf(rows, typical).map((m) => ({
+    const bars: TexBar[] = splitUnbarred(measuresOf(rows, typical), meter).map((m) => ({
         beats: m.beats.map((b) => b.notes),
         rhythm: rhythmOf(m, typical ?? 0, meter),
         text: m.text,
