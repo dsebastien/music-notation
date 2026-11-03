@@ -161,7 +161,16 @@ export function renderFretboard(
             }
             const cls = `mn-dot${markClasses(set, member.chroma, options.marks)}`
             root.appendChild(
-                svg(doc, 'circle', { 'class': cls, cx, cy, 'r': 8, 'data-midi': open + fret })
+                svg(doc, 'circle', {
+                    'class': cls,
+                    cx,
+                    cy,
+                    'r': 8,
+                    'data-midi': open + fret,
+                    'data-mn-string': strings - s,
+                    'data-mn-fret': fret,
+                    'data-mn-note': member.name
+                })
             )
             sounding.add(open + fret)
             const text = labelOf(member, label)
@@ -171,6 +180,9 @@ export function renderFretboard(
     root.setAttribute('data-mn-pitches', [...sounding].sort((a, b) => a - b).join(' '))
     root.setAttribute('data-mn-play', 'scale')
     root.setAttribute('data-mn-sound', 'guitar')
+    // What the diagram shows, for tools that read diagrams.
+    root.setAttribute('data-mn-set', set.title)
+    root.setAttribute('data-mn-frets', `${from}-${to}`)
     if (set.root !== null) root.setAttribute('data-mn-root', String(set.root))
     return root
 }

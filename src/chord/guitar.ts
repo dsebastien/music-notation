@@ -177,8 +177,12 @@ export function renderGuitarDiagram(
     voicing.frets.forEach((fret, s) => {
         // Open and muted marks sit just before the nut.
         const mark = frame.at(across(s), -8)
+        // What each mark is, for tools that read diagrams (strings as guitarists count them).
+        const string = strings - s
         if (fret === null) {
-            root.appendChild(svgLabel(doc, '×', mark, 'mn-muted'))
+            const muted = svgLabel(doc, '×', mark, 'mn-muted')
+            muted.setAttribute('data-mn-string', String(string))
+            root.appendChild(muted)
             return
         }
         const open = tuning?.[s]
@@ -187,7 +191,11 @@ export function renderGuitarDiagram(
             options.root !== null &&
             open !== undefined &&
             (open + fret) % 12 === options.root
-        const midi = open !== undefined ? { 'data-midi': open + fret } : {}
+        const midi = {
+            'data-mn-string': string,
+            'data-mn-fret': fret,
+            ...(open !== undefined ? { 'data-midi': open + fret } : {})
+        }
         if (fret === 0) {
             const [cx, cy] = mark
             root.appendChild(

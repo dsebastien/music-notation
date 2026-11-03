@@ -115,6 +115,16 @@ if (!result.ok) console.warn(result.error)
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
 - Styles: `injectStyles(document)`, or ship `@dsebastien/music-notation/music-notation.css`. Colors follow Obsidian's theme variables, with fallbacks for any page.
 
+## Check your notes
+
+The `check` command draws every block of your Markdown files and lists the mistakes, one per line (`file:line: language: message`). It exits with 1 when a block has a mistake:
+
+```bash
+npx @dsebastien/music-notation check notes/*.md
+```
+
+`--describe` prints what each block draws (titles, chord names, the notes of each dot or key, the frets or keys shown), and `--json` gives the same as JSON. More in the [guide](https://dsebastien.github.io/music-notation/check.html).
+
 ## Obsidian Publish
 
 Add this to your site's `publish.js`. It loads the bundle only on pages that have notation blocks, and the tab bundle (with alphaTab) only on pages with tabs or scores:
@@ -147,7 +157,7 @@ The bundle renders every block, now and as you navigate, and hides a block's sou
 
 ## Credits and licenses
 
-MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings. Tabs and scores use [alphaTab](https://alphatab.net) (MPL-2.0), which the app passes in. The tab bundle loads it from jsDelivr.
+MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings. The `check` command bundles [linkedom](https://github.com/WebReflection/linkedom) (ISC) for the DOM in Node. Tabs and scores use [alphaTab](https://alphatab.net) (MPL-2.0), which the app passes in. The tab bundle loads it from jsDelivr.
 
 ## News & support
 

@@ -3,3 +3,4 @@ node_modules
 CHANGELOG.md
 .claude/
 bun.lockb
+src/cli/fixtures

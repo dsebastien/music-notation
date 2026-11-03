@@ -15,5 +15,6 @@ Chord diagrams, piano keyboards, fretboards and ChordPro charts, drawn from smal
 - [Playground](playground.md): write a block and see it drawn as you type.
 - [Obsidian Publish](publish.md): show the blocks on your Publish site.
 - [JavaScript API](api.md): render blocks from your own code.
+- [Check your notes](check.md): find the blocks with mistakes in your Markdown files, from the command line.
 
 A block with a mistake shows a short message saying what's wrong, and its source stays visible.

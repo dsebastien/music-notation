@@ -142,7 +142,8 @@ export function renderKeyboard(
                 'class': keyClass(midi, false),
                 ...key(along, WHITE_W, WHITE_H),
                 'rx': 2,
-                'data-midi': midi
+                'data-midi': midi,
+                'data-mn-note': memberOf(set, midi)?.name
             })
         )
         caption(midi, at(along + WHITE_W / 2, WHITE_H - 13), false)
@@ -156,7 +157,8 @@ export function renderKeyboard(
                 'class': keyClass(black, true),
                 ...key(along, BLACK_W, BLACK_H),
                 'rx': 2,
-                'data-midi': black
+                'data-midi': black,
+                'data-mn-note': memberOf(set, black)?.name
             })
         )
         caption(black, at(along + BLACK_W / 2, BLACK_H - 13), true)
@@ -169,9 +171,14 @@ export function renderKeyboard(
             const along = isBlack(midi)
                 ? whitesBelow * WHITE_W
                 : whitesBelow * WHITE_W + WHITE_W / 2
-            root.appendChild(
-                svgLabel(doc, finger, at(along, WHITE_H + FINGER_ROW / 2 - 1), 'mn-key-finger')
+            const label = svgLabel(
+                doc,
+                finger,
+                at(along, WHITE_H + FINGER_ROW / 2 - 1),
+                'mn-key-finger'
             )
+            label.setAttribute('data-mn-key', String(midi))
+            root.appendChild(label)
         }
     }
     // What playback plays: the highlighted keys, low to high.
@@ -180,6 +187,7 @@ export function renderKeyboard(
     root.setAttribute('data-mn-pitches', played.join(' '))
     root.setAttribute('data-mn-play', options.playAs ?? 'scale')
     root.setAttribute('data-mn-sound', 'piano')
+    root.setAttribute('data-mn-set', set.title)
     if (set.root !== null) root.setAttribute('data-mn-root', String(set.root))
     return root
 }

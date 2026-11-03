@@ -239,16 +239,19 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         const range = field(block, 'range')
         // Checked even though keyboards ignore it, so a typo doesn't go unnoticed.
         handOf(block, options)
-        return renderKeyboard(doc, set, {
-            // A piano chord plays together.
-            playAs: 'chord',
-            title,
-            label: labelField(block, fingers.size ? 'fingers' : 'notes', fingers.size > 0),
-            fingers,
-            range: keyRange(range ? rangeOf(range) : keyRangeOf(set)),
-            // Piano chords follow the keyboards' default.
-            orientation: orientationOf(block, options.orientation?.keyboard)
-        })
+        return named(
+            renderKeyboard(doc, set, {
+                // A piano chord plays together.
+                playAs: 'chord',
+                title,
+                label: labelField(block, fingers.size ? 'fingers' : 'notes', fingers.size > 0),
+                fingers,
+                range: keyRange(range ? rangeOf(range) : keyRangeOf(set)),
+                // Piano chords follow the keyboards' default.
+                orientation: orientationOf(block, options.orientation?.keyboard)
+            }),
+            symbol
+        )
     }
 
     if (instrument && instrument !== 'guitar' && !field(block, 'tuning')) {
@@ -326,15 +329,24 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     const marks = voicing.frets.map((_, s) =>
         anchors.includes(s) ? 'anchor' : guides.includes(s) ? 'guide' : null
     )
-    return renderGuitarDiagram(doc, voicing, {
-        title,
-        root,
-        tuning,
-        ...(labels ? { labels } : {}),
-        ...(anchors.length || guides.length ? { marks } : {}),
-        orientation: orientationOf(block, options.orientation?.chord),
-        hand: handOf(block, options)
-    })
+    return named(
+        renderGuitarDiagram(doc, voicing, {
+            title,
+            root,
+            tuning,
+            ...(labels ? { labels } : {}),
+            ...(anchors.length || guides.length ? { marks } : {}),
+            orientation: orientationOf(block, options.orientation?.chord),
+            hand: handOf(block, options)
+        }),
+        symbol
+    )
+}
+
+/** The chord a diagram draws, for tools that read diagrams. */
+function named(el: SVGElement, symbol: string | undefined): SVGElement {
+    if (symbol) el.setAttribute('data-mn-chord', symbol)
+    return el
 }
 
 /**
