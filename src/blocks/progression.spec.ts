@@ -258,7 +258,15 @@ describe('progression block', () => {
         )
         expect(
             error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\nvoicing: close')
-        ).toBeNull()
+        ).toBeNull() // voicing: close with voice-leading draws the voice-led keys, with no error in a cell.
+        const close = host()
+        renderBlock(
+            'progression',
+            'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: close\nvoice-leading: yes',
+            close
+        )
+        expect(close.querySelector('.mn-error-message')).toBeNull()
+        expect(pitches(close)).toEqual(['62 65 69 72', '62 65 67 71', '60 64 67 71'])
     })
 
     it('takes the piano from the note’s instrument', () => {
