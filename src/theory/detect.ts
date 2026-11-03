@@ -159,12 +159,15 @@ function namesOf(pitches: number[], flats: boolean): string[] {
 }
 
 /**
- * Four notes or more that only move by steps (1 or 2 semitones) within an octave: a hand position
- * or a scale fragment (C D E F G), not a chord, though tonal would name one (Dm11/C).
+ * Five notes or more that only move by steps (1 or 2 semitones) within an octave, an octave of the
+ * lowest note on top allowed: a hand position or a scale fragment (C D E F G, C D E F G C), not a
+ * chord, though tonal would name one (Dm11/C). Four-note clusters stay chords (Cmaj9/B, G9/F).
  */
 function isStepwiseRun(pitches: number[]): boolean {
-    const sorted = [...new Set(pitches)].sort((a, b) => a - b)
-    if (sorted.length < 4 || sorted[sorted.length - 1]! - sorted[0]! >= 12) return false
+    let sorted = [...new Set(pitches)].sort((a, b) => a - b)
+    if (sorted.length > 1 && sorted[sorted.length - 1]! - sorted[0]! === 12)
+        sorted = sorted.slice(0, -1)
+    if (sorted.length < 5 || sorted[sorted.length - 1]! - sorted[0]! >= 12) return false
     return sorted.every((pitch, i) => i === 0 || pitch - sorted[i - 1]! <= 2)
 }
 

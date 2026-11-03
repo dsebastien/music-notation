@@ -97,9 +97,13 @@ describe('root: in chord blocks (#56) and hand positions (#57)', () => {
         expect(renderBlock('chord', 'C\ninstrument: piano\nroot:', host()).ok).toBe(true)
     })
 
-    it('does not name a stepwise run of four notes or more as a chord', () => {
+    it('does not name a stepwise run of five notes or more as a chord', () => {
         expect(detectChordFromPitches([60, 62, 64, 65, 67])).toBeNull()
-        expect(detectChordFromPitches([60, 62, 64, 65])).toBeNull()
+        // An octave of the lowest note on top is still a hand position.
+        expect(detectChordFromPitches([60, 62, 64, 65, 67, 72])).toBeNull()
+        // Four-note jazz clusters (7-1-9-3) keep their names.
+        expect(detectChordFromPitches([59, 60, 62, 64])).not.toBeNull()
+        expect(detectChordFromPitches([65, 67, 69, 71])).not.toBeNull()
         const h = host()
         renderBlock('chord', 'pitches: C4 D4 E4 F4 G4\nfingering: 1 2 3 4 5', h)
         expect(titles(h)).toEqual([])
