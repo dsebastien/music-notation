@@ -41,6 +41,11 @@ export interface GuitarDiagramOptions {
     fretsFrom?: 'capo' | 'nut'
     /** The chord the shape sounds with the capo, added to the caption ("Capo 2, sounds B"). */
     sounds?: string
+    /**
+     * false: no caption under the diagram (a row of shapes with one caption for the capo, such as
+     * a chart's chords used); the capo bar and the sounding pitches stay.
+     */
+    caption?: boolean
 }
 
 /** "x02220", "x-10-12-12-11-10", "x 10 12 12 11 10" → frets; null when invalid. */
@@ -132,7 +137,8 @@ export function renderGuitarDiagram(
     // From the nut, the capo sits on its own fret; from the capo, where the nut is drawn.
     const fromNut = capo > 0 && options.fretsFrom === 'nut'
     const capoFret = fromNut ? capo : null
-    const caption = capo ? capoCaption(capo, options.sounds) : undefined
+    const caption =
+        capo && options.caption !== false ? capoCaption(capo, options.sounds) : undefined
     const frame = neckFrame({
         orientation,
         hand: options.hand ?? 'right',
@@ -150,7 +156,7 @@ export function renderGuitarDiagram(
     const along = (row: number) => row * ROW
     const at = (string: number, row: number) => frame.at(across(string), along(row))
 
-    const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${caption ? `, ${caption.toLowerCase()}` : ''}`
+    const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).toLowerCase()}` : ''}`
     const height = frame.height + (caption ? CAPTION : 0)
     const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
     if (caption) {
@@ -162,6 +168,8 @@ export function renderGuitarDiagram(
                 'text-anchor': 'middle'
             })
         )
+    }
+    if (capo) {
         root.setAttribute('data-mn-capo', String(capo))
         root.setAttribute('data-mn-frets-from', fromNut ? 'nut' : 'capo')
     }

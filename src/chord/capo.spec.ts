@@ -77,6 +77,18 @@ describe('capo on guitar diagrams', () => {
         expect(svg.getAttribute('data-mn-capo')).toBe('2')
     })
 
+    it('leaves the caption out when asked, keeping the capo and its pitches', () => {
+        const svg = renderGuitarDiagram(
+            document,
+            { frets: [null, 0, 2, 2, 2, 0], fingers: [null, null, null, null, null, null] },
+            { capo: 2, caption: false }
+        )
+        expect(svg.querySelector('.mn-caption')).toBeNull()
+        expect(svg.querySelector('.mn-capo')).not.toBeNull()
+        expect(pitches(svg)).toEqual([47, 54, 59, 63, 66])
+        expect(svg.getAttribute('aria-label')).toBe('Chord diagram, capo 2')
+    })
+
     it('draws the real neck with frets from the nut', () => {
         const svg = renderGuitarDiagram(
             document,
