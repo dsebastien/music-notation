@@ -30,6 +30,7 @@ export type HarmonicFunction =
     | 'borrowed'
     | 'chromatic'
     | 'tonicization'
+    | 'passing'
 
 /** How to read the chords of a progression. */
 export interface NumeralOptions {
@@ -38,6 +39,8 @@ export interface NumeralOptions {
      * chord (A7 is I7 and tonic in an A blues, not V7/IV), as blues players read it.
      */
     blues?: boolean
+    /** The numeral by degree only, never as a secondary dominant (Ebdim7 in C: biii°7). */
+    byDegree?: boolean
 }
 
 export interface ProgressionChord {
@@ -390,6 +393,8 @@ export function numeralOf(
     const bass = parts.bass ? degreeOf(k.tonic, parts.bass, minor) : null
     const slash = bass ? `/${bass.accidental}${bass.number}` : ''
     const plain = `${parts.root}${parts.suffix}`
+    if (options.byDegree)
+        return `${text(leadingTone(degree, parts.suffix, minor), parts.suffix)}${slash}`
     // A secondary dominant (D7 in C is V7/V) or leading-tone chord (F#dim7 is vii°7/V), named
     // from the chord it leads to; a blues's I7 and IV7 are its own.
     if (
@@ -455,6 +460,26 @@ function isTonicizable(symbol: string): boolean {
     )
 }
 
+/**
+ * A passing diminished chord: a diminished triad or seventh outside the key (no slash) whose root
+ * is a half step above the next chord's root. It passes down to it and leads nowhere: Ebdim7 in
+ * C/E Ebdim7 Dm7 is not D#dim7, the leading-tone chord of Em.
+ */
+function isPassing(chord: ProgressionChord, next: ProgressionChord): boolean {
+    if (['tonic', 'subdominant', 'dominant'].includes(chord.function)) return false
+    if (splitChordSymbol(chord.symbol)?.bass) return false
+    const set = chordNoteSet(chord.symbol)
+    const nextRoot = chordNoteSet(next.symbol)?.root
+    if (!set || set.root === null || nextRoot === undefined || nextRoot === null) return false
+    const intervals = set.members.map((m) => m.interval)
+    const diminished =
+        intervals.includes('3m') &&
+        intervals.includes('5d') &&
+        !intervals.includes('7m') &&
+        !intervals.includes('7M')
+    return diminished && (set.root - nextRoot + 12) % 12 === 1
+}
+
 /** A minor seventh or half-diminished chord: the ii of a ii-V. */
 function isTwo(symbol: string): boolean {
     const members = chordNoteSet(symbol)?.members ?? []
@@ -505,6 +530,12 @@ export function withTonicizations(
     }
     out.forEach((chord, i) => {
         const next = out[i + 1]
+        if (next && isPassing(chord, next)) {
+            chord.function = 'passing'
+            if (named(chord))
+                chord.numeral = numeralOf(chord.symbol, key, 'roman', { byDegree: true })!
+            return
+        }
         if (chord.function === 'secondary dominant') {
             // Already a secondary dominant (C7 in C is V7/IV): its ii still is one.
             const root = rootOf(chord.symbol)

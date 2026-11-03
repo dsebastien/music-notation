@@ -363,4 +363,22 @@ describe('withTonicizations', () => {
         // A slash dominant is left alone, as for new tonicizations.
         expect(analysis('C Gm7 C7/E F', 'C')[1]).toBe('v7 borrowed')
     })
+
+    it('reads a diminished chord a half step above the next chord as a passing chord', () => {
+        // The gospel walk-down C/E Ebdim7 Dm7: Ebdim7 passes down to Dm7, it leads to no Em.
+        expect(analysis('C/E Ebdim7 Dm7', 'C')).toEqual([
+            'I/3 tonic',
+            'biii°7 passing',
+            'ii7 subdominant'
+        ])
+        expect(analysis('C Ebdim Dm', 'C')[1]).toBe('biii° passing')
+        // Going up a half step, it leads to the chord: vii°7/ii.
+        expect(analysis('C C#dim7 Dm7', 'C')[1]).toBe('vii°7/ii secondary dominant')
+        // Spelled as a leading-tone chord and resolving up, it stays one.
+        expect(analysis('C D#dim7 Em', 'C')[1]).toBe('vii°7/iii secondary dominant')
+        // Not followed by a chord a half step down: as before.
+        expect(analysis('C Ebdim7 Em', 'C')[1]).toBe('vii°7/iii secondary dominant')
+        // A written numeral keeps its text; the function follows the move.
+        expect(analysis('I/3 biii°7 ii7', 'C')[1]).toBe('biii°7 passing')
+    })
 })
