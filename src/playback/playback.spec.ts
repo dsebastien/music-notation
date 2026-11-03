@@ -41,6 +41,33 @@ describe('sequenceOf', () => {
         expect(sequenceOf('scale', drawn, { bpm: 60, strum: 0, root: 2 })[0]!.midi).toBe(62)
     })
 
+    it('shapes the touch: a guitar strum leans on the bass, a piano sings its top note (#59)', () => {
+        const strum = sequenceOf('chord', [40, 45, 50, 55, 59, 64], { bpm: 90, strum: 12 })
+        expect(strum.map((e) => e.velocity)).toEqual([100, 98, 96, 94, 92, 90])
+        const block = sequenceOf('chord', [48, 64, 67, 72], { bpm: 90, strum: 0, sound: 'piano' })
+        expect(block.map((e) => e.velocity)).toEqual([92, 84, 84, 100])
+        expect(sequenceOf('chord', [60], { bpm: 90, strum: 0 })[0]!.velocity).toBe(100)
+    })
+
+    it('accents the first note and the tonics of a run, softer passing notes (#59)', () => {
+        const run = sequenceOf('scale', [60, 62, 64, 65, 67, 69, 71, 72], {
+            bpm: 90,
+            strum: 0,
+            root: 0
+        })
+        expect(run.map((e) => e.velocity)).toEqual([
+            100, 86, 86, 86, 86, 86, 86, 94, 86, 86, 86, 86, 86, 86, 94
+        ])
+        // C major over a G chord: chord tones 90, passing notes 80.
+        const over = sequenceOf('scale', [60, 62, 64, 65, 67, 69, 71], {
+            bpm: 90,
+            strum: 0,
+            root: 0,
+            tones: [7, 11, 2]
+        })
+        expect(over.slice(0, 7).map((e) => e.velocity)).toEqual([100, 90, 80, 80, 90, 80, 90])
+    })
+
     it('plays nothing without notes', () => {
         expect(sequenceOf('chord', [])).toEqual([])
     })
@@ -212,6 +239,18 @@ describe('playback bar', () => {
         renderBlock('keyboard', 'chord: C', a, { play: { player, strum: 20 } })
         ;(a.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0.02, 0.04])
+    })
+
+    it('plays chord tones over a scale a little louder than passing notes', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'scale: C major\nchord: G7\nrange: C4-B4', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const touch = new Map(calls[0]!.events.slice(1, 7).map((e) => [e.midi, e.velocity]))
+        expect([touch.get(62), touch.get(65), touch.get(67), touch.get(71)]).toEqual([
+            90, 90, 90, 90
+        ])
+        expect([touch.get(64), touch.get(69)]).toEqual([80, 80])
     })
 
     it('runs an arpeggio from its root', () => {

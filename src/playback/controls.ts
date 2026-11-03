@@ -102,6 +102,15 @@ interface DiagramData {
     root: number | null
 }
 
+/** The pitch classes of a chord drawn over a scale (its tones), or undefined. */
+function tonesOf(drawing: Element): number[] | undefined {
+    const tones = [...drawing.querySelectorAll('.mn-tone[data-midi]')]
+        .map((el) => Number(el.getAttribute('data-midi')))
+        .filter((midi) => Number.isFinite(midi))
+        .map((midi) => ((midi % 12) + 12) % 12)
+    return tones.length ? [...new Set(tones)] : undefined
+}
+
 /** The pitch class of a drawing's root mark (a root dot or key), or null. */
 function rootOf(drawing: Element): number | null {
     const mark = drawing.querySelector('.mn-root[data-midi]')
@@ -333,7 +342,12 @@ function barFor(
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        const events = sequenceOf(data.kind, pitchesShown(), { ...settings, root: rootShown() })
+        const tones = tonesOf(shown)
+        const events = sequenceOf(data.kind, pitchesShown(), {
+            ...settings,
+            root: rootShown(),
+            ...(tones ? { tones } : {})
+        })
         playing = play(
             events,
             () => {

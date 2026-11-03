@@ -51,6 +51,13 @@ export interface SequenceOptions {
      * tonic is drawn), it runs from the lowest note.
      */
     root?: number | null
+    /**
+     * Scales: the pitch classes of a chord drawn over the scale; its other notes are passing
+     * notes, played a little softer.
+     */
+    tones?: readonly number[]
+    /** The instrument, for the touch of a chord: guitar (the default) or piano. */
+    sound?: Sound
 }
 
 export const DEFAULT_SEQUENCE: SequenceOptions = { bpm: 90, strum: 12 }
@@ -97,19 +104,54 @@ export function sequenceOf(
     if (kind === 'chord') {
         const strum = Number.isFinite(options.strum) ? options.strum : DEFAULT_SEQUENCE.strum
         const gap = Math.min(200, Math.max(0, strum)) / 1000
+        const last = pitches.length - 1
         return pitches.map((midi, i) => ({
             midi,
             time: i * gap,
-            duration: RING + (pitches.length - 1 - i) * gap
+            duration: RING + (last - i) * gap,
+            velocity: chordVelocity(i, last, options.sound ?? 'guitar')
         }))
     }
     const bpm = Number.isFinite(options.bpm) ? options.bpm : DEFAULT_SEQUENCE.bpm
     const beat = 60 / Math.min(240, Math.max(20, bpm))
-    return scaleRun(pitches, options.root).map((midi, i) => ({
+    const root =
+        options.root === undefined || options.root === null || !Number.isFinite(options.root)
+            ? null
+            : chromaOf(options.root)
+    const tones = options.tones?.length ? new Set(options.tones.map(chromaOf)) : null
+    return scaleRun(pitches, root).map((midi, i) => ({
         midi,
         time: i * beat,
-        duration: beat * 0.95
+        duration: beat * 0.95,
+        velocity: runVelocity(i, chromaOf(midi), root, tones)
     }))
+}
+
+/**
+ * A chord's touch, note by note (low to high): a guitar's pick hits the low strings a little
+ * harder (100 down to 90); a pianist brings out the top note (100) over the bass (92) and the
+ * inner notes (84).
+ */
+function chordVelocity(i: number, last: number, sound: Sound): number {
+    if (last === 0) return 100
+    if (sound === 'piano') return i === last ? 100 : i === 0 ? 92 : 84
+    return Math.round(100 - (10 * i) / last)
+}
+
+/**
+ * A scale note's touch: the first note accented (100), the tonics leaning (94), chord tones over
+ * a scale 90 and passing notes 80, other notes 86.
+ */
+function runVelocity(
+    i: number,
+    chroma: number,
+    root: number | null,
+    tones: ReadonlySet<number> | null
+): number {
+    if (i === 0) return 100
+    if (chroma === root) return 94
+    if (tones) return tones.has(chroma) ? 90 : 80
+    return 86
 }
 
 /** The end of a sequence, in seconds. */
