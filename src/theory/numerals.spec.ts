@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { harmonicFunction, numeralOf, progressionChords, readNumeral } from './numerals.js'
+import {
+    harmonicFunction,
+    isBluesIn,
+    numeralOf,
+    progressionChords,
+    readNumeral
+} from './numerals.js'
+import { readKey } from './keys.js'
 
 const symbols = (numerals: string, key: string) =>
     progressionChords(numerals, key)?.map((c) => c.symbol) ?? null
@@ -176,12 +183,81 @@ describe('harmonicFunction', () => {
             'secondary dominant',
             'secondary dominant'
         ])
-        expect(harmonicFunction('Db', 'C')).toBe('chromatic')
         expect(harmonicFunction('Dmaj7', 'C')).toBe('chromatic')
         expect(harmonicFunction('D7', 'C')).toBe('secondary dominant')
-        expect(harmonicFunction('Db', 'Cm')).toBe('chromatic')
         expect(harmonicFunction('A', 'Am')).toBe('borrowed')
         expect(harmonicFunction('Hm', 'C')).toBeNull()
+    })
+
+    it('calls bII the Neapolitan', () => {
+        expect(harmonicFunction('Db', 'C')).toBe('neapolitan')
+        expect(harmonicFunction('Db/F', 'C')).toBe('neapolitan')
+        expect(harmonicFunction('Dbmaj7', 'C')).toBe('neapolitan')
+        expect(harmonicFunction('Bb', 'Am')).toBe('neapolitan')
+        expect(progressionChords('bII', 'Cm')![0]!.function).toBe('neapolitan')
+        // Not a major chord: chromatic.
+        expect(harmonicFunction('Dbm', 'C')).toBe('chromatic')
+    })
+
+    it('reads a diminished chord leading to a chord of the key as a secondary dominant', () => {
+        const fns = (numerals: string, key: string) =>
+            progressionChords(numerals, key)!.map((c) => `${c.numeral} ${c.function}`)
+        // #iv° and vii°/V are the same F#dim.
+        expect(fns('#iv° vii°/V #iv°7 vii°7/V', 'C')).toEqual([
+            '#iv° secondary dominant',
+            'vii°/V secondary dominant',
+            '#iv°7 secondary dominant',
+            'vii°7/V secondary dominant'
+        ])
+        expect(numeralOf('F#dim7', 'C')).toBe('vii°7/V')
+        expect(numeralOf('C#dim7', 'C')).toBe('vii°7/ii')
+        expect(numeralOf('G#dim7', 'C')).toBe('vii°7/vi')
+        expect(numeralOf('F#m7b5', 'C')).toBe('viiø7/V')
+        expect(numeralOf('D#dim', 'Am')).toBe('vii°/V')
+        // The tonic's own leading-tone chord is vii°7, borrowed from the minor key.
+        expect(numeralOf('Bdim7', 'C')).toBe('vii°7')
+        expect(harmonicFunction('Bdim7', 'C')).toBe('borrowed')
+    })
+
+    it('reads a blues’s I7 and IV7 as the key’s own chords', () => {
+        const chords = progressionChords('A7 D7 E7 A7', 'A')!
+        expect(chords.map((c) => `${c.numeral} ${c.function}`)).toEqual([
+            'I7 tonic',
+            'IV7 subdominant',
+            'V7 dominant',
+            'I7 tonic'
+        ])
+        expect(progressionChords('I7 IV7 V7', 'A')!.map((c) => c.function)).toEqual([
+            'tonic',
+            'subdominant',
+            'dominant'
+        ])
+        // Not a blues: C7 leads to F.
+        expect(progressionChords('C C7 F G7', 'C')![1]!.numeral).toBe('V7/IV')
+        expect(numeralOf('C7', 'C', 'roman', { blues: true })).toBe('I7')
+        expect(isBluesIn(['A7', 'D7', 'E7'], readKey('A')!)).toBe(true)
+        expect(isBluesIn(['A7', 'D7', 'E7'], readKey('D')!)).toBe(false)
+    })
+
+    it('names the chords of dorian and mixolydian keys from the major scale', () => {
+        const dorian = readKey('D dorian')!
+        expect(progressionChords('Dm C G Bdim Bb', dorian)!.map((c) => c.numeral)).toEqual([
+            'i',
+            'bVII',
+            'IV',
+            'vi°',
+            'bVI'
+        ])
+        expect(harmonicFunction('G', dorian)).toBe('subdominant')
+        // Numerals read back in the mode.
+        for (const numeral of ['i', 'bVII', 'IV', 'vi°', 'bIII', 'v'])
+            expect(numeralOf(readNumeral(numeral, dorian)!, dorian)).toBe(numeral)
+        const mixolydian = readKey('G mixolydian')!
+        expect(progressionChords('G F C', mixolydian)!.map((c) => c.function)).toEqual([
+            'tonic',
+            'subdominant',
+            'subdominant'
+        ])
     })
 })
 

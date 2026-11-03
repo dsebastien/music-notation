@@ -200,6 +200,8 @@ export {
     inKey,
     scalesForChord,
     chordsInScale,
+    bluesTonic,
+    BLUES_SCALES,
     type ScaleMatch,
     type FindScalesOptions,
     type KeyCandidate,
@@ -227,6 +229,8 @@ export {
     readNumeral,
     numeralOf,
     harmonicFunction,
+    isBluesIn,
+    type NumeralOptions,
     type ProgressionChord,
     type HarmonicFunction
 } from './theory/numerals.js'
