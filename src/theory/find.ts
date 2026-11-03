@@ -370,11 +370,17 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
     }
     // Major first on a tie (C F G: C major, not A minor).
     candidates.sort((a, b) => b.score - a.score || (a.mode === 'major' ? -1 : 1))
-    const top = candidates.slice(0, 5).filter((c, i) => i === 0 || c.score > 0)
-    const best = top[0]!
+    const [best, runnerUp] = candidates as [KeyCandidate, KeyCandidate]
+    // The other keys: those that hold the most chords first (Am F C G: C major before G major),
+    // then by score. The best key stays the best score (C Bb F C is C major with a borrowed bVII).
+    const others = candidates
+        .slice(1)
+        .filter((c) => c.score > 0)
+        .sort((a, b) => a.outside.length - b.outside.length || b.score - a.score)
+    const top = [best, ...others.slice(0, 4)]
     return {
         ...best,
         candidates: top,
-        clear: top.length < 2 || best.score - top[1]!.score >= 2
+        clear: runnerUp.score <= 0 || best.score - runnerUp.score >= 2
     }
 }
