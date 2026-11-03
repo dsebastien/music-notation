@@ -20,6 +20,21 @@ describe('parseChord', () => {
         expect(parseChord('Cm11')?.quality).toBe('m11')
     })
 
+    it('reads double sharps and double flats', () => {
+        expect(parseChord('F##dim')).toMatchObject({
+            root: 'F##',
+            quality: 'Diminished',
+            name: 'F Double Sharp Diminished'
+        })
+        expect(parseChord('Fxdim')?.root).toBe('F##')
+        expect(parseChord('C##dim7')?.quality).toBe('Diminished 7')
+        expect(parseChord('Ebbm7/Bbb')).toMatchObject({ root: 'Ebb', bass: 'Bbb' })
+        expect(parseChord('Bbb')?.name).toBe('B Double Flat Major')
+        // The longest accidental is the root's, as a single flat is (Cb5 is a C♭ power chord).
+        expect(parseChord('Cbb5')?.name).toBe('C Double Flat 5')
+        expect(parseChord('C(#5)')?.root).toBe('C')
+    })
+
     it('rejects what is not a chord symbol', () => {
         expect(parseChord('Hello')).toBeNull()
         expect(parseChord('Cxyz')).toBeNull()

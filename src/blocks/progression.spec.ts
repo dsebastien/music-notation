@@ -71,6 +71,19 @@ describe('progression block', () => {
         expect(texts(names, 'mn-progression-numeral')).toEqual(['I', 'V', 'vi', 'IV'])
     })
 
+    it('draws chords whose root needs a double sharp', () => {
+        const h = host()
+        const result = renderBlock('progression', 'i iv V vii°\nkey: G#m', h)
+        expect(result.error).toBeNull()
+        const diagrams = [...h.querySelectorAll('svg.mn-guitar-chord')]
+        expect(diagrams.map((d) => d.getAttribute('data-mn-chord'))).toEqual([
+            'G#m',
+            'C#m',
+            'D#',
+            'F##dim'
+        ])
+    })
+
     it('draws piano chords, voice-led when asked', () => {
         const h = host()
         const result = renderBlock(

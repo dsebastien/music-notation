@@ -2,7 +2,7 @@
  * Chord names in words ("A Major", "F Sharp Minor 7", "C Major over G") → chord symbols. The
  * reverse of `parseChord().name`, so both directions round-trip.
  */
-import { parseChord, type ParsedChord } from './chord-symbol.js'
+import { parseChord, spellNote, type ParsedChord } from './chord-symbol.js'
 
 /** Quality in words (lowercase, single spaces) → suffix. The words `parseChord` writes, and a few more. */
 const QUALITY_WORDS = new Map<string, string>([
@@ -47,6 +47,8 @@ const QUALITY_WORDS = new Map<string, string>([
 const COMMON_QUALITIES = ['Major', 'Minor', '7', 'Major 7', 'Minor 7', 'Sus4', 'Diminished']
 
 const ACCIDENTAL: Record<string, string> = {
+    'double sharp': '##',
+    'double flat': 'bb',
     'sharp': '#',
     'flat': 'b',
     '#': '#',
@@ -55,14 +57,16 @@ const ACCIDENTAL: Record<string, string> = {
     '♭': 'b'
 }
 
-/** "f sharp", "B-flat", "Bb", "e♭" → "F#", "Bb", "Bb", "Eb"; null when it isn't a note. */
+/** "f sharp", "B-flat", "Bb", "e♭", "F double sharp" → "F#", "Bb", "Bb", "Eb", "F##"; null when
+ * it isn't a note. */
 function noteOf(text: string): string | null {
-    const m = /^([a-g])[\s-]*(sharp|flat|#|♯|♭|b)?$/i.exec(text.trim())
+    const m = /^([a-g])[\s-]*((?:double[\s-]*)?(?:sharp|flat)|#|♯|♭|b)?$/i.exec(text.trim())
     if (!m) return null
-    return m[1]!.toUpperCase() + (m[2] ? ACCIDENTAL[m[2].toLowerCase()]! : '')
+    const accidental = m[2]?.toLowerCase().replace(/^double[\s-]*/, 'double ')
+    return m[1]!.toUpperCase() + (accidental ? ACCIDENTAL[accidental]! : '')
 }
 
-const NOTE = '[a-g](?:[\\s-]*(?:sharp|flat)\\b|[#♯♭b](?![a-z]))?'
+const NOTE = '[a-g](?:[\\s-]*(?:double[\\s-]*)?(?:sharp|flat)\\b|[#♯♭b](?![a-z]))?'
 const NAME = new RegExp(`^(${NOTE})(.*?)(?:(?:\\s+over\\s+|\\s*/\\s*)(${NOTE}))?$`, 'i')
 
 /** Splits "F Sharp Minor 7 over A" (or "… Minor 7/A") into root, quality words and bass. */
@@ -118,7 +122,7 @@ const distance = (a: string, b: string): number => {
 export function suggestChords(text: string): string {
     const parts = split(text)
     const root = parts?.root ?? 'A'
-    const spelled = root[0]! + (root[1] === '#' ? ' Sharp' : root[1] === 'b' ? ' Flat' : '')
+    const spelled = spellNote(root)
     const quality = parts?.quality ?? ''
     const closest = COMMON_QUALITIES.reduce((best, q) =>
         distance(quality, q.toLowerCase()) < distance(quality, best.toLowerCase()) ? q : best

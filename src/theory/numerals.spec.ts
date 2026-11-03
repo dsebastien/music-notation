@@ -67,6 +67,18 @@ describe('readNumeral', () => {
         expect(symbols('1/3 4/5', 'G')).toEqual(['G/B', 'C/D'])
     })
 
+    it('reads chords whose root needs a double sharp or flat', () => {
+        expect(symbols('i iv V vii°', 'G#m')).toEqual(['G#m', 'C#m', 'D#', 'F##dim'])
+        expect(symbols('i V vii°7', 'D#m')).toEqual(['D#m', 'A#', 'C##dim7'])
+        expect(symbols('V vii°', 'A#m')).toEqual(['E#', 'G##dim'])
+        expect(symbols('vii°/vi', 'B')).toEqual(['F##dim'])
+        expect(symbols('vii°/vi', 'C#')).toEqual(['G##dim'])
+        expect(symbols('I bVI bVII', 'Gb')).toEqual(['Gb', 'Ebb', 'Fb'])
+        expect(numeralOf('F##dim', 'G#m')).toBe('vii°')
+        expect(numeralOf('Ebb', 'Gb')).toBe('bVI')
+        expect(harmonicFunction('C##dim7', 'D#m')).toBe('dominant')
+    })
+
     it('refuses what does not read', () => {
         for (const token of ['VIII', 'IVv', 'Iv', 'x', 'I/', 'V//V', '8', 'V/9', 'I/V/V'])
             expect(readNumeral(token, 'C')).toBeNull()
