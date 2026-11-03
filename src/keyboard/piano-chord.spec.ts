@@ -84,8 +84,14 @@ describe('pianoVoicing', () => {
         expect(voiced('Dm7b5', { voicing: 'rootless' }, true)).toBe('F3 Ab3 C4 E4')
         expect(voiced('Dm7b5', { voicing: 'rootless', rootless: 'B' }, true)).toBe('C3 E3 F3 Ab3')
         expect(() => pianoVoicing('Cdim7', { voicing: 'rootless' })).toThrow(
-            'Rootless voicings are for major, minor, dominant and half-diminished'
+            'Rootless voicings are for major, minor, dominant (sus4 too) and half-diminished'
         )
+        // Dominant sus chords: the 4th for the 3rd, the 5th kept (the 13th when named).
+        expect(voiced('G7sus4', { voicing: 'rootless' })).toBe('C3 D3 F3 A3')
+        expect(voiced('G7sus4', { voicing: 'rootless', rootless: 'B' })).toBe('F3 A3 C4 D4')
+        expect(voiced('G13sus4', { voicing: 'rootless', rootless: 'B' })).toBe('F3 A3 C4 E4')
+        // Shells take the sus note for the third: R 4 7.
+        expect(voiced('G7sus4', { voicing: 'shell' })).toBe('G4 C5 F5')
         expect(() => pianoVoicing('C', { voicing: 'rootless' })).toThrow('not C')
     })
 

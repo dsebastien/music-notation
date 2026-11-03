@@ -252,6 +252,17 @@ describe('progression block', () => {
         )
         expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 52 55 59 62'])
         expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)
+        // A 7sus4 chord takes the voicing too (rootless 4 5 b7 9 or b7 9 4 5; shell R 4 7).
+        for (const voicing of ['rootless', 'shell']) {
+            const sus = host()
+            renderBlock(
+                'progression',
+                `Dm7 G7sus4 G7 Cmaj7\ninstrument: piano\nvoicing: ${voicing}`,
+                sus
+            )
+            expect(sus.querySelector('.mn-error-message')).toBeNull()
+            expect(sus.querySelectorAll('svg.mn-keyboard')).toHaveLength(4)
+        }
         const error = (source: string) => renderBlock('progression', source, host()).error
         expect(error('I V\nkey: C\nvoicing: shell')).toContain('instrument: piano')
         expect(error('I V\nkey: C\ninstrument: piano\nvoice-leading: yes\noctave: 3')).toContain(
