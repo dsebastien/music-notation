@@ -5,7 +5,7 @@ nav_order: 2
 
 # Blocks
 
-A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
+A block is a fenced code block. Its language picks what's drawn: `chord`, `keyboard`, `fretboard`, `chords`, `strum` ([strumming patterns](#strumming-patterns)), or `tab` and `score` ([tabs and scores](#tabs-and-scores)). Inside, one `key: value` per line; most blocks also accept a short first line without a key. `chord`, `keyboard` and `fretboard` blocks can hold [several diagrams](#several-diagrams), drawn [vertically or horizontally](#orientation-and-left-handed-diagrams).
 
 ## Chord
 
@@ -52,10 +52,13 @@ title: A (open)</code></pre></div>
 | `hand`              | `left` mirrors the diagram for left-handed players.                                                                                                                                                                                                                                                                                                                |
 | `labels`            | Guitar: what the dots say, `fingers` (default), `intervals` (R, 3, 5, as triad charts show them), `notes` or `none`.                                                                                                                                                                                                                                               |
 | `anchors`, `guides` | Guitar: strings (1 = the highest) whose finger stays on its fret (a ring) or slides along the string (a dashed ring), as [chord transitions](#chord-transitions) mark them.                                                                                                                                                                                        |
+| `capo`              | Guitar: a capo on that fret; frets count from it. See [capo](#capo).                                                                                                                                                                                                                                                                                               |
+| `frets-from`        | `nut`: the frets you write count from the nut. See [capo](#capo).                                                                                                                                                                                                                                                                                                  |
+| `sounds`            | `yes`, or the chord: the chord the shape sounds with the capo, in the caption.                                                                                                                                                                                                                                                                                     |
 
 Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Five notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G), Csus2 (C D G) and four-note jazz clusters like Cmaj9/B (B C D E). A chord the library doesn't recognize says what to write instead.
 
-A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
+A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below. [Piano voicings](#piano-voicings) change that.
 
 ````markdown
 ```chord
@@ -68,6 +71,76 @@ fingering: 5-1-2-4
 <div class="mn-live" markdown="0"><pre><code class="language-chord">C/G
 instrument: piano
 fingering: 5-1-2-4</code></pre></div>
+
+## Piano voicings
+
+A piano chord from a symbol can be inverted, moved, voiced and split between the hands:
+
+````markdown
+```chord
+C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto</code></pre></div>
+
+| Key         | Meaning                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inversion` | The chord's note in the bass: `root` (or `0`), `first` (`1`, the third), `second` (`2`, the fifth), `third` (`3`, the seventh). C first inversion is E4 G4 C5. A slash chord already has its bass.                              |
+| `octave`    | The octave of the lowest right-hand note: `4` (middle C's) by default, `3` one octave lower.                                                                                                                                    |
+| `voicing`   | `close` (default: the notes stacked as close as they go), `open` (the note above the bass goes up an octave: C G E), `shell` (root, third, seventh: Cmaj7 is C E B), `rootless A` or `rootless B` (jazz).                       |
+| `hands`     | `left+right`: the bass (the root, or a slash chord's bass) in the left hand, an octave below the right hand. `left`: the whole chord in the left hand (octave 3 by default). An L or R under each key says which hand plays it. |
+| `fingering` | `auto`: the usual fingers for a three-note chord in close position (right hand 1 3 5, first inversion 1 2 5; left hand 5 3 1, second inversion 5 2 1). Otherwise, write the fingers.                                            |
+
+Rootless voicings leave out the root, which a bass player or the left hand plays. Form A is 3 5 7 9, form B is 7 9 3 5. Dominant chords use the 13th instead of the 5th, and keep an altered 9th or 5th when the symbol has one. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A) E G B D. They work for major, minor and dominant seventh and sixth chords; `labels: intervals` shows the added 9th and 13th.
+
+`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: with `pitches`, the keys are already given.
+
+## Capo
+
+`capo: 2` puts a capo on fret 2 of a `chord` or `fretboard` block. It is drawn as a bar across the strings, and a caption under the diagram says "Capo 2".
+
+````markdown
+```chord
+A x02220 x01230
+capo: 2
+sounds: yes
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A x02220 x01230
+capo: 2
+sounds: yes</code></pre></div>
+
+- Frets count from the capo, the way players read them: an A shape is still `x02220`. The capo is drawn where the nut is, and an open string sounds at the capo.
+- The chord is the shape you play (`A`). It sounds higher: an A shape with a capo on 2 sounds B. Root marks, `labels: notes` and playback use the notes that sound.
+- `sounds: yes` adds the chord that sounds to the caption ("Capo 2, sounds B"). You can write the chord instead (`sounds: B`); if it isn't the chord the shape sounds, the block tells you which one it is.
+- `frets-from: nut` counts the frets you write from the nut: `frets: x24442` with `capo: 2` is the same A shape. The diagram then shows the real neck: the capo sits on its fret, and the strings it plays are rings on it. Every sounding fret must be at the capo or above.
+- On a fretboard, `frets:` and positions count from the capo too, and the strings are named by what they sound. Positions are found from the capo, as if it were the nut. With `frets-from: nut`, the fretboard shows the real neck and nothing behind the capo.
+- `capo`, `frets-from` and `sounds` can be shared by a row. `voicings:`, `triads:` and transitions draw the shapes as played from the capo.
+- A capo goes from fret 1 to 12; `capo: 0` is no capo. Piano chords don't take one.
+
+````markdown
+```fretboard
+A minor pentatonic
+position: 1
+capo: 2
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">A minor pentatonic
+position: 1
+capo: 2
+labels: intervals</code></pre></div>
 
 ## All the ways to play a chord
 
@@ -250,6 +323,8 @@ labels: intervals</code></pre></div>
 | `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                |
 | `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
+| `capo`, `frets-from`                         | A capo; `frets` and positions count from it. See [capo](#capo).                                                                                 |
+| `arpeggio`                                   | A chord's notes, labeled with intervals; with `position` or `positions`, its CAGED shapes. See [arpeggios](#arpeggios).                         |
 
 **A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists: in a `chord` block, it's an error that says so.
 
@@ -382,6 +457,27 @@ The altered scale is spelled without double sharps. When its usual jazz spelling
 
 Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, major, composite), chromatic, diminished, dorian (and #4, b2), double harmonic major, egyptian, enigmatic, flamenco, harmonic major, harmonic minor, hirajoshi, hungarian major and minor, in-sen, iwato, kumoijoshi, locrian (and #2, 6, major), lydian (and #9, augmented, dominant, minor), major, major pentatonic, melodic minor, minor, minor pentatonic, mixolydian (and b6), neapolitan major, oriental, pelog, persian, phrygian, phrygian dominant, prometheus, scriabin, spanish heptatonic, ultralocrian, whole tone, and more: every scale [tonal](https://github.com/tonaljs/tonal) knows.
 
+## Arpeggios
+
+`arpeggio: Am7` draws a chord's notes on a fretboard, like `chord: Am7`, but labeled with intervals (R, b3, 5, b7) by default; the root has its own color. Add a position to learn it one shape at a time, as for scales:
+
+- `position: 1` to `5`, or `shape: E`, `D`, `C`, `A`, `G`: the chord tones of that CAGED shape. Each shape is the CAGED position of the root's major scale (natural minor for chords with a minor third), keeping only the chord's notes. Chord notes outside that scale (G7's F, Caug's G#) are added on the string that keeps the hand in place.
+- `positions: all` (or a list, `positions: 1 3`) draws the shapes side by side in neck order, each one at or above the one before; `frets:` with one position draws it in the lowest octave inside those frets. These are the same rules as for scale positions.
+- A chord with a position is an arpeggio too (`chord: G7` with `shape: A`), unless the block also has a `scale:` (see [a chord over a scale](#which-scale-fits)). `labels:` works as usual. Arpeggios have no 3NPS positions.
+- On a keyboard, `arpeggio:` plays the notes one at a time.
+
+````markdown
+```fretboard
+arpeggio: Am7
+positions: all
+columns: 3
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">arpeggio: Am7
+positions: all
+columns: 3</code></pre></div>
+
 ## Which scale fits
 
 **Scales for chords.** On a keyboard or a fretboard, `scales-for:` with the chords of a song draws the scale that fits them best. The title names the scale, and any chord notes outside it. `scales-for-notes:` does the same for a list of notes. Other keys (`frets`, `labels`, `position`, `range`…) work as for `scale:`.
@@ -398,7 +494,7 @@ frets: 0-5</code></pre></div>
 
 The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note.
 
-**A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint.
+**A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint. `arpeggio:` works like `chord:` here. With `position:` or `positions:`, you get the scale's positions with the chord tones marked; a chord or arpeggio without `scale:` draws its own [arpeggio positions](#arpeggios).
 
 ````markdown
 ```fretboard
@@ -430,18 +526,19 @@ functions: yes
 key: G
 functions: yes</code></pre></div>
 
-| Key             | Meaning                                                                                                                       |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| first line      | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.             |
-| `key`           | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others). |
-| `transpose`     | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                 |
-| `numerals`      | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                           |
-| `functions`     | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, borrowed or chromatic.         |
-| `instrument`    | `guitar` (default, or the note's instrument) or `piano`.                                                                      |
-| `diagrams`      | `no` shows only the chord names.                                                                                              |
-| `voice-leading` | `yes` (piano): each chord in the inversion closest to the one before.                                                         |
-| `tuning`        | For guitar diagrams, as for chords.                                                                                           |
-| `title`         | A title above the progression.                                                                                                |
+| Key                          | Meaning                                                                                                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| first line                   | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.                 |
+| `key`                        | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others).     |
+| `transpose`                  | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                     |
+| `numerals`                   | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                               |
+| `functions`                  | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, borrowed or chromatic.             |
+| `instrument`                 | `guitar` (default, or the note's instrument) or `piano`.                                                                          |
+| `diagrams`                   | `no` shows only the chord names.                                                                                                  |
+| `voice-leading`              | `yes` (piano): each chord in the inversion closest to the one before.                                                             |
+| `voicing`, `octave`, `hands` | Piano voicings for every chord, as in [piano voicings](#piano-voicings): `voicing: shell` for a ii-V-I. Not with `voice-leading`. |
+| `tuning`                     | For guitar diagrams, as for chords.                                                                                               |
+| `title`                      | A title above the progression.                                                                                                    |
 
 **Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C.
 
@@ -530,7 +627,7 @@ D xx0232 xx0132
 ---
 Em 022000 023000</code></pre></div>
 
-Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning` and `range` for chords; `range` for keyboards; `tuning` and `frets` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
+Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning`, `range`, `capo`, `frets-from` and `sounds` for chords; `range` for keyboards; `tuning`, `frets`, `capo` and `frets-from` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
 
 ````markdown
 ```fretboard
@@ -623,6 +720,8 @@ Choosing the other sound also stops what is playing, then redraws the diagram fo
 
 A click on a dot or a key plays that note. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
 
+While it plays, each note lights up on the drawing when you hear it: the dot, the key, or the string's mark. A strummed chord lights its strings from the low one up. A clicked note lights only the dot or key you clicked. Stop or a new sound turns every light off.
+
 ## Tabs and scores
 
 ![A tab with its player](images/tab.png)
@@ -659,7 +758,7 @@ staves: both
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
 
-These keys go on the first lines, and the alphaTex follows. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
+These keys go on the first lines, and the alphaTex follows. Drums have no tablature: a `tab` block with a percussion track (`\instrument percussion`) shows notation too. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
@@ -700,5 +799,124 @@ Supported:
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
 - `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key.
 - Long lyric lines wrap on narrow screens.
+- Chord shapes and the chords used row: see below.
 
 Other directives are ignored.
+
+### Chord diagrams in a chart
+
+`{diagrams}` draws every chord the chart uses, in the order they first appear, as a row of diagrams above the song. The row wraps on narrow screens.
+
+````markdown
+```chords
+{title: Example}
+{diagrams: on}
+{define: F base-fret 1 frets 1 3 3 2 1 1 fingers 1 3 4 2 1 1}
+
+[C]Hello [F]little [G]world, [C]hello
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Example}
+{diagrams: on}
+{define: F base-fret 1 frets 1 3 3 2 1 1 fingers 1 3 4 2 1 1}
+
+[C]Hello [F]little [G]world, [C]hello</code></pre></div>
+
+- `{diagrams}` or `{diagrams: on}` puts the row on top, `{diagrams: bottom}` under the song, `{diagrams: off}` hides it. The row is off by default; apps can turn it on for every chart (`chartDiagrams` option).
+- Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
+- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice.
+- `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
+- With `{capo: 2}`, the row shows the shapes you play (the names above the lyrics) and says "Capo 2".
+- Chords the chart can't draw are listed under the row, with what to write.
+- `N.C.`, `%` and other text in brackets that isn't a chord is skipped.
+
+`{define: name …}` gives a chord's shape (ChordPro 6 syntax):
+
+- `base-fret 3`: the fret the shape starts on (1 by default). Frets count from it: with `base-fret 3`, fret 1 is the 3rd fret.
+- `frets x 0 2 2 1 0`: one value per string, lowest string first. `0` is an open string; `x`, `N` or `-1` a muted one.
+- `fingers 0 0 2 3 1 0`: one value per string, `1` to `9` or a letter (`T` for the thumb). Anything else (`0`, `-`, `x`) means no finger.
+- `keys 0 3 7`: piano keys, in semitones above the root (0 is the root, 7 the fifth).
+- `display "A flat"`: the name shown on the diagram.
+- `copy Am`: start from another chord's shape (an earlier `{define}`, or the database), then change it with the other keywords. `copyall` also copies the display name.
+- `diagram off`: leave that chord out of the row.
+
+`{chord: Am}` draws one chord where it is written: the chart's own `{define}` for it, else the database. `{chord: Bes base-fret 1 frets 1 1 3 3 3 1}` draws that shape without defining it for the rest of the song. As in ChordPro, the name is transposed only when written in brackets: `{chord: [Am]}`.
+
+A `{define}` or `{chord}` with a mistake shows a message at the top of the chart (what to write instead); the rest of the chart still draws.
+
+## Strumming patterns
+
+A strumming pattern on a beat grid: the counts (1 & 2 & …) under each slot, an arrow for each strum, accents, muted strums, and the chord changes above.
+
+````markdown
+```strum
+[G]D - D U [C]- U D U
+title: Old faithful
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">[G]D - D U [C]- U D U
+title: Old faithful</code></pre></div>
+
+````markdown
+```strum
+D> (U) X U D> U X U
+chord: Am
+tempo: 100
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">D&gt; (U) X U D&gt; U X U
+chord: Am
+tempo: 100</code></pre></div>
+
+````markdown
+```strum
+D - D U - U
+time: 6/8
+chord: Em
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-strum">D - D U - U
+time: 6/8
+chord: Em</code></pre></div>
+
+Write the pattern the way you find it on the web. Each slot is one subdivision of the beat (an 8th by default):
+
+- One symbol a slot, with rests: `D - D U - U D U`, `D-DU-UDU`, `D . D U . U D U`.
+- Strums only: `D DU UDU`, `DDUUDU`, `D D D D`. They are placed by the hand's motion: down strums on the beat, up strums between (`DDUUDU` is `D - D U - U D U`). Dashes between strums (`D-D-U-U-D-U`) read the same.
+
+| Symbol      | Meaning                                                                    |
+| ----------- | -------------------------------------------------------------------------- |
+| `D` / `U`   | A down / up strum (any case).                                              |
+| `X`         | A muted strum (a percussive chuck).                                        |
+| `-` `.` `_` | No strum: the hand moves but misses the strings.                           |
+| `D>`        | An accent: played louder. `>D` works too.                                  |
+| `(U)`       | A ghost strum: played softly, drawn small. `(D U)` makes both ghost.       |
+| `[G]`       | A chord change on the next slot (a symbol, or words: `[A Minor]`).         |
+| `\|`        | A bar line. Each line and each part between bar lines is one or more bars. |
+
+A line of chords above a pattern line puts each chord on the slot under it (on a gap of `D DU UDU`, on the rest there). This draws the same as the first example:
+
+```text
+G   C
+D DU UDU
+```
+
+A line of only `D`s reads as strums: write `[D]` in the pattern instead. A line of counts (`1 & 2 & 3 & 4 &`) is skipped.
+
+| Key           | Meaning                                                                                                                 |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `time`        | The time signature: `4/4` (default), `3/4`, `6/8`, `12/8`, `C`, `cut`…                                                  |
+| `subdivision` | `8ths` (default), `16ths` or `triplets` (in x/4). In 6/8, an 8th is one slot.                                           |
+| `chord`       | The chord of the whole pattern (until a change). Without any chord, playback strums E minor.                            |
+| `tempo`       | Beats a minute for playback, 20–240 (90 by default). The beat is the time signature's: a quarter in 4/4, an 8th in 6/8. |
+| `tuning`      | The open strings chords are played on: `standard` (default), `drop d`, `ukulele`, `D2 A2 D3 G3 B3 E4`…                  |
+| `title`       | A title above the pattern.                                                                                              |
+| `pattern`     | The pattern, as a key, when you prefer.                                                                                 |
+
+A pattern holds up to 16 bars; long ones wrap, two bars of 8ths a row. When a bar doesn't fill up, the message says how many slots it needs and which subdivision would fit.
+
+In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), volume and sound. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low; accents are louder, ghost strums soft, muted strums short. Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the next time round of the loop.

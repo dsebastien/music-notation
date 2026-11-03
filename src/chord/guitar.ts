@@ -28,6 +28,24 @@ export interface GuitarDiagramOptions {
     labels?: (string | null)[]
     /** Chord transitions: fingers that stay (anchor) or slide (guide), per string. */
     marks?: ('anchor' | 'guide' | null)[]
+    /**
+     * A capo on this fret: drawn as a bar, open strings sound at it, and a caption says "Capo N".
+     * Frets are counted from the capo (as players read them) unless `fretsFrom` is `nut`.
+     */
+    capo?: number
+    /**
+     * `capo` (default): the frets count from the capo, which sits where the nut is drawn. `nut`:
+     * the frets count from the nut, the capo is drawn on its fret, and strings at that fret are
+     * played by the capo (a ring on it).
+     */
+    fretsFrom?: 'capo' | 'nut'
+    /** The chord the shape sounds with the capo, added to the caption ("Capo 2, sounds B"). */
+    sounds?: string
+    /**
+     * false: no caption under the diagram (a row of shapes with one caption for the capo, such as
+     * a chart's chords used); the capo bar and the sounding pitches stay.
+     */
+    caption?: boolean
 }
 
 /** "x02220", "x-10-12-12-11-10", "x 10 12 12 11 10" → frets; null when invalid. */
@@ -65,11 +83,12 @@ interface Barre {
 }
 
 /** Strings held by the same finger on the same fret, across at least two strings. */
-function barresOf(voicing: FrettedVoicing): Barre[] {
+function barresOf(voicing: FrettedVoicing, capoFret: number | null): Barre[] {
     const byKey = new Map<string, number[]>()
     voicing.frets.forEach((fret, string) => {
         const finger = voicing.fingers[string]
-        if (fret === null || fret === 0 || !finger) return
+        // Strings the capo holds have no finger.
+        if (fret === null || fret === 0 || fret === capoFret || !finger) return
         const key = `${finger}@${fret}`
         byKey.set(key, [...(byKey.get(key) ?? []), string])
     })
@@ -96,6 +115,12 @@ const MARKERS = 16
 /** Room beyond the low string, for the base fret. */
 const BASE = 30
 const TITLE = 22
+/** Room under the neck for the caption (the capo). */
+const CAPTION = 18
+
+/** "Capo 2", "Capo 2, sounds B": what a diagram with a capo says under it. */
+export const capoCaption = (capo: number, sounds?: string): string =>
+    `Capo ${capo}${sounds ? `, sounds ${sounds}` : ''}`
 
 export function renderGuitarDiagram(
     doc: Document,
@@ -108,6 +133,12 @@ export function renderGuitarDiagram(
     const rows = Math.max(4, fretted.length ? Math.max(...fretted) - base + 1 : 0)
     const orientation = options.orientation ?? 'vertical'
     const vertical = orientation === 'vertical'
+    const capo = options.capo && options.capo > 0 ? options.capo : 0
+    // From the nut, the capo sits on its own fret; from the capo, where the nut is drawn.
+    const fromNut = capo > 0 && options.fretsFrom === 'nut'
+    const capoFret = fromNut ? capo : null
+    const caption =
+        capo && options.caption !== false ? capoCaption(capo, options.sounds) : undefined
     const frame = neckFrame({
         orientation,
         hand: options.hand ?? 'right',
@@ -118,15 +149,30 @@ export function renderGuitarDiagram(
         low: vertical || base > 1 ? BASE : 10,
         high: vertical ? 14 : 10,
         top: options.title ? TITLE : 4,
-        minWidth: titleWidth(options.title)
+        minWidth: Math.max(titleWidth(options.title), titleWidth(caption))
     })
     // Neck coordinates: strings across (lowest first), fret rows along.
     const across = (string: number) => string * SPACING
     const along = (row: number) => row * ROW
     const at = (string: number, row: number) => frame.at(across(string), along(row))
 
-    const label = options.title ? `${options.title} chord diagram` : 'Chord diagram'
-    const root = svgRoot(doc, frame.width, frame.height, 'mn-guitar-chord', label)
+    const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).toLowerCase()}` : ''}`
+    const height = frame.height + (caption ? CAPTION : 0)
+    const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
+    if (caption) {
+        root.appendChild(
+            svgText(doc, caption, {
+                'class': 'mn-caption',
+                'x': frame.width / 2,
+                'y': height - 6,
+                'text-anchor': 'middle'
+            })
+        )
+    }
+    if (capo) {
+        root.setAttribute('data-mn-capo', String(capo))
+        root.setAttribute('data-mn-frets-from', fromNut ? 'nut' : 'capo')
+    }
     if (options.title) {
         root.appendChild(
             svgText(doc, options.title, {
@@ -139,8 +185,26 @@ export function renderGuitarDiagram(
     }
 
     for (let row = 0; row <= rows; row++) {
-        const cls = row === 0 && base === 1 ? 'mn-nut' : 'mn-fret'
+        // From the capo, the capo takes the nut's place.
+        const cls = row === 0 && base === 1 && (!capo || fromNut) ? 'mn-nut' : 'mn-fret'
         root.appendChild(svgLine(doc, at(0, row), at(strings - 1, row), cls))
+    }
+    // The capo: a bar across every string, where the nut is drawn (frets from the capo) or on its
+    // fret (frets from the nut), when that fret is in view.
+    const capoRow = fromNut ? capo - base + 0.5 : base === 1 ? 0 : null
+    if (capo && capoRow !== null && capoRow >= 0 && capoRow <= rows) {
+        root.appendChild(
+            svg(doc, 'rect', {
+                class: 'mn-capo',
+                ...frame.box(
+                    across(0) - 8,
+                    along(capoRow) - 3,
+                    across(strings - 1) + 8,
+                    along(capoRow) + 3
+                ),
+                rx: 3
+            })
+        )
     }
     for (let s = 0; s < strings; s++) {
         root.appendChild(svgLine(doc, at(s, 0), at(s, rows), 'mn-string'))
@@ -162,7 +226,7 @@ export function renderGuitarDiagram(
         )
     }
 
-    for (const barre of barresOf(voicing)) {
+    for (const barre of barresOf(voicing, capoFret)) {
         const middle = along(barre.fret - base + 0.5)
         root.appendChild(
             svg(doc, 'rect', {
@@ -185,7 +249,9 @@ export function renderGuitarDiagram(
             root.appendChild(muted)
             return
         }
-        const open = tuning?.[s]
+        // From the capo, every string sounds `capo` semitones higher.
+        const openString = tuning?.[s]
+        const open = openString === undefined ? undefined : openString + (fromNut ? 0 : capo)
         const isRoot =
             options.root !== undefined &&
             options.root !== null &&
@@ -201,6 +267,20 @@ export function renderGuitarDiagram(
             root.appendChild(
                 svg(doc, 'circle', {
                     class: `mn-open${isRoot ? ' mn-root' : ''}`,
+                    cx,
+                    cy,
+                    r: 4,
+                    ...midi
+                })
+            )
+            return
+        }
+        if (fret === capoFret) {
+            // A string the capo plays: a ring on the capo.
+            const [cx, cy] = at(s, fret - base + 0.5)
+            root.appendChild(
+                svg(doc, 'circle', {
+                    class: `mn-capo-open${isRoot ? ' mn-root' : ''}`,
                     cx,
                     cy,
                     r: 4,
@@ -225,7 +305,10 @@ export function renderGuitarDiagram(
     })
     // What playback plays: the sounding strings, low to high (when the tuning is known).
     if (tuning) {
-        const pitches = voicing.frets.flatMap((f, s) => (f === null ? [] : [tuning[s]! + f]))
+        const shift = fromNut ? 0 : capo
+        const pitches = voicing.frets.flatMap((f, s) =>
+            f === null ? [] : [tuning[s]! + shift + f]
+        )
         root.setAttribute('data-mn-pitches', pitches.join(' '))
         root.setAttribute('data-mn-play', 'chord')
         root.setAttribute('data-mn-sound', 'guitar')

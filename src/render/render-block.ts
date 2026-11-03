@@ -18,16 +18,18 @@ import {
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
 import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
-import { blockFromProperties } from '../blocks/properties.js'
+import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import {
     CAGED_SHAPES,
     neckPositions,
     numberingOf,
+    MAX_FRET,
     positionCount,
     relativeMinorOf
 } from '../fretboard/positions.js'
+import { capoTuning, parseCapo } from '../chord/capo.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import {
     fingerVoicing,
@@ -81,6 +83,11 @@ export function renderBlock(
         orientation: layout.orientation ?? {},
         hand: layout.hand ?? 'right'
     }
+    // A chart's chord diagrams: guitar or piano, from the note's tags when the options don't say.
+    if (language === 'chords' && !options.instrument) {
+        const instrument = chartInstrument(options, host)
+        if (instrument) options.instrument = instrument
+    }
     let text = source
     // An empty block in a note draws from the note's properties, when they describe one.
     if (!text.trim() && isDiagramLanguage(language)) {
@@ -114,6 +121,9 @@ export function renderBlock(
             error = renderRow(doc, language, parts, el, options)
         } else {
             el.appendChild(RENDERERS[language](doc, text, options))
+            // A chart still draws around directives it couldn't read; they make the block not ok.
+            const warnings = [...el.querySelectorAll('.mn-chart > .mn-error-message')]
+            if (warnings.length) error = warnings.map((w) => w.textContent ?? '').join('; ')
         }
     } catch (e) {
         return failed(el, host, language, messageOf(e))
@@ -148,6 +158,23 @@ export function resolveProperties(properties: unknown, el: Element): unknown {
     if (typeof properties !== 'function') return properties
     try {
         return (properties as (el: Element) => unknown)(el)
+    } catch {
+        return null
+    }
+}
+
+/** The instrument the note's tags name (piano, else guitar); null without properties. */
+function chartInstrument(
+    options: RenderOptions,
+    host: Element
+): RenderOptions['instrument'] | null {
+    const properties = resolveProperties(options.properties, host)
+    if (!properties || typeof properties !== 'object' || Array.isArray(properties)) return null
+    try {
+        return instrumentOf(properties as Record<string, unknown>, {
+            ...DEFAULT_PROPERTY_NAMES,
+            ...options.propertyNames
+        })
     } catch {
         return null
     }
@@ -189,11 +216,24 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     }
     const value = block.fields.get('positions')?.trim()
     if (value === undefined) return null
-    const scale = block.fields.get('scale') ?? block.head
-    const set = scale ? scaleNoteSet(scale) : null
-    if (!scale || !set) throw new Error('positions needs a scale: e.g. A minor pentatonic')
-    const nps = block.fields.get('shape')?.trim().toLowerCase() === '3nps'
-    const system = nps ? '3nps' : set.members.length === 5 ? 'box' : 'caged'
+    // A scale, or a chord: its arpeggio (`arpeggio: Am7`, `chord: Am7`, or a shorthand chord).
+    const chordText = block.fields.get('arpeggio') ?? block.fields.get('chord')
+    const scaleText = block.fields.get('scale') ?? (chordText === undefined ? block.head : null)
+    const scaleSet = scaleText ? scaleNoteSet(scaleText) : null
+    const written = scaleSet ? scaleText! : (chordText ?? block.head)
+    const set = scaleSet ?? (written ? chordNoteSet(written) : null)
+    if (!written || !set) {
+        throw new Error(
+            'positions needs a scale or a chord: e.g. A minor pentatonic or arpeggio: Am7'
+        )
+    }
+    const arpeggio = !scaleSet
+    const shape = block.fields.get('shape')?.trim().toLowerCase()
+    if (arpeggio && shape === '3nps') {
+        throw new Error('Arpeggios use CAGED shapes, not 3nps: leave shape out')
+    }
+    const system =
+        shape === '3nps' ? '3nps' : !arpeggio && set.members.length === 5 ? 'box' : 'caged'
     const count = positionCount(set, system)
     const wanted =
         value.toLowerCase() === 'all'
@@ -207,11 +247,16 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const tuningText = block.fields.get('tuning')
     // numbering: minor numbers a major pentatonic's positions from its relative minor.
     const numbering = numberingOf(block.fields.get('numbering'), set, system)
+    // With a capo, positions are found from it as if it were the nut (an invalid capo fails in
+    // the diagram); their frets count from it unless they count from the nut.
+    const capo = capoIn(block)
+    const shift = block.fields.get('frets-from')?.trim().toLowerCase() === 'nut' ? capo : 0
     const neck = neckPositions(
         set,
-        (tuningText && parseTuning(tuningText)) || STANDARD_TUNING,
+        capoTuning((tuningText && parseTuning(tuningText)) || STANDARD_TUNING, capo),
         system,
-        numbering
+        numbering,
+        MAX_FRET - capo
     )
     const numbered = numbering === 'minor' ? ['numbering: minor'] : []
     // Short, so the titles don't widen every diagram of the row.
@@ -219,16 +264,24 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const fretsOf = (n: number) => {
         const cells = neck[n - 1]
         if (!cells?.length) return []
-        const frets = cells.map((c) => c.fret)
+        const frets = cells.map((c) => c.fret + shift)
         return [`frets: ${Math.min(...frets)}-${Math.max(...frets)}`]
     }
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
     const shared = SHARED_KEYS.fretboard
     const others = [...block.fields].filter(
         ([key]) =>
-            !['positions', 'scale', 'shape', 'position', 'numbering', 'title', 'frets'].includes(
-                key
-            )
+            ![
+                'positions',
+                'scale',
+                'arpeggio',
+                'chord',
+                'shape',
+                'position',
+                'numbering',
+                'title',
+                'frets'
+            ].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -236,19 +289,31 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const own = others
         .filter(([key]) => key !== 'columns' && !shared.includes(key))
         .map(([key, v]) => `${key}: ${v}`)
+    const name = arpeggio ? `${set.title} arpeggio` : set.title
     const diagrams = wanted.map((n) => {
         const at =
             system === 'caged'
-                ? [
-                      `shape: ${CAGED_SHAPES[n - 1]}`,
-                      `title: ${set.title}, ${CAGED_SHAPES[n - 1]} shape`
-                  ]
+                ? [`shape: ${CAGED_SHAPES[n - 1]}`, `title: ${name}, ${CAGED_SHAPES[n - 1]} shape`]
                 : system === '3nps'
-                  ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}${from}`]
-                  : [`position: ${n}`, `title: ${set.title}, box ${n}${from}`]
-        return [`scale: ${scale}`, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
+                  ? ['shape: 3nps', `position: ${n}`, `title: ${name}, 3nps ${n}${from}`]
+                  : [`position: ${n}`, `title: ${name}, box ${n}${from}`]
+        const what = arpeggio ? `arpeggio: ${written}` : `scale: ${written}`
+        // A chord over the scale (#48) marks its tones in every position.
+        const over = !arpeggio && chordText ? [`chord: ${chordText}`] : []
+        return [what, ...over, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
+}
+
+/** A block's capo fret (0 without one, or when it isn't valid: the diagram says so). */
+function capoIn(block: BlockSource): number {
+    const text = block.fields.get('capo')
+    if (!text?.trim()) return 0
+    try {
+        return parseCapo(text)
+    } catch {
+        return 0
+    }
 }
 
 /** Keys that choose which voicings `voicings:` draws; they don't reach the diagrams. */
@@ -406,7 +471,9 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const shared = SHARED_KEYS.chord
     const others = [...fields].filter(
         ([key]) =>
-            !VOICING_FILTERS.includes(key) && !['symbol', 'chord', 'name', 'title'].includes(key)
+            !VOICING_FILTERS.includes(key) &&
+            // The frets are found as played from the capo: frets-from is for frets you write.
+            !['symbol', 'chord', 'name', 'title', 'frets-from'].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -515,7 +582,18 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
     if (!diagrams.length) throw new Error('No triad fits on these strings: try another string set')
     const shared = SHARED_KEYS.chord
     const others = [...fields].filter(
-        ([key]) => !['triads', 'key', 'inversion', 'symbol', 'chord', 'name', 'title'].includes(key)
+        ([key]) =>
+            ![
+                'triads',
+                'key',
+                'inversion',
+                'symbol',
+                'chord',
+                'name',
+                'title',
+                // The frets are found as played from the capo: frets-from is for frets you write.
+                'frets-from'
+            ].includes(key)
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -612,8 +690,9 @@ function transitionParts(language: DiagramLanguage, source: string): string[] | 
         return chord.symbol
     }
     const shared = SHARED_KEYS.chord
+    // Held and found frets count from the capo, as played: frets-from doesn't apply.
     const header = [...fields]
-        .filter(([key]) => key === 'columns' || shared.includes(key))
+        .filter(([key]) => key === 'columns' || (shared.includes(key) && key !== 'frets-from'))
         .map(([key, v]) => `${key}: ${v}`)
     const diagram = (
         symbol: string,

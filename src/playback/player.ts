@@ -12,6 +12,8 @@ export interface NoteEvent {
     time: number
     /** Seconds. */
     duration: number
+    /** How hard the note is played, MIDI style (1–127); 100 when absent. */
+    velocity?: number
 }
 
 export interface PlayHandle {
@@ -19,11 +21,20 @@ export interface PlayHandle {
 }
 
 export interface NotePlayer {
-    /** Plays the notes; `onEnd` runs once they're over (not after stop). */
+    /**
+     * Plays the notes; `onEnd` runs once they're over (not after stop). `onStart`, when given,
+     * runs once when the notes really start sounding (the events' time 0), after any wait for a
+     * soundfont; not after stop. The playback bar lights each note from that moment.
+     */
     play(
         events: NoteEvent[],
-        options: { sound: Sound; volume: number; onEnd?: () => void }
+        options: { sound: Sound; volume: number; onEnd?: () => void; onStart?: () => void }
     ): PlayHandle
+    /**
+     * True when `play` calls `onStart`: the bar then waits for it before it lights notes.
+     * Without it, the bar lights notes from the first `onStart`, or shortly after the play call.
+     */
+    readonly reportsStart?: boolean
 }
 
 /** What a diagram plays: a chord strummed then ringing, or notes one after the other. */
@@ -165,10 +176,11 @@ export function lightPlayer(win: Window): NotePlayer {
         return wave
     }
     return {
-        play(events, { sound, volume, onEnd }) {
+        reportsStart: true,
+        play(events, { sound, volume, onEnd, onStart }) {
             const ctx = contextFor(win)
             if (!ctx || !events.length) return { stop() {} }
-            void ctx.resume()
+            const resumed = ctx.resume()
             // Buffers are made before the start time is read, so the first notes aren't late.
             if (sound === 'guitar') for (const e of events) stringBuffer(ctx, e.midi)
             const gain = ctx.createGain()
@@ -181,12 +193,18 @@ export function lightPlayer(win: Window): NotePlayer {
                 // Each note fades out at its end, so it doesn't click.
                 const env = ctx.createGain()
                 env.connect(gain)
+                // Velocity scales the note's level (100, the default, is the level as computed).
+                const level =
+                    e.velocity === undefined || !Number.isFinite(e.velocity)
+                        ? 1
+                        : Math.min(127, Math.max(0, e.velocity)) / 100
                 let source: AudioScheduledSourceNode
                 if (sound === 'guitar') {
                     const buffer = ctx.createBufferSource()
                     buffer.buffer = stringBuffer(ctx, e.midi)
                     source = buffer
-                    env.gain.setValueAtTime(1, end)
+                    env.gain.setValueAtTime(level, at)
+                    env.gain.setValueAtTime(level, end)
                 } else {
                     // A struck tone: a quick attack, then a decay, as a piano string.
                     const osc = ctx.createOscillator()
@@ -194,8 +212,11 @@ export function lightPlayer(win: Window): NotePlayer {
                     osc.frequency.value = frequency(e.midi)
                     source = osc
                     env.gain.setValueAtTime(0, at)
-                    env.gain.linearRampToValueAtTime(0.35, at + 0.005)
-                    env.gain.exponentialRampToValueAtTime(0.02, Math.max(at + 0.01, end))
+                    env.gain.linearRampToValueAtTime(0.35 * level || 0.0001, at + 0.005)
+                    env.gain.exponentialRampToValueAtTime(
+                        0.02 * level || 0.0001,
+                        Math.max(at + 0.01, end)
+                    )
                 }
                 env.gain.linearRampToValueAtTime(0, end + 0.08)
                 source.connect(env)
@@ -204,6 +225,21 @@ export function lightPlayer(win: Window): NotePlayer {
                 return source
             })
             const finish = () => gain.disconnect()
+            let stopped = false
+            let heard: ReturnType<typeof win.setTimeout> | undefined
+            // The first note sounds at `start` on the audio clock, which only runs once the context
+            // has resumed; plus the time the sound takes to reach the speakers.
+            const announce = () => {
+                if (stopped || !onStart) return
+                const latency = Number.isFinite(ctx.outputLatency) ? ctx.outputLatency : 0
+                heard = win.setTimeout(
+                    () => {
+                        if (!stopped) onStart()
+                    },
+                    Math.max(0, start - ctx.currentTime + latency) * 1000
+                )
+            }
+            if (onStart) void Promise.resolve(resumed).then(announce, announce)
             const timer = win.setTimeout(
                 () => {
                     finish()
@@ -213,7 +249,9 @@ export function lightPlayer(win: Window): NotePlayer {
             )
             return {
                 stop() {
+                    stopped = true
                     win.clearTimeout(timer)
+                    win.clearTimeout(heard)
                     for (const s of sources) {
                         try {
                             s.stop()

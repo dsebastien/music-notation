@@ -24,6 +24,8 @@ import {
     type PlayKind,
     type Sound
 } from './player.js'
+import { strumBarFor } from './strum-bar.js'
+import { followNotes, noteTargets, START_WAIT, type Follower } from './follow.js'
 
 export interface PlayOptions {
     /**
@@ -36,14 +38,14 @@ export interface PlayOptions {
     sound?: Sound
     /** 0 to 1, 0.8 by default. */
     volume?: number
-    /** Scales: notes per minute, 90 by default. */
+    /** Scales: notes per minute, 90 by default; also strum patterns' tempo when they have none. */
     bpm?: number
     /** Chords: milliseconds between strings, 40 by default. */
     strum?: number
 }
 
 /** A number within bounds; the fallback when it isn't a number at all. */
-const clamp = (n: number | undefined, lo: number, hi: number, fallback: number) =>
+export const clamp = (n: number | undefined, lo: number, hi: number, fallback: number) =>
     n === undefined || !Number.isFinite(n) ? fallback : Math.min(hi, Math.max(lo, n))
 
 /** Small icons, drawn so they look the same in every font. */
@@ -54,7 +56,7 @@ const ICONS: Record<'play' | 'stop' | 'loop' | 'volume', string> = {
     volume: 'M2 6h3l4-3v10l-4-3H2zM11 5.5a3.5 3.5 0 0 1 0 5'
 }
 
-function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
+export function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
     const root = svg(doc, 'svg', {
         'class': `mn-play-icon mn-play-icon-${name}`,
         'viewBox': '0 0 16 16',
@@ -68,7 +70,7 @@ function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
 
 /** One light synthesizer per window. */
 const players = new WeakMap<Window, NotePlayer>()
-function lightFor(win: Window): NotePlayer {
+export function lightFor(win: Window): NotePlayer {
     let player = players.get(win)
     if (!player) {
         player = lightPlayer(win)
@@ -77,8 +79,12 @@ function lightFor(win: Window): NotePlayer {
     return player
 }
 
+/** Players seen calling `onStart`: the bar waits for theirs before it lights notes. */
+const reporting = new WeakSet<NotePlayer>()
+const reportsStart = (player: NotePlayer) => player.reportsStart === true || reporting.has(player)
+
 /** The player apps passed (read at each play), else the light synthesizer. */
-function playerFor(win: Window, options: PlayOptions): NotePlayer {
+export function playerFor(win: Window, options: PlayOptions): NotePlayer {
     const given = typeof options.player === 'function' ? options.player(win) : options.player
     return given ?? lightFor(win)
 }
@@ -128,7 +134,9 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
         .sort((a, b) => a - b)
         .filter((midi) => !toGuitar || (midi >= 40 && midi <= 88))
     if (!pitches.length) return null
-    const chord = diagram.getAttribute('data-mn-chord')
+    // A shape played with a capo: the chord it sounds (an A shape with a capo on 2 is B).
+    const sounds = diagram.getAttribute('data-mn-sounds')
+    const chord = sounds ?? diagram.getAttribute('data-mn-chord')
     const named = diagram.getAttribute('data-mn-set')
     let set: NoteSet | null =
         (chord && chordNoteSet(chord)) ||
@@ -161,7 +169,10 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
         (set.root !== null || written === 'notes' || written === 'none')
             ? written
             : 'notes'
-    const title = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    const heading = diagram.querySelector('.mn-title')?.textContent ?? undefined
+    // A piano plays what the guitar sounds: the title says which chord that is.
+    const title =
+        sounds && heading ? `${heading} (sounds ${sounds})` : (heading ?? sounds ?? undefined)
     // A fretboard and a keyboard share their orientation; a chord diagram's is its own.
     const orientation =
         diagram.getAttribute('data-mn-orientation') === 'vertical' ? 'vertical' : undefined
@@ -201,6 +212,9 @@ export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () =
         if (!data) continue
         stops.push(barFor(doc, win, diagram, data, options))
     }
+    // Strumming patterns (#22): their own bar, with tempo and count-in.
+    for (const pattern of [...el.querySelectorAll('svg[data-mn-strum]')])
+        stops.push(strumBarFor(doc, win, pattern, options))
     return () => stops.forEach((stop) => stop())
 }
 
@@ -229,6 +243,8 @@ function barFor(
         loop: false
     }
     let playing: PlayHandle | null = null
+    // The notes lit on the drawing as they sound.
+    let lights: Follower | null = null
     // The drawing on the page: the diagram, or its redrawing for the other instrument.
     let shown: Element = diagram
     // What the drawing on the page shows: a redrawn fretboard leaves out notes a guitar can't play.
@@ -245,6 +261,8 @@ function barFor(
     const stop = () => {
         playing?.stop()
         playing = null
+        lights?.stop()
+        lights = null
         show()
     }
     /**
@@ -252,24 +270,59 @@ function barFor(
      * window the diagram is in now: a host may move a drawn diagram to another window (Obsidian
      * popouts), and its sound then belongs to that window.
      */
-    const play = (events: NoteEvent[], onEnd: () => void): PlayHandle => {
-        const options_ = { sound: settings.sound, volume: settings.volume, onEnd }
+    const play = (
+        events: NoteEvent[],
+        onEnd: () => void,
+        targets: readonly (readonly Element[])[]
+    ): PlayHandle => {
         const here = wrap.ownerDocument.defaultView ?? win
+        // Each note lights when it really sounds: a soundfont may take seconds on the first play.
+        const run = (player: NotePlayer) => {
+            lights?.stop()
+            const follower = followNotes(
+                here,
+                shown,
+                targets,
+                events,
+                reportsStart(player) ? Infinity : START_WAIT
+            )
+            lights = follower
+            const onStart = () => {
+                reporting.add(player)
+                follower.heard()
+            }
+            try {
+                return player.play(events, {
+                    sound: settings.sound,
+                    volume: settings.volume,
+                    onEnd,
+                    onStart
+                })
+            } catch (error) {
+                follower.stop()
+                throw error
+            }
+        }
         try {
-            return playerFor(here, options).play(events, options_)
+            return run(playerFor(here, options))
         } catch {
-            return lightFor(here).play(events, options_)
+            return run(lightFor(here))
         }
     }
     const start = () => {
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        playing = play(sequenceOf(data.kind, pitchesShown(), settings), () => {
-            playing = null
-            if (settings.loop && wrap.isConnected) start()
-            else show()
-        })
+        const events = sequenceOf(data.kind, pitchesShown(), settings)
+        playing = play(
+            events,
+            () => {
+                playing = null
+                if (settings.loop && wrap.isConnected) start()
+                else show()
+            },
+            noteTargets(shown, events, data.kind)
+        )
         show()
     }
     toggle.addEventListener('click', () => (playing ? stop() : start()))
@@ -380,6 +433,7 @@ function barFor(
         if (!target || !Number.isFinite(midi)) return
         stop()
         // A chord on the element (a key on the circle of fifths) is strummed; else its one note.
+        // Only the clicked element lights, not the pitch's other places.
         const strum = (target.getAttribute('data-mn-strum') ?? '')
             .split(' ')
             .filter(Boolean)
@@ -388,10 +442,14 @@ function barFor(
         const events = strum.length
             ? sequenceOf('chord', strum, settings)
             : [{ midi, time: 0, duration: 1.5 }]
-        playing = play(events, () => {
-            playing = null
-            show()
-        })
+        playing = play(
+            events,
+            () => {
+                playing = null
+                show()
+            },
+            events.map(() => [target])
+        )
         show()
     })
     // Touch screens have no hover: a tap on the diagram shows the bar.

@@ -12,6 +12,9 @@
     --mn-root: #c2410c;
     /* A mode's characteristic notes: dark enough for white labels too. */
     --mn-char: #047857;
+    /* A note that sounds while a diagram plays: bright, with dark labels, in both themes. */
+    --mn-playing: #facc15;
+    --mn-on-playing: #1c1917;
     /* Piano keys keep their real colors in every theme. */
     --mn-key-white: #fafafa;
     --mn-key-black: #222;
@@ -271,6 +274,31 @@
     pointer-events: auto;
 }
 
+/* alphaTab's cursor (the bar that plays, the beat line) and the notes of the beat that sounds, in
+   the player bar's accent color: alphaTab ships no style for them, so they didn't show. */
+.mn-tab .at-cursor-bar {
+    background: color-mix(in srgb, var(--mn-accent) 12%, transparent);
+}
+
+.mn-tab .at-cursor-beat {
+    background: var(--mn-accent);
+}
+
+.mn-tab .at-selection div {
+    background: color-mix(in srgb, var(--mn-accent) 15%, transparent);
+}
+
+.mn-tab .at-highlight,
+.mn-tab .at-highlight * {
+    fill: var(--mn-accent);
+    stroke: var(--mn-accent);
+}
+
+/* alphaTab's outlined rectangles stay hollow. */
+.mn-tab .at-highlight [fill='transparent'] {
+    fill: transparent;
+}
+
 .mn-tab-time {
     font-variant-numeric: tabular-nums;
     opacity: 0.8;
@@ -335,6 +363,27 @@
     stroke: var(--mn-root);
 }
 
+/* A capo: a bar across the strings, in the text color but lighter than the dots. */
+.mn-svg .mn-capo {
+    fill: var(--mn-fg);
+    opacity: 0.55;
+}
+
+/* A string the capo plays (frets counted from the nut): a ring on the capo. */
+.mn-svg .mn-capo-open {
+    fill: var(--mn-bg);
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-capo-open.mn-root {
+    stroke: var(--mn-root);
+}
+
+.mn-svg .mn-caption {
+    fill: var(--mn-muted);
+}
+
 .mn-svg .mn-muted,
 .mn-svg .mn-base-fret,
 .mn-svg .mn-fret-number,
@@ -383,6 +432,17 @@
     font-size: 10px;
     fill: var(--mn-fg);
     font-weight: 600;
+}
+
+/* Which hand plays each key of a piano chord (hands: left+right): L or R under the keys. */
+.mn-svg .mn-key-hand {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-key-hand.mn-hand-left {
+    fill: var(--mn-fg);
 }
 
 /* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that
@@ -539,9 +599,138 @@
     white-space: pre;
 }
 
+/* A chart's chord diagrams: the chords used row (wraps like a block's row) and {chord} in place. */
+.mn-chart-diagrams {
+    margin: 0.75em 0;
+}
+
+.mn-chart .mn-chart-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0.75em 1.25em;
+}
+
+.mn-chart .mn-chart-row .mn-cell {
+    min-width: 0;
+}
+
+.mn-chart-diagrams-caption,
+.mn-chart-diagrams-note {
+    color: var(--mn-muted);
+    font-size: 0.9em;
+}
+
+.mn-chart-diagrams-caption {
+    font-weight: 600;
+    margin-bottom: 0.3em;
+}
+
+.mn-chart-diagrams-note {
+    margin-top: 0.3em;
+}
+
+.mn-chart-chord {
+    margin: 0.4em 0;
+}
+
 .mn-error-message {
     color: var(--text-error, #c92a2a);
     font-size: 0.9em;
+}
+
+/* Strumming patterns: arrows and counts in the text color, accents and chords in the accent
+   color; ghost strums are smaller and in parentheses, so they don't rest on color alone. */
+.mn-svg .mn-strum-arrow,
+.mn-svg .mn-strum-mute {
+    stroke: var(--mn-fg);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.mn-svg .mn-strum-head {
+    fill: var(--mn-fg);
+    stroke: none;
+}
+
+.mn-svg .mn-strum-arrow.mn-strum-accented,
+.mn-svg .mn-strum-mute.mn-strum-accented {
+    stroke-width: 3;
+}
+
+.mn-svg .mn-strum-arrow.mn-strum-ghost,
+.mn-svg .mn-strum-mute.mn-strum-ghost {
+    stroke: var(--mn-muted);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-strum-head.mn-strum-ghost {
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-strum-accent {
+    fill: none;
+    stroke: var(--mn-accent);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.mn-svg .mn-strum-paren,
+.mn-svg .mn-strum-count {
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-strum-count-beat {
+    fill: var(--mn-fg);
+    font-weight: 600;
+}
+
+.mn-svg .mn-strum-chord {
+    fill: var(--mn-accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.mn-svg .mn-strum-line,
+.mn-svg .mn-strum-tick {
+    stroke: var(--mn-muted);
+    stroke-width: 1;
+}
+
+.mn-svg .mn-strum-bar {
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-strum-cell {
+    fill: transparent;
+    stroke: none;
+}
+
+/* Following the notes: the dot, key or string mark that sounds while a diagram plays. Last in the
+   file and with enough specificity to win over root, characteristic and highlighted keys. */
+.mn-playable .mn-svg [data-midi].mn-playing {
+    fill: var(--mn-playing);
+    stroke: var(--mn-fg);
+    stroke-width: 2.5;
+}
+
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
+    fill: var(--mn-on-playing);
+}
+
+/* Following a strumming pattern: the slot that plays gets a band and its strum the playing
+   color (the band keeps it visible for a muted strum and in any theme). */
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-cell {
+    fill: color-mix(in srgb, var(--mn-playing) 35%, transparent);
+}
+
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-arrow,
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-mute {
+    stroke: var(--mn-fg);
+    stroke-width: 3;
 }
 
 /* A chord over a scale (#48): chord tones solid, the scale's other notes hollow (passing notes), so

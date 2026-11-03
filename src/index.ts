@@ -21,9 +21,20 @@ export {
     parseFingers,
     baseFretOf,
     STANDARD_TUNING,
+    capoCaption,
     type FrettedVoicing,
     type GuitarDiagramOptions
 } from './chord/guitar.js'
+export {
+    soundingChord,
+    soundsLike,
+    fretsFromCapo,
+    capoTuning,
+    parseCapo,
+    parseFretsFrom,
+    MAX_CAPO,
+    type FretsFrom
+} from './chord/capo.js'
 export {
     generateVoicings,
     fingerVoicing,
@@ -49,6 +60,13 @@ export {
 } from './playback/player.js'
 export { attachPlayback, type PlayOptions } from './playback/controls.js'
 export {
+    followNotes,
+    noteTargets,
+    PLAYING_CLASS,
+    START_WAIT,
+    type Follower
+} from './playback/follow.js'
+export {
     transition,
     smoothProgression,
     type TransitionStep,
@@ -70,6 +88,16 @@ export {
     keyRangeOf,
     type KeyboardOptions
 } from './keyboard/keyboard.js'
+export {
+    pianoVoicing,
+    pianoPitches,
+    triadFingering,
+    type PianoVoicing,
+    type PianoVoicingOptions,
+    type PianoVoicingStyle,
+    type PianoHands,
+    type RootlessForm
+} from './keyboard/piano-chord.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
 export { parseTuning } from './fretboard/tuning.js'
 export {
@@ -78,9 +106,12 @@ export {
     type Song,
     type Section,
     type Line,
-    type Segment
+    type Segment,
+    type ChordDefinition
 } from './chords/chordpro.js'
 export { renderChart, type ChartOptions } from './chords/chart.js'
+export { chordsUsed } from './chords/chart-diagrams.js'
+export { parseDefinition } from './chords/defines.js'
 export { parseChord, type ParsedChord } from './theory/chord-symbol.js'
 export {
     chromaOf,
@@ -120,6 +151,7 @@ export {
 export {
     scalePosition,
     neckPositions,
+    isArpeggio,
     positionCount,
     CAGED_SHAPES,
     MAX_FRET,
@@ -137,6 +169,29 @@ export {
 } from './blocks/properties.js'
 export { textTabToAlphaTex } from './convert/text-tab.js'
 export { chordSheetToChordPro } from './convert/chord-sheet.js'
+export {
+    parseStrum,
+    formatStrum,
+    countOf,
+    parseTime,
+    parseSubdivision,
+    MAX_STRUM_BARS,
+    type StrumPattern,
+    type StrumSlot,
+    type Stroke,
+    type Subdivision
+} from './strum/pattern.js'
+export { renderStrum, type StrumOptions } from './strum/render.js'
+export { strumVoicing, DEFAULT_STRUM_CHORD } from './strum/voicing.js'
+export {
+    playStrum,
+    strumEvents,
+    scoreOf,
+    STRUM_VELOCITY,
+    type PlayStrumOptions,
+    type StrumEventOptions,
+    type StrumScore
+} from './strum/play.js'
 export {
     findScales,
     findKey,

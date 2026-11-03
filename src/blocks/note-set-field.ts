@@ -22,12 +22,13 @@ import {
 const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
 
 /**
- * `scale:`, `chord:` or `notes:`; a shorthand first line is tried as each, in that order. `root:`
+ * `scale:`, `chord:` (or `arpeggio:`) or `notes:`; a shorthand first line is tried as each, in that order. `root:`
  * gives a list its intervals and degrees; a shorthand line with a root is read as a list first.
  */
 export function noteSetOf(block: BlockSource): NoteSet {
     const scale = block.fields.get('scale')
-    const chord = block.fields.get('chord')
+    // An arpeggio is a chord's notes, one at a time (`arpeggio: Am7`).
+    const chord = block.fields.get('chord') ?? block.fields.get('arpeggio')
     const notes = block.fields.get('notes')
     // An empty `root:` line is no root, like other empty keys.
     const root = block.fields.get('root')?.trim() || undefined

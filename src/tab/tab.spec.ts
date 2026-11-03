@@ -9,6 +9,7 @@ import {
     parseTabSource,
     renderTab,
     scoreToAlphaTex,
+    soundfontPlayer,
     type AlphaTabModule
 } from './index.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
@@ -184,6 +185,61 @@ describe('createSoundfontPlayer readiness (review)', () => {
     })
 })
 
+describe('soundfont players say when their notes start (#41)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    const note = [{ midi: 60, time: 0, duration: 1 }]
+
+    it('calls onStart right after the synthesizer starts the notes', async () => {
+        const order: string[] = []
+        const api = {
+            masterVolume: 1,
+            playbackSpeed: 1,
+            player: { playOneTimeMidiFile: () => order.push('play'), stop() {} }
+        }
+        const player = soundfontPlayer(alphaTab as unknown as AlphaTabModule, () => api as never)
+        expect(player.reportsStart).toBe(true)
+        player.play(note, { sound: 'guitar', volume: 1, onStart: () => order.push('start') })
+        await Promise.resolve()
+        expect(order).toEqual(['play', 'start'])
+        const stopped = player.play(note, {
+            sound: 'guitar',
+            volume: 1,
+            onStart: () => order.push('late')
+        })
+        stopped.stop()
+        await Promise.resolve()
+        expect(order).not.toContain('late')
+    })
+
+    it('waits for the soundfont, then lets a fallback that says nothing start now', async () => {
+        const mod = fakeAlphaTab()
+        type Fake = { soundFontLoaded: { fire(): void }; playerReady: { fire(): void } }
+        const made: Fake[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => Fake
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(this)
+            }
+        }
+        let started = 0
+        const player = createSoundfontPlayer(mod, assets, document, { play: () => ({ stop() {} }) })
+        expect(player.reportsStart).toBe(true)
+        player.play(note, { sound: 'piano', volume: 1, onStart: () => started++ })
+        made[0]!.soundFontLoaded.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(started).toBe(0)
+        made[0]!.playerReady.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(started).toBe(1)
+        player.destroy()
+    })
+})
+
 describe('renderTab', () => {
     const assets = {
         scriptFile: null,
@@ -236,5 +292,69 @@ describe('renderTab', () => {
         expect(h.querySelector('.mn-error-message')?.textContent).toBe(
             'tab: line 2, column 4: Group not closed.'
         )
+    })
+})
+
+describe('soundfontPlayer', () => {
+    it('plays each note at its velocity, 100 when none is given', () => {
+        let played: { tracks: { events: { noteKey?: number; noteVelocity?: number }[] }[] } | null =
+            null
+        const api = {
+            masterVolume: 1,
+            playbackSpeed: 1,
+            player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
+        }
+        const player = soundfontPlayer(alphaTab as AlphaTabModule, () => api as never)
+        player
+            .play(
+                [
+                    { midi: 60, time: 0, duration: 0.5, velocity: 40 },
+                    { midi: 64, time: 0, duration: 0.5 },
+                    { midi: 67, time: 0, duration: 0.5, velocity: 300 }
+                ],
+                { sound: 'guitar', volume: 0.5 }
+            )
+            .stop()
+        const noteOns = played!.tracks
+            .flatMap((t) => t.events)
+            .filter((e) => e.constructor.name === 'NoteOnEvent')
+        expect(noteOns.map((e) => [e.noteKey, e.noteVelocity])).toEqual([
+            [60, 40],
+            [64, 100],
+            [67, 127]
+        ])
+    })
+})
+
+describe('renderTab, drums (#37)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    /** The stave profile renderTab asks alphaTab for. */
+    async function profileOf(language: 'tab' | 'score', source: string) {
+        const mod = fakeAlphaTab()
+        let profile: unknown
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => object
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                profile = (args[1] as { display: { staveProfile: unknown } }).display.staveProfile
+            }
+        }
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        await renderTab(language, source, h, { alphaTab: mod, assets }).ready
+        h.remove()
+        return profile
+    }
+
+    it('draws a percussion track as notation in a tab block: drums have no tablature', async () => {
+        const drums = textTabToAlphaTex('HH|x-x-x-x-|\nS |--o---o-|\nB |o---o---|')!
+        expect(await profileOf('tab', drums)).toBe('ScoreTab')
+        expect(await profileOf('tab', ':8 0.1 3.1')).toBe('Tab')
+        expect(await profileOf('score', drums)).toBe('Score')
+        expect(await profileOf('tab', `staves: both\n${drums}`)).toBe('ScoreTab')
     })
 })

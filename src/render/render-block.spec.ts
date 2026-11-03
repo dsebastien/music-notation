@@ -15,6 +15,7 @@ describe('renderBlock', () => {
             'chords',
             'keyboard',
             'fretboard',
+            'strum',
             'progression',
             'circle'
         ])

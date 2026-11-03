@@ -136,6 +136,16 @@ function messageOf(error: unknown, lineOffset: number): string {
 const PROFILE: Record<Staves, string> = { tab: 'Tab', score: 'Score', both: 'ScoreTab' }
 
 /**
+ * The stave profile for a block. Drums have no tablature: in a `tab` block, alphaTex with a
+ * percussion track draws notation too, else the drums would draw nothing.
+ */
+function staveProfileOf(staves: Staves, tex: string): string {
+    return staves === 'tab' && /\binstrument\s+percussion\b/i.test(tex)
+        ? 'ScoreTab'
+        : PROFILE[staves]
+}
+
+/**
  * A CSS color as rgba(), whatever the theme wrote (oklch(), color(srgb …), names): alphaTab only
  * reads hex and rgb()/rgba(). Read through a canvas; null when it can't be.
  */
@@ -439,7 +449,10 @@ export function renderTab(
                     logLevel: at.LogLevel.Warning
                 },
                 display: {
-                    staveProfile: PROFILE[parsed.staves] as unknown as AT.StaveProfile,
+                    staveProfile: staveProfileOf(
+                        parsed.staves,
+                        parsed.file ? '' : parsed.tex
+                    ) as unknown as AT.StaveProfile,
                     resources: colorsOf(el)
                 },
                 // The player starts at the first Play (playerBar).
@@ -534,7 +547,8 @@ export function soundfontPlayer(
     api: () => AT.AlphaTabApi | null
 ): NotePlayer {
     return {
-        play(events: NoteEvent[], { sound, volume, onEnd }) {
+        reportsStart: true,
+        play(events: NoteEvent[], { sound, volume, onEnd, onStart }) {
             const current = api()
             const player = current?.player
             if (!current || !player) throw new Error('The soundfont player is not ready')
@@ -547,14 +561,32 @@ export function soundfontPlayer(
             const level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             current.masterVolume = level
             for (const e of events) {
-                handler.addNote(0, ticks(e.time), Math.max(1, ticks(e.duration)), e.midi, 100, 0)
+                // Velocity (1–127) as given, 100 by default.
+                const velocity =
+                    e.velocity === undefined || !Number.isFinite(e.velocity)
+                        ? 100
+                        : Math.round(Math.min(127, Math.max(1, e.velocity)))
+                handler.addNote(
+                    0,
+                    ticks(e.time),
+                    Math.max(1, ticks(e.duration)),
+                    e.midi,
+                    velocity,
+                    0
+                )
             }
             const end = Math.max(...events.map((e) => e.time + e.duration), 0)
             current.playbackSpeed = 1
             player.playOneTimeMidiFile(midi)
+            let stopped = false
+            // The synthesizer starts the song right away: its notes sound from now.
+            queueMicrotask(() => {
+                if (!stopped) onStart?.()
+            })
             const timer = setTimeout(() => onEnd?.(), (end + 0.2) * 1000)
             return {
                 stop() {
+                    stopped = true
                     clearTimeout(timer)
                     player.stop()
                 }
@@ -634,6 +666,8 @@ export function createSoundfontPlayer(
     }
     const inner = soundfontPlayer(alphaTab, () => api)
     return {
+        // Its notes start once the soundfont is in: `onStart` says when (the fallback's too).
+        reportsStart: true,
         play(events, options) {
             let handle: { stop(): void } | null = null
             let stopped = false
@@ -647,7 +681,10 @@ export function createSoundfontPlayer(
                 } catch {
                     // Falls through to the fallback.
                 }
-                if (fallback) handle = fallback.play(events, options)
+                if (!fallback) return
+                handle = fallback.play(events, options)
+                // A fallback that doesn't say when it starts starts now.
+                if (!fallback.reportsStart) options.onStart?.()
             })
             return {
                 stop() {
