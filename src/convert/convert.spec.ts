@@ -228,6 +228,29 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         expect(textTabToAlphaTex('e|--0--|--3--')).toBe('\\tuning (E4)\n:8 0.1 |\n3.1')
     })
 
+    it('reads text with dashes or without a space as an annotation, keeping the string', () => {
+        const strings = ['B|---1---|', 'G|---0---|', 'D|---2---|', 'A|---3---|', 'E|-------|']
+        const chord = ':8 (0.1 1.2 0.3 2.4 3.5)'
+        expect(textTabToAlphaTex(['e|---0---|  <-- let ring', ...strings].join('\n'))).toBe(
+            `${chord}{txt "<-- let ring"}`
+        )
+        expect(
+            textTabToAlphaTex(
+                ['e|---0---|', ...strings.slice(0, 4), 'E|-------|  slide -- slowly'].join('\n')
+            )
+        ).toBe(`${chord}{txt "slide -- slowly"}`)
+        expect(textTabToAlphaTex('e|--0--|-----| repeat --- 4x\nB|--1--|-----|')).toBe(
+            '\\tuning (E4 B3)\n:8 (0.1 1.2) |\n:1 r{txt "repeat --- 4x"}'
+        )
+        // A count right after the bar line is text, not a bar with fret 2.
+        expect(textTabToAlphaTex('e|--0--|x2\nB|--1--|\nG|--0--|')).toBe(
+            '\\tuning (E4 B3 G3)\n:8 (0.1 1.2 0.3){txt "x2"}'
+        )
+        expect(textTabToAlphaTex('e|--0--|2x\nB|--1--|\nG|--0--|')).toContain('{txt "2x"}')
+        // Music after the last bar line stays music, harmonics too.
+        expect(textTabToAlphaTex('e|--0--|--<12>--')).toBe('\\tuning (E4)\n:8 0.1 |\n12.1')
+    })
+
     it('loads every sample in alphaTab', () => {
         for (const sample of Object.values(SAMPLES)) {
             const tex = textTabToAlphaTex(sample)
@@ -287,6 +310,8 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         textTabToAlphaTex(`H${' '.repeat(50_000)}!\n${'e|' + '-'.repeat(50_000)} x`)
         textTabToAlphaTex(`${' '.repeat(50_000)}1${' '.repeat(50_000)}z`)
         textTabToAlphaTex(`Hi-Hat${' '.repeat(50_000)}|${'x-'.repeat(25_000)}?`)
+        textTabToAlphaTex(`e|--0--|${' x'.repeat(50_000)}9`)
+        textTabToAlphaTex(`e|--0--|${'-'.repeat(50_000)} let ring`)
         expect(performance.now() - start).toBeLessThan(500)
     })
 })

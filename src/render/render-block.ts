@@ -121,8 +121,13 @@ export function renderBlock(
             error = renderRow(doc, language, parts, el, options)
         } else {
             el.appendChild(RENDERERS[language](doc, text, options))
-            // A chart still draws around directives it couldn't read; they make the block not ok.
-            const warnings = [...el.querySelectorAll('.mn-chart > .mn-error-message')]
+            // A chart still draws around directives it couldn't read, and {chord} diagrams it
+            // couldn't draw; they make the block not ok.
+            const warnings = [
+                ...el.querySelectorAll(
+                    '.mn-chart > .mn-error-message, .mn-chart-chord > .mn-error-message'
+                )
+            ]
             if (warnings.length) error = warnings.map((w) => w.textContent ?? '').join('; ')
         }
     } catch (e) {

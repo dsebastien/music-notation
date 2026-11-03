@@ -34,6 +34,26 @@ describe('parseDefinition', () => {
         expect(parseDefinition('[Am]').definition).toMatchObject({ name: 'Am', transposable: true })
     })
 
+    it('reads the older form without keywords: a base fret, then the frets', () => {
+        const { definition, problems } = parseDefinition('G 1 3 2 0 0 0 3')
+        expect(problems).toEqual([])
+        expect(definition).toMatchObject({ baseFret: 1, frets: [3, 2, 0, 0, 0, 3] })
+        const barre = parseDefinition('Bm 2 x 1 3 3 2 1 fingers 0 1 3 4 2 1')
+        expect(barre.problems).toEqual([])
+        expect(absoluteFrets(barre.definition!)).toEqual([null, 2, 4, 4, 3, 2])
+        expect(barre.definition!.fingers).toEqual([null, '1', '3', '4', '2', '1'])
+        expect(parseDefinition('D 1 - - 0 2 3 2').definition!.frets).toEqual([
+            null,
+            null,
+            0,
+            2,
+            3,
+            2
+        ])
+        // A word that isn't a number is still a mistake.
+        expect(parseDefinition('G 1 3 2 0 0 0 z').problems[0]).toContain('unknown "1"')
+    })
+
     it('a name alone defines no shape', () => {
         expect(parseDefinition('Am7').definition).toMatchObject({ frets: null, keys: null })
     })

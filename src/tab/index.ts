@@ -133,16 +133,38 @@ function messageOf(error: unknown, lineOffset: number): string {
     return error instanceof Error ? error.message : String(error)
 }
 
-const PROFILE: Record<Staves, string> = { tab: 'Tab', score: 'Score', both: 'ScoreTab' }
+/** The staves alphaTab can draw for a staff (the part of `AT.model.Staff` read and set here). */
+interface StaffView {
+    isPercussion: boolean
+    tuning: number[]
+    showTablature: boolean
+    showStandardNotation: boolean
+    showSlash: boolean
+    showNumbered: boolean
+}
 
 /**
- * The stave profile for a block. Drums have no tablature: in a `tab` block, alphaTex with a
- * percussion track draws notation too, else the drums would draw nothing.
+ * Chooses what each staff shows, once the score is loaded (alphaTex or a file) and before it's
+ * drawn. alphaTab's stave profile applies to the whole block, so the profile stays Default and
+ * the choice is made staff by staff: `tab` shows tablature on stringed staves and notation on the
+ * others (drums, piano: they have no tablature, else they'd draw nothing); `score` shows notation
+ * only; `both` notation, plus tablature on stringed staves (slash and numbered staves as written).
  */
-function staveProfileOf(staves: Staves, tex: string): string {
-    return staves === 'tab' && /\binstrument\s+percussion\b/i.test(tex)
-        ? 'ScoreTab'
-        : PROFILE[staves]
+function chooseStaves(staves: Staves, score: { tracks: { staves: StaffView[] }[] }): void {
+    for (const track of score.tracks) {
+        for (const staff of track.staves) {
+            const stringed = !staff.isPercussion && staff.tuning.length > 0
+            if (staves === 'both') {
+                staff.showStandardNotation = true
+                staff.showTablature = stringed
+                continue
+            }
+            staff.showSlash = false
+            staff.showNumbered = false
+            staff.showTablature = staves === 'tab' && stringed
+            staff.showStandardNotation = !staff.showTablature
+        }
+    }
 }
 
 /**
@@ -449,10 +471,8 @@ export function renderTab(
                     logLevel: at.LogLevel.Warning
                 },
                 display: {
-                    staveProfile: staveProfileOf(
-                        parsed.staves,
-                        parsed.file ? '' : parsed.tex
-                    ) as unknown as AT.StaveProfile,
+                    // Default: what each staff shows is set when the score loads (chooseStaves).
+                    staveProfile: 'Default',
                     resources: colorsOf(el)
                 },
                 // The player starts at the first Play (playerBar).
@@ -465,6 +485,9 @@ export function renderTab(
                 return
             }
             options.onApi?.(current)
+            current.scoreLoaded.on((score) => {
+                chooseStaves(parsed.staves, score)
+            })
             let bar: ReturnType<typeof playerBar> | null = null
             current.renderFinished.on(() => {
                 if (settled || gone) return

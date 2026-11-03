@@ -627,7 +627,7 @@ D xx0232 xx0132
 ---
 Em 022000 023000</code></pre></div>
 
-Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning`, `range`, `capo`, `frets-from` and `sounds` for chords; `range` for keyboards; `tuning`, `frets`, `capo` and `frets-from` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
+Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning`, `range`, `capo`, `frets-from`, `sounds`, and the piano keys `voicing`, `inversion`, `octave`, `hands` and `fingering` for chords; `range` for keyboards; `tuning`, `frets`, `capo` and `frets-from` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
 
 ````markdown
 ```fretboard
@@ -758,7 +758,7 @@ staves: both
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
 
-These keys go on the first lines, and the alphaTex follows. Drums have no tablature: a `tab` block with a percussion track (`\instrument percussion`) shows notation too. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
+These keys go on the first lines, and the alphaTex follows. Drums have no tablature: in a `tab` block, drum tracks (`\instrument percussion`, or drums in a file) and other tracks without strings show notation, and stringed tracks keep tablature only. `staves: both` adds tablature under the notation of stringed tracks. Under the music, a player bar shows on hover (or a tap on touch screens): play / pause, stop, loop, metronome, count-in, speed (25–150%), volume and the time. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
 
@@ -825,9 +825,9 @@ Other directives are ignored.
 
 - `{diagrams}` or `{diagrams: on}` puts the row on top, `{diagrams: bottom}` under the song, `{diagrams: off}` hides it. The row is off by default; apps can turn it on for every chart (`chartDiagrams` option).
 - Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
-- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice.
+- Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro), or in a note tagged with `piano` in Music Practice. Other instruments (`{instrument: ukulele}`) are ignored: the chart draws guitar diagrams.
 - `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
-- With `{capo: 2}`, the row shows the shapes you play (the names above the lyrics) and says "Capo 2".
+- With `{capo: 2}`, guitar diagrams show the shapes you play (the names above the lyrics), with the capo drawn; `{chord}` diagrams too. The chart's top line already says "Capo 2", so a row on top doesn't repeat it; a row at the bottom says it again, since the top line is far away. A piano has no capo: piano diagrams show the chord that sounds, titled "G (sounds A)".
 - Chords the chart can't draw are listed under the row, with what to write.
 - `N.C.`, `%` and other text in brackets that isn't a chord is skipped.
 
@@ -838,12 +838,13 @@ Other directives are ignored.
 - `fingers 0 0 2 3 1 0`: one value per string, `1` to `9` or a letter (`T` for the thumb). Anything else (`0`, `-`, `x`) means no finger.
 - `keys 0 3 7`: piano keys, in semitones above the root (0 is the root, 7 the fifth).
 - `display "A flat"`: the name shown on the diagram.
+- The older form without keywords also works: `{define: G 1 3 2 0 0 0 3}` is the base fret, then the frets.
 - `copy Am`: start from another chord's shape (an earlier `{define}`, or the database), then change it with the other keywords. `copyall` also copies the display name.
 - `diagram off`: leave that chord out of the row.
 
 `{chord: Am}` draws one chord where it is written: the chart's own `{define}` for it, else the database. `{chord: Bes base-fret 1 frets 1 1 3 3 3 1}` draws that shape without defining it for the rest of the song. As in ChordPro, the name is transposed only when written in brackets: `{chord: [Am]}`.
 
-A `{define}` or `{chord}` with a mistake shows a message at the top of the chart (what to write instead); the rest of the chart still draws.
+A `{define}` or `{chord}` with a mistake shows a message at the top of the chart (what to write instead); the rest of the chart still draws. A `{chord}` the chart can't draw (`{chord: Gzz}`) shows what to write where it is. Both count as mistakes for checks.
 
 ## Strumming patterns
 

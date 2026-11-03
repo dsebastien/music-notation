@@ -106,7 +106,13 @@ export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
         'range',
         'capo',
         'frets-from',
-        'sounds'
+        'sounds',
+        // Piano voicings (#16): one style for a row of chords (a ii-V-I, rootless).
+        'voicing',
+        'inversion',
+        'octave',
+        'hands',
+        'fingering'
     ],
     keyboard: ['orientation', 'hand', 'labels', 'range', 'highlight', 'compare'],
     fretboard: [

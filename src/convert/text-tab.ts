@@ -106,14 +106,26 @@ interface TabLine {
     text: string | null
 }
 
-/** Text after a line's last bar line, set off by a space ("| let ring", "| x2"); else null. */
+/** A character no string or drum line holds (a word's letters, quotes, an arrow's `<-`). */
+const NOT_TAB = /[^-0-9xXoOgfdbhprsvt/\\~^().*<>#@+|:\s]|<(?!\d)/
+
+/** A repeat count: x2, 2x, x 4. */
+const COUNT = /^\s*(?:[xX]\s*\d{1,3}|\d{1,3}\s*[xX])\s*$/
+
+/**
+ * Text after a line's last bar line ("| let ring", "| x2", "|<-- let ring", "|x2"); else null.
+ * It's text when it holds a character no tab line holds (even with dashes: "| repeat --- 4x"),
+ * when it's a repeat count, or when a space sets it off and it has no run of dashes.
+ */
 function splitText(line: string): { line: string; text: string | null } {
     const last = line.lastIndexOf('|')
     if (last < 0) return { line, text: null }
     const rest = line.slice(last + 1)
     const text = rest.trim()
-    if (!text || !/^\s/.test(rest) || text.includes('--')) return { line, text: null }
-    return { line: line.slice(0, last + 1), text }
+    if (!text) return { line, text: null }
+    const isText =
+        NOT_TAB.test(text) || COUNT.test(text) || (/^\s/.test(rest) && !text.includes('--'))
+    return isText ? { line: line.slice(0, last + 1), text } : { line, text: null }
 }
 
 function tabLineOf(raw: string): TabLine | null {
