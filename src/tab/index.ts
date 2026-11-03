@@ -525,7 +525,14 @@ export function renderTab(
                     useWorkers: Boolean(assets.scriptFile),
                     ...(assets.scriptFile ? { scriptFile: assets.scriptFile } : {}),
                     smuflFontSources: made.map([[at.FontFileFormat.Woff2, assets.font]]),
-                    logLevel: at.LogLevel.Warning
+                    logLevel: at.LogLevel.Warning,
+                    // Every part of the drawing is drawn right away (#82). Lazy loading draws a
+                    // part only once an IntersectionObserver sees it, and that observer never
+                    // reports while the page isn't painted (an Obsidian window on another
+                    // desktop, a background tab, a PDF export): the parts stayed empty, the
+                    // block blank, with no error. A block is a few systems: drawing it all is
+                    // cheap.
+                    enableLazyLoading: false
                 },
                 display: {
                     // Default: what each staff shows is set when the score loads (chooseStaves).
