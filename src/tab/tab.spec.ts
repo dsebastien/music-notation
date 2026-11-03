@@ -295,6 +295,37 @@ describe('renderTab', () => {
     })
 })
 
+describe('soundfontPlayer', () => {
+    it('plays each note at its velocity, 100 when none is given', () => {
+        let played: { tracks: { events: { noteKey?: number; noteVelocity?: number }[] }[] } | null =
+            null
+        const api = {
+            masterVolume: 1,
+            playbackSpeed: 1,
+            player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
+        }
+        const player = soundfontPlayer(alphaTab as AlphaTabModule, () => api as never)
+        player
+            .play(
+                [
+                    { midi: 60, time: 0, duration: 0.5, velocity: 40 },
+                    { midi: 64, time: 0, duration: 0.5 },
+                    { midi: 67, time: 0, duration: 0.5, velocity: 300 }
+                ],
+                { sound: 'guitar', volume: 0.5 }
+            )
+            .stop()
+        const noteOns = played!.tracks
+            .flatMap((t) => t.events)
+            .filter((e) => e.constructor.name === 'NoteOnEvent')
+        expect(noteOns.map((e) => [e.noteKey, e.noteVelocity])).toEqual([
+            [60, 40],
+            [64, 100],
+            [67, 127]
+        ])
+    })
+})
+
 describe('renderTab, drums (#37)', () => {
     const assets = {
         scriptFile: null,

@@ -184,7 +184,7 @@ export async function expand(arg: string, cwd: string): Promise<string[]> {
 
 export const USAGE = `Usage: music-notation check [options] <files, folders or globs...>
 
-Renders every chord, chords, keyboard and fretboard block of Markdown files
+Renders every chord, chords, keyboard, fretboard and strum block of Markdown files
 and reports each mistake as file:line: language: message.
 
 Options:

@@ -12,6 +12,8 @@ export interface NoteEvent {
     time: number
     /** Seconds. */
     duration: number
+    /** How hard the note is played, MIDI style (1–127); 100 when absent. */
+    velocity?: number
 }
 
 export interface PlayHandle {
@@ -191,12 +193,18 @@ export function lightPlayer(win: Window): NotePlayer {
                 // Each note fades out at its end, so it doesn't click.
                 const env = ctx.createGain()
                 env.connect(gain)
+                // Velocity scales the note's level (100, the default, is the level as computed).
+                const level =
+                    e.velocity === undefined || !Number.isFinite(e.velocity)
+                        ? 1
+                        : Math.min(127, Math.max(0, e.velocity)) / 100
                 let source: AudioScheduledSourceNode
                 if (sound === 'guitar') {
                     const buffer = ctx.createBufferSource()
                     buffer.buffer = stringBuffer(ctx, e.midi)
                     source = buffer
-                    env.gain.setValueAtTime(1, end)
+                    env.gain.setValueAtTime(level, at)
+                    env.gain.setValueAtTime(level, end)
                 } else {
                     // A struck tone: a quick attack, then a decay, as a piano string.
                     const osc = ctx.createOscillator()
@@ -204,8 +212,11 @@ export function lightPlayer(win: Window): NotePlayer {
                     osc.frequency.value = frequency(e.midi)
                     source = osc
                     env.gain.setValueAtTime(0, at)
-                    env.gain.linearRampToValueAtTime(0.35, at + 0.005)
-                    env.gain.exponentialRampToValueAtTime(0.02, Math.max(at + 0.01, end))
+                    env.gain.linearRampToValueAtTime(0.35 * level || 0.0001, at + 0.005)
+                    env.gain.exponentialRampToValueAtTime(
+                        0.02 * level || 0.0001,
+                        Math.max(at + 0.01, end)
+                    )
                 }
                 env.gain.linearRampToValueAtTime(0, end + 0.08)
                 source.connect(env)

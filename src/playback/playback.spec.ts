@@ -350,6 +350,65 @@ describe('choosing the other instrument redraws the diagram', () => {
     })
 })
 
+describe('light player velocity', () => {
+    /** An audio context that records each note's envelope levels. */
+    function fakeWindow() {
+        const levels: number[][] = []
+        class Param {
+            value = 1
+            readonly set: number[] = []
+            setValueAtTime(v: number) {
+                this.set.push(v)
+            }
+            linearRampToValueAtTime(v: number) {
+                this.set.push(v)
+            }
+            exponentialRampToValueAtTime(v: number) {
+                this.set.push(v)
+            }
+        }
+        const node = () => ({ connect() {}, disconnect() {} })
+        class FakeContext {
+            currentTime = 0
+            sampleRate = 8000
+            destination = node()
+            resume = () => Promise.resolve()
+            createGain() {
+                const gain = new Param()
+                levels.push(gain.set)
+                return { ...node(), gain }
+            }
+            createBuffer(_c: number, length: number) {
+                return { getChannelData: () => new Float32Array(length) }
+            }
+            createBufferSource() {
+                return { ...node(), buffer: null, start() {}, stop() {} }
+            }
+        }
+        const win = {
+            AudioContext: FakeContext,
+            setTimeout: () => 0,
+            clearTimeout() {}
+        } as unknown as Window
+        return { win, levels }
+    }
+
+    it('scales each note by its velocity (100 is the computed level)', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, levels } = fakeWindow()
+        lightPlayer(win).play(
+            [
+                { midi: 60, time: 0, duration: 0.5 },
+                { midi: 64, time: 0, duration: 0.5, velocity: 50 },
+                { midi: 67, time: 0, duration: 0.5, velocity: 120 }
+            ],
+            { sound: 'guitar', volume: 1 }
+        )
+        // The first gain is the master volume; then one envelope a note.
+        expect(levels.slice(1).map((set) => set[0])).toEqual([1, 0.5, 1.2])
+    })
+})
+
 describe('following the notes (#41)', () => {
     const host = () => document.body.appendChild(document.createElement('div'))
     const lit = (h: Element) =>

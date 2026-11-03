@@ -639,6 +639,75 @@
     font-size: 0.9em;
 }
 
+/* Strumming patterns: arrows and counts in the text color, accents and chords in the accent
+   color; ghost strums are smaller and in parentheses, so they don't rest on color alone. */
+.mn-svg .mn-strum-arrow,
+.mn-svg .mn-strum-mute {
+    stroke: var(--mn-fg);
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.mn-svg .mn-strum-head {
+    fill: var(--mn-fg);
+    stroke: none;
+}
+
+.mn-svg .mn-strum-arrow.mn-strum-accented,
+.mn-svg .mn-strum-mute.mn-strum-accented {
+    stroke-width: 3;
+}
+
+.mn-svg .mn-strum-arrow.mn-strum-ghost,
+.mn-svg .mn-strum-mute.mn-strum-ghost {
+    stroke: var(--mn-muted);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-strum-head.mn-strum-ghost {
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-strum-accent {
+    fill: none;
+    stroke: var(--mn-accent);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.mn-svg .mn-strum-paren,
+.mn-svg .mn-strum-count {
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-strum-count-beat {
+    fill: var(--mn-fg);
+    font-weight: 600;
+}
+
+.mn-svg .mn-strum-chord {
+    fill: var(--mn-accent);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.mn-svg .mn-strum-line,
+.mn-svg .mn-strum-tick {
+    stroke: var(--mn-muted);
+    stroke-width: 1;
+}
+
+.mn-svg .mn-strum-bar {
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-strum-cell {
+    fill: transparent;
+    stroke: none;
+}
+
 /* Following the notes: the dot, key or string mark that sounds while a diagram plays. Last in the
    file and with enough specificity to win over root, characteristic and highlighted keys. */
 .mn-playable .mn-svg [data-midi].mn-playing {
@@ -650,4 +719,16 @@
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
     fill: var(--mn-on-playing);
+}
+
+/* Following a strumming pattern: the slot that plays gets a band and its strum the playing
+   color (the band keeps it visible for a muted strum and in any theme). */
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-cell {
+    fill: color-mix(in srgb, var(--mn-playing) 35%, transparent);
+}
+
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-arrow,
+.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-mute {
+    stroke: var(--mn-fg);
+    stroke-width: 3;
 }
