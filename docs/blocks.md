@@ -746,9 +746,9 @@ Text always stays upright. Apps using the library can set the default orientatio
 
 Apps that turn playback on (Music Practice does, and Obsidian Publish pages through `publish.js`) add a small bar at the bottom of chord, keyboard and fretboard diagrams, shown when the mouse is over them (a tap on touch screens):
 
-- **Play / stop**: a chord strums from the low string up, then rings. A scale plays every note drawn, from the lowest to the highest and back down.
+- **Play / stop**: a guitar chord strums from the low string up (about 12 ms between strings), then rings. A piano chord is struck as a block; a keyboard that lights a chord in every octave plays one voicing of it (root position from the lowest root, or its fingered keys). A scale, mode or arpeggio starts on its tonic: it goes up to the highest note drawn, down to the lowest, and back up to the tonic, so every note drawn plays. A list without a root goes from the lowest note up and back down. The first note and the tonics are a little louder; with a chord over a scale, the passing notes are a little softer.
 - **Loop**.
-- **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum.
+- **Speed**, when several notes play: the tempo of a scale, or the time between two strings of a strum (12 ms on guitar and 0 on piano by default; once you move it, it stays when you change the sound).
 - **Volume**, and **sound**: guitar or piano.
 
 Choosing the other sound also stops what is playing, then redraws the diagram for that instrument, with the same notes. A guitar chord or a fretboard becomes a keyboard with those exact keys. A keyboard becomes a fretboard, frets 0 to 12 (up to 24 for high notes); notes below the low E or past fret 24 are left out. The title and the root come along, and so do note, degree and interval labels; finger numbers turn into note names. Choose the diagram's own instrument to get its drawing back. A click on a note plays it on either drawing.

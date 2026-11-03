@@ -158,7 +158,7 @@ if (!result.ok) console.warn(result.error)
 
 - `renderBlock(language, source, host, options)` appends the rendering to `host` and never throws. It returns `{ ok, el, error, destroy() }`.
 - `@dsebastien/music-notation/voicings` adds about 1,800 guitar voicings, found by chord symbol (`chord` blocks with only a symbol). It's a separate entry point because the data weighs about 230 KB.
-- **Hear the diagrams**: the `play` option adds a playback bar to each diagram, shown on hover. Chords strum, scales go up and down, and a click plays a note. While it plays, each note lights up on the drawing when you hear it.
+- **Hear the diagrams**: the `play` option adds a playback bar to each diagram, shown on hover. Guitar chords strum, piano chords strike as a block, scales run from their tonic up and back, and a click plays a note. While it plays, each note lights up on the drawing when you hear it.
 - **Strumming patterns**: `strum` blocks draw a pattern (`D DU UDU`, `D - D U - U D U`) on a beat grid with counts, accents, muted and ghost strums and chord changes; with playback on, they play over their chords, with loop, tempo and a count-in. `playStrum(pattern, { bpm, chord, tuning })` plays one from code.
 - **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks (alphaTex, or Guitar Pro and MusicXML files) with [alphaTab](https://alphatab.net), and adds a player. It also converts score files, text tabs and chord sheets, and exports Guitar Pro 7 and MIDI.
 - `generateVoicings(symbol, options)` finds every playable voicing of a chord on any tuning, easiest first, with fingers and shape names; `fingerVoicing(frets)` fingers any voicing.

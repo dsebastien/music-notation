@@ -4,6 +4,7 @@ import {
     lengthOf,
     pianoTone,
     pluckedString,
+    scaleRun,
     sequenceOf,
     type NoteEvent,
     type NotePlayer
@@ -19,11 +20,54 @@ describe('sequenceOf', () => {
         expect(new Set(events.map((e) => +(e.time + e.duration).toFixed(6))).size).toBe(1)
     })
 
-    it('plays a scale up and back down, one beat per note', () => {
+    it('plays a scale up and back down, one beat per note, legato', () => {
         const events = sequenceOf('scale', [64, 60, 62], { bpm: 120, strum: 40 })
         expect(events.map((e) => e.midi)).toEqual([60, 62, 64, 62, 60])
         expect(events[1]!.time).toBe(0.5)
-        expect(lengthOf(events)).toBeCloseTo(4 * 0.5 + 0.475)
+        // Each note lasts until the next (no hard stop before it).
+        expect(events.every((e) => e.duration === 0.5)).toBe(true)
+        expect(lengthOf(events)).toBeCloseTo(5 * 0.5)
+    })
+
+    it('runs a scale from its tonic: up to the top, down to the bottom, back to the tonic', () => {
+        // D dorian drawn from C4 to D5.
+        const drawn = [60, 62, 64, 65, 67, 69, 71, 72, 74]
+        expect(scaleRun(drawn, 2)).toEqual([
+            62, 64, 65, 67, 69, 71, 72, 74, 72, 71, 69, 67, 65, 64, 62, 60, 62
+        ])
+        // Tonic at the bottom: up and back down; no tonic drawn, or none given: from the bottom.
+        expect(scaleRun([60, 64, 67, 72], 0)).toEqual([60, 64, 67, 72, 67, 64, 60])
+        expect(scaleRun([60, 64, 67], 2)).toEqual([60, 64, 67, 64, 60])
+        expect(scaleRun([67, 60, 64])).toEqual([60, 64, 67, 64, 60])
+        expect(scaleRun([62], 2)).toEqual([62])
+        expect(sequenceOf('scale', drawn, { bpm: 60, strum: 0, root: 2 })[0]!.midi).toBe(62)
+    })
+
+    it('shapes the touch: a guitar strum leans on the bass, a piano sings its top note (#59)', () => {
+        const strum = sequenceOf('chord', [40, 45, 50, 55, 59, 64], { bpm: 90, strum: 12 })
+        expect(strum.map((e) => e.velocity)).toEqual([100, 98, 96, 94, 92, 90])
+        const block = sequenceOf('chord', [48, 64, 67, 72], { bpm: 90, strum: 0, sound: 'piano' })
+        expect(block.map((e) => e.velocity)).toEqual([92, 84, 84, 100])
+        expect(sequenceOf('chord', [60], { bpm: 90, strum: 0 })[0]!.velocity).toBe(100)
+    })
+
+    it('accents the first note and the tonics of a run, softer passing notes (#59)', () => {
+        const run = sequenceOf('scale', [60, 62, 64, 65, 67, 69, 71, 72], {
+            bpm: 90,
+            strum: 0,
+            root: 0
+        })
+        expect(run.map((e) => e.velocity)).toEqual([
+            100, 86, 86, 86, 86, 86, 86, 94, 86, 86, 86, 86, 86, 86, 94
+        ])
+        // C major over a G chord: chord tones 90, passing notes 80.
+        const over = sequenceOf('scale', [60, 62, 64, 65, 67, 69, 71], {
+            bpm: 90,
+            strum: 0,
+            root: 0,
+            tones: [7, 11, 2]
+        })
+        expect(over.slice(0, 7).map((e) => e.velocity)).toEqual([100, 90, 80, 80, 90, 80, 90])
     })
 
     it('plays nothing without notes', () => {
@@ -32,6 +76,20 @@ describe('sequenceOf', () => {
 })
 
 describe('synthesized sound', () => {
+    it('plucks softer or brighter, at the pick position given, within range', () => {
+        const seeded = () => {
+            let seed = 3
+            return () => (seed = (seed * 16807) % 2147483647) / 2147483647
+        }
+        const bright = pluckedString(57, 8000, 0.5, seeded())
+        const dark = pluckedString(57, 8000, 0.5, seeded(), { brightness: 0.3, pick: 0.15 })
+        expect(Math.max(...dark.map(Math.abs))).toBeLessThanOrEqual(0.5)
+        // A darker pluck changes less from one sample to the next.
+        const roughness = (data: Float32Array) =>
+            data.slice(1, 400).reduce((sum, v, i) => sum + Math.abs(v - data[i]!), 0)
+        expect(roughness(dark)).toBeLessThan(roughness(bright))
+    })
+
     it('plucks a string that fades', () => {
         let seed = 1
         const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
@@ -118,9 +176,112 @@ describe('playback bar', () => {
         renderBlock('fretboard', 'A minor pentatonic\nposition: 2', h, { play: { player } })
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         const midis = calls[0]!.events.map((e) => e.midi)
-        // Box 2 has only two As (A3, A4): its 12 dots still all play.
-        expect(midis.slice(0, 12)).toEqual([48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74])
-        expect(midis.length).toBe(23)
+        // Box 2 starts on C3, below its first A (A3): the run starts on A3, goes up to the top
+        // D5, down to C3, and back up to A3. Its 12 dots all play.
+        const up = [48, 50, 52, 55, 57, 60, 62, 64, 67, 69, 72, 74]
+        expect(midis).toEqual([...up.slice(4), ...up.slice(0, -1).reverse(), 50, 52, 55, 57])
+        expect(new Set(midis).size).toBe(12)
+    })
+
+    it('starts a keyboard scale on its tonic, and every mode on its own (#61)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'D dorian', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const midis = calls[0]!.events.map((e) => e.midi)
+        // Drawn C4 to B5: D4 up to B5, down to C4, back up to D4.
+        expect(midis[0]).toBe(62)
+        expect(midis.at(-1)).toBe(62)
+        expect(Math.max(...midis)).toBe(83)
+        expect(Math.min(...midis)).toBe(60)
+        const m = host()
+        renderBlock('keyboard', 'modes: C major\nrange: C4-B4', m, { play: { player } })
+        const firsts = [...m.querySelectorAll('.mn-play-toggle')].map((button) => {
+            ;(button as HTMLButtonElement).click()
+            const events = calls.at(-1)!.events
+            return [events[0]!.midi, events.at(-1)!.midi, events.length]
+        })
+        // C ionian, D dorian, E phrygian… each from its own tonic, back to it, all 7 notes.
+        expect(firsts.map(([first]) => first)).toEqual([60, 62, 64, 65, 67, 69, 71])
+        expect(firsts.every(([first, last]) => first === last)).toBe(true)
+        expect(new Set(calls.at(-1)!.events.map((e) => e.midi)).size).toBe(7)
+    })
+
+    it('plays one voicing of a keyboard chord, the keys it lights (#61)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'chord: G7', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // Root position from G4, not the 8 lit keys from D4.
+        expect(calls[0]!.events.map((e) => e.midi)).toEqual([67, 71, 74, 77])
+        // A fingered chord plays its fingered keys.
+        const f = host()
+        renderBlock('keyboard', 'chord: C\nrange: C4-B5\nfingering: 1 2 4', f, { play: { player } })
+        ;(f.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([60, 64, 67])
+        // Every lit key still plays on a click.
+        h.querySelector('[data-midi="62"]')!.dispatchEvent(new Event('click', { bubbles: true }))
+        expect(calls.at(-1)!.events.map((e) => e.midi)).toEqual([62])
+    })
+
+    it('strums a guitar chord about 12 ms a string, strikes a piano chord as a block (#59)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chord', 'A x02220', h, { play: { player } })
+        const toggle = h.querySelector('.mn-play-toggle') as HTMLButtonElement
+        toggle.click()
+        expect(calls[0]!.events.map((e) => +(e.time * 1000).toFixed(3))).toEqual([
+            0, 12, 24, 36, 48
+        ])
+        const strum = h.querySelector('input[aria-label^="Strum"]') as HTMLInputElement
+        expect(strum.value).toBe('12')
+        // Piano: a block; back on guitar, the strum again.
+        const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('0')
+        toggle.click()
+        expect(new Set(calls[1]!.events.map((e) => e.time))).toEqual(new Set([0]))
+        select.value = 'guitar'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('12')
+        // A strum the reader sets stays across sounds.
+        strum.value = '30'
+        strum.dispatchEvent(new Event('input'))
+        select.value = 'piano'
+        select.dispatchEvent(new Event('change'))
+        expect(strum.value).toBe('30')
+        const k = host()
+        renderBlock('keyboard', 'chord: C', k, { play: { player } })
+        ;(k.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0, 0])
+        // The app's strum is kept on every instrument.
+        const a = host()
+        renderBlock('keyboard', 'chord: C', a, { play: { player, strum: 20 } })
+        ;(a.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        expect(calls.at(-1)!.events.map((e) => e.time)).toEqual([0, 0.02, 0.04])
+    })
+
+    it('plays chord tones over a scale a little louder than passing notes', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'scale: C major\nchord: G7\nrange: C4-B4', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const touch = new Map(calls[0]!.events.slice(1, 7).map((e) => [e.midi, e.velocity]))
+        expect([touch.get(62), touch.get(65), touch.get(67), touch.get(71)]).toEqual([
+            90, 90, 90, 90
+        ])
+        expect([touch.get(64), touch.get(69)]).toEqual([80, 80])
+    })
+
+    it('runs an arpeggio from its root', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('keyboard', 'arpeggio: G7\nrange: C4-B5', h, { play: { player } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        const midis = calls[0]!.events.map((e) => e.midi)
+        expect(midis.slice(0, 3)).toEqual([67, 71, 74])
+        expect(midis.at(-1)).toBe(67)
     })
 
     it('uses a player given later through a function', () => {
@@ -354,6 +515,7 @@ describe('light player velocity', () => {
     /** An audio context that records each note's envelope levels. */
     function fakeWindow() {
         const levels: number[][] = []
+        const sources: { buffer: unknown; playbackRate: { value: number } }[] = []
         class Param {
             value = 1
             readonly set: number[] = []
@@ -364,6 +526,9 @@ describe('light player velocity', () => {
                 this.set.push(v)
             }
             exponentialRampToValueAtTime(v: number) {
+                this.set.push(v)
+            }
+            setTargetAtTime(v: number) {
                 this.set.push(v)
             }
         }
@@ -382,7 +547,15 @@ describe('light player velocity', () => {
                 return { getChannelData: () => new Float32Array(length) }
             }
             createBufferSource() {
-                return { ...node(), buffer: null, start() {}, stop() {} }
+                const source = {
+                    ...node(),
+                    buffer: null,
+                    playbackRate: new Param(),
+                    start() {},
+                    stop() {}
+                }
+                sources.push(source)
+                return source
             }
         }
         const win = {
@@ -390,13 +563,14 @@ describe('light player velocity', () => {
             setTimeout: () => 0,
             clearTimeout() {}
         } as unknown as Window
-        return { win, levels }
+        return { win, levels, sources }
     }
 
     it('scales each note by its velocity (100 is the computed level)', async () => {
         const { lightPlayer } = await import('./player.js')
         const { win, levels } = fakeWindow()
-        lightPlayer(win).play(
+        // A random source in the middle: no variation.
+        lightPlayer(win, () => 0.5).play(
             [
                 { midi: 60, time: 0, duration: 0.5 },
                 { midi: 64, time: 0, duration: 0.5, velocity: 50 },
@@ -406,6 +580,135 @@ describe('light player velocity', () => {
         )
         // The first gain is the master volume; then one envelope a note.
         expect(levels.slice(1).map((set) => set[0])).toEqual([1, 0.5, 1.2])
+    })
+
+    it('varies repeated notes a little: pluck, pitch and level (#59)', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, levels, sources } = fakeWindow()
+        let seed = 7
+        const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+        const notes = Array.from({ length: 8 }, (_, i) => ({ midi: 60, time: i, duration: 0.5 }))
+        lightPlayer(win, random).play(notes, { sound: 'guitar', volume: 1 })
+        const rates = sources.map((s) => s.playbackRate.value)
+        // A few cents either way, never the same twice.
+        expect(rates.every((r) => Math.abs(1200 * Math.log2(r)) <= 4)).toBe(true)
+        expect(new Set(rates).size).toBe(8)
+        const peaks = levels.slice(1).map((set) => set[0]!)
+        expect(peaks.every((v) => v >= 0.93 && v <= 1.07)).toBe(true)
+        expect(new Set(peaks).size).toBe(8)
+        // Several plucks of the string, not one recording.
+        expect(new Set(sources.map((s) => s.buffer)).size).toBeGreaterThan(1)
+    })
+})
+
+describe('light player release (#59)', () => {
+    /** An audio context that records what each note and the volume are told, with times. */
+    function timedWindow() {
+        const calls: string[][] = []
+        const timers: { ms: number; run: () => void }[] = []
+        const param = (name: string) => {
+            const log: string[] = []
+            calls.push(log)
+            const at =
+                (kind: string) =>
+                (...args: number[]) =>
+                    log.push(`${name} ${kind} ${args.map((n) => +n.toFixed(4)).join(' ')}`)
+            return {
+                value: 1,
+                setValueAtTime: at('set'),
+                linearRampToValueAtTime: at('ramp'),
+                exponentialRampToValueAtTime: at('exp'),
+                setTargetAtTime: at('target')
+            }
+        }
+        const node = () => ({ connect() {}, disconnect() {} })
+        const stops: number[] = []
+        class Ctx {
+            currentTime = 1
+            sampleRate = 8000
+            destination = node()
+            resume = () => Promise.resolve()
+            createGain = () => ({ ...node(), gain: param('gain') })
+            createBuffer = (_: number, length: number) => ({
+                getChannelData: () => new Float32Array(length)
+            })
+            createBufferSource = () => ({
+                ...node(),
+                buffer: null,
+                playbackRate: param('rate'),
+                start() {},
+                stop: (t: number) => stops.push(+t.toFixed(4))
+            })
+            createOscillator = () => ({
+                ...node(),
+                frequency: param('frequency'),
+                detune: param('detune'),
+                setPeriodicWave() {},
+                start() {},
+                stop: (t: number) => stops.push(+t.toFixed(4))
+            })
+            createPeriodicWave = () => ({})
+        }
+        const win = {
+            AudioContext: Ctx,
+            setTimeout: (run: () => void, ms: number) => timers.push({ ms, run }),
+            clearTimeout: (t: number) => {
+                if (timers[t - 1]) timers[t - 1]!.ms = -1
+            }
+        } as unknown as Window
+        return { win, calls, stops, timers }
+    }
+
+    it('lets a guitar note fade after its end, not stop dead', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, calls, stops, timers } = timedWindow()
+        let ended = 0
+        lightPlayer(win, () => 0.5).play([{ midi: 60, time: 0, duration: 1 }], {
+            sound: 'guitar',
+            volume: 1,
+            onEnd: () => ended++
+        })
+        // Starts at 1.05 on the audio clock, ends at 2.05, fades over 0.15 s.
+        expect(calls.flat()).toContain('gain target 0 2.05 0.0375')
+        expect(stops).toEqual([2.2])
+        // The end (a loop's next pass) comes at the notes' end; the sound is let go after the tail.
+        expect(timers.map((t) => Math.round(t.ms))).toEqual([1150, 1300])
+        timers[0]!.run()
+        expect(ended).toBe(1)
+    })
+
+    it('decays a piano note at its own pace, then releases it', async () => {
+        const { lightPlayer, releaseOf } = await import('./player.js')
+        const { win, calls, stops } = timedWindow()
+        lightPlayer(win, () => 0.5).play(
+            [
+                { midi: 60, time: 0, duration: 1 },
+                { midi: 36, time: 0, duration: 0.04 }
+            ],
+            { sound: 'piano', volume: 1 }
+        )
+        const flat = calls.flat()
+        // Middle C falls to about a third in 1 s; C2 rings longer.
+        expect(flat).toContain('gain target 0 1.055 1')
+        expect(flat).toContain('gain target 0 1.055 2')
+        // The damper: 0.3 s for a long note, half a short one (at least 30 ms).
+        expect(flat).toContain('gain target 0 2.05 0.075')
+        expect(releaseOf('piano', 0.04)).toBe(0.03)
+        expect(stops).toEqual([2.35, 1.12])
+    })
+
+    it('fades quickly on stop', async () => {
+        const { lightPlayer } = await import('./player.js')
+        const { win, calls, stops, timers } = timedWindow()
+        const handle = lightPlayer(win, () => 0.5).play([{ midi: 60, time: 0, duration: 2 }], {
+            sound: 'guitar',
+            volume: 1
+        })
+        handle.stop()
+        // The volume (the first gain) falls in about 10 ms; the notes stop 50 ms later.
+        expect(calls[0]).toEqual(['gain target 0 1 0.01'])
+        expect(stops.slice(-1)).toEqual([1.05])
+        expect(timers.filter((t) => t.ms >= 0).map((t) => t.ms)).toEqual([80])
     })
 })
 

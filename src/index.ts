@@ -46,13 +46,16 @@ export {
 } from './chord/generate.js'
 export {
     sequenceOf,
+    scaleRun,
     lengthOf,
     lightPlayer,
     pluckedString,
     pianoTone,
     DEFAULT_SEQUENCE,
+    DEFAULT_STRUM,
     type NoteEvent,
     type NotePlayer,
+    type PluckOptions,
     type PlayHandle,
     type PlayKind,
     type Sound,

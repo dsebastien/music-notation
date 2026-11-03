@@ -16,6 +16,7 @@ import {
 import { midiOf, nameOf } from '../theory/pitch.js'
 import {
     DEFAULT_SEQUENCE,
+    DEFAULT_STRUM,
     lightPlayer,
     sequenceOf,
     type NoteEvent,
@@ -47,7 +48,7 @@ export interface PlayOptions {
     volume?: number
     /** Scales: notes per minute, 90 by default; also strum patterns' tempo when they have none. */
     bpm?: number
-    /** Chords: milliseconds between strings, 40 by default. */
+    /** Chords: milliseconds between strings; by default 12 on guitar, 0 (a block) on piano. */
     strum?: number
 }
 
@@ -97,6 +98,24 @@ interface DiagramData {
     kind: PlayKind
     pitches: number[]
     sound: Sound
+    /** The tonic's pitch class, from the root mark (scales start on it); null without one. */
+    root: number | null
+}
+
+/** The pitch classes of a chord drawn over a scale (its tones), or undefined. */
+function tonesOf(drawing: Element): number[] | undefined {
+    const tones = [...drawing.querySelectorAll('.mn-tone[data-midi]')]
+        .map((el) => Number(el.getAttribute('data-midi')))
+        .filter((midi) => Number.isFinite(midi))
+        .map((midi) => ((midi % 12) + 12) % 12)
+    return tones.length ? [...new Set(tones)] : undefined
+}
+
+/** The pitch class of a drawing's root mark (a root dot or key), or null. */
+function rootOf(drawing: Element): number | null {
+    const mark = drawing.querySelector('.mn-root[data-midi]')
+    const midi = Number(mark?.getAttribute('data-midi'))
+    return mark && Number.isFinite(midi) ? ((midi % 12) + 12) % 12 : null
 }
 
 function dataOf(diagram: Element): DiagramData | null {
@@ -109,7 +128,8 @@ function dataOf(diagram: Element): DiagramData | null {
     return {
         kind: diagram.getAttribute('data-mn-play') === 'chord' ? 'chord' : 'scale',
         pitches,
-        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar'
+        sound: diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar',
+        root: rootOf(diagram)
     }
 }
 
@@ -238,13 +258,17 @@ function barFor(
     bar.setAttribute('aria-label', name ? `Play ${name}` : 'Playback')
     wrap.appendChild(bar)
 
+    const firstSound = options.sound ?? data.sound
     const settings = {
-        sound: options.sound ?? data.sound,
+        sound: firstSound,
         volume: clamp(options.volume, 0, 1, 0.8),
         bpm: clamp(options.bpm, 20, 240, DEFAULT_SEQUENCE.bpm),
-        strum: clamp(options.strum, 0, 200, DEFAULT_SEQUENCE.strum),
+        // The instrument's own: a guitar strum, a piano block chord.
+        strum: clamp(options.strum, 0, 200, DEFAULT_STRUM[firstSound]),
         loop: false
     }
+    // Set by the app or the slider: then it stays when the sound changes.
+    let strumChosen = options.strum !== undefined && Number.isFinite(options.strum)
     let playing: PlayHandle | null = null
     // The notes lit on the drawing as they sound.
     let lights: Follower | null = null
@@ -253,6 +277,8 @@ function barFor(
     // What the drawing on the page shows: a redrawn fretboard leaves out notes a guitar can't play.
     const pitchesShown = () =>
         shown === diagram ? data.pitches : (dataOf(shown)?.pitches ?? data.pitches)
+    // Its tonic: a scale's run starts on it.
+    const rootShown = () => (shown === diagram ? data.root : rootOf(shown))
 
     const toggle = html(doc, 'button', 'mn-play-toggle')
     toggle.type = 'button'
@@ -316,7 +342,12 @@ function barFor(
         stop()
         // A diagram no longer on the page (the block was redrawn or left) stops looping.
         if (!wrap.isConnected) return
-        const events = sequenceOf(data.kind, pitchesShown(), settings)
+        const tones = tonesOf(shown)
+        const events = sequenceOf(data.kind, pitchesShown(), {
+            ...settings,
+            root: rootShown(),
+            ...(tones ? { tones } : {})
+        })
         playing = play(
             events,
             () => {
@@ -370,18 +401,26 @@ function barFor(
         })
         field.append(tag, input)
         bar.appendChild(field)
+        return (n: number) => {
+            input.value = String(n)
+            field.title = `${label}: ${n}`
+        }
     }
+    let showStrum: ((n: number) => void) | null = null
     // Speed only when several notes play: BPM for scales, the strum's spread for chords.
     if (data.pitches.length > 1) {
         if (data.kind === 'scale')
             slider('Tempo (BPM)', 20, 240, settings.bpm, (n) => (settings.bpm = n), '♩')
         else
-            slider(
+            showStrum = slider(
                 'Strum (ms between strings)',
                 0,
                 200,
                 settings.strum,
-                (n) => (settings.strum = n),
+                (n) => {
+                    settings.strum = n
+                    strumChosen = true
+                },
                 '≋'
             )
     }
@@ -421,6 +460,11 @@ function barFor(
         // What plays stops first: its notes belong to the drawing that goes away.
         stop()
         settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
+        // A strum nobody set follows the instrument.
+        if (!strumChosen) {
+            settings.strum = DEFAULT_STRUM[settings.sound]
+            showStrum?.(settings.strum)
+        }
         drawFor()
     })
     // An app or a page that starts on the other sound (play: { sound }) shows its drawing.

@@ -11,6 +11,7 @@ import {
     type NoteSet
 } from '../theory/note-set.js'
 import { midiOf, nameOf } from '../theory/pitch.js'
+import { chordVoicingIn } from './play-voicing.js'
 
 export interface KeyboardOptions {
     /** Lowest and highest MIDI pitch shown; computed from the notes when absent. */
@@ -230,9 +231,14 @@ export function renderKeyboard(
             root.appendChild(mark)
         }
     }
-    // What playback plays: the highlighted keys, low to high.
-    const played: number[] = []
+    // What playback plays: the highlighted keys, low to high; a chord lit in every octave plays
+    // one voicing of it: its fingered keys, else root position from its lowest root.
+    let played: number[] = []
     for (let midi = from; midi <= to; midi++) if (memberOf(set, midi)) played.push(midi)
+    if (options.playAs === 'chord' && !set.pitches) {
+        const fingered = played.filter((midi) => options.fingers?.has(midi))
+        played = fingered.length ? fingered : (chordVoicingIn(set, from, to) ?? played)
+    }
     root.setAttribute('data-mn-pitches', played.join(' '))
     root.setAttribute('data-mn-play', options.playAs ?? 'scale')
     root.setAttribute('data-mn-sound', 'piano')

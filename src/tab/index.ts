@@ -567,6 +567,12 @@ export function renderTab(
 const PROGRAMS: Record<Sound, number> = { guitar: 25, piano: 0 }
 
 /**
+ * Seconds the song goes on after the last note ends, so the soundfont's release rings: alphaTab
+ * silences every note the moment a song ends.
+ */
+const SOUNDFONT_TAIL = 0.5
+
+/**
  * Diagram playback through alphaTab's synthesizer and soundfont (realistic sound): a NotePlayer
  * for the `play` render option. `api` is an alphaTab API used only for this (not a score's: its
  * song would stop), with its soundfont loaded and a song that uses both sounds (guitar, program
@@ -606,6 +612,14 @@ export function soundfontPlayer(
                 )
             }
             const end = Math.max(...events.map((e) => e.time + e.duration), 0)
+            // The song ends after the release: a pedal-up that changes nothing.
+            handler.addControlChange(
+                0,
+                ticks(end + SOUNDFONT_TAIL),
+                0,
+                alphaTab.midi.ControllerType.HoldPedal,
+                0
+            )
             current.playbackSpeed = 1
             player.playOneTimeMidiFile(midi)
             let stopped = false
