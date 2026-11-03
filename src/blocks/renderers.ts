@@ -92,7 +92,7 @@ export interface RenderOptions extends LayoutDefaults {
     /**
      * The note's properties (or a function of the block's element returning them, read at each
      * render, so a page can tell embeds from the note itself): an empty
-     * `chord`, `fretboard` or `keyboard` block draws from them (see `blockFromProperties`).
+     * `chord`, `fretboard`, `keyboard` or `strum` block draws from them (see `blockFromProperties`).
      */
     properties?:
         | Record<string, unknown>
