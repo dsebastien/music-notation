@@ -526,7 +526,8 @@ const PROGRAMS: Record<Sound, number> = { guitar: 25, piano: 0 }
 /**
  * Diagram playback through alphaTab's synthesizer and soundfont (realistic sound): a NotePlayer
  * for the `play` render option. `api` is an alphaTab API used only for this (not a score's: its
- * song would stop), with its soundfont loaded.
+ * song would stop), with its soundfont loaded and a song that uses both sounds (guitar, program
+ * 25, and piano, program 0): alphaTab only loads the presets its song uses.
  */
 export function soundfontPlayer(
     alphaTab: AlphaTabModule,
@@ -599,8 +600,27 @@ export function createSoundfontPlayer(
             }
         })
         const current = api
+        // Ready once the soundfont is in and the player has its song (alphaTab loads the presets
+        // then; playing before that is silent, and the song loading later cuts it). A player that
+        // never says it's ready plays anyway after a few seconds.
         ready = new Promise<boolean>((resolve) => {
-            current.soundFontLoaded.on(() => resolve(true))
+            let soundFont = false
+            let player = !current.playerReady
+            const settle = () => {
+                if (soundFont && player) resolve(true)
+            }
+            current.soundFontLoaded.on(() => {
+                soundFont = true
+                settle()
+                setTimeout(() => {
+                    player = true
+                    settle()
+                }, 4000)
+            })
+            current.playerReady?.on(() => {
+                player = true
+                settle()
+            })
             current.error.on(() => resolve(false))
         })
         if (assets.soundFont instanceof Uint8Array)

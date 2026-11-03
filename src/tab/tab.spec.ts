@@ -98,6 +98,7 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
         playerStateChanged = emitter()
         playerPositionChanged = emitter()
         soundFontLoaded = emitter()
+        playerReady = emitter()
         loaded: unknown = null
         tex(text: string) {
             this.loaded = text
@@ -144,6 +145,42 @@ describe('createSoundfontPlayer', () => {
         expect(score.tracks.map((t) => t.playbackInfo.program).sort((a, b) => a - b)).toEqual([
             0, 25
         ])
+    })
+})
+
+describe('createSoundfontPlayer readiness (review)', () => {
+    it('plays only once the soundfont is loaded and the player is ready', async () => {
+        const mod = fakeAlphaTab()
+        type Fake = { soundFontLoaded: { fire(): void }; playerReady: { fire(): void } }
+        const made: Fake[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => Fake
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(this)
+            }
+        }
+        let fallbackPlays = 0
+        const fallback = { play: () => (fallbackPlays++, { stop() {} }) }
+        const assets = {
+            scriptFile: null,
+            font: 'data:font/woff2;base64,',
+            soundFont: new Uint8Array()
+        }
+        createSoundfontPlayer(mod, assets, document, fallback).play(
+            [{ midi: 60, time: 0, duration: 1 }],
+            {
+                sound: 'piano',
+                volume: 1
+            }
+        )
+        made[0]!.soundFontLoaded.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        // The fake has no player, so a play falls back: it must not happen before playerReady.
+        expect(fallbackPlays).toBe(0)
+        made[0]!.playerReady.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(fallbackPlays).toBe(1)
     })
 })
 
