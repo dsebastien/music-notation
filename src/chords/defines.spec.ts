@@ -34,6 +34,18 @@ describe('parseDefinition', () => {
         expect(parseDefinition('[Am]').definition).toMatchObject({ name: 'Am', transposable: true })
     })
 
+    it('reads six values alone as the six frets of a guitar', () => {
+        const { definition, problems } = parseDefinition('G 3 2 0 0 0 3')
+        expect(problems).toEqual([])
+        expect(definition).toMatchObject({ baseFret: 1, frets: [3, 2, 0, 0, 0, 3] })
+        expect(parseDefinition('C x 3 2 0 1 0').definition!.frets).toEqual([null, 3, 2, 0, 1, 0])
+        // A ukulele's older form (a base fret and four frets) stays as it was.
+        expect(parseDefinition('C 1 0 0 0 3').definition).toMatchObject({
+            baseFret: 1,
+            frets: [0, 0, 0, 3]
+        })
+    })
+
     it('reads the older form without keywords: a base fret, then the frets', () => {
         const { definition, problems } = parseDefinition('G 1 3 2 0 0 0 3')
         expect(problems).toEqual([])

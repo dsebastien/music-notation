@@ -152,12 +152,14 @@ export function parseDefinition(
         return tokens.slice(i + 1, end)
     }
     // The older form without keywords: a base fret, then the frets ("{define: G 1 3 2 0 0 0 3}").
+    // Six values alone are a guitar's six frets from the nut ("{define: G 3 2 0 0 0 3}"), not a
+    // base fret and five strings.
     const lead = valuesAfter(-1)
-    if (
-        lead.length >= 3 &&
-        /^\d{1,2}$/.test(lead[0]!) &&
-        lead.slice(1).every((t) => /^(\d{1,2}|x|X|N|-1|-)$/.test(t))
-    ) {
+    const fret = (t: string) => /^(\d{1,2}|x|X|N|-1|-)$/.test(t)
+    if (lead.length === 6 && lead.every(fret)) {
+        const frets = lead.map((t) => (t === '-' ? 'x' : t))
+        tokens.splice(0, lead.length, 'base-fret', '1', 'frets', ...frets)
+    } else if (lead.length >= 3 && /^\d{1,2}$/.test(lead[0]!) && lead.slice(1).every(fret)) {
         const frets = lead.slice(1).map((t) => (t === '-' ? 'x' : t))
         tokens.splice(0, lead.length, 'base-fret', lead[0]!, 'frets', ...frets)
     }

@@ -838,7 +838,7 @@ Other directives are ignored.
 - `fingers 0 0 2 3 1 0`: one value per string, `1` to `9` or a letter (`T` for the thumb). Anything else (`0`, `-`, `x`) means no finger.
 - `keys 0 3 7`: piano keys, in semitones above the root (0 is the root, 7 the fifth).
 - `display "A flat"`: the name shown on the diagram.
-- The older form without keywords also works: `{define: G 1 3 2 0 0 0 3}` is the base fret, then the frets.
+- The older form without keywords also works: `{define: G 1 3 2 0 0 0 3}` is the base fret, then the frets. Six values alone, `{define: G 3 2 0 0 0 3}`, are the six frets of a guitar from the nut.
 - `copy Am`: start from another chord's shape (an earlier `{define}`, or the database), then change it with the other keywords. `copyall` also copies the display name.
 - `diagram off`: leave that chord out of the row.
 
