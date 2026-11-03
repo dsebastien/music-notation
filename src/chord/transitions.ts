@@ -183,12 +183,9 @@ const HIGH_POSITION = 5
  * shapes first, so a standard shape is worth a few more fingers to place. */
 const SHAPE_WEIGHT = 2
 
-/** The shapes teachers write first. */
-const TEACHER_SHAPES = new Set<GeneratedVoicing['shape']>([
-    'Open',
-    'E-shape barre',
-    'A-shape barre'
-])
+/** The shapes teachers write first: open chords, and E- and A-shape barre chords. */
+const teacherShape = ({ shape, reasons }: GeneratedVoicing) =>
+    shape === 'Open' || ((shape === 'E shape' || shape === 'A shape') && reasons.includes('barre'))
 
 /**
  * What a shape costs in a progression, besides its moves: its ease; a penalty for each fret it
@@ -212,7 +209,7 @@ function shapeCost(voicing: GeneratedVoicing, fromDatabase: boolean): number {
         if (frets[frets.length - 1] === null) cost += 1
         const sounding = frets.filter((f) => f !== null).length
         if (shape !== 'Open') cost += 0.6 * Math.max(0, Math.min(5, frets.length - 1) - sounding)
-        if (!TEACHER_SHAPES.has(shape)) cost += 0.5
+        if (!teacherShape(voicing)) cost += 0.5
     }
     if (fromDatabase) cost -= 0.6
     return cost

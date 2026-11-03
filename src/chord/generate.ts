@@ -9,20 +9,20 @@ import { chordNoteSet, type NoteSetMember } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { canonicalSuffix } from '../theory/suffix.js'
 
-/** Shape names, as guitar teachers use them. */
+/** Shape names, as guitar teachers use them: one name per CAGED shape, barre or not. */
 export type VoicingShape =
     | 'Open'
-    | 'E-shape barre'
-    | 'A-shape barre'
-    | 'CAGED C'
-    | 'CAGED A'
-    | 'CAGED G'
-    | 'CAGED E'
-    | 'CAGED D'
+    | 'C shape'
+    | 'A shape'
+    | 'G shape'
+    | 'E shape'
+    | 'D shape'
     | 'Power chord'
     | 'Triad'
     | 'Shell'
-    | 'Other barre'
+
+/** The E and A shapes: with a barre, the barre chords everyone learns. */
+const isBarreShape = (shape: VoicingShape | null) => shape === 'E shape' || shape === 'A shape'
 
 export interface GeneratedVoicing extends FrettedVoicing {
     fingers: (string | null)[]
@@ -343,8 +343,7 @@ function shapeOf(
     frets: readonly (number | null)[],
     info: ChordInfo,
     targets: CagedTargets,
-    tuning: readonly number[],
-    fingers: readonly (string | null)[] | null
+    tuning: readonly number[]
 ): VoicingShape | null {
     const sounding = frets.flatMap((f, s) => (f === null ? [] : [s]))
     if (!sounding.length || tuning.length !== frets.length) return null
@@ -369,7 +368,6 @@ function shapeOf(
     if (open && top && sounding.length >= 4 && (!fretted.length || Math.max(...fretted) <= 4)) {
         return 'Open'
     }
-    const barre = fingers ? hasBarre(frets, fingers) : false
     if (sameTuning(tuning, STANDARD_TUNING) && !open && fretted.length) {
         const lowest = Math.min(...fretted)
         for (const letter of ['E', 'A', 'C', 'G', 'D'] as const) {
@@ -384,38 +382,35 @@ function shapeOf(
                 const moved = frets.map((f) => (f === null ? null : f - shift))
                 if (moved.some((f) => f !== null && f > 4)) continue
                 if (!sounding.every((s) => target.has((tuning[s]! + moved[s]!) % 12))) continue
-                if (letter === 'E' || letter === 'A')
-                    return barre ? `${letter}-shape barre` : `CAGED ${letter}`
-                return `CAGED ${letter}`
+                return `${letter} shape`
             }
         }
     }
-    return barre ? 'Other barre' : null
+    return null
 }
 
 /**
  * The shape a voicing is played with: power chord, shell (root, third and seventh or sixth on three
  * or four strings), triad (three adjacent strings, three notes), open (open strings, frets 1–4),
- * E- or A-shape barre and the other CAGED shapes (in standard tuning: the open C, A, G, E or D
- * chord moved up the neck), other barre. Null when it's none of them.
+ * the CAGED shapes (in standard tuning: the open C, A, G, E or D chord moved up the neck, with a
+ * barre or not). Null when it's none of them.
  */
 export function voicingShape(
     frets: readonly (number | null)[],
     symbol: string,
-    tuning: readonly number[] = STANDARD_TUNING,
-    fingers: readonly (string | null)[] | null = fingerVoicing(frets)
+    tuning: readonly number[] = STANDARD_TUNING
 ): VoicingShape | null {
     const info = chordInfo(symbol)
-    return info ? shapeOf(frets, info, cagedTargets(info), tuning, fingers) : null
+    return info ? shapeOf(frets, info, cagedTargets(info), tuning) : null
 }
 
 /** Usual shapes rank higher: they're the ones teachers and songbooks use. */
 const KNOWN_SHAPES = new Set<VoicingShape>([
-    'CAGED C',
-    'CAGED A',
-    'CAGED G',
-    'CAGED E',
-    'CAGED D',
+    'C shape',
+    'A shape',
+    'G shape',
+    'E shape',
+    'D shape',
     'Power chord'
 ])
 
@@ -493,7 +488,7 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
         const fingering = bestFingering(candidate)
         if (!fingering) return null
         const { fingers } = fingering
-        const shape = shapeOf(candidate, info, targets, tuning, fingers)
+        const shape = shapeOf(candidate, info, targets, tuning)
         const fretted = sounding.map((s) => candidate[s]!).filter((f) => f > 0)
         const span = fretted.length ? Math.max(...fretted) - Math.min(...fretted) + 1 : 0
         const used = new Set(fingers.filter(Boolean)).size
@@ -505,10 +500,7 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
         if (barre) {
             // E- and A-shape barres are the barre chords everyone learns; a small barre over two or
             // three strings (F xx3211) is easy.
-            difficulty +=
-                shape === 'E-shape barre' || shape === 'A-shape barre' || !fingering.fullBarre
-                    ? 1
-                    : 3
+            difficulty += isBarreShape(shape) || !fingering.fullBarre ? 1 : 3
             reasons.push('barre')
         }
         // A reach: two notes three frets apart or more, two strings apart or more.
@@ -562,7 +554,7 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
             reasons.push('no fifth')
         }
         if (usual) difficulty -= 3
-        else if (shape === 'E-shape barre' || shape === 'A-shape barre') difficulty -= 2
+        else if (isBarreShape(shape) && barre) difficulty -= 2
         else if (shape && KNOWN_SHAPES.has(shape)) difficulty -= 1.5
         const lowChroma = low % 12
         const inBass = members.findIndex((m) => m.chroma === lowChroma)
