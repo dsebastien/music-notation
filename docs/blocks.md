@@ -53,7 +53,7 @@ title: A (open)</code></pre></div>
 | `labels`            | Guitar: what the dots say, `fingers` (default), `intervals` (R, 3, 5, as triad charts show them), `notes` or `none`.                                                                                                                                                                                                                                               |
 | `anchors`, `guides` | Guitar: strings (1 = the highest) whose finger stays on its fret (a ring) or slides along the string (a dashed ring), as [chord transitions](#chord-transitions) mark them.                                                                                                                                                                                        |
 
-Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. A chord the library doesn't recognize says what to write instead.
+Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Four notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G) and Csus2 (C D G). A chord the library doesn't recognize says what to write instead.
 
 A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
 
@@ -205,19 +205,19 @@ labels: degrees
 <div class="mn-live" markdown="0"><pre><code class="language-keyboard">D dorian
 labels: degrees</code></pre></div>
 
-| Key                    | Meaning                                                                                                                  |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `scale`                | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                                         |
-| `chord`                | `Cmaj7`, `G7`, `F#m7b5`…                                                                                                 |
-| `notes`                | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                                                 |
-| `root`                 | For `notes`: the note that `intervals` and `degrees` labels count from, `root: C`. It doesn't have to be in the list.    |
-| `range`                | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.                             |
-| `labels`               | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`.                        |
-| `title`                | The title shown above.                                                                                                   |
-| `orientation`          | `horizontal` (default) or `vertical`: low notes at the bottom.                                                           |
-| `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                               |
-| `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`. It works with `labels` and `range` too. |
-| `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                 |     |
+| Key                    | Meaning                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scale`                | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                                                                                                      |
+| `chord`                | `Cmaj7`, `G7`, `F#m7b5`…                                                                                                                                                              |
+| `notes`                | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                                                                                                              |
+| `root`                 | For `notes`: the note that `intervals` and `degrees` labels count from, `root: C`. It doesn't have to be in the list.                                                                 |
+| `range`                | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.                                                                                          |
+| `labels`               | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`.                                                                                     |
+| `title`                | The title shown above.                                                                                                                                                                |
+| `orientation`          | `horizontal` (default) or `vertical`: low notes at the bottom.                                                                                                                        |
+| `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                                                                                            |
+| `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`. For a list of notes: one finger per listed key, low to high. It works with `labels` and `range` too. |
+| `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                                                                              |     |
 
 The short first line is tried as a scale, then as notes with octaves (`C4` is that key), then as a chord, then as a list of notes. The root is drawn in a second color.
 
@@ -250,7 +250,7 @@ labels: intervals</code></pre></div>
 | `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
 
-**A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists.
+**A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists: in a `chord` block, it's an error that says so.
 
 ````markdown
 ```fretboard
@@ -361,7 +361,21 @@ columns: 4
 range: C4-B4
 columns: 4</code></pre></div>
 
-**Fingering** (keyboards): `fingering: 1 2 3 1 2 3 4 5` puts one finger on each note of one octave, from the root. Without a `range`, the keyboard shows only that octave, starting in middle C's octave. Give it a `range` and every octave in the range stays lit. The fingering then starts on the first root inside it. `labels` works too: the labels stay on the keys, and the finger numbers get their own row under them.
+**Fingering** (keyboards): on a scale, `fingering: 1 2 3 1 2 3 4 5` puts one finger on each note of one octave, from the root. Without a `range`, the keyboard shows only that octave, starting in middle C's octave. Give it a `range` and every octave in the range stays lit. The fingering then starts on the first root inside it. `labels` works too: the labels stay on the keys, and the finger numbers get their own row under them.
+
+On a list of notes, `fingering:` puts one finger on each listed key, low to high: a five-finger position, or any hand position. Notes with an octave are those exact keys (`notes: C4 D4 E4 F4 G4`). Notes without one go up from the first note, so `notes: C D E F G` is C4 to G4, and the keyboard shows just C4 to G4. With a `range`, they go up from the first note's first key inside the range, and every octave stays lit, as for scales. `labels` works as for scales too.
+
+A five-finger position in C:
+
+````markdown
+```keyboard
+notes: C D E F G
+fingering: 1 2 3 4 5
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-keyboard">notes: C D E F G
+fingering: 1 2 3 4 5</code></pre></div>
 
 The altered scale is spelled without double sharps. When its usual jazz spelling would need them, it takes the superlocrian spelling instead: G# altered is G# A B C D E F# (R b2 b3 b4 b5 b6 b7), not G# A A## B# C## E F#.
 
