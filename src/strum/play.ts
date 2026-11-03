@@ -258,6 +258,17 @@ export interface StrumFollower {
     stop(): void
 }
 
+/** One pass of a piece played in time: its notes, its length in seconds, and what to light. */
+export interface Pass {
+    events: NoteEvent[]
+    /** Seconds until the next pass starts when it loops (the last note's ring not counted). */
+    length: number
+    strums: StrumTiming[]
+}
+
+/** What each pass is made from: the settings read at that pass, the first pass or not, its number. */
+export type PassMaker = (settings: StrumSettings, first: boolean, id: number) => Pass
+
 /**
  * Plays a score through `player`, pass after pass while `settings().loop` is on. Each next pass
  * is started on a timer at the exact end of the previous one, counted from the first pass's start
@@ -270,6 +281,34 @@ export interface StrumFollower {
  */
 export function runStrum(
     score: StrumScore,
+    player: () => NotePlayer,
+    settings: () => StrumSettings,
+    timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
+    onEnd?: () => void,
+    follow?: (strums: StrumTiming[], player: NotePlayer) => StrumFollower
+): PlayHandle {
+    return runPasses(
+        (s, first, id) =>
+            strumEvents(score, {
+                bpm: s.bpm,
+                countIn: first && s.countIn,
+                tail: s.loop ? 0 : TAIL,
+                seed: id
+            }),
+        player,
+        settings,
+        timers,
+        onEnd,
+        follow
+    )
+}
+
+/**
+ * Plays the passes `make` returns, as `runStrum` plays a strumming pattern's (see there): the
+ * timing of progressions (#46) and picking patterns (#51) too.
+ */
+export function runPasses(
+    make: PassMaker,
     player: () => NotePlayer,
     settings: () => StrumSettings,
     timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
@@ -304,12 +343,7 @@ export function runStrum(
         const s = settings()
         const id = ++pass
         const looping = s.loop
-        const { events, length, strums } = strumEvents(score, {
-            bpm: s.bpm,
-            countIn: first && s.countIn,
-            tail: looping ? 0 : TAIL,
-            seed: id
-        })
+        const { events, length, strums } = make(s, first, id)
         const current = player()
         const follower = follow?.(strums, current)
         if (follower) followers.push(follower)
