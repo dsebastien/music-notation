@@ -20,6 +20,8 @@ export {
     parseFrets,
     parseFingers,
     baseFretOf,
+    barreKind,
+    isBarreVoicing,
     STANDARD_TUNING,
     capoCaption,
     type FrettedVoicing,

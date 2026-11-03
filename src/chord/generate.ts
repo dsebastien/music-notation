@@ -403,12 +403,15 @@ function shapeOf(
  * The shape a voicing is played with: power chord, shell (root, third and seventh or sixth on three
  * or four strings), triad (three adjacent strings, three notes), open (open strings, frets 1–4),
  * the CAGED shapes (in standard tuning: the open C, A, G, E or D chord moved up the neck, with a
- * barre or not). Null when it's none of them.
+ * barre or not). Null when it's none of them. The shape doesn't depend on the fingers: `_fingers`
+ * is accepted for callers written for 0.8.0 and ignored; tell a barre with `barreKind` or
+ * `isBarreVoicing` (an "E shape" held with a full barre is the E-shape barre chord).
  */
 export function voicingShape(
     frets: readonly (number | null)[],
     symbol: string,
-    tuning: readonly number[] = STANDARD_TUNING
+    tuning: readonly number[] = STANDARD_TUNING,
+    _fingers?: readonly (string | null)[] | null
 ): VoicingShape | null {
     const info = chordInfo(symbol)
     return info ? shapeOf(frets, info, cagedTargets(info), tuning) : null
