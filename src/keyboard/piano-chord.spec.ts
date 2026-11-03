@@ -336,16 +336,23 @@ describe('piano chord blocks', () => {
             renderBlock('chord', 'C\ninstrument: piano\nhands: left+right\ninversion: 2', h).error
         ).toBeNull()
         const svg = h.querySelector('svg')!
+        // One mark per hand, LH and RH (never R, which reads as a root), with a bracket each.
         const marks = [...svg.querySelectorAll('.mn-key-hand')].map((el) => [
-            el.getAttribute('data-mn-key'),
+            el.getAttribute('data-mn-keys'),
             el.textContent
         ])
         expect(marks).toEqual([
-            ['55', 'L'],
-            ['67', 'R'],
-            ['72', 'R'],
-            ['76', 'R']
+            ['55', 'LH'],
+            ['67 72 76', 'RH']
         ])
+        expect(svg.querySelectorAll('.mn-hand-bracket')).toHaveLength(2)
+        // A bass right under the chord: the two labels stay apart.
+        const close = host()
+        renderBlock('chord', 'instrument: piano\npitches: B3 C4 E4 G4\nhands: left+right', close)
+        const xs = [...close.querySelectorAll('.mn-key-hand')].map((el) =>
+            Number(el.getAttribute('x'))
+        )
+        expect(xs[1]! - xs[0]!).toBeGreaterThanOrEqual(26)
         expect(svg.querySelector('[data-midi="55"]')?.getAttribute('class')).toContain(
             'mn-hand-left'
         )

@@ -25,7 +25,7 @@ export interface KeyboardOptions {
     marks?: NoteMarks
     /** How playback plays the highlighted keys: together (a chord) or one by one (a scale). */
     playAs?: 'chord' | 'scale'
-    /** Which hand plays each key (MIDI → left or right): an L or R row past the keys. */
+    /** Which hand plays each key (MIDI → left or right): a bracket and LH or RH under each hand's keys. */
     hands?: Map<number, 'left' | 'right'>
 }
 
@@ -37,8 +37,10 @@ const BLACK_H = 64
 const TITLE = 22
 /** The row of finger numbers past the keys' near end, when the keys show other labels. */
 const FINGER_ROW = 16
-/** The row of hands (L, R) past the keys and the fingers. */
-const HAND_ROW = 16
+/** The row of hands (a bracket and LH or RH under each hand's keys) past the keys and fingers. */
+const HAND_ROW = 22
+/** The least distance between the centers of the LH and RH labels. */
+const HAND_LABEL_GAP = 26
 
 const isBlack = (midi: number) => BLACK.has(((midi % 12) + 12) % 12)
 
@@ -254,19 +256,52 @@ export function renderKeyboard(
         }
     }
     if (handRow) {
-        for (const [midi, hand] of options.hands!) {
-            if (midi < from || midi > to) continue
+        // Each hand once: a bracket under its keys and LH or RH under it, so no mark sits under a
+        // single key (where R would read as a root and two marks could touch).
+        const middle = (midi: number) => {
             const whitesBelow = whites.filter((w) => w < midi).length
-            const along = isBlack(midi)
-                ? whitesBelow * WHITE_W
-                : whitesBelow * WHITE_W + WHITE_W / 2
+            return isBlack(midi) ? whitesBelow * WHITE_W : whitesBelow * WHITE_W + WHITE_W / 2
+        }
+        const groups = (['left', 'right'] as const)
+            .map((hand) => {
+                const keys = [...options.hands!]
+                    .filter(([midi, h]) => h === hand && midi >= from && midi <= to)
+                    .map(([midi]) => midi)
+                    .sort((a, b) => a - b)
+                if (!keys.length) return null
+                // A lone key's bracket is a little narrower than the key.
+                const low = middle(keys[0]!) - (keys.length === 1 ? WHITE_W / 2 - 4 : 0)
+                const high =
+                    middle(keys[keys.length - 1]!) + (keys.length === 1 ? WHITE_W / 2 - 4 : 0)
+                return { hand, keys, low, high, center: (low + high) / 2 }
+            })
+            .filter((g) => g !== null)
+        // Two labels too close (a bass right under the chord): pushed apart.
+        if (groups.length === 2 && groups[1]!.center - groups[0]!.center < HAND_LABEL_GAP) {
+            const mid = (groups[0]!.center + groups[1]!.center) / 2
+            groups[0]!.center = mid - HAND_LABEL_GAP / 2
+            groups[1]!.center = mid + HAND_LABEL_GAP / 2
+        }
+        const line = WHITE_H + fingerRow + 4
+        for (const { hand, keys, low, high, center } of groups) {
+            const [x1, y1] = at(low, line - 3)
+            const [x2, y2] = at(low, line)
+            const [x3, y3] = at(high, line)
+            const [x4, y4] = at(high, line - 3)
+            root.appendChild(
+                svg(doc, 'path', {
+                    class: `mn-hand-bracket mn-hand-${hand}`,
+                    d: `M${x1} ${y1}L${x2} ${y2}L${x3} ${y3}L${x4} ${y4}`,
+                    fill: 'none'
+                })
+            )
             const mark = svgLabel(
                 doc,
-                hand === 'left' ? 'L' : 'R',
-                at(along, WHITE_H + fingerRow + HAND_ROW / 2 - 1),
+                hand === 'left' ? 'LH' : 'RH',
+                at(center, line + 8),
                 `mn-key-hand mn-hand-${hand}`
             )
-            mark.setAttribute('data-mn-key', String(midi))
+            mark.setAttribute('data-mn-keys', keys.join(' '))
             root.appendChild(mark)
         }
     }
