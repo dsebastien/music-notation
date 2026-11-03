@@ -269,6 +269,16 @@ describe('progression block', () => {
             'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: rootless A\nhands: left+right',
             rootless
         )
+        // A minor ii-V-i with both hands: the right hand moves by step (D4 A4, D4 G#4, C4 G4).
+        for (const source of ['Bm7b5 E7 Am7', 'iiø7 V7 i7']) {
+            const minor = host()
+            renderBlock(
+                'progression',
+                `${source}\nkey: A minor\ninstrument: piano\nvoicing: shell\nhands: left+right`,
+                minor
+            )
+            expect(pitches(minor)).toEqual(['47 62 69', '40 62 68', '45 60 67'])
+        }
         // The right hand from F3 up, clear of the left hand: Cmaj7 takes the B form.
         expect(pitches(rootless)).toEqual(['38 53 57 60 64', '43 53 57 59 64', '36 59 62 64 67'])
         expect(rootless.querySelectorAll('.mn-key-hand.mn-hand-left')).toHaveLength(3)

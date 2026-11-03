@@ -207,6 +207,15 @@ export interface LedVoicing {
 const BOTH_HANDS_ROOTLESS: [number, number] = [53, 65]
 
 /**
+ * Shells with both hands, after the first chord: the left hand's root anywhere from C2 to G3, and
+ * the right hand's lowest note (the third or the seventh, an octave above the one-hand shell) from
+ * G3 to C5, where the first chord's windows put it. The guide tones lead, so the root goes where they need it (E7 after Bm7b5 D4 A4: E2
+ * under D4 G#4), and the right hand doesn't drift over a long progression.
+ */
+const BOTH_HANDS_SHELL_ROOT: [number, number] = [36, 55]
+const BOTH_HANDS_SHELL_RIGHT: [number, number] = [55, 72]
+
+/**
  * After the first chord, rootless voicings start at D3 or above: a long progression that drifts
  * down is brought back up rather than sitting on C3.
  */
@@ -304,12 +313,25 @@ export function voiceLeadVoicings(
                     const lowest = v.pitches[0]!
                     const notes = leading(v.pitches)
                     const sounding = both ? played(symbol, form, octave)?.pitches : v.pitches
+                    // Both-hand shells after the first chord: the root and the right hand each in
+                    // their own window (the right hand's lowest note is the one-hand third or
+                    // seventh, an octave up).
+                    const outside =
+                        both && previous
+                            ? Math.max(
+                                  0,
+                                  BOTH_HANDS_SHELL_ROOT[0] + shift - lowest,
+                                  lowest - BOTH_HANDS_SHELL_ROOT[1] - shift,
+                                  BOTH_HANDS_SHELL_RIGHT[0] + shift - (notes[0]! + 12),
+                                  notes[0]! + 12 - BOTH_HANDS_SHELL_RIGHT[1] - shift
+                              )
+                            : Math.max(0, low + shift - lowest, lowest - high - shift)
                     candidates.push({
                         value: { form, octave },
                         cost: previous ? voiceMotion(notes, previous) : lowest - low - shift,
                         common: previous ? common(notes, previous) : 0,
                         center: Math.abs(mean(v.pitches) - (CENTER - 5 + shift)),
-                        outside: Math.max(0, low + shift - lowest, lowest - high - shift),
+                        outside,
                         muddy: !sounding || belowLowIntervalLimit(sounding)
                     })
                 }

@@ -164,6 +164,34 @@ describe('voiceLeadVoicings', () => {
         ])
     })
 
+    it('leads the right hand of both-hand shells by step, the root free in the left hand', () => {
+        // A minor ii-V-i: the guide tones move by step (D4 A4, D4 G#4, C4 G4), the roots
+        // B2, E2, A2 under them. Before, the root's window held E7 at E3 and the right hand
+        // jumped to G#4 D5.
+        expect(forms(['Bm7b5', 'E7', 'Am7'], { voicing: 'shell', hands: 'left+right' })).toEqual([
+            'R-3 B2 D4 A4',
+            'R-7 E2 D4 Ab4',
+            'R-3 A2 C4 G4'
+        ])
+        // The same in D minor already moved by step: unchanged.
+        expect(forms(['Em7b5', 'A7', 'Dm7'], { voicing: 'shell', hands: 'left+right' })).toEqual([
+            'R-3 E3 G4 D5',
+            'R-7 A2 G4 Db5',
+            'R-3 D3 F4 C5'
+        ])
+        // The right hand stays between G3 and C5 at its lowest over a long progression.
+        const cycle = Array.from({ length: 4 }, () => ['Bm7b5', 'E7', 'Am7', 'Dm7', 'G7', 'Cmaj7'])
+        for (const v of voiceLeadVoicings(cycle.flat(), {
+            voicing: 'shell',
+            hands: 'left+right'
+        })) {
+            const right = v!.pitches.slice(1)
+            expect(right[0]!).toBeGreaterThanOrEqual(55)
+            expect(right[0]!).toBeLessThanOrEqual(72)
+            expect(v!.pitches[0]!).toBeGreaterThanOrEqual(36)
+        }
+    })
+
     it('takes R-7 for a chord whose R-3 third would sit below the low interval limit', () => {
         // A2 C3 (a minor third under C3) and Ab2 B2 sound muddy: R-7 instead, then the
         // alternation goes on.
@@ -186,11 +214,12 @@ describe('voiceLeadVoicings', () => {
             'R-3 C3 E3 B3'
         ])
         expect(forms(['Bbmaj7'], { voicing: 'shell' })[0]).toBe('R-3 Bb2 D3 A3')
-        // Both hands: the third sounds a tenth above the root (A2 + C4), so R-3 stays.
+        // Both hands: the third sounds a tenth above the root (A2 + C4), so R-3 stays. The
+        // right hand then moves by step (C4 G4, C4 F#4, B3 F#4), D7's root in the left hand at D2.
         expect(forms(['Am7', 'D7', 'Gmaj7'], { voicing: 'shell', hands: 'left+right' })).toEqual([
             'R-3 A2 C4 G4',
-            'R-3 D3 Gb4 C5',
-            'R-7 G2 Gb4 B4'
+            'R-7 D2 C4 Gb4',
+            'R-3 G2 B3 Gb4'
         ])
         expect(forms(['Abm7', 'Db7', 'Gbmaj7'], { voicing: 'shell', hands: 'left+right' })[0]).toBe(
             'R-3 Ab2 B3 Gb4'
