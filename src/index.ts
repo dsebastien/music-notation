@@ -172,3 +172,4 @@ export {
     type HarmonicFunction
 } from './theory/numerals.js'
 export { voiceLead } from './keyboard/voice-leading.js'
+export { renderCircle, type CircleOptions } from './circle/circle.js'

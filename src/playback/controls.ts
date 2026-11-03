@@ -349,7 +349,10 @@ function barFor(
     // Choosing the other instrument draws the same notes for it (a fretboard on piano becomes a
     // keyboard); choosing the diagram's own brings its drawing back.
     let other: Element | null | undefined
+    // A drawing that isn't an instrument (the circle of fifths) keeps itself: only the sound changes.
+    const redraws = diagram.getAttribute('data-mn-redraw') !== 'no'
     const drawFor = () => {
+        if (!redraws) return
         if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data)
         const next = settings.sound === data.sound ? diagram : (other ?? diagram)
         // Only while the host leaves the drawing in its wrapper.
@@ -376,7 +379,16 @@ function barFor(
         const midi = Number(target?.getAttribute('data-midi'))
         if (!target || !Number.isFinite(midi)) return
         stop()
-        playing = play([{ midi, time: 0, duration: 1.5 }], () => {
+        // A chord on the element (a key on the circle of fifths) is strummed; else its one note.
+        const strum = (target.getAttribute('data-mn-strum') ?? '')
+            .split(' ')
+            .filter(Boolean)
+            .map(Number)
+            .filter((n) => Number.isFinite(n))
+        const events = strum.length
+            ? sequenceOf('chord', strum, settings)
+            : [{ midi, time: 0, duration: 1.5 }]
+        playing = play(events, () => {
             playing = null
             show()
         })

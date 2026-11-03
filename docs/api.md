@@ -64,6 +64,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `scalesForChord(symbol)`: the scales on a chord's root that hold all its notes, best first (`Cmaj7`: C major, C lydian…; `Dm7`: D minor, D dorian, D phrygian…). `chordsInScale(scale)`: each note's triad and seventh chord stacked in thirds (seven-note scales) with the triad's numeral, and every common chord whose notes are all in the scale.
 - `progressionChords(numerals, key)`: roman numerals (`I V vi IV`, `ii7 V7 Imaj7`, `bVII`, `V/V`, `I/3`), Nashville numbers (`1 5 6m 4`) or chord names in a key, each `{ written, symbol, numeral, nashville, function }`; null when the key or a chord doesn't read. `readNumeral(numeral, key)`: one numeral's chord symbol. `numeralOf(symbol, key, 'roman' | 'nashville')`: a chord's numeral (`D7` in C is `V7/V`). `harmonicFunction(symbol, key)`: `tonic`, `subdominant`, `dominant`, `secondary dominant`, `borrowed` or `chromatic`.
 - `voiceLead(symbols)`: piano pitches for each chord, each in the inversion closest to the one before.
+- `renderCircle(doc, { key, sevenths, neighbours, title })`: the circle of fifths for a key (`readKey('E minor')`).
 - `readKey(text)`: `G`, `Em`, `F# minor`, `D dorian` as `{ tonic, mode, name }`; `keyNotes(key)`, `keySignature(key)` (`{ count, accidentals }`: F# major is 6, F# C# G# D# A# E#), `keyChords(key, sevenths?)` (the seven chords with their numerals), `parentMajor(key)`, `signatureText(count)`, `MODES`.
 
 ## Styles

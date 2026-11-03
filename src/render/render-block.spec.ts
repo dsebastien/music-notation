@@ -10,7 +10,14 @@ afterEach(() => {
 
 describe('renderBlock', () => {
     it('knows its languages', () => {
-        expect(LANGUAGES).toEqual(['chord', 'chords', 'keyboard', 'fretboard', 'progression'])
+        expect(LANGUAGES).toEqual([
+            'chord',
+            'chords',
+            'keyboard',
+            'fretboard',
+            'progression',
+            'circle'
+        ])
         expect(isNotationLanguage('chord')).toBe(true)
         expect(isNotationLanguage('toString')).toBe(false)
     })

@@ -42,6 +42,7 @@ import {
 } from '../fretboard/positions.js'
 import { withScalesFor } from './scales-for.js'
 import { renderProgression } from './progression.js'
+import { renderCircleBlock } from '../circle/circle.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -553,7 +554,8 @@ export const RENDERERS = {
     keyboard: fromSource(DIAGRAMS.keyboard),
     fretboard: fromSource(DIAGRAMS.fretboard),
     progression: (doc: Document, source: string, options: RenderOptions) =>
-        renderProgression(doc, source, options, DIAGRAMS.chord)
+        renderProgression(doc, source, options, DIAGRAMS.chord),
+    circle: renderCircleBlock
 } satisfies Record<string, Renderer>
 
 export type NotationLanguage = keyof typeof RENDERERS

@@ -625,3 +625,67 @@
     color: var(--mn-muted);
     font-size: 0.8em;
 }
+
+/* Circle of fifths (#44): the key's chords tinted, its tonic and neighbours solid. */
+.mn-svg .mn-circle-cell,
+.mn-svg .mn-circle-chip {
+    fill: var(--mn-bg);
+    stroke: var(--mn-faint);
+    stroke-width: 1;
+}
+
+.mn-svg .mn-circle-diatonic {
+    fill: color-mix(in srgb, var(--mn-accent) 22%, var(--mn-bg));
+}
+
+.mn-svg .mn-circle-neighbour {
+    fill: var(--mn-accent);
+}
+
+.mn-svg .mn-circle-tonic {
+    fill: var(--mn-root);
+}
+
+.mn-svg .mn-circle-label {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mn-svg .mn-circle-label-minor {
+    font-size: 11px;
+}
+
+.mn-svg .mn-circle-label-dim {
+    font-size: 9px;
+    font-weight: 400;
+}
+
+.mn-svg .mn-circle-numeral {
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.mn-svg text.mn-circle-on {
+    fill: var(--mn-on-accent);
+}
+
+.mn-svg .mn-circle-sig {
+    fill: var(--mn-muted);
+    font-size: 9px;
+}
+
+.mn-svg .mn-circle-sig-key {
+    fill: var(--mn-fg);
+    font-weight: 700;
+}
+
+.mn-svg .mn-circle-key {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.mn-svg .mn-circle-key-sig,
+.mn-svg .mn-circle-key-notes {
+    font-size: 9px;
+    fill: var(--mn-muted);
+}

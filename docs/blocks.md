@@ -473,6 +473,28 @@ key: D</code></pre></div>
 
 Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`.
 
+## Circle of fifths
+
+A `circle` block draws the circle of fifths: the 12 major keys, their relative minors and the diminished chords, with each key signature around the outside. The chosen key's chords are tinted, with their numerals; its tonic and its IV and V (iv and v in minor) stand out. A row of the key's chords sits under the wheel.
+
+````markdown
+```circle
+key: G
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-circle">key: G</code></pre></div>
+
+| Key          | Meaning                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| `key`        | `G`, `Em`, `F# minor`, `D dorian`, or a first line with the key alone. C major by default.        |
+| `mode`       | `major`, `minor`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `locrian`, `ionian` or `aeolian`. |
+| `chords`     | `triads` (default) or `sevenths`.                                                                 |
+| `neighbours` | `no` draws IV and V like the other chords.                                                        |
+| `title`      | A title above the wheel.                                                                          |
+
+With playback on, a click on a key or a chord plays it, and the play button plays the key's scale.
+
 ## From a note's properties
 
 An empty `chord`, `fretboard` or `keyboard` block can draw what the note's properties say, so a note doesn't repeat its frets or its scale in the body. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
