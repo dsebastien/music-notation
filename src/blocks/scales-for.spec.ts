@@ -26,6 +26,22 @@ describe('scales-for', () => {
         )
     })
 
+    it('suggests the blues scale over a blues, with the other usual choices', () => {
+        const h = host()
+        const result = renderBlock('fretboard', 'scales-for: A7 D7 E7 A7', h)
+        expect(result.error).toBeNull()
+        expect(h.querySelector('svg')!.getAttribute('data-mn-set')).toBe('A minor blues')
+        expect(h.querySelector('.mn-title')?.textContent).toBe(
+            'A blues scale for A7 D7 E7 A7 (or A minor pentatonic, A mixolydian)'
+        )
+    })
+
+    it('finds the exact pentatonic for its notes', () => {
+        const h = host()
+        renderBlock('keyboard', 'scales-for-notes: C D E G A', h)
+        expect(h.querySelector('svg')!.getAttribute('data-mn-set')).toBe('C major pentatonic')
+    })
+
     it('reads notes with scales-for-notes, and keeps a title and labels', () => {
         const h = host()
         const result = renderBlock(

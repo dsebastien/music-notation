@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { chordsInScale, findKey, findScales, inKey, scalesForChord } from './find.js'
+import { bluesTonic, chordsInScale, findKey, findScales, inKey, scalesForChord } from './find.js'
 import { degreeOf, keyChords, keySignature, parentMajor, readKey, signatureText } from './keys.js'
 
 const names = (list: { name: string }[], n = list.length) => list.slice(0, n).map((m) => m.name)
@@ -111,9 +111,46 @@ describe('findScales', () => {
         const [best] = findScales('G D Em C B7')
         expect(best!.name).toBe('G major')
         expect(best!.outside).toEqual(['D#'])
-        const [pentatonic] = findScales(['C', 'D', 'E', 'G', 'A'])
-        expect(pentatonic!.name).toBe('C major')
-        expect(pentatonic!.missing).toEqual(['F', 'B'])
+        const [major] = findScales(['C', 'D', 'E', 'G', 'A', 'B'])
+        expect(major!.name).toBe('C major')
+        expect(major!.missing).toEqual(['F'])
+    })
+
+    it('puts a usual scale with exactly the notes played first', () => {
+        expect(names(findScales('C D E G A'), 2)).toEqual([
+            'C major pentatonic',
+            'A minor pentatonic'
+        ])
+        expect(findScales('A C D E G')[0]!.name).toBe('A minor pentatonic')
+        expect(findScales('F# A B C# E')[0]!.name).toBe('F# minor pentatonic')
+        expect(findScales('A C D Eb E G')[0]!.name).toBe('A minor blues')
+        // Seven notes: still major first.
+        expect(findScales('C D E F G A B')[0]!.name).toBe('C major')
+    })
+
+    it('takes the tonic from the first chord, the last one and V → I moves', () => {
+        expect(findScales('Dm C G')[0]!.name).toBe('D dorian')
+        expect(findScales('Dm7 G7 Cmaj7')[0]!.name).toBe('C major')
+        expect(findScales('C Bb F C', { as: 'chords' })[0]!.name).toBe('C mixolydian')
+        expect(findScales('Am F C G')[0]!.name).toBe('A minor')
+    })
+
+    it('suggests the blues scale, the minor pentatonic and the mixolydian over a blues', () => {
+        expect(names(findScales('A7 D7 E7 A7', { as: 'chords' }), 3)).toEqual([
+            'A minor blues',
+            'A minor pentatonic',
+            'A mixolydian'
+        ])
+        expect(findScales('A7 D7 E7 A7', { as: 'chords' })[0]!.outside).toEqual([
+            'C#',
+            'F#',
+            'G#',
+            'B'
+        ])
+        // Not a blues: C7 leads to F, a plain chord.
+        expect(findScales('C C7 F Fm C')[0]!.name).not.toBe('C minor blues')
+        // Seventh chords, not notes in octave 7.
+        expect(findScales('A7 D7 E7 A7')[0]!.name).toBe('A minor blues')
     })
 
     it('reads notes or chords', () => {
@@ -227,6 +264,36 @@ describe('findKey', () => {
         expect(names('Em C G D').slice(0, 3)).toEqual(['E minor', 'G major', 'D major'])
         // The best key is still the best score: a borrowed bVII doesn't move C Bb F C to F major.
         expect(names('C Bb F C').slice(0, 2)).toEqual(['C major', 'F major'])
+    })
+
+    it('reads a dominant-seventh blues in the major key of its tonic', () => {
+        const found = findKey('A7 D7 E7 A7')!
+        expect(found.name).toBe('A major')
+        expect(found.blues).toBe(true)
+        expect(found.clear).toBe(true)
+        expect(key('A7 A7 A7 A7 D7 D7 A7 A7 E7 D7 A7 E7')).toBe('A major')
+        expect(key('G7 C7 G7 D7 C7 G7')).toBe('G major')
+        expect(findKey('C C7 F G7 C')!.blues).toBeUndefined()
+        expect(bluesTonic('F7 Bb7 F7 Cm7 F7 Bb7 Bdim7 F7 D7 Gm7 C7 F7')).toBe('F')
+        expect(bluesTonic('D7 G7 C')).toBeNull()
+        expect(bluesTonic('C C7 F')).toBeNull()
+    })
+
+    it('weighs the first chord, the last one and V7 → I cadences', () => {
+        expect(key('Dm C G')).toBe('D minor')
+        expect(findKey('Dm G7 C')!.clear).toBe(true)
+        expect(key('C E7 Am')).toBe('A minor')
+    })
+
+    it('names the mode a minor or major key plays in', () => {
+        expect(findKey('Dm C G')!.modal?.name).toBe('D dorian')
+        expect(findKey('Am D Am D')!.modal?.name).toBe('A dorian')
+        expect(findKey('C Bb F C')!.modal?.name).toBe('C mixolydian')
+        expect(findKey('D C G D')!.modal?.name).toBe('D mixolydian')
+        expect(findKey('Am F C G')!.modal).toBeUndefined()
+        expect(findKey('Dm G A7 Dm')!.modal).toBeUndefined()
+        expect(findKey('C F G C')!.modal).toBeUndefined()
+        expect(findKey('A7 D7 E7 A7')!.modal).toBeUndefined()
     })
 
     it('needs chords that read', () => {

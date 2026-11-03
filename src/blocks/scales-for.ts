@@ -4,7 +4,7 @@
  */
 import { parseBlockSource, type BlockSource } from './block-source.js'
 import type { DiagramRenderer } from './renderers.js'
-import { findScales } from '../theory/find.js'
+import { bluesTonic, findScales } from '../theory/find.js'
 
 /** Keys that choose the notes themselves: they can't go with `scales-for`. */
 const OWN_NOTES = ['scale', 'chord', 'notes', 'root', 'modes']
@@ -47,7 +47,14 @@ export function scalesForBlock(block: BlockSource): BlockSource {
     const outside = best.outside.length ? `, ${best.outside.join(' ')} outside` : ''
     const fields = new Map([...block.fields].filter(([k]) => k !== key))
     fields.set('scale', best.name)
-    if (!fields.get('title')) fields.set('title', `${best.name} for ${listed}${outside}`)
+    // A blues: the blues scale, named as players say it, with the other usual choices; its notes
+    // outside the chords are the blues' own sound, not a mismatch.
+    const blues = chords !== undefined ? bluesTonic(items) : null
+    const title =
+        blues && best.type === 'minor blues'
+            ? `${best.tonic} blues scale for ${listed} (or ${best.tonic} minor pentatonic, ${best.tonic} mixolydian)`
+            : `${best.name} for ${listed}${outside}`
+    if (!fields.get('title')) fields.set('title', title)
     return { head: null, fields }
 }
 
