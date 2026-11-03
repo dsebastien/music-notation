@@ -60,7 +60,13 @@ export function parseKeyRange(text: string): [number, number] | null {
  */
 export function scaleTonicOf(set: NoteSet, octave = 0): number | null {
     if (set.pitches || set.list || !set.scaleType || set.root === null) return null
-    return 55 + ((((set.root - 7) % 12) + 12) % 12) + 12 * octave
+    return tonicNearMiddleC(set.root, octave)
+}
+
+/** A pitch class from G3 up to F#4 (MIDI), `octave` octaves up or down: where a scale or an
+ * arpeggio drawn without a range starts. */
+export function tonicNearMiddleC(chroma: number, octave = 0): number {
+    return 55 + ((((chroma - 7) % 12) + 12) % 12) + 12 * octave
 }
 
 /** A scale's keys over two octaves, from its tonic up to the tonic two octaves above. */
