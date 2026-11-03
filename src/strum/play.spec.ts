@@ -8,6 +8,7 @@ import {
     scoreOf,
     strumEvents,
     STRUM_VELOCITY,
+    tempoOf,
     type StrumSettings
 } from './play.js'
 import { strumVoicing } from './voicing.js'
@@ -54,6 +55,45 @@ describe('strumEvents', () => {
         expect(ghost.time + ghost.duration).toBeCloseTo(2 / 3)
     })
 
+    it('swings: the second 8th of each beat comes later (2/3 of the beat in a triplet swing)', () => {
+        const { events, strums } = strumEvents(scoreFor('D U D U D U D U\nswing: yes'), { bpm: 60 })
+        expect(strums.map((s) => s.time)).toEqual(
+            [0, 2 / 3, 1, 1 + 2 / 3, 2, 2 + 2 / 3, 3, 3 + 2 / 3].map(
+                (t) => expect.closeTo(t, 6) as unknown as number
+            )
+        )
+        expect(strums[0]!.duration).toBeCloseTo(2 / 3)
+        expect(strums[1]!.duration).toBeCloseTo(1 / 3)
+        // The down strum rings until the up strum.
+        expect(events[0]!.time + events[0]!.duration).toBeCloseTo(2 / 3)
+        expect(strumEvents(scoreFor('DUDU\nswing: 60%'), { bpm: 60 }).strums[1]!.time).toBeCloseTo(
+            0.6
+        )
+        // 16ths swing in pairs of 16ths.
+        const sixteenths = strumEvents(
+            scoreFor('DUDUDUDUDUDUDUDU\nsubdivision: 16ths\nswing: yes'),
+            {
+                bpm: 60
+            }
+        ).strums
+        expect(sixteenths[1]!.time).toBeCloseTo(1 / 3)
+        expect(sixteenths[2]!.time).toBeCloseTo(0.5)
+    })
+
+    it('plays the triplet shuffle down on the beat and up on the third triplet', () => {
+        const { strums } = strumEvents(scoreFor('D U D U\nsubdivision: triplets'), { bpm: 60 })
+        expect(strums.map((s) => s.time)).toEqual(
+            [0, 2 / 3, 1, 1 + 2 / 3].map((t) => expect.closeTo(t, 6) as unknown as number)
+        )
+        // A muted strum on the third triplet is an up stroke: the higher strings.
+        const { events } = strumEvents(scoreFor('D - X - - - - - - - - -\nsubdivision: triplets'), {
+            bpm: 60
+        })
+        expect(events.filter((e) => e.duration === 0.04).map((e) => e.midi)).toEqual([
+            64, 59, 55, 52
+        ])
+    })
+
     it('lets a strum ring through the rests after it', () => {
         const { events } = strumEvents(scoreFor('D - - - D - - -'), { bpm: 60, tail: 0 })
         expect(events[0]!.time + events[0]!.duration).toBeCloseTo(2)
@@ -78,8 +118,29 @@ describe('strumEvents', () => {
         expect(scoreFor('chord: Em\nD - D - [G]D - D -').slots[4]!.pitches).toEqual(G)
     })
 
-    it('times 6/8 by the eighth and 16ths by a quarter of the beat', () => {
-        expect(strumEvents(scoreFor('D U D U D U\ntime: 6/8'), { bpm: 120 }).length).toBe(3)
+    it('times 6/8, 9/8 and 12/8 by the dotted quarter, 3/8 by the eighth, 16ths by a quarter of the beat', () => {
+        // 6/8 at 60: two dotted quarters, a second each.
+        expect(strumEvents(scoreFor('D U D U D U\ntime: 6/8'), { bpm: 60 }).length).toBe(2)
+        expect(strumEvents(scoreFor('D\ntime: 12/8'), { bpm: 60 }).length).toBe(4)
+        expect(strumEvents(scoreFor('D\ntime: 9/8\nsubdivision: 16ths'), { bpm: 60 }).length).toBe(
+            3
+        )
+        expect(strumEvents(scoreFor('D U D\ntime: 3/8'), { bpm: 60 }).length).toBe(3)
+        // Without a tempo: 60 dotted quarters (8ths at 180), else 90.
+        expect(tempoOf(undefined, true)).toBe(60)
+        expect(tempoOf(undefined)).toBe(90)
+        expect(strumEvents(scoreFor('D U D U D U\ntime: 6/8')).length).toBe(2)
+        // The count-in clicks each 8th of the bar, 1 the strongest, then 4.
+        const clicks = strumEvents(scoreFor('D U D U D U\ntime: 6/8'), {
+            bpm: 60,
+            countIn: true
+        }).events.slice(0, 6)
+        expect(clicks.map((e) => e.time)).toEqual(
+            [0, 1, 2, 3, 4, 5].map((t) => expect.closeTo(t / 3, 6) as unknown as number)
+        )
+        const loud = clicks.map((e) => e.velocity!)
+        expect(loud[0]!).toBeGreaterThan(loud[3]!)
+        expect(loud[3]!).toBeGreaterThan(loud[1]!)
         expect(
             strumEvents(scoreFor('DUDUDUDUDUDUDUDU\nsubdivision: 16ths'), { bpm: 60 }).length
         ).toBe(4)

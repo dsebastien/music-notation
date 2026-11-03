@@ -1,8 +1,8 @@
 /**
  * Hearing a strumming pattern (#22): each strum as the chord's notes, low to high for a down
  * strum and high to low for an up strum, accents louder, ghost strums soft, muted strums a short
- * percussive chuck; in time, with a count-in, looped without a gap. Plays through any NotePlayer
- * (the light synthesizer or an app's soundfont).
+ * percussive chuck; in time (swung when asked), with a count-in, looped without a gap. Plays
+ * through any NotePlayer (the light synthesizer or an app's soundfont).
  */
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { parseTuning } from '../fretboard/tuning.js'
@@ -18,6 +18,7 @@ import {
 } from '../playback/player.js'
 import { sawStart, startsReported } from '../playback/follow.js'
 import {
+    DEFAULT_COMPOUND_TEMPO,
     DEFAULT_TEMPO,
     MAX_TEMPO,
     MIN_TEMPO,
@@ -31,6 +32,13 @@ export interface StrumScore {
     slots: { stroke: Stroke; accent: boolean; ghost: boolean; pitches: number[] }[]
     slotsPerBeat: number
     beatsPerBar: number
+    /**
+     * Slots in one counted beat, the one the tempo counts: `slotsPerBeat` by default, three
+     * times that in compound time (a dotted quarter in 6/8).
+     */
+    slotsPerPulse?: number
+    /** Where the second slot of each pair falls (2/3 for a triplet swing); straight when absent. */
+    swing?: number | null
 }
 
 /**
@@ -47,6 +55,8 @@ export function scoreOf(
     return {
         slotsPerBeat: pattern.slotsPerBeat,
         beatsPerBar: pattern.beatsPerBar,
+        slotsPerPulse: pattern.slotsPerPulse,
+        swing: pattern.swing,
         slots: pattern.slots.map((slot) => {
             if (slot.chord && slot.chord !== current) {
                 current = slot.chord
@@ -58,7 +68,10 @@ export function scoreOf(
 }
 
 export interface StrumEventOptions {
-    /** Beats a minute (the time signature's beat: a quarter in 4/4, an eighth in 6/8). */
+    /**
+     * Beats a minute: the counted beat (a quarter in 4/4, a dotted quarter in 6/8, 9/8 and
+     * 12/8, an eighth in 3/8).
+     */
     bpm?: number
     /** A bar of clicks first. */
     countIn?: boolean
@@ -69,15 +82,20 @@ export interface StrumEventOptions {
 /** MIDI velocities: a normal strum, an accent, a ghost strum, a muted one. */
 export const STRUM_VELOCITY = { normal: 90, accent: 120, ghost: 40, mute: 80 }
 /** The count-in's clicks: a high short note, higher on the first beat. */
-const CLICK = { first: 88, other: 81, duration: 0.05 }
+const CLICK = { first: 88, beat: 84, other: 81, duration: 0.05 }
 /** Up strums catch the higher strings. */
 const UP_STRINGS = 4
 const MUTE_SECONDS = 0.04
 
-/** Beats a minute within bounds; the default when it isn't a number. */
-export const tempoOf = (bpm: number | null | undefined) =>
+/**
+ * Beats a minute within bounds; the default when it isn't a number (90, or 60 dotted quarters in
+ * compound time).
+ */
+export const tempoOf = (bpm: number | null | undefined, compound = false) =>
     bpm === null || bpm === undefined || !Number.isFinite(bpm)
-        ? DEFAULT_TEMPO
+        ? compound
+            ? DEFAULT_COMPOUND_TEMPO
+            : DEFAULT_TEMPO
         : Math.min(MAX_TEMPO, Math.max(MIN_TEMPO, bpm))
 
 /** When a slot's strum is played in a pass: from its start, for one slot. */
@@ -97,17 +115,24 @@ export function strumEvents(
     score: StrumScore,
     options: StrumEventOptions = {}
 ): { events: NoteEvent[]; length: number; strums: StrumTiming[] } {
-    const beat = 60 / tempoOf(options.bpm)
-    const slot = beat / score.slotsPerBeat
+    const pulse = score.slotsPerPulse ?? score.slotsPerBeat
+    const compound = pulse > score.slotsPerBeat
+    const slot = 60 / tempoOf(options.bpm, compound) / pulse
+    // The time signature's beat (an 8th in 6/8), what the count-in clicks.
+    const beat = slot * score.slotsPerBeat
+    const swing = score.swing ?? 0.5
+    // A swung pair's second slot comes later (2/3 of the pair in a triplet swing).
+    const timeOf = (i: number) => (i % 2 ? (i - 1 + 2 * swing) * slot : i * slot)
     const events: NoteEvent[] = []
     let start = 0
     if (options.countIn) {
+        const perPulse = pulse / score.slotsPerBeat
         for (let b = 0; b < score.beatsPerBar; b++)
             events.push({
-                midi: b === 0 ? CLICK.first : CLICK.other,
+                midi: b === 0 ? CLICK.first : b % perPulse === 0 ? CLICK.beat : CLICK.other,
                 time: b * beat,
                 duration: CLICK.duration,
-                velocity: b === 0 ? 110 : 80
+                velocity: b === 0 ? 110 : b % perPulse === 0 ? 95 : 80
             })
         start = score.beatsPerBar * beat
     }
@@ -117,14 +142,15 @@ export function strumEvents(
     const strums: StrumTiming[] = []
     sounding.forEach((i, n) => {
         const s = score.slots[i]!
-        const at = start + i * slot
-        strums.push({ slot: i, time: at, duration: slot })
+        const at = start + timeOf(i)
+        strums.push({ slot: i, time: at, duration: timeOf(i + 1) - timeOf(i) })
         // A strum rings until the next one (a muted strum damps it too), the last one past the end.
         const next = sounding[n + 1]
-        const until = next === undefined ? end + tail : start + next * slot
+        const until = next === undefined ? end + tail : start + timeOf(next)
         const inBar = i % (score.slotsPerBeat * score.beatsPerBar)
-        // A muted strum on an up slot is an up stroke (the hand's motion, as when placing).
-        const upSlot = score.slotsPerBeat === 3 ? inBar % 3 === 1 : inBar % 2 === 1
+        // A muted strum on an up slot is an up stroke (the hand's motion, as when placing; in
+        // triplets, a shuffle: up on the third triplet).
+        const upSlot = score.slotsPerBeat === 3 ? inBar % 3 === 2 : inBar % 2 === 1
         const up = s.stroke === 'up' || (s.stroke === 'mute' && upSlot)
         const strings = up ? s.pitches.slice(-UP_STRINGS).reverse() : s.pitches
         // The strings of one strum, a few milliseconds apart (closer at fast tempos).
@@ -287,7 +313,7 @@ export function runStrum(
 }
 
 export interface PlayStrumOptions {
-    /** Beats a minute: the pattern's `tempo:`, else 90. */
+    /** Beats a minute: the pattern's `tempo:`, else 90 (60 dotted quarters in compound time). */
     bpm?: number
     /** A chord symbol (or words), or the notes to strum, lowest string first. */
     chord?: string | readonly number[]
@@ -341,7 +367,7 @@ export function playStrum(
     const player = options.player ?? (win ? lightPlayer(win) : null)
     if (!player) throw new Error('playStrum needs a player or a window')
     const settings: StrumSettings = {
-        bpm: tempoOf(options.bpm ?? parsed.tempo),
+        bpm: tempoOf(options.bpm ?? parsed.tempo, parsed.compound),
         countIn: options.countIn ?? false,
         loop: options.loop ?? false,
         sound: options.sound ?? 'guitar',

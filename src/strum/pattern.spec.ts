@@ -47,8 +47,9 @@ describe('parseStrum: the ways patterns are written', () => {
         expect(written('D DX UDU')).toBe('D - D X - U D U')
         expect(written('DX DX')).toBe('D X D X - - - -')
         expect(written('D [G]X')).toBe('D - [G]X - - - - -')
-        // Triplets: down, up, down in each beat; an X alone takes a down slot.
-        expect(written('D X X\nsubdivision: triplets')).toBe('D - X X - - - - - - - -')
+        // Triplets (a shuffle): an X alone takes the next beat, one glued the third triplet.
+        expect(written('D X X\nsubdivision: triplets')).toBe('D - - X - - X - - - - -')
+        expect(written('DX DX\nsubdivision: triplets')).toBe('D - X D - X - - - - - -')
     })
 
     it('reads arrows as down and up strums', () => {
@@ -113,13 +114,16 @@ describe('parseStrum: time and subdivision', () => {
         expect([six.slotsPerBeat, six.slotsPerBar]).toEqual([1, 6])
         const sixteen = parseStrum('D-DU-UDU-DUDUDU-\nsubdivision: 16ths')
         expect([sixteen.slotsPerBar, sixteen.bars]).toEqual([16, 1])
-        // Triplets: down, up, down in each beat.
-        expect(written('DUD DUD\nsubdivision: triplets')).toBe('D U D D U D - - - - - -')
+        // Triplets written in full: one symbol a slot.
+        expect(written('DUD DUD DUD DUD\nsubdivision: triplets')).toBe('D U D D U D D U D D U D')
     })
 
     it('says how many slots a bar has, and which subdivision would fit', () => {
         expect(error('D - D U - U')).toBe(
-            '4/4 in 8ths has 8 slots a bar, but "D - D U - U" has 6: fill each bar with - (no strum)'
+            '4/4 in 8ths has 8 slots a bar, but "D - D U - U" has 6: fill each bar with - (no strum) or write time: 3/4'
+        )
+        expect(error('D - D U - U D U\ntime: 3/4')).toBe(
+            '3/4 in 8ths has 6 slots a bar, but "D - D U - U D U" has 8: fill each bar with - (no strum) or write time: 4/4'
         )
         expect(error('D-DU-UDU-DU')).toContain('has 11')
         expect(error('D - D U - U D U D - D U - U D U')).toBeNull()
@@ -144,6 +148,68 @@ describe('parseStrum: time and subdivision', () => {
         expect(parseStrum('bpm: 72\nD').tempo).toBe(72)
         expect(error('tempo: fast\nD')).toContain('Invalid tempo "fast"')
         expect(error('tempo: 300\nD')).toContain('from 20 to 240')
+    })
+})
+
+describe('parseStrum: shuffle and swing (#65)', () => {
+    it('places strums in triplets as a shuffle: down on the beat, up on the third triplet', () => {
+        expect(written('D U D U D U D U\nsubdivision: triplets')).toBe('D - U D - U D - U D - U')
+        expect(written('D DU UDU\nsubdivision: triplets')).toBe('D - - D - U - - U D - U')
+        expect(written('↓ ↓↑ ↓↑\ntime: 3/4\nsubdivision: triplets')).toBe('D - - D - U D - U')
+    })
+
+    it('reads swing: yes, no and percentages', () => {
+        expect(parseStrum('D U D U D U D U\nswing: yes').swing).toBeCloseTo(2 / 3)
+        expect(parseStrum('DUDU\nswing: Shuffle').swing).toBeCloseTo(2 / 3)
+        expect(parseStrum('DUDU\nswing: 60%').swing).toBeCloseTo(0.6)
+        expect(parseStrum('DUDU\nswing: 58').swing).toBeCloseTo(0.58)
+        expect(parseStrum('DUDU\nswing: no').swing).toBeNull()
+        expect(parseStrum('DUDU\nswing: 50%').swing).toBeNull()
+        expect(parseStrum('DUDU').swing).toBeNull()
+        // 16ths swing in pairs of 16ths; cut time's 8ths too.
+        expect(parseStrum('DUDUDUDU\nsubdivision: 16ths\nswing: yes').swing).toBeCloseTo(2 / 3)
+        expect(parseStrum('DUDU\ntime: cut\nswing: yes').swing).toBeCloseTo(2 / 3)
+    })
+
+    it('says when swing does not apply', () => {
+        expect(error('DUDU\nswing: lots')).toContain('Invalid swing "lots"')
+        expect(error('DUDU\nswing: 90%')).toContain('from 50 (straight) to 75')
+        expect(error('DUDU\nsubdivision: triplets\nswing: yes')).toContain(
+            'keep subdivision: triplets'
+        )
+        expect(error('D - D U - U\ntime: 6/8\nswing: yes')).toContain(
+            '6/8 already has three 8ths a beat'
+        )
+        expect(error('D U D\ntime: 3/8\nswing: yes')).toContain('write subdivision: 16ths')
+        expect(error('D U D\ntime: 3/8\nsubdivision: 16ths\nswing: yes')).toBeNull()
+    })
+})
+
+describe('parseStrum: compound time (#65)', () => {
+    it('counts 6/8, 9/8 and 12/8 in dotted beats of three 8ths', () => {
+        const six = parseStrum('D - D U - U\ntime: 6/8')
+        expect([six.compound, six.slotsPerPulse]).toEqual([true, 3])
+        expect(parseStrum('D\ntime: 12/8').slotsPerPulse).toBe(3)
+        expect(parseStrum('D\ntime: 9/8\nsubdivision: 16ths').slotsPerPulse).toBe(6)
+        // 3/8 and 4/4 count each beat.
+        expect(parseStrum('D\ntime: 3/8').compound).toBe(false)
+        expect(parseStrum('D\ntime: 3/4').slotsPerPulse).toBe(2)
+        expect(parseStrum('D\ntime: 6/4').compound).toBe(false)
+    })
+})
+
+describe('parseStrum: patterns that do not fit the bar (#65)', () => {
+    it('says how many slots a bar has when strums run past it and stop early in the next', () => {
+        expect(error('D DU UDU\ntime: 3/4')).toBe(
+            '3/4 in 8ths has 6 slots a bar, but "D DU UDU" takes 8 (1 bar and 2 slots): put a | where each bar ends, or write time: 4/4'
+        )
+        expect(error('D D D D\ntime: 3/4')).toContain('takes 7 (1 bar and 1 slot)')
+        expect(error('D DU UDU D')).toContain('put a | where each bar ends')
+        // With a bar line, or a second bar at least half full, it reads.
+        expect(written('D DU UDU | D')).toBe('D - D U - U D U | D - - - - - - -')
+        expect(written('D-D-U-D-U-D-U-D-U-D-U-D')).toBe('D - D U D U D U | D U D U D - - -')
+        // A pattern of two bars of 2/4 fills them.
+        expect(written('D DU UDU\ntime: 2/4')).toBe('D - D U | - U D U')
     })
 })
 

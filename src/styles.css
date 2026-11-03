@@ -686,6 +686,12 @@
     font-weight: 600;
 }
 
+.mn-svg .mn-strum-feel {
+    fill: var(--mn-fg);
+    font-size: 12px;
+    font-style: italic;
+}
+
 .mn-svg .mn-strum-chord {
     fill: var(--mn-accent);
     font-size: 12px;

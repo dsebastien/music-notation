@@ -107,6 +107,39 @@ describe('strum blocks', () => {
         expect(draw('tuning: banjo\nD').result.error).toContain('Unknown tuning "banjo"')
     })
 
+    it('stresses 1 and 4 in 6/8: their counts and ticks are the beats', () => {
+        const { h } = draw('D D U D D U\ntime: 6/8')
+        const beats = [...h.querySelectorAll('.mn-strum-count-beat')].map((c) => c.textContent)
+        expect(beats).toEqual(['1', '4'])
+        expect([...h.querySelectorAll('.mn-strum-count')].map((c) => c.textContent).join(' ')).toBe(
+            '1 2 3 4 5 6'
+        )
+    })
+
+    it('writes the swing over the grid and keeps it for playback', () => {
+        const { h } = draw('D DU UDU\nswing: yes\ntitle: Blues')
+        const svg = h.querySelector('svg')!
+        expect(svg.querySelector('.mn-strum-feel')?.textContent).toBe('Swing')
+        expect(Number(svg.getAttribute('data-mn-swing'))).toBeCloseTo(2 / 3)
+        expect(svg.getAttribute('aria-label')).toBe(
+            'Blues: strumming pattern D - D U - U D U, 4/4, 8ths, swing'
+        )
+        // Under the title, over the grid.
+        const feelY = Number(svg.querySelector('.mn-strum-feel')!.getAttribute('y'))
+        expect(feelY).toBeGreaterThan(Number(svg.querySelector('.mn-title')!.getAttribute('y')))
+        expect(draw('DUDU\nswing: 60%').h.querySelector('.mn-strum-feel')?.textContent).toBe(
+            'Swing 60%'
+        )
+        expect(
+            draw('DUDUDUDU\nsubdivision: 16ths\nswing: yes').h.querySelector('.mn-strum-feel')
+                ?.textContent
+        ).toBe('16th swing')
+        expect(draw('DUDU').h.querySelector('.mn-strum-feel')).toBeNull()
+        expect(formatDiagram(describeBlock(draw('DUDU\nswing: 60%').h)[0]!, 1)[0]).toBe(
+            '1. strumming pattern, 4/4, 8ths, swing 60%'
+        )
+    })
+
     it('is described by the check command', () => {
         const { h } = draw('G   C\nD DU UDU\ntempo: 100')
         expect(describeBlock(h)).toEqual([

@@ -177,6 +177,8 @@ export {
     countOf,
     parseTime,
     parseSubdivision,
+    parseSwing,
+    isCompound,
     MAX_STRUM_BARS,
     type StrumPattern,
     type StrumSlot,
@@ -190,6 +192,7 @@ export {
     strumEvents,
     scoreOf,
     STRUM_VELOCITY,
+    tempoOf,
     type PlayStrumOptions,
     type StrumEventOptions,
     type StrumScore

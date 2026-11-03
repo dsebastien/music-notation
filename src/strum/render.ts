@@ -23,6 +23,8 @@ export interface StrumOptions {
 const ROW_SLOTS = 16
 const PAD = 12
 const TITLE = 22
+/** The feel line ("Swing") over the grid. */
+const FEEL = 16
 const CHORDS = 18
 const ACCENTS = 12
 const ARROWS = 34
@@ -30,6 +32,16 @@ const COUNTS = 18
 const ROW_GAP = 12
 
 const slotWidth = (slotsPerBeat: number) => (slotsPerBeat >= 4 ? 22 : slotsPerBeat === 3 ? 24 : 28)
+
+/** The feel written over the grid: "Swing", "Swing 60%", "16th swing"; null when straight. */
+function swingLabel(pattern: StrumPattern): string | null {
+    const swing = pattern.swing
+    if (!swing) return null
+    const triplet = Math.abs(swing - 2 / 3) < 0.001
+    const amount = triplet ? '' : ` ${Math.round(swing * 100)}%`
+    // Swing plays pairs of slots: 8ths, or 16ths.
+    return `${pattern.subdivision === '16ths' ? '16th swing' : 'Swing'}${amount}`
+}
 
 /** A down or up arrow centered on x, between top and bottom. */
 function arrow(doc: Document, x: number, top: number, bottom: number, up: boolean, cls: string) {
@@ -91,6 +103,9 @@ export function renderStrum(
     options: StrumOptions = {}
 ): SVGElement {
     const { slotsPerBar, slotsPerBeat } = pattern
+    // The counted beats: each beat, or 1 and 4 in 6/8 (dotted beats of three).
+    const slotsPerPulse = pattern.slotsPerPulse ?? slotsPerBeat
+    const feel = swingLabel(pattern)
     const width = slotWidth(slotsPerBeat)
     const barsPerRow = Math.max(1, Math.floor(ROW_SLOTS / slotsPerBar))
     const rows = Math.ceil(pattern.bars / barsPerRow)
@@ -111,7 +126,8 @@ export function renderStrum(
     const titleWidth = title ? Math.ceil(title.length * 8 + PAD * 2) : 0
     const totalWidth = Math.max(gridWidth, titleWidth)
     const shift = (totalWidth - gridWidth) / 2
-    const totalHeight = (title ? TITLE : 0) + rows * rowHeight + (rows - 1) * ROW_GAP + 6
+    const top0 = (title ? TITLE : 0) + (feel ? FEEL : 0)
+    const totalHeight = top0 + rows * rowHeight + (rows - 1) * ROW_GAP + 6
 
     const written = formatStrum(pattern)
     const time = `${pattern.beatsPerBar}/${pattern.beatUnit}`
@@ -120,15 +136,26 @@ export function renderStrum(
         totalWidth,
         totalHeight,
         'mn-strum',
-        `${title ? `${title}: s` : 'S'}trumming pattern ${written}, ${time}, ${pattern.subdivision}`
+        `${title ? `${title}: s` : 'S'}trumming pattern ${written}, ${time}, ${pattern.subdivision}${feel ? `, ${feel.toLowerCase()}` : ''}`
     )
     root.setAttribute('data-mn-strum', written)
     root.setAttribute('data-mn-time', time)
     root.setAttribute('data-mn-subdivision', pattern.subdivision)
     root.setAttribute('data-mn-slots-per-beat', String(slotsPerBeat))
+    if (pattern.swing) root.setAttribute('data-mn-swing', String(pattern.swing))
     const bpm = pattern.tempo ?? options.bpm
     if (bpm !== undefined) root.setAttribute('data-mn-tempo', String(bpm))
     if (title) root.appendChild(svgLabel(doc, title, [totalWidth / 2, 10], 'mn-title'))
+    if (feel)
+        root.appendChild(
+            svgLabel(
+                doc,
+                feel,
+                [shift + PAD, (title ? TITLE : 0) + FEEL / 2],
+                'mn-strum-feel',
+                'start'
+            )
+        )
 
     // What the first strums sound: `chord:`, else the chord the pattern ends on (it repeats).
     const changes = pattern.slots.filter((s) => s.chord)
@@ -141,7 +168,7 @@ export function renderStrum(
     const body = shift ? svg(doc, 'g', { transform: `translate(${shift} 0)` }) : root
     if (body !== root) root.appendChild(body)
     for (let r = 0; r < rows; r++) {
-        const y0 = (title ? TITLE : 0) + r * (rowHeight + ROW_GAP)
+        const y0 = top0 + r * (rowHeight + ROW_GAP)
         const chordY = y0 + CHORDS / 2
         const accentY = y0 + (hasChords ? CHORDS : 0) + 2
         const top = accentY + ACCENTS - 2
@@ -161,7 +188,7 @@ export function renderStrum(
             const slot = pattern.slots[i]!
             const col = i - firstBar * slotsPerBar
             const x = PAD + (col + 0.5) * width
-            const onBeat = col % slotsPerBeat === 0
+            const onBeat = col % slotsPerPulse === 0
             const g = svg(doc, 'g', {
                 'class': `mn-strum-slot mn-strum-slot-${slot.stroke}`,
                 'data-mn-beat': i,
