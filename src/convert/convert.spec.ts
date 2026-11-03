@@ -819,6 +819,35 @@ describe('textTabToAlphaTex, rhythm of unbarred and uneven tabs (#71)', () => {
         )!
         expect(rhythmOf(tex)).toBe('r4 4 4 4 | r4 4 4 8 8')
     })
+
+    it('gives a hammer-on or pull-off pair one eighth before a bar falls back to sixteenths', () => {
+        // Nothing Else Matters, intro: the second row's second bar has seven beats two columns
+        // apart, one more than a 6/8 bar holds; the 7p0 shares one eighth.
+        const nem = [
+            'e|------0----|------0----|------0----|----',
+            'B|----0---0--|----0---0--|----0---0--|----',
+            'G|--0-------0|--0-------0|--0-------0|--0-',
+            'D|-----------|-----------|-----------|----',
+            'A|-----------|-----------|-----------|----',
+            'E|0----------|0----------|0----------|0---',
+            '',
+            'e|--0---7|7-----7p0----|',
+            'B|0---0--|--0---0---0--|',
+            'G|-------|----0-------0|',
+            'D|-------|-------------|',
+            'A|-------|-------------|',
+            'E|-------|0------------|'
+        ].join('\n')
+        const tex = textTabToAlphaTex(nem)!
+        expect(rhythmOf(tex).split(' | ')[4]).toBe('8 8 8 16 16 8 8')
+    })
+
+    it('moves the beats after a legato pair one eighth earlier, whatever the second note lasts', () => {
+        // Nine eighths in a 4/4 bar: the pull-off's 0 lasts a quarter, so it keeps a dotted eighth.
+        const lengths = sketchRhythmOf([0, 2, 4, 6, 8, 12, 14, 16], undefined, [3])
+        expect(lengths.map((e) => e.sixteenths)).toEqual([2, 2, 2, 1, 3, 2, 2, 2])
+        expect(lengths.every((e) => e.beat >= 0)).toBe(true)
+    })
 })
 
 describe('chordSheetToChordPro, edge cases', () => {

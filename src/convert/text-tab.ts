@@ -733,9 +733,17 @@ function restsFrom(at: number, meter: Meter, end = meter.length): Rhythm {
  * A bar's rhythm when no grid fits its columns (see positionsOf): the bar's most frequent gap
  * between beats is an eighth (a sixteenth when eighths overrun the bar), other gaps a whole number
  * of them (one at least), the last beat one, and rests fill the rest of the bar (4/4 unless
- * `meter` says). Every beat a sixteenth when even that is too long.
+ * `meter` says). Before eighths give way to sixteenths, the hammer-ons, pull-offs and slides
+ * (`legato`: the beats that lead on to the next one) take one eighth for both notes of the pair,
+ * a sixteenth each, as many pairs as the bar needs, first ones first (#71): the letter written
+ * between the two frets takes a column that isn't time. Every beat a sixteenth when even that is
+ * too long.
  */
-export function sketchRhythmOf(cols: number[], meter: Meter = COMMON): Rhythm {
+export function sketchRhythmOf(
+    cols: number[],
+    meter: Meter = COMMON,
+    legato: readonly number[] = []
+): Rhythm {
     const gaps = cols.slice(1).map((c, i) => c - cols[i]!)
     const counts = new Map<number, number>()
     for (const g of gaps) counts.set(g, (counts.get(g) ?? 0) + 1)
@@ -748,7 +756,18 @@ export function sketchRhythmOf(cols: number[], meter: Meter = COMMON): Rhythm {
         const lengths = cols.map(
             (_, i) => eighth * (i < gaps.length ? Math.max(1, Math.round(gaps[i]! / unit!)) : 1)
         )
-        const total = lengths.reduce((a, b) => a + b, 0)
+        let total = lengths.reduce((a, b) => a + b, 0)
+        if (eighth === 2)
+            for (const i of legato) {
+                if (total <= meter.length) break
+                if (i + 1 >= lengths.length || lengths[i] !== 2) continue
+                // The pair's second note starts a sixteenth earlier, and the beats after it an
+                // eighth earlier.
+                const next = Math.max(1, lengths[i + 1]! - 1)
+                total -= 1 + lengths[i + 1]! - next
+                lengths[i] = 1
+                lengths[i + 1] = next
+            }
         if (total > meter.length) continue
         return [
             ...lengths.map((sixteenths, beat) => ({ beat, sixteenths })),
@@ -757,6 +776,13 @@ export function sketchRhythmOf(cols: number[], meter: Meter = COMMON): Rhythm {
     }
     return cols.map((_, beat) => ({ beat, sixteenths: 1 }))
 }
+
+/** Effects that lead on to the next beat: a hammer-on or pull-off, a slide into the next note. */
+const LEGATO = new Set(['h', 'sl'])
+
+/** The beats that lead on to the next one with a hammer-on, a pull-off or a slide. */
+const legatoOf = (beats: Beat[]) =>
+    beats.flatMap((b, i) => (b.notes.some((n) => n.effects.some((e) => LEGATO.has(e))) ? [i] : []))
 
 /** A bar to write: its beats (columns from its start), its width, and how its length is read. */
 interface Measure {
@@ -797,7 +823,8 @@ function rhythmOf(m: Measure, typical: number, meter: Meter): Rhythm {
     if (!at) {
         const sketch = sketchRhythmOf(
             m.beats.map((b) => b.col),
-            meter
+            meter,
+            legatoOf(m.beats)
         )
         if (m.part !== 'end') return sketch
         const notes = sketch.filter((e) => e.beat >= 0)
