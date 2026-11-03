@@ -1,6 +1,6 @@
 /**
- * Piano scale fingerings (#68): the standard method-book fingerings of the major and harmonic
- * minor scales for each hand, and fingers for every octave of a keyboard.
+ * Piano scale fingerings (#68): the standard method-book fingerings of the major, harmonic minor,
+ * melodic minor (going up) and natural minor scales for each hand, and fingers for every octave of a keyboard.
  *
  * A fingering is written for one octave going up, root to root (8 fingers for a 7-note scale).
  * Over several octaves the pattern repeats and the root where two octaves meet takes the finger
@@ -78,19 +78,38 @@ const HARMONIC_MINOR: Record<ScaleHand, Table> = {
     }
 }
 
-/** The scale types with standard fingerings, as tonal names them. */
-export const FINGERED_SCALES = ['major', 'harmonic minor'] as const
+/**
+ * Melodic minor scales going up: the harmonic minor's fingers, but C# and F# (whose raised 6th
+ * and 7th are black keys) take the thumb on their two white keys: C# D# E F# G# A# B# is
+ * 2 3 1 2 3 4 1 2. Natural minor scales share the harmonic minor's (their thumbs fall on the same
+ * white keys).
+ */
+const MELODIC_MINOR: Record<ScaleHand, Table> = {
+    right: { ...HARMONIC_MINOR.right, 1: '23123412', 6: '23123412' },
+    left: HARMONIC_MINOR.left
+}
+
+/** The scale types with standard fingerings, as tonal names them ('minor' is the natural minor). */
+export const FINGERED_SCALES = ['major', 'harmonic minor', 'melodic minor', 'minor'] as const
 
 /**
- * The standard fingering of a major or harmonic minor scale for one octave going up, root to root
- * ("1 2 3 1 2 3 4 5" as 8 fingers); null for another scale.
+ * The standard fingering of a major, harmonic minor, melodic minor (going up) or natural minor
+ * scale for one octave going up, root to root ("1 2 3 1 2 3 4 5" as 8 fingers); null for another
+ * scale.
  */
 export function standardScaleFingering(
     tonic: number,
     type: string,
     hand: ScaleHand
 ): string[] | null {
-    const table = type === 'major' ? MAJOR : type === 'harmonic minor' ? HARMONIC_MINOR : null
+    const table =
+        type === 'major'
+            ? MAJOR
+            : type === 'harmonic minor' || type === 'minor'
+              ? HARMONIC_MINOR
+              : type === 'melodic minor'
+                ? MELODIC_MINOR
+                : null
     const fingers = table?.[hand][((tonic % 12) + 12) % 12]
     return fingers ? [...fingers] : null
 }

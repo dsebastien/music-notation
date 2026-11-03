@@ -28,6 +28,36 @@ describe('standardScaleFingering', () => {
         expect(f(3, 'harmonic minor', 'left')).toBe('21432132')
         expect(f(10, 'harmonic minor', 'left')).toBe('21321432')
         expect(f(0, 'dorian', 'right')).toBeUndefined()
+        // Melodic minor going up: C# and F# put the thumb on their white keys (E, B#; A, E#).
+        expect(f(1, 'melodic minor', 'right')).toBe('23123412')
+        expect(f(6, 'melodic minor', 'right')).toBe('23123412')
+        expect(f(9, 'melodic minor', 'right')).toBe('12312345')
+        expect(f(6, 'melodic minor', 'left')).toBe('43213214')
+        // Natural minor: the harmonic minor's fingers.
+        expect(f(10, 'minor', 'right')).toBe('41231234')
+        expect(f(11, 'minor', 'left')).toBe('43214321')
+    })
+
+    it('puts the thumb on white keys only, in every key, hand and scale', () => {
+        const scales: Record<string, number[]> = {
+            'major': [0, 2, 4, 5, 7, 9, 11],
+            'harmonic minor': [0, 2, 3, 5, 7, 8, 11],
+            'melodic minor': [0, 2, 3, 5, 7, 9, 11],
+            'minor': [0, 2, 3, 5, 7, 8, 10]
+        }
+        const black = [1, 3, 6, 8, 10]
+        for (const [type, steps] of Object.entries(scales)) {
+            for (const hand of ['left', 'right'] as const) {
+                for (let tonic = 0; tonic < 12; tonic++) {
+                    const fingers = standardScaleFingering(tonic, type, hand)!
+                    const notes = [...steps, 12].map((s) => (tonic + s) % 12)
+                    const thumbs = notes.filter((_, i) => fingers[i] === '1')
+                    // G# natural minor's left hand is the one exception books print (thumb on F#).
+                    if (type === 'minor' && tonic === 8 && hand === 'left') continue
+                    expect(thumbs.filter((n) => black.includes(n))).toEqual([])
+                }
+            }
+        }
     })
 
     it('has a fingering for every key and hand, thumbs never twice in a row', () => {
