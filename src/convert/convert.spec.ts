@@ -14,7 +14,7 @@ const six = (lines: string[]) => lines.join('\n')
 /**
  * Linear time, measured as growth so a slow CI runner doesn't fail it: the work at four times the
  * size must take less than eight times as long (linear is about 4x, quadratic 16x), plus 50 ms of
- * timer and garbage-collector noise. A first run at size 1 warms the code up.
+ * timer noise. A first run at size 1 warms the code up.
  */
 function expectLinear(run: (scale: number) => void): void {
     const time = (k: number) => {
@@ -22,9 +22,12 @@ function expectLinear(run: (scale: number) => void): void {
         run(k)
         return performance.now() - start
     }
+    // The best of three runs at each size: a garbage collection or a busy CI runner slows one run,
+    // rarely all three.
+    const best = (k: number) => Math.min(time(k), time(k), time(k))
     time(1)
-    const one = time(1)
-    expect(time(4)).toBeLessThan(8 * one + 50)
+    const one = best(1)
+    expect(best(4)).toBeLessThan(8 * one + 50)
 }
 
 describe('textTabToAlphaTex, edge cases', () => {
