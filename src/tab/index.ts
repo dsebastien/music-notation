@@ -547,7 +547,19 @@ export function soundfontPlayer(
             const level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             current.masterVolume = level
             for (const e of events) {
-                handler.addNote(0, ticks(e.time), Math.max(1, ticks(e.duration)), e.midi, 100, 0)
+                // Velocity (1–127) as given, 100 by default.
+                const velocity =
+                    e.velocity === undefined || !Number.isFinite(e.velocity)
+                        ? 100
+                        : Math.round(Math.min(127, Math.max(1, e.velocity)))
+                handler.addNote(
+                    0,
+                    ticks(e.time),
+                    Math.max(1, ticks(e.duration)),
+                    e.midi,
+                    velocity,
+                    0
+                )
             }
             const end = Math.max(...events.map((e) => e.time + e.duration), 0)
             current.playbackSpeed = 1

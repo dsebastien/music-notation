@@ -24,6 +24,7 @@ import {
     type PlayKind,
     type Sound
 } from './player.js'
+import { strumBarFor } from './strum-bar.js'
 
 export interface PlayOptions {
     /**
@@ -36,14 +37,14 @@ export interface PlayOptions {
     sound?: Sound
     /** 0 to 1, 0.8 by default. */
     volume?: number
-    /** Scales: notes per minute, 90 by default. */
+    /** Scales: notes per minute, 90 by default; also strum patterns' tempo when they have none. */
     bpm?: number
     /** Chords: milliseconds between strings, 40 by default. */
     strum?: number
 }
 
 /** A number within bounds; the fallback when it isn't a number at all. */
-const clamp = (n: number | undefined, lo: number, hi: number, fallback: number) =>
+export const clamp = (n: number | undefined, lo: number, hi: number, fallback: number) =>
     n === undefined || !Number.isFinite(n) ? fallback : Math.min(hi, Math.max(lo, n))
 
 /** Small icons, drawn so they look the same in every font. */
@@ -54,7 +55,7 @@ const ICONS: Record<'play' | 'stop' | 'loop' | 'volume', string> = {
     volume: 'M2 6h3l4-3v10l-4-3H2zM11 5.5a3.5 3.5 0 0 1 0 5'
 }
 
-function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
+export function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
     const root = svg(doc, 'svg', {
         'class': `mn-play-icon mn-play-icon-${name}`,
         'viewBox': '0 0 16 16',
@@ -68,7 +69,7 @@ function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
 
 /** One light synthesizer per window. */
 const players = new WeakMap<Window, NotePlayer>()
-function lightFor(win: Window): NotePlayer {
+export function lightFor(win: Window): NotePlayer {
     let player = players.get(win)
     if (!player) {
         player = lightPlayer(win)
@@ -78,7 +79,7 @@ function lightFor(win: Window): NotePlayer {
 }
 
 /** The player apps passed (read at each play), else the light synthesizer. */
-function playerFor(win: Window, options: PlayOptions): NotePlayer {
+export function playerFor(win: Window, options: PlayOptions): NotePlayer {
     const given = typeof options.player === 'function' ? options.player(win) : options.player
     return given ?? lightFor(win)
 }
@@ -201,6 +202,9 @@ export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () =
         if (!data) continue
         stops.push(barFor(doc, win, diagram, data, options))
     }
+    // Strumming patterns (#22): their own bar, with tempo and count-in.
+    for (const pattern of [...el.querySelectorAll('svg[data-mn-strum]')])
+        stops.push(strumBarFor(doc, win, pattern, options))
     return () => stops.forEach((stop) => stop())
 }
 

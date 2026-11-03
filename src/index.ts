@@ -151,3 +151,12 @@ export {
 } from './strum/pattern.js'
 export { renderStrum, type StrumOptions } from './strum/render.js'
 export { strumVoicing, DEFAULT_STRUM_CHORD } from './strum/voicing.js'
+export {
+    playStrum,
+    strumEvents,
+    scoreOf,
+    STRUM_VELOCITY,
+    type PlayStrumOptions,
+    type StrumEventOptions,
+    type StrumScore
+} from './strum/play.js'
