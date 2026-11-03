@@ -129,6 +129,29 @@ describe('progression block', () => {
         ])
     })
 
+    it('gives every piano keyboard of a row the same range', () => {
+        const range = (source: string) => {
+            const h = host()
+            expect(renderBlock('progression', source, h).error).toBeNull()
+            return [...h.querySelectorAll('svg.mn-keyboard')].map((svg) => {
+                const keys = [...svg.querySelectorAll('[data-midi]')].map((k) =>
+                    Number(k.getAttribute('data-midi'))
+                )
+                return `${Math.min(...keys)}-${Math.max(...keys)} ${svg.getAttribute('width')}`
+            })
+        }
+        // A slash chord's bass an octave below: every keyboard from C3, not only that one.
+        expect(new Set(range('I V/3 vi IV/1\nkey: C\ninstrument: piano'))).toEqual(
+            new Set(['48-83 464'])
+        )
+        expect(
+            new Set(range('I IV V vii° vi\nkey: F#\ninstrument: piano\nvoice-leading: yes')).size
+        ).toBe(1)
+        expect(new Set(range('ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: shell')).size).toBe(
+            1
+        )
+    })
+
     it('draws piano chords, voice-led when asked', () => {
         const h = host()
         const result = renderBlock(

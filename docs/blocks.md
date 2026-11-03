@@ -573,7 +573,7 @@ key: C
 I IV V I
 key: D</code></pre></div>
 
-Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`.
+Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`. The keyboards of a row show the same keys (whole octaves around every chord), so they have the same width; if that would take more than 3 octaves, or a chord can't be drawn, each keyboard keeps its own keys.
 
 ## Circle of fifths
 

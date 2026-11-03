@@ -8,7 +8,7 @@ import { splitParts, type BlockSource } from './block-source.js'
 import type { DiagramRenderer, RenderOptions } from './renderers.js'
 import { smoothProgression } from '../chord/transitions.js'
 import { parseTuning } from '../fretboard/tuning.js'
-import { pianoOptionsOf } from '../keyboard/piano-chord.js'
+import { pianoOptionsOf, pianoPitches, type PianoVoicingOptions } from '../keyboard/piano-chord.js'
 import { voiceLead } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
@@ -24,6 +24,9 @@ import { transposeChord, transposeKey } from '../theory/transpose.js'
 
 /** More chords than this in one block is an error, so a page stays quick to draw. */
 const MAX_CHORDS = 32
+
+/** A row of piano chords shares one keyboard range when it spans at most this many octaves. */
+const MAX_SHARED_OCTAVES = 3
 
 /** Keys the first part may share with every section. */
 const SHARED = [
@@ -166,6 +169,33 @@ function sectionOf(block: BlockSource): Section {
     return { key: to, others, chords, block }
 }
 
+/**
+ * One keyboard range for a row of piano chords (whole octaves around all their keys, as one
+ * chord's keyboard would be), so every keyboard has the same width: "C4-B5". Null when a chord
+ * doesn't voice, or the row would span more than MAX_SHARED_OCTAVES (each chord keeps its own).
+ */
+function sharedRange(pitches: (number[] | null)[]): string | null {
+    if (!pitches.length || pitches.some((p) => !p?.length)) return null
+    const all = pitches.flat() as number[]
+    const low = Math.min(...all)
+    const high = Math.max(...all)
+    const from = low - (((low % 12) + 12) % 12)
+    const to = high + 11 - (((high % 12) + 12) % 12)
+    if ((to - from + 1) / 12 > MAX_SHARED_OCTAVES) return null
+    return `${noteOf(from)}-${noteOf(to)}`
+}
+
+/** Each chord's piano keys as its diagram will draw them; null for one that doesn't voice. */
+function pianoKeysOf(symbols: string[], options: PianoVoicingOptions): (number[] | null)[] {
+    return symbols.map((symbol) => {
+        try {
+            return pianoPitches(symbol, options).pitches
+        } catch {
+            return null
+        }
+    })
+}
+
 /** Guitar voicings that make the section easiest to play, or null when one can't be found. */
 function guitarVoicings(symbols: string[], tuningText: string | undefined) {
     const tuning = tuningText ? parseTuning(tuningText) : null
@@ -225,10 +255,13 @@ function renderSection(
         throw new Error(`Use voice-leading or ${pianoKeys[0]}, not both`)
     }
     // A value that can't be read is the block's mistake, not each chord's.
-    if (pianoKeys.length) pianoOptionsOf((key) => field(block, key))
+    const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
     const symbols = chords.map((c) => c.symbol)
     const guitar = diagrams && !piano ? guitarVoicings(symbols, field(block, 'tuning')) : null
     const pitches = diagrams && piano && led ? voiceLead(symbols) : null
+    // Piano keyboards of a row share one range, so they have the same width.
+    const range =
+        diagrams && piano ? sharedRange(pitches ?? pianoKeysOf(symbols, pianoOptions)) : null
     const row = html(doc, 'div', 'mn-row mn-progression-chords')
     chords.forEach((chord, i) => {
         const cell = html(doc, 'div', 'mn-cell mn-progression-chord')
@@ -253,6 +286,7 @@ function renderSection(
                 if (piano) {
                     lines.push(['instrument', 'piano'])
                     for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                    if (range) lines.push(['range', range])
                     const midi = pitches?.[i]
                     if (midi) {
                         const set = chordNoteSet(chord.symbol)
