@@ -217,14 +217,22 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
     const title =
         sounds && heading ? `${heading} (sounds ${sounds})` : (heading ?? sounds ?? undefined)
     // A piano chord on guitar: a grip a guitarist plays (the easiest voicing of the chord), not a
-    // map of its pitches over the neck.
-    const symbol = chord ?? named
+    // map of its pitches over the neck. An inversion keeps its bass (C first inversion: C/E's
+    // grip); a rootless voicing has no bass of its own.
+    const given = chord ?? named
+    const chordSet = toGuitar && data.kind === 'chord' && given ? chordNoteSet(given) : null
+    const chroma = (midi: number) => ((midi % 12) + 12) % 12
+    const lowest = chroma(Math.min(...data.pitches))
+    const bassName = chordSet?.members.find((m) => m.chroma === lowest)?.name
+    const rooted = data.pitches.some((midi) => chroma(midi) === chordSet?.root)
+    const symbol =
+        given && rooted && !given.includes('/') && bassName && chordSet?.root !== lowest
+            ? `${given}/${bassName}`
+            : given
     const grip =
-        toGuitar && data.kind === 'chord' && symbol && set.root !== null && chordNoteSet(symbol)
-            ? generateVoicings(symbol)[0]
-            : undefined
-    if (grip) {
-        const members = set.members
+        chordSet && chordSet.root !== null && symbol ? generateVoicings(symbol)[0] : undefined
+    if (grip && chordSet) {
+        const members = chordSet.members
         const labels =
             label === 'intervals' || label === 'notes'
                 ? grip.frets.map((fret, s) => {
@@ -242,7 +250,7 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
                   : null
         const drawn = renderGuitarDiagram(doc, grip, {
             ...(title ? { title } : {}),
-            root: set.root,
+            root: chordSet.root,
             ...(labels ? { labels } : {})
         })
         drawn.setAttribute('data-mn-chord', symbol!)

@@ -568,6 +568,12 @@ describe('choosing the other instrument redraws the diagram', () => {
         ])
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         expect(calls[0]!.events.map((e) => e.midi)).toEqual([48, 52, 55, 60, 64])
+        // A rootless voicing has no bass to keep: Dm7's own grip.
+        const r = host()
+        renderBlock('chord', 'Dm7\ninstrument: piano\nvoicing: rootless', r, { play: {} })
+        choose(r, 'guitar')
+        expect(r.querySelector('.mn-guitar-chord')?.getAttribute('data-mn-chord')).toBe('Dm7')
+        r.remove()
         // A scale fingered for one hand drops the hand on guitar.
         const s = host()
         renderBlock('keyboard', 'scale: C major\nfingering: auto', s, { play: {} })

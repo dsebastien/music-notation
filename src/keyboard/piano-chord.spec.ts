@@ -404,16 +404,18 @@ describe('piano chord blocks', () => {
         ])
     })
 
-    it('redraws an inversion for guitar with its own pitches', () => {
+    it('redraws an inversion for guitar as a grip with its bass', () => {
         const h = host()
         const result = renderBlock('chord', 'C\ninstrument: piano\ninversion: 1\noctave: 3', h)
         attachPlayback(result.el)
         const select = h.querySelector('select')!
         select.value = 'guitar'
         select.dispatchEvent(new Event('change'))
-        const board = h.querySelector('.mn-fretboard')!
-        expect(board.getAttribute('data-mn-pitches')).toBe(
-            [midiOf('E3'), midiOf('G3'), midiOf('C4')].join(' ')
+        // A guitar grip of C/E: the third in the bass.
+        const grip = h.querySelector('.mn-guitar-chord')!
+        expect(grip.getAttribute('data-mn-chord')).toBe('C/E')
+        expect(Number(grip.getAttribute('data-mn-pitches')!.split(' ')[0]) % 12).toBe(
+            midiOf('E3')! % 12
         )
     })
 })
