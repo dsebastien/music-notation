@@ -3,7 +3,7 @@
  * a key, a string's mark) gets the `mn-playing` class for the length of its note, so a learner
  * sees which note sounds where.
  */
-import type { NoteEvent, PlayKind } from './player.js'
+import type { NoteEvent, NotePlayer, PlayKind } from './player.js'
 
 /** The class a sounding note's element gets. */
 export const PLAYING_CLASS = 'mn-playing'
@@ -13,6 +13,22 @@ export const PLAYING_CLASS = 'mn-playing'
  * `reportsStart`) before it lights notes from the play call.
  */
 export const START_WAIT = 300
+
+/** Players seen calling `onStart` (the object the app gave): bars wait for their start. */
+const reporting = new WeakSet<NotePlayer>()
+
+/**
+ * True when `player` says when its notes start: it declares `reportsStart`, or it was seen calling
+ * `onStart` (a wrapper of the soundfont or light player that doesn't declare it).
+ */
+export function startsReported(player: NotePlayer): boolean {
+    return player.reportsStart === true || reporting.has(player)
+}
+
+/** Remembers that `player` calls `onStart`, for every bar of the page. */
+export function sawStart(player: NotePlayer): void {
+    reporting.add(player)
+}
 
 /** A string number as guitarists count them (1 is the highest), or null. */
 const stringOf = (el: Element): number | null => {

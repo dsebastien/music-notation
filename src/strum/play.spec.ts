@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'bun:test'
+import { afterEach, describe, expect, it, setSystemTime } from 'bun:test'
+import { startsReported } from '../playback/follow.js'
 import type { NoteEvent, NotePlayer } from '../playback/player.js'
 import { parseStrum } from './pattern.js'
 import {
@@ -13,6 +14,13 @@ import { strumVoicing } from './voicing.js'
 
 const E_MINOR = [40, 47, 52, 55, 59, 64]
 const G = [43, 47, 50, 55, 59, 67]
+
+/** Any fixed moment: the tests set the clock. */
+const T0 = Date.UTC(2026, 10, 3)
+
+afterEach(() => {
+    setSystemTime()
+})
 
 const scoreFor = (source: string) => scoreOf(parseStrum(source), (c) => strumVoicing(c))
 
@@ -148,6 +156,7 @@ describe('runStrum', () => {
         const { pending, timers } = setup()
         const lit: number[][] = []
         let heard = 0
+        setSystemTime(new Date(T0))
         runStrum(
             scoreFor('D-DU-UDU'),
             () => player,
@@ -162,11 +171,166 @@ describe('runStrum', () => {
         // Nothing is timed until the notes really start.
         expect(pending).toHaveLength(0)
         expect(lit).toEqual([[0, 2, 3, 5, 6, 7]])
+        setSystemTime(new Date(T0 + 40))
         starts[0]!()
         expect(heard).toBe(1)
         expect(pending).toHaveLength(1)
-        expect(pending[0]!.ms).toBeGreaterThan(1900)
-        expect(pending[0]!.ms).toBeLessThanOrEqual(2000)
+        // The player's own 40 ms lead is kept: the second pass is asked for 40 ms before the
+        // first one's end, and sounds right at it.
+        expect(pending[0]!.ms).toBe(2000 - 40)
+    })
+
+    /** A clock and timers the test moves, and a soundfont-like player. */
+    function slowLoad(over: Partial<NotePlayer> = {}, firstLoad = 1500, lead = 0) {
+        let clock = T0
+        let id = 0
+        const timers = new Map<number, { at: number; fn: () => void }>()
+        const timer = {
+            setTimeout: (fn: () => void, ms = 0) => {
+                timers.set(++id, { at: clock + ms, fn })
+                return id
+            },
+            clearTimeout: (t?: number) => {
+                if (t !== undefined) timers.delete(t)
+            }
+        } as unknown as Pick<Window, 'setTimeout' | 'clearTimeout'>
+        const advance = (ms: number) => {
+            const end = clock + ms
+            for (;;) {
+                const due = [...timers.entries()]
+                    .filter(([, t]) => t.at <= end)
+                    .sort((a, b) => a[1].at - b[1].at)[0]
+                if (!due) break
+                timers.delete(due[0])
+                clock = due[1].at
+                setSystemTime(new Date(clock))
+                due[1].fn()
+            }
+            clock = end
+            setSystemTime(new Date(clock))
+        }
+        // When each pass was asked for and when it really sounds.
+        const passes: { called: number; sounds: number }[] = []
+        let loaded = false
+        let load = firstLoad
+        // The next play loads again, for `ms` (a soundfont in another window).
+        const reload = (ms: number) => {
+            loaded = false
+            load = ms
+        }
+        const player: NotePlayer = {
+            ...over,
+            play(_events, options) {
+                const called = clock - T0
+                const wait = loaded ? lead : load
+                loaded = true
+                const pass = { called, sounds: NaN }
+                passes.push(pass)
+                timer.setTimeout(() => {
+                    pass.sounds = clock - T0
+                    options.onStart?.()
+                }, wait)
+                return { stop() {} }
+            }
+        }
+        return { timer, advance, passes, player, reload }
+    }
+
+    it('starts the second pass at the end of the first after a slow soundfont load', () => {
+        setSystemTime(new Date(T0))
+        const { timer, advance, passes, player } = slowLoad({ reportsStart: true })
+        const handle = runStrum(
+            scoreFor('D-DU-UDU'),
+            () => player,
+            () => settings({ loop: true }),
+            timer
+        )
+        advance(6000)
+        handle.stop()
+        // 4/4 at 120: a pass lasts 2 s. Loaded, the player sounds at once: no seam is early.
+        expect(passes.map((p) => p.sounds)).toEqual([1500, 3500, 5500])
+    })
+
+    it('keeps the own lead of a reporting player after a slow load', () => {
+        setSystemTime(new Date(T0))
+        const { timer, advance, passes, player } = slowLoad({ reportsStart: true }, 1500, 30)
+        const handle = runStrum(
+            scoreFor('D-DU-UDU'),
+            () => player,
+            () => settings({ loop: true }),
+            timer
+        )
+        advance(6000)
+        handle.stop()
+        // The first seam is 30 ms late (the lead can't be known before a pass plays), the next
+        // ones exact.
+        expect(passes.map((p) => p.sounds)).toEqual([1500, 3530, 5530])
+    })
+
+    it('waits for a player that reports its start without declaring it', () => {
+        setSystemTime(new Date(T0))
+        const { timer, advance, passes, player, reload } = slowLoad({}, 1200)
+        const run = () =>
+            runStrum(
+                scoreFor('D-DU-UDU'),
+                () => player,
+                () => settings({ loop: true }),
+                timer
+            )
+        let handle = run()
+        advance(6000)
+        handle.stop()
+        // Its start came before the second pass was due: the passes are counted from it.
+        expect(passes.map((p) => p.sounds)).toEqual([1200, 3200, 5200])
+        // Seen reporting once, it's waited for from the first pass the next time, however long
+        // its start takes (here a load longer than a pass).
+        expect(startsReported(player)).toBe(true)
+        passes.length = 0
+        reload(2500)
+        handle = run()
+        advance(7000)
+        handle.stop()
+        expect(passes.map((p) => p.sounds - passes[0]!.called)).toEqual([2500, 4500, 6500])
+    })
+
+    it('asks for one next pass when a player reports its start during the play call', () => {
+        setSystemTime(new Date(T0))
+        const { pending, timers } = setup()
+        const player: NotePlayer = {
+            play(_events, options) {
+                options.onStart?.()
+                return { stop() {} }
+            }
+        }
+        runStrum(
+            scoreFor('D-DU-UDU'),
+            () => player,
+            () => settings({ loop: true }),
+            timers
+        )
+        expect(pending.map((p) => p.ms)).toEqual([2000])
+    })
+
+    it('times passes from the play call for a player that never reports', () => {
+        setSystemTime(new Date(T0))
+        const calls: number[] = []
+        const { timer, advance } = slowLoad()
+        const silent: NotePlayer = {
+            play() {
+                calls.push(Date.now() - T0)
+                return { stop() {} }
+            }
+        }
+        const handle = runStrum(
+            scoreFor('D-DU-UDU'),
+            () => silent,
+            () => settings({ loop: true }),
+            timer
+        )
+        advance(4500)
+        handle.stop()
+        expect(calls).toEqual([0, 2000, 4000])
+        expect(startsReported(silent)).toBe(false)
     })
 
     it('stops what plays', () => {

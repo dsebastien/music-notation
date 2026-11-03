@@ -25,7 +25,14 @@ import {
     type Sound
 } from './player.js'
 import { strumBarFor } from './strum-bar.js'
-import { followNotes, noteTargets, START_WAIT, type Follower } from './follow.js'
+import {
+    followNotes,
+    noteTargets,
+    sawStart,
+    startsReported,
+    START_WAIT,
+    type Follower
+} from './follow.js'
 
 export interface PlayOptions {
     /**
@@ -78,10 +85,6 @@ export function lightFor(win: Window): NotePlayer {
     }
     return player
 }
-
-/** Players seen calling `onStart`: the bar waits for theirs before it lights notes. */
-const reporting = new WeakSet<NotePlayer>()
-const reportsStart = (player: NotePlayer) => player.reportsStart === true || reporting.has(player)
 
 /** The player apps passed (read at each play), else the light synthesizer. */
 export function playerFor(win: Window, options: PlayOptions): NotePlayer {
@@ -284,11 +287,11 @@ function barFor(
                 shown,
                 targets,
                 events,
-                reportsStart(player) ? Infinity : START_WAIT
+                startsReported(player) ? Infinity : START_WAIT
             )
             lights = follower
             const onStart = () => {
-                reporting.add(player)
+                sawStart(player)
                 follower.heard()
             }
             try {

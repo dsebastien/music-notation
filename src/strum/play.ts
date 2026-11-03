@@ -16,6 +16,7 @@ import {
     type PlayHandle,
     type Sound
 } from '../playback/player.js'
+import { sawStart, startsReported } from '../playback/follow.js'
 import {
     DEFAULT_TEMPO,
     MAX_TEMPO,
@@ -162,6 +163,9 @@ export interface StrumSettings {
 /** Stands for the notes given to playStrum in place of a chord. */
 const GIVEN = '\u0000given'
 
+/** A first start report later than this (ms) after the play call is a load, not the player's lead. */
+const LOADING = 250
+
 /** The last strum's ring after a pattern that doesn't loop, in seconds. */
 const TAIL = 1.2
 
@@ -176,9 +180,11 @@ export interface StrumFollower {
  * Plays a score through `player`, pass after pass while `settings().loop` is on. Each next pass
  * is started on a timer at the exact end of the previous one, counted from the first pass's start
  * (so delays don't add up), and is scheduled by the player like the first: no gap, no drift. With
- * a player that says when its notes start (`reportsStart`), the passes are counted from that
- * moment, so a first play that waits for a soundfont isn't cut by the second pass. `follow` gets
- * each pass's strums, to light them from the moment they sound.
+ * a player that says when its notes start (`reportsStart`, or seen calling `onStart`), the
+ * passes are counted from that moment, so a first play that waits for a soundfont isn't cut by the
+ * second pass; a player not known to report yet is counted from the play call until its first
+ * start report, if that comes before the second pass. `follow` gets each pass's strums, to light
+ * them from the moment they sound.
  */
 export function runStrum(
     score: StrumScore,
@@ -227,7 +233,8 @@ export function runStrum(
         while (followers.length > 2) followers.shift()
         const called = Date.now()
         // Waits for the player's start only on the first pass (a soundfont may load first).
-        const waits = first && current.reportsStart === true
+        const waits = first && startsReported(current)
+        let heard = false
         elapsed += length
         handles.push(
             current.play(events, {
@@ -238,15 +245,26 @@ export function runStrum(
                     if (id === pass && !looping) finish()
                 },
                 onStart: () => {
-                    if (stopped) return
+                    if (stopped || heard) return
+                    heard = true
+                    sawStart(current)
                     follower?.heard()
-                    if (!waits || anchor !== null) return
-                    // The time the player takes to start is kept (it takes it every pass); a long
-                    // wait (loading) isn't.
+                    if (!first) return
+                    // The time the player takes to start is kept (it takes it every pass): the
+                    // passes are counted from the play call. A long wait is loading, after which
+                    // the player starts at once (a soundfont): they're counted from now.
                     const now = Date.now()
-                    const lead = now - called
-                    anchor = now - (lead < 250 ? lead : 50)
-                    schedule(looping)
+                    const at = now - called < LOADING ? called : now
+                    if (waits) {
+                        anchor = at
+                        schedule(looping)
+                    } else if (id === pass && anchor !== null && at !== anchor) {
+                        // A player that reports without declaring it, heard before the second
+                        // pass was asked for: count from its start.
+                        timers.clearTimeout(timer)
+                        anchor = at
+                        schedule(looping)
+                    }
                 }
             })
         )
