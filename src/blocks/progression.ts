@@ -13,7 +13,7 @@ import { voiceLead } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
 import { findKey } from '../theory/find.js'
-import { readKey, type MusicalKey } from '../theory/keys.js'
+import { keyProblem, readKey, type MusicalKey } from '../theory/keys.js'
 import {
     numeralOf,
     progressionChord,
@@ -65,7 +65,10 @@ function keyOf(text: string): MusicalKey {
     if (!key || (mode !== 'major' && mode !== 'minor')) {
         throw new Error(`Unknown key "${text}": use e.g. key: G, key: Em or key: F# minor`)
     }
-    return { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` }
+    const read: MusicalKey = { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` }
+    const problem = keyProblem(read)
+    if (problem) throw new Error(problem)
+    return read
 }
 
 /** "G major" moved by semitones, spelled the usual way (Db, not C#). */

@@ -542,6 +542,8 @@ functions: yes</code></pre></div>
 | `tuning`                     | For guitar diagrams, as for chords.                                                                                               |
 | `title`                      | A title above the progression.                                                                                                    |
 
+A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
+
 **Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C.
 
 **Minor keys.** Write `i iv v` (or `V`), `bIII bVI bVII`. The plain `III`, `VI` and `VII` mean the same chords (C, F and G in A minor), and `vii°` is the chord on the raised seventh (G#dim in A minor). `#vi` raises the sixth (F#m in A minor).
@@ -591,6 +593,8 @@ key: G
 | `chords`     | `triads` (default) or `sevenths`.                                                                 |
 | `neighbours` | `no` draws IV and V like the other chords.                                                        |
 | `title`      | A title above the wheel.                                                                          |
+
+A key that would need more than 7 sharps or flats (`Gb minor`, `G# major`) is refused: write the other name (`F# minor`, `Ab major`).
 
 With playback on, a click on a key or a chord plays it, and the play button plays the key's scale.
 

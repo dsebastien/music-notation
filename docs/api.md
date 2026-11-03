@@ -71,7 +71,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `progressionChords(numerals, key)`: roman numerals (`I V vi IV`, `ii7 V7 Imaj7`, `bVII`, `V/V`, `I/3`), Nashville numbers (`1 5 6m 4`) or chord names in a key, each `{ written, symbol, numeral, nashville, function }`; null when the key or a chord doesn't read. `readNumeral(numeral, key)`: one numeral's chord symbol. `numeralOf(symbol, key, 'roman' | 'nashville')`: a chord's numeral (`D7` in C is `V7/V`). `harmonicFunction(symbol, key)`: `tonic`, `subdominant`, `dominant`, `secondary dominant`, `borrowed` or `chromatic`.
 - `voiceLead(symbols)`: piano pitches for each chord, each in the inversion closest to the one before.
 - `renderCircle(doc, { key, sevenths, neighbours, title })`: the circle of fifths for a key (`readKey('E minor')`).
-- `readKey(text)`: `G`, `Em`, `F# minor`, `D dorian` as `{ tonic, mode, name }`; `keyNotes(key)`, `keySignature(key)` (`{ count, accidentals }`: F# major is 6, F# C# G# D# A# E#), `keyChords(key, sevenths?)` (the seven chords with their numerals), `parentMajor(key)`, `signatureText(count)`, `MODES`.
+- `readKey(text)`: `G`, `Em`, `F# minor`, `D dorian` as `{ tonic, mode, name }`; `keyNotes(key)`, `keySignature(key)` (`{ count, accidentals }`: F# major is 6, F# C# G# D# A# E#), `keyChords(key, sevenths?)` (the seven chords with their numerals), `parentMajor(key)`, `signatureText(count)`, `MODES`. `keyProblem(key)`: null, or why a key can't be written (more than `MAX_SIGNATURE`, 7, sharps or flats) with its other name (`Gb minor needs 9 flats: write F# minor`); `readKey` accepts such keys, the blocks refuse them.
 
 ## Styles
 

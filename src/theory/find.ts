@@ -8,7 +8,15 @@ import { chordNoteSet } from './note-set.js'
 import { chromaOf, nameOf } from './pitch.js'
 import { scaleSpelling } from './scales.js'
 import { parseChord } from './chord-symbol.js'
-import { degreeOf, keyNotes, noteName, romanText, stackedChord, type MusicalKey } from './keys.js'
+import {
+    degreeOf,
+    keyNotes,
+    keyProblem,
+    noteName,
+    romanText,
+    stackedChord,
+    type MusicalKey
+} from './keys.js'
 
 export interface ScaleMatch {
     /** "G major", "E minor pentatonic". */
@@ -328,8 +336,13 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
     const candidates: KeyCandidate[] = []
     for (let chroma = 0; chroma < 12; chroma++) {
         for (const mode of ['major', 'minor'] as const) {
+            const usual = (mode === 'major' ? MAJOR_TONICS : MINOR_TONICS)[chroma]!
+            const written = roots.get(chroma)
+            // The chords' spelling, unless it needs double sharps or flats (Gbm: F# minor).
             const tonic =
-                roots.get(chroma) ?? (mode === 'major' ? MAJOR_TONICS : MINOR_TONICS)[chroma]!
+                written && !keyProblem({ tonic: written, mode, name: `${written} ${mode}` })
+                    ? written
+                    : usual
             const key: MusicalKey = { tonic, mode, name: `${tonic} ${mode}` }
             const parallel: MusicalKey = {
                 tonic,

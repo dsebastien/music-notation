@@ -212,6 +212,8 @@ export {
     keyChords,
     parentMajor,
     signatureText,
+    keyProblem,
+    MAX_SIGNATURE,
     MODES,
     type Mode,
     type MusicalKey,

@@ -116,6 +116,21 @@ export function keySignature(key: MusicalKey): KeySignature {
     return { count, accidentals }
 }
 
+/** Most sharps or flats a key signature has (C# major, Cb major). */
+export const MAX_SIGNATURE = 7
+
+/**
+ * Why a key can't be written: its signature would need more than 7 sharps or flats (double sharps
+ * or flats), with the other spelling to write ("G# major needs 8 sharps: write Ab major"); null
+ * when it can.
+ */
+export function keyProblem(key: MusicalKey): string | null {
+    const count = Key.majorKey(parentMajor(key)).alteration
+    if (Math.abs(count) <= MAX_SIGNATURE) return null
+    const other = Note.enharmonic(key.tonic)
+    return `${key.name} needs ${Math.abs(count)} ${count > 0 ? 'sharps' : 'flats'}: write ${other} ${key.mode}`
+}
+
 /** "1♯", "3♭", "no ♯ or ♭". */
 export const signatureText = (count: number): string =>
     count === 0 ? 'no ♯ or ♭' : `${Math.abs(count)}${count > 0 ? '♯' : '♭'}`

@@ -49,6 +49,12 @@ describe('progression block', () => {
         expect(n.querySelector('.mn-progression-numeral')).toBeNull()
     })
 
+    it('finds a key the chords spell with too many flats under its other name', () => {
+        const h = host()
+        renderBlock('progression', 'Gbm Cbm Db Gbm\ndiagrams: no', h)
+        expect(texts(h, 'mn-progression-key')[0]).toMatch(/^Key: F# minor/)
+    })
+
     it('finds the key of chord names and gives their numerals', () => {
         const h = host()
         renderBlock('progression', 'G D Em C\ndiagrams: no', h)
@@ -176,6 +182,8 @@ describe('progression block', () => {
         expect(error('I VIII\nkey: C')).toContain('Didn\'t read "VIII"')
         expect(error('I IV V')).toBe('Add the key: e.g. key: G or key: E minor')
         expect(error('I IV\nkey: H')).toContain('Unknown key "H"')
+        expect(error('i iv\nkey: Gbm')).toBe('Gb minor needs 9 flats: write F# minor')
+        expect(error('I IV\nkey: Fb')).toBe('Fb major needs 8 flats: write E major')
         expect(error('I IV\nkey: D dorian')).toContain('Unknown key "D dorian"')
         expect(error('key: C')).toContain('Add the chords')
         expect(error('I IV\nkey: C\ntranspose: 1.5')).toContain('transpose')
