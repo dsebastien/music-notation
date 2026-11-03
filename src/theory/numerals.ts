@@ -481,9 +481,44 @@ export function withTonicizations(
     const tonic = chromaOf(key.tonic)
     const rootOf = (symbol: string) => chordNoteSet(symbol)?.root ?? null
     const named = (c: ProgressionChord) => /^[A-G]/.test(c.written)
+    const outside = (c: ProgressionChord) =>
+        ['chromatic', 'neapolitan', 'borrowed'].includes(c.function)
+    // A minor seventh or half-diminished chord outside the key, a fifth above a secondary
+    // dominant (no slashes), is its ii: Gm7 C7 F in C is ii7/IV V7/IV IV.
+    const markTwo = (i: number, root: number, targetNumeral: string) => {
+        const two = out[i - 1]
+        const twoRoot = two ? rootOf(two.symbol) : null
+        if (
+            !two ||
+            twoRoot === null ||
+            (twoRoot - root + 12) % 12 !== 7 ||
+            !isTwo(two.symbol) ||
+            splitChordSymbol(two.symbol)?.bass ||
+            !outside(two)
+        )
+            return
+        two.function = 'tonicization'
+        if (named(two)) {
+            const twoSuffix = partsOf(two.symbol)!.suffix
+            two.numeral = `${romanText({ number: 2, accidental: '' }, twoSuffix)}/${targetNumeral}`
+        }
+    }
     out.forEach((chord, i) => {
         const next = out[i + 1]
-        if (!next || chord.function === 'secondary dominant') return
+        if (chord.function === 'secondary dominant') {
+            // Already a secondary dominant (C7 in C is V7/IV): its ii still is one.
+            const root = rootOf(chord.symbol)
+            const targetNumeral = chord.numeral.split('/')[1]
+            if (
+                root !== null &&
+                targetNumeral &&
+                isDominantSeventh(chord.symbol) &&
+                !splitChordSymbol(chord.symbol)?.bass
+            )
+                markTwo(i, root, targetNumeral)
+            return
+        }
+        if (!next) return
         const root = rootOf(chord.symbol)
         const target = rootOf(next.symbol)
         if (root === null || target === null || target === tonic) return
@@ -501,25 +536,8 @@ export function withTonicizations(
         chord.function = 'secondary dominant'
         if (named(chord))
             chord.numeral = `${romanText({ number: 5, accidental: '' }, suffix)}/${targetNumeral}`
-        const outside = (c: ProgressionChord) =>
-            ['chromatic', 'neapolitan', 'borrowed'].includes(c.function)
         if (outside(next)) next.function = 'tonicization'
-        const two = out[i - 1]
-        const twoRoot = two ? rootOf(two.symbol) : null
-        if (
-            two &&
-            twoRoot !== null &&
-            (twoRoot - root + 12) % 12 === 7 &&
-            isTwo(two.symbol) &&
-            !splitChordSymbol(two.symbol)?.bass &&
-            outside(two)
-        ) {
-            two.function = 'tonicization'
-            if (named(two)) {
-                const twoSuffix = partsOf(two.symbol)!.suffix
-                two.numeral = `${romanText({ number: 2, accidental: '' }, twoSuffix)}/${targetNumeral}`
-            }
-        }
+        markTwo(i, root, targetNumeral)
     })
     return out
 }

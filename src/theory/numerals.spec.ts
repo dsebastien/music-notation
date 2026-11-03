@@ -340,4 +340,27 @@ describe('withTonicizations', () => {
         // Written numerals keep their text; the function follows the move.
         expect(analysis('bVII7 bIII', 'A minor')[0]).toBe('bVII7 secondary dominant')
     })
+
+    it('reads a chord outside the key before a secondary dominant as its ii', () => {
+        // The gospel 2-5-1 to IV: Gm7 C7 F in C is ii7/IV V7/IV IV, not a borrowed v7.
+        expect(analysis('C Gm7 C7 F', 'C')).toEqual([
+            'I tonic',
+            'ii7/IV tonicization',
+            'V7/IV secondary dominant',
+            'IV subdominant'
+        ])
+        expect(analysis('C Gm7b5 C7 Fm', 'C').slice(1, 3)).toEqual([
+            'iiø7/IV tonicization',
+            'V7/IV secondary dominant'
+        ])
+        // A ii of the key keeps its numeral: Em7 A7 Dm in C is iii7 V7/ii ii.
+        expect(analysis('Em7 A7 Dm', 'C')).toEqual([
+            'iii7 tonic',
+            'V7/ii secondary dominant',
+            'ii subdominant'
+        ])
+        expect(analysis('Dm7 G7 C', 'C')[0]).toBe('ii7 subdominant')
+        // A slash dominant is left alone, as for new tonicizations.
+        expect(analysis('C Gm7 C7/E F', 'C')[1]).toBe('v7 borrowed')
+    })
 })
