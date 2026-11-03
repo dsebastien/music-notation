@@ -56,6 +56,28 @@ describe('strum playback bar', () => {
         )
     })
 
+    it("reads the app's bpm as quarters: two thirds of it in dotted quarters in compound time", () => {
+        const value = (src: string, bpm: number) => {
+            const h = host()
+            renderBlock('strum', src, h, { play: { player: recorder().player, bpm } })
+            return (h.querySelector('input[aria-label="Tempo (BPM)"]') as HTMLInputElement).value
+        }
+        // Music Practice sends its scale tempo, 90: a 6/8 pattern at 60 dotted quarters.
+        expect(value('D D U D D U\ntime: 6/8', 90)).toBe('60')
+        expect(value('D DU D DU D DU D DU\ntime: 12/8', 120)).toBe('80')
+        expect(value('D DU D DU D DU\ntime: 9/8', 100)).toBe('67')
+        // Simple time, and a pattern's own tempo, as they are.
+        expect(value('D DU UDU', 90)).toBe('90')
+        expect(value('D D U D D U\ntime: 6/8\ntempo: 72', 90)).toBe('72')
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('strum', 'D D U D D U\ntime: 6/8', h, { play: { player, bpm: 90 } })
+        ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        // 8ths at 180 a minute, not 270: the second strum comes a third of a second in.
+        const second = calls[0]!.events.find((e) => e.time > 0.1)!
+        expect(second.time).toBeCloseTo(1 / 3, 6)
+    })
+
     it('counts the tempo in dotted quarters in 6/8 (60 by default) and plays the swing', () => {
         const { player, calls } = recorder()
         const h = host()

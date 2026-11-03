@@ -98,6 +98,13 @@ const UP_STRINGS = 4
 const MUTE_SECONDS = 0.06
 
 /**
+ * The app's tempo (quarter notes a minute, as for scales) as the pattern's counted beat: dotted
+ * quarters in compound time, two thirds of it (90 → 60). Undefined stays undefined.
+ */
+export const countedTempoOf = (bpm: number | undefined, compound: boolean) =>
+    bpm === undefined || !Number.isFinite(bpm) || !compound ? bpm : Math.round((bpm * 2) / 3)
+
+/**
  * Beats a minute within bounds; the default when it isn't a number (90, or 60 dotted quarters in
  * compound time).
  */

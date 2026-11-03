@@ -10,12 +10,16 @@ import { parseTuning } from '../fretboard/tuning.js'
 import type { RenderOptions } from '../blocks/renderers.js'
 import { countOf, formatStrum, parseStrum, type StrumPattern, type StrumSlot } from './pattern.js'
 import { strumVoicing } from './voicing.js'
+import { countedTempoOf } from './play.js'
 
 export interface StrumOptions {
     title?: string
     /** The notes each chord sounds (lowest string first), for playback; see `strumVoicing`. */
     voicing?: (chord: string | null) => number[]
-    /** Beats a minute playback starts at (the pattern's own tempo wins). */
+    /**
+     * Beats a minute playback starts at, counting the pattern's counted beat (a dotted quarter in
+     * compound time); the pattern's own tempo wins.
+     */
     bpm?: number
 }
 
@@ -254,7 +258,11 @@ export function renderStrumBlock(
             `Unknown tuning "${pattern.tuning}": use e.g. tuning: standard, drop d, ukulele or E2 A2 D3 G3 B3 E4`
         )
     if (tuning && tuning.length > 12) throw new Error('At most 12 strings')
-    const bpm = typeof options.play === 'object' ? options.play.bpm : undefined
+    // The app's bpm counts quarters: in 6/8, 9/8 and 12/8 the counted beat is a dotted quarter.
+    const bpm = countedTempoOf(
+        typeof options.play === 'object' ? options.play.bpm : undefined,
+        pattern.compound
+    )
     return renderStrum(doc, pattern, {
         voicing: (chord) => strumVoicing(chord, tuning, options.voicings),
         ...(bpm !== undefined && Number.isFinite(bpm) ? { bpm } : {})

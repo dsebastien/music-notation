@@ -4,7 +4,13 @@
  * `data-mn-beat` element, each chord's notes), so any page that drew the pattern can play it.
  */
 import { html, svg } from '../render/dom.js'
-import { runStrum, tempoOf, type StrumScore, type StrumSettings } from '../strum/play.js'
+import {
+    countedTempoOf,
+    runStrum,
+    tempoOf,
+    type StrumScore,
+    type StrumSettings
+} from '../strum/play.js'
 import { strumVoicing } from '../strum/voicing.js'
 import { isCompound, type Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
@@ -84,8 +90,11 @@ export function strumBarFor(
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
     const compound = (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat
     const settings: StrumSettings = {
+        // The app's bpm counts quarters: two thirds of it in compound time.
         bpm: tempoOf(
-            drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo) ? tempo : options.bpm,
+            drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo)
+                ? tempo
+                : countedTempoOf(options.bpm, compound),
             compound
         ),
         countIn: false,
