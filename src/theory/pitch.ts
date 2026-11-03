@@ -59,12 +59,19 @@ const doubleSharp = (name: string): string => name.replace(/x$/, '##')
 /**
  * "F♯m7/C#" → root F#, suffix m7, bass C#. A slash starts a bass only when a note name follows
  * ("C6/9" has no bass). ♯ and ♭ become # and b. Roots and basses may have a double sharp (## or
- * x, given back as ##) or a double flat (bb): F##dim is vii° in G# minor. The longest accidental
- * wins, as a single flat does (Cb5 is a C♭ power chord, Cbb5 a C𝄫 one).
+ * x, given back as ##; a root's x not before a digit) or a double flat (bb): F##dim is vii° in
+ * G# minor. The longest accidental wins, as a single flat does (Cb5 is a C♭ power chord, Cbb5 a
+ * C𝄫 one).
  */
 export function splitChordSymbol(symbol: string): ChordSymbolParts | null {
-    const normalized = symbol.trim().replace(/♯/g, '#').replace(/♭/g, 'b').replace(/𝄪/g, 'x')
-    const m = /^([A-G](?:##|x|bb|#|b)?)(.*?)(?:\/([A-G](?:##|x|bb|#|b)?))?$/.exec(normalized)
+    const normalized = symbol
+        .trim()
+        .replace(/♯/g, '#')
+        .replace(/♭/g, 'b')
+        .replace(/𝄪/g, 'x')
+        .replace(/𝄫/g, 'bb')
+    // x before a digit is a count on chord sheets (Ax2), not a double sharp.
+    const m = /^([A-G](?:##|x(?!\d)|bb|#|b)?)(.*?)(?:\/([A-G](?:##|x|bb|#|b)?))?$/.exec(normalized)
     return m
         ? { root: doubleSharp(m[1]!), suffix: m[2]!, bass: m[3] ? doubleSharp(m[3]) : null }
         : null

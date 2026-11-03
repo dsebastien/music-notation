@@ -27,6 +27,8 @@ describe('parseChord', () => {
             name: 'F Double Sharp Diminished'
         })
         expect(parseChord('Fxdim')?.root).toBe('F##')
+        // x before a digit is a chord sheet's count (Ax2), not a double sharp.
+        expect(parseChord('Ax2')).toBeNull()
         expect(parseChord('C##dim7')?.quality).toBe('Diminished 7')
         expect(parseChord('Ebbm7/Bbb')).toMatchObject({ root: 'Ebb', bass: 'Bbb' })
         expect(parseChord('Bbb')?.name).toBe('B Double Flat Major')
