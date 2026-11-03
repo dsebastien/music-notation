@@ -465,6 +465,11 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
             }),
             `${set.title} has ${count} ${named} positions: use position 1 to ${count}`
         )
+        if (frets && cells.some((cell) => cell.fret < frets[0] || cell.fret > frets[1])) {
+            throw new Error(
+                `${set.title}, position ${at.n} doesn't fit in frets ${frets[0]}-${frets[1]}: widen frets: or leave it out`
+            )
+        }
     }
     const stringsText = field(block, 'strings')
     const count = (tuning ?? STANDARD_TUNING).length

@@ -76,6 +76,18 @@ describe('chord names in words', () => {
     })
 })
 
+describe('positions inside frets (review of #34)', () => {
+    it('says so when a position does not fit in the frets given', () => {
+        const result = renderBlock(
+            'fretboard',
+            'E minor pentatonic\nposition: 1\nfrets: 6-9',
+            host()
+        )
+        expect(result.ok).toBe(false)
+        expect(result.error).toContain("doesn't fit in frets 6-9")
+    })
+})
+
 describe('chord-sheet spellings (#40)', () => {
     it('reads alterations in parentheses like the same symbol without them', () => {
         expect(parseChord('C7(b9)')?.name).toBe('C 7b9')
@@ -279,7 +291,7 @@ describe('scales and modes', () => {
             renderBlock('fretboard', 'A major pentatonic\npositions: all\nnumbering: minor', h).ok
         ).toBe(true)
         expect(titles(h)).toEqual(
-            [1, 2, 3, 4, 5].map((n) => `A major pentatonic, box ${n} (numbered from F# minor)`)
+            [1, 2, 3, 4, 5].map((n) => `A major pentatonic, box ${n} (from F#m)`)
         )
         const pitches = (h: HTMLElement) =>
             [...h.querySelectorAll('[data-mn-pitches]')].map((svg) =>

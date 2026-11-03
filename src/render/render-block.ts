@@ -213,7 +213,8 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
         numbering
     )
     const numbered = numbering === 'minor' ? ['numbering: minor'] : []
-    const from = numbering === 'minor' ? ` (numbered from ${relativeMinorOf(set)} minor)` : ''
+    // Short, so the titles don't widen every diagram of the row.
+    const from = numbering === 'minor' ? ` (from ${relativeMinorOf(set)}m)` : ''
     const fretsOf = (n: number) => {
         const cells = neck[n - 1]
         if (!cells?.length) return []
