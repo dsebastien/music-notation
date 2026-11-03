@@ -88,6 +88,16 @@ describe('positions inside frets (review of #34)', () => {
     })
 })
 
+describe('root: in chord blocks (#56) and hand positions (#57)', () => {
+    it('says that root: is for note lists', () => {
+        const result = renderBlock('chord', 'C\ninstrument: piano\nroot: E', host())
+        expect(result.ok).toBe(false)
+        expect(result.error).toContain('root only applies to lists of notes')
+        // An empty root: line is no root.
+        expect(renderBlock('chord', 'C\ninstrument: piano\nroot:', host()).ok).toBe(true)
+    })
+})
+
 describe('chord-sheet spellings (#40)', () => {
     it('reads alterations in parentheses like the same symbol without them', () => {
         expect(parseChord('C7(b9)')?.name).toBe('C 7b9')

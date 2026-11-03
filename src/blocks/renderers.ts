@@ -192,6 +192,12 @@ function pianoPitches(symbol: string): NoteSet {
 }
 
 const renderChord: DiagramRenderer = (doc, block, options) => {
+    // root: is for note lists (#33); a chord has its own root.
+    if (block.fields.get('root')?.trim()) {
+        throw new Error(
+            'root only applies to lists of notes on fretboards and keyboards (notes: C E G with root: C): a chord has its own root'
+        )
+    }
     const short = shorthand(block.head)
     const name = field(block, 'name')
     // A chord written as a symbol or in words; a `name` that reads as a chord ("name: A Major")
