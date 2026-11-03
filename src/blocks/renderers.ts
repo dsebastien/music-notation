@@ -381,7 +381,8 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const fingering = field(block, 'fingering')
     const keys = range ? rangeOf(range) : undefined
     let fingers: Map<number, string> | undefined
-    if (fingering && set.root !== null && !set.pitches) {
+    // A list's root (`root:`) only labels and colors it: no fingering from it.
+    if (fingering && set.root !== null && !set.list && !set.pitches) {
         let start = 60 + set.root
         if (keys) {
             const first = keys[0] + ((((set.root - keys[0]) % 12) + 12) % 12)
@@ -396,7 +397,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     }
     return renderKeyboard(doc, set, {
         // A chord plays together; scales and lists one note at a time.
-        playAs: !set.scaleType && set.root !== null ? 'chord' : 'scale',
+        playAs: !set.scaleType && !set.list && set.root !== null ? 'chord' : 'scale',
         title: field(block, 'title'),
         label: labelField(block, fingers ? 'fingers' : 'notes', fingers !== undefined),
         fingers,
@@ -425,7 +426,9 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const tuning = tuningText ? tuningOf(tuningText) : undefined
     let cells: Cell[] | undefined
     if (at) {
-        if (set.root === null) throw new Error('Positions need a scale: e.g. scale: A minor')
+        if (set.root === null || set.list) {
+            throw new Error('Positions need a scale: e.g. scale: A minor')
+        }
         // A numbered position of a 7-note scale is a CAGED one; boxes are for 5-note scales.
         if (at.system === 'box' && set.members.length !== 5) at.system = 'caged'
         const count = positionCount(set, at.system)

@@ -2,7 +2,7 @@
  * What keyboards and fretboards highlight: the notes of a chord, a scale or an explicit list, with
  * the root and each note's label (name, degree, interval).
  */
-import { Chord, Scale } from 'tonal'
+import { Chord, Interval, Scale } from 'tonal'
 import { chromaOf, isFlat, midiOf, splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
 import { scaleName, scaleSpelling } from './scales.js'
@@ -13,9 +13,10 @@ export interface NoteSetMember {
     chroma: number
     /** As spelled by the chord, scale or list ("Bb", not "A#"). */
     name: string
-    /** 1-based position in the chord or scale; null for a plain list. */
+    /** 1-based position in the chord or scale (a list with a root: the interval number); null
+     * for a plain list. */
     degree: number | null
-    /** "1P", "3m", "5P"…; null for a plain list. */
+    /** "1P", "3m", "5P"…; null for a plain list without a root. */
     interval: string | null
 }
 
@@ -23,13 +24,15 @@ export interface NoteSet {
     /** "A minor pentatonic", "Cmaj7", or the notes as written. */
     title: string
     members: NoteSetMember[]
-    /** Chroma of the root; null for a plain list. */
+    /** Chroma of the root; null for a plain list without a root. */
     root: number | null
     /** Exact pitches (MIDI), when the notes were given with octaves ("C4 E4 G4"). */
     pitches: number[] | null
     preferFlats: boolean
     /** tonal's scale type ("minor", "lydian"), for scales. */
     scaleType?: string
+    /** An explicit list ("C E G"), with or without a root. */
+    list?: boolean
 }
 
 /** Notes to set apart (chromas): a mode's characteristic notes, notes that differ from a parent
@@ -158,14 +161,51 @@ export function scaleNoteSet(name: string): NoteSet | null {
     return set
 }
 
-/** An explicit list: "A C E" (pitch classes) or "A3 C4 E4" (exact pitches). */
-export function listNoteSet(text: string): NoteSet | null {
+/** A root written for a list ("C", "f#", "E♭", "A3"): its name ("C", "F#", "Eb"), else null. */
+export function rootNameOf(text: string): string | null {
+    const name = text.trim().replace(/-?\d$/, '').replace(/♯/g, '#').replace(/♭/g, 'b')
+    if (chromaOf(name) === null) return null
+    return name[0]!.toUpperCase() + name.slice(1)
+}
+
+/** The usual interval for each number of semitones above a root, when the spelling gives none. */
+const PLAIN_INTERVALS = ['1P', '2m', '2M', '3m', '3M', '4P', '5d', '5P', '6m', '6M', '7m', '7M']
+
+/** The interval from a root to a note, spelled by their letters ("C" to "Eb": 3m, to "D#": 2A);
+ * a unison or octave that isn't perfect (C to C#, C to Cb) takes the usual name (2m, 7M). */
+export function intervalFrom(root: string, name: string): string | null {
+    const from = rootNameOf(root)
+    const to = rootNameOf(name)
+    if (from === null || to === null) return null
+    const semitones = (chromaOf(to)! - chromaOf(from)! + 12) % 12
+    if (semitones === 0) return '1P'
+    const spelled = Interval.distance(from, to)
+    const m = /^(\d+)([PMmdA]+)$/.exec(spelled)
+    return m && m[1] !== '1' && m[1] !== '8' ? spelled : PLAIN_INTERVALS[semitones]!
+}
+
+/**
+ * An explicit list: "A C E" (pitch classes) or "A3 C4 E4" (exact pitches). With a `root`, each
+ * note gets its interval from it (degrees are the interval numbers, 1 3 5) and the root its color;
+ * the root doesn't have to be in the list. Null when a note or the root isn't a note name.
+ */
+export function listNoteSet(text: string, root?: string): NoteSet | null {
     const tokens = text.split(/[\s,]+/).filter(Boolean)
     if (!tokens.length) return null
     const withOctaves = tokens.every((t) => midiOf(t) !== null)
     const names = withOctaves ? tokens.map((t) => t.replace(/-?\d$/, '')) : tokens
     if (!withOctaves && names.some((n) => chromaOf(n) === null)) return null
     const set = fromNames(tokens.join(' '), names, null)
-    if (set && withOctaves) set.pitches = tokens.map((t) => midiOf(t)!)
+    if (!set) return null
+    set.list = true
+    if (withOctaves) set.pitches = tokens.map((t) => midiOf(t)!)
+    if (root === undefined) return set
+    const rootName = rootNameOf(root)
+    if (rootName === null) return null
+    set.root = chromaOf(rootName)
+    for (const member of set.members) {
+        member.interval = intervalFrom(rootName, member.name)
+        member.degree = Number(/^\d+/.exec(member.interval ?? '')?.[0] ?? 1)
+    }
     return set
 }

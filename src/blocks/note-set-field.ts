@@ -11,6 +11,7 @@ import {
     chordNoteSet,
     intervalLabel,
     listNoteSet,
+    rootNameOf,
     scaleNoteSet,
     type NoteLabel,
     type NoteMarks,
@@ -20,11 +21,31 @@ import {
 
 const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
 
-/** `scale:`, `chord:` or `notes:`; a shorthand first line is tried as each, in that order. */
+/**
+ * `scale:`, `chord:` or `notes:`; a shorthand first line is tried as each, in that order. `root:`
+ * gives a list its intervals and degrees; a shorthand line with a root is read as a list first.
+ */
 export function noteSetOf(block: BlockSource): NoteSet {
     const scale = block.fields.get('scale')
     const chord = block.fields.get('chord')
     const notes = block.fields.get('notes')
+    const root = block.fields.get('root')
+    if (root !== undefined) {
+        if (scale !== undefined) throw rootNotForList('a scale')
+        if (chord !== undefined) throw rootNotForList('a chord')
+        if (rootNameOf(root) === null) {
+            throw new Error(`Invalid root "${root}": use a note name, e.g. root: C`)
+        }
+        if (notes !== undefined) return orFail(listNoteSet(notes, root), `Invalid notes "${notes}"`)
+        if (block.head) {
+            const list = listNoteSet(block.head, root)
+            if (list) return list
+            if (scaleNoteSet(block.head)) throw rootNotForList('a scale')
+            if (chordNoteSet(block.head)) throw rootNotForList('a chord')
+            throw new Error(`"${block.head}" is not a list of notes: use e.g. notes: C Eb G`)
+        }
+        throw new Error('Add the notes for the root: e.g. notes: C Eb G')
+    }
     if (scale !== undefined) {
         if (isScaleWithoutRoot(scale)) throw new Error(`Add a root note: C ${scale.trim()}`)
         return orFail(scaleNoteSet(scale), `Unknown scale "${scale}"`)
@@ -46,6 +67,9 @@ export function noteSetOf(block: BlockSource): NoteSet {
     }
     throw new Error('Add "scale:", "chord:" or "notes:"')
 }
+
+const rootNotForList = (what: string) =>
+    new Error(`root only applies to lists of notes (notes: C E G): ${what} has its own root`)
 
 /** `labels:`; `fingers` only where fingering was given (piano chords). */
 export function labelField(block: BlockSource, fallback: NoteLabel, fingers = false): NoteLabel {
@@ -82,7 +106,9 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
         }
     } else if (highlight.toLowerCase() !== 'none' && highlight !== '') {
         if (set.members.every((m) => m.interval === null)) {
-            throw new Error('highlight needs a scale or a chord: a list of notes has no intervals')
+            throw new Error(
+                'highlight needs a scale, a chord or a root: a list of notes has no intervals (add e.g. root: C)'
+            )
         }
         const labels = highlight
             .replace(/♭/g, 'b')
@@ -105,7 +131,8 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
     const compare = block.fields.get('compare')?.trim()
     if (compare) {
         const tonic = Scale.get(scaleName(compare)).tonic
-        const root = set.members[0]?.name ?? ''
+        // A list's root, when given; else the scale's or chord's first note.
+        const root = rootNameOf(block.fields.get('root') ?? '') ?? set.members[0]?.name ?? ''
         const parent = orFail(
             scaleNoteSet(tonic ? compare : `${root} ${compare}`),
             `Unknown scale "${compare}" to compare with: use e.g. compare: major`

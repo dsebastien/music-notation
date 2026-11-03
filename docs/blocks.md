@@ -210,6 +210,7 @@ labels: degrees</code></pre></div>
 | `scale`                | `C major`, `A minor pentatonic`, `D dorian`, `E harmonic minor`…                                                         |
 | `chord`                | `Cmaj7`, `G7`, `F#m7b5`…                                                                                                 |
 | `notes`                | `C E G` (every octave), or `C4 E4 G4` (those keys only).                                                                 |
+| `root`                 | For `notes`: the note that `intervals` and `degrees` labels count from, `root: C`. It doesn't have to be in the list.    |
 | `range`                | Keys shown: `C3-B4`. Two octaves from middle C by default; whole octaves around exact notes.                             |
 | `labels`               | `notes` (default), `degrees` (a chord's 1 3 5 7, a scale's 1–7), `intervals` (R, b3, 5…), `none`.                        |
 | `title`                | The title shown above.                                                                                                   |
@@ -238,7 +239,7 @@ labels: intervals</code></pre></div>
 
 | Key                                          | Meaning                                                                                                                                         |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scale`, `chord`, `notes`                    | As for keyboards.                                                                                                                               |
+| `scale`, `chord`, `notes`, `root`            | As for keyboards.                                                                                                                               |
 | `frets`                                      | Frets shown: `5-8`. `0-12` by default; from `0`, open strings are shown left of the nut.                                                        |
 | `strings`                                    | Only the notes on these strings (1 = the highest): `1-3` shows triads on the top strings.                                                       |
 | `tuning`                                     | `standard` (default), `Drop D`, `DADGAD`, `open G`, `open D`, `open E`, `half step down`, `bass`, `ukulele`, or notes: `DADGAD`, `E1 A1 D2 G2`. |
@@ -248,6 +249,22 @@ labels: intervals</code></pre></div>
 | `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                |
 | `position`, `shape`                          | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
+
+**A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root (degrees show the interval number: 1, 3, 5). The root gets its color when it is in the list, but it doesn't have to be. Keyboards work the same way. Scales and chords have their own root: `root:` is only for lists.
+
+````markdown
+```fretboard
+notes: C Eb Gb A
+root: C
+frets: 0-5
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">notes: C Eb Gb A
+root: C
+frets: 0-5
+labels: intervals</code></pre></div>
 
 ## Scales and modes
 

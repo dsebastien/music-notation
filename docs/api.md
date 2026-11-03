@@ -58,7 +58,7 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 - `parseChordPro(text)`, `parseFrets(text)`, `parseFingers(text)`, `parseTuning(text)`, `parseKeyRange(text)`.
 - `parseChord(symbol)`: root, quality, bass and an ASCII name (`F Sharp Minor 7`).
 - `transposeChord(symbol, semitones, preferFlats?)`, `transposeKey(key, semitones)`.
-- `chordNoteSet(symbol)`, `scaleNoteSet(name)`, `listNoteSet(text)`: the notes, root, degrees and intervals that keyboards and fretboards draw.
+- `chordNoteSet(symbol)`, `scaleNoteSet(name)`, `listNoteSet(text, root?)`: the notes, root, degrees and intervals that keyboards and fretboards draw (a list's intervals count from `root`).
 
 ## Styles
 

@@ -509,3 +509,84 @@ describe('after review', () => {
         )
     })
 })
+
+describe('a root for lists of notes (#33)', () => {
+    const texts = (h: HTMLElement, selector: string) =>
+        [...h.querySelectorAll(selector)].map((t) => t.textContent)
+
+    it('labels a fretboard list with intervals or degrees from the root', () => {
+        const h = host()
+        const source = 'notes: C E G\nroot: C\nfrets: 0-3\nstrings: 5'
+        expect(renderBlock('fretboard', `${source}\nlabels: intervals`, h).ok).toBe(true)
+        // A string: A (open), C (3).
+        expect(texts(h, '.mn-dot-text')).toEqual(['R'])
+        const wide = host()
+        renderBlock('fretboard', 'notes: C E G\nroot: C\nlabels: intervals\nfrets: 0-5', wide)
+        expect(new Set(texts(wide, '.mn-dot-text'))).toEqual(new Set(['R', '3', '5']))
+        expect(wide.querySelectorAll('.mn-root').length).toBeGreaterThan(0)
+        const degrees = host()
+        renderBlock('fretboard', 'notes: C Eb G Bb\nroot: C\nlabels: degrees', degrees)
+        expect(new Set(texts(degrees, '.mn-dot-text'))).toEqual(new Set(['1', '3', '5', '7']))
+    })
+
+    it('maps intervals around a root that is not in the list', () => {
+        const h = host()
+        expect(renderBlock('keyboard', 'Eb A\nroot: C\nlabels: intervals', h).ok).toBe(true)
+        expect(new Set(texts(h, '.mn-key-label'))).toEqual(new Set(['b3', '6']))
+        expect(h.querySelectorAll('.mn-root')).toHaveLength(0)
+    })
+
+    it('reads exact pitches with a root, and still plays a list one note at a time', () => {
+        const h = host()
+        expect(renderBlock('keyboard', 'notes: A3 C4 E4\nroot: A\nlabels: intervals', h).ok).toBe(
+            true
+        )
+        expect(texts(h, '.mn-key-label')).toEqual(['R', 'b3', '5'])
+        expect(h.querySelectorAll('.mn-root')).toHaveLength(1)
+        expect(h.querySelector('svg')?.getAttribute('data-mn-play')).toBe('scale')
+    })
+
+    it('reads a one-note shorthand line as a list when a root is given', () => {
+        const h = host()
+        expect(renderBlock('keyboard', 'E\nroot: C\nlabels: intervals', h).ok).toBe(true)
+        expect(new Set(texts(h, '.mn-key-label'))).toEqual(new Set(['3']))
+    })
+
+    it('marks intervals of a list with a root', () => {
+        const h = host()
+        renderBlock('keyboard', 'notes: C E G\nroot: C\nrange: C4-B4\nhighlight: 5', h)
+        expect(h.querySelectorAll('.mn-char')).toHaveLength(1)
+        // compare: with a type counts from the root, not the first note.
+        const compared = host()
+        renderBlock('keyboard', 'notes: E G\nroot: C\nrange: C4-B4\ncompare: major', compared)
+        expect(compared.querySelectorAll('.mn-ghost')).toHaveLength(5)
+        expect(compared.querySelectorAll('.mn-diff')).toHaveLength(0)
+    })
+
+    it('keeps lists without a root as they were', () => {
+        const h = host()
+        renderBlock('keyboard', 'notes: C4 E4 G4\nlabels: intervals', h)
+        expect(texts(h, '.mn-key-label')).toEqual(['C', 'E', 'G'])
+        expect(h.querySelectorAll('.mn-root')).toHaveLength(0)
+    })
+
+    it('says what to write for a root it cannot use', () => {
+        const error = (language: 'keyboard' | 'fretboard', source: string) =>
+            renderBlock(language, source, host()).error
+        expect(error('fretboard', 'scale: A minor\nroot: C')).toBe(
+            'root only applies to lists of notes (notes: C E G): a scale has its own root'
+        )
+        expect(error('keyboard', 'chord: Cmaj7\nroot: E')).toBe(
+            'root only applies to lists of notes (notes: C E G): a chord has its own root'
+        )
+        expect(error('keyboard', 'A minor\nroot: C')).toContain('a scale has its own root')
+        expect(error('keyboard', 'Cmaj7\nroot: C')).toContain('a chord has its own root')
+        expect(error('fretboard', 'notes: C E G\nroot: H')).toBe(
+            'Invalid root "H": use a note name, e.g. root: C'
+        )
+        expect(error('fretboard', 'root: C')).toBe('Add the notes for the root: e.g. notes: C Eb G')
+        expect(error('fretboard', 'notes: C E G\nroot: C\nposition: 1')).toBe(
+            'Positions need a scale: e.g. scale: A minor'
+        )
+    })
+})
