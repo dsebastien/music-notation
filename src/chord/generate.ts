@@ -73,14 +73,14 @@ export const MAX_GENERATED_STRINGS = 8
 /** The widest hand the generator considers, in frets. */
 const MAX_SPAN = 6
 
-interface Tone {
+export interface Tone {
     chroma: number
     /** The interval number (1, 3, 5, 7, 9…); 0 for a slash chord's bass outside the chord. */
     number: number
     required: boolean
 }
 
-interface ChordInfo {
+export interface ChordInfo {
     tones: Tone[]
     members: NoteSetMember[]
     /** A slash chord's bass. */
@@ -94,7 +94,7 @@ interface ChordInfo {
  * sevenths and sixths, altered notes and the highest extension. The perfect fifth and lower
  * natural extensions may be left out (and an 11th chord's major third).
  */
-function chordInfo(symbol: string): ChordInfo | null {
+export function chordInfo(symbol: string): ChordInfo | null {
     const set = chordNoteSet(symbol)
     const parts = splitChordSymbol(symbol)
     if (!set || !parts) return null
@@ -240,6 +240,13 @@ function bestFingering(frets: readonly (number | null)[]): Fingering | null {
                 // One finger per fret is the relaxed hand.
                 cost += 0.1 * Math.abs(g.fret - lowest - (finger - 1))
             })
+            // The index and the middle finger stretch least: two frets apart, the ring and the
+            // pinky take the higher notes (C#7 x46464 is 1-3-1-4-1).
+            const index = choice.indexOf(1)
+            const middle = choice.indexOf(2)
+            if (index >= 0 && middle >= 0) {
+                cost += 0.2 * Math.max(0, sorted[middle]!.fret - sorted[index]!.fret - 1)
+            }
             // Two fingers on one fret, three strings apart or more, another finger between them.
             for (const a of sorted)
                 for (const b of sorted)

@@ -30,7 +30,7 @@ const result = renderBlock('chord', 'Am', container, { voicings: lookupGuitarVoi
 
 Options:
 
-- `voicings`: finds guitar voicings for chord blocks that only give a symbol. Pass `lookupGuitarVoicing` from `@dsebastien/music-notation/voicings` (about 1,800 voicings by symbol, ~230 KB), or your own `(symbol, index) => FrettedVoicing | null`.
+- `voicings`: finds guitar voicings for chord blocks that only give a symbol. Pass `lookupGuitarVoicing` from `@dsebastien/music-notation/voicings` (about 1,800 voicings by symbol, ~230 KB; each one checked against its chord's notes and bass, with the standard teaching shapes first), or your own `(symbol, index) => FrettedVoicing | null`.
 - `transpose`: semitones added to `chords` blocks.
 - `chartDiagrams`: the chords used row of `chords` blocks when a chart has no `{diagrams}`: `'top'`, `'bottom'` or `'off'` (the default). Guitar or piano follows `instrument`, else the note's tags (`properties`), else guitar; a chart's `{instrument}` wins.
 - `orientation`: the default per block language, `{ chord, keyboard, fretboard }`, each `'vertical'` or `'horizontal'`. Piano chords follow `keyboard`. A block's own `orientation` wins.
