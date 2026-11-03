@@ -58,7 +58,7 @@ title: A (open)</code></pre></div>
 
 Roots and basses can have double sharps and flats: `F##dim` (or `Fxdim`), `Ebb`.
 
-Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Five notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G), Csus2 (C D G) and four-note jazz clusters like Cmaj9/B (B C D E). A chord the library doesn't recognize says what to write instead.
+Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Five notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G), Csus2 (C D G) and four-note jazz clusters like Cmaj9/B (B C D E). Keys written with flats or sharps name the chord the same way: `pitches: Db3 F4 B4 Eb5` is Db9 (C#9 when written C#), and `G3 B3 F4 Ab4 Eb5` is G7b9b13. With a symbol, the keys are spelled by the symbol: `symbol: Cdim7` over `pitches: C4 Eb4 Gb4 A4` labels the A as Bbb, as `Cdim7` alone does. A chord the library doesn't recognize says what to write instead.
 
 A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below. [Piano voicings](#piano-voicings) change that.
 
@@ -495,7 +495,7 @@ frets: 0-5
 <div class="mn-live" markdown="0"><pre><code class="language-fretboard">scales-for: G D Em C
 frets: 0-5</code></pre></div>
 
-The best scale has the fewest notes outside the chords. When several tie, major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note, and notes can have octaves (`C4 E4 G4`).
+The best scale has the fewest notes outside the chords. A usual scale with exactly the notes given, no more, comes first: `scales-for-notes: C D E G A` is C major pentatonic, not C major with F and B missing. When several tie, major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor. The tonic comes from the first chord's root most, then from the last chord and a V → I move: for G D Em C that's G major; for Dm C G, D dorian; for Dm7 G7 Cmaj7, C major; for Am Dm E7, A harmonic minor. A blues (dominant seventh chords on I and IV, as `A7 D7 E7 A7`) gets the blues scale, titled with the other usual choices: "A blues scale (or A minor pentatonic, A mixolydian)". A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note, and notes can have octaves (`C4 E4 G4`).
 
 **A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint. `arpeggio:` works like `chord:` here. With `position:` or `positions:`, you get the scale's positions with the chord tones marked; a chord or arpeggio without `scale:` draws its own [arpeggio positions](#arpeggios).
 
@@ -535,7 +535,7 @@ functions: yes</code></pre></div>
 | `key`                        | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others).     |
 | `transpose`                  | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                     |
 | `numerals`                   | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                               |
-| `functions`                  | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, borrowed or chromatic.             |
+| `functions`                  | `yes` writes each chord's function under it: tonic, subdominant, dominant, secondary dominant, neapolitan, borrowed or chromatic. |
 | `instrument`                 | `guitar` (default, or the note's instrument) or `piano`.                                                                          |
 | `diagrams`                   | `no` shows only the chord names.                                                                                                  |
 | `voice-leading`              | `yes` (piano): each chord in the inversion closest to the one before.                                                             |
@@ -544,6 +544,10 @@ functions: yes</code></pre></div>
 | `title`                      | A title above the progression.                                                                                                    |
 
 The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
+
+**Finding the key.** Chord names without a key get the likeliest one. The first chord counts most, then the last one, and a V7 → I move. When the chords play in a mode, the block says so: `Dm C G` is in D dorian (i bVII IV), `C Bb F C` in C mixolydian. A blues is in the key of its first chord: `A7 D7 E7 A7` shows "Key: A major (blues)" with I7 IV7 V7, as blues players read them, not V7/IV.
+
+**Functions.** Secondary dominants include the diminished chords that lead to a chord of the key: `#iv°` and `vii°/V` (F#dim in C) both lead to G, and F#dim7 written as a chord name shows `vii°7/V`. `bII` (Db in C, Bb in A minor) is the Neapolitan. In a blues, I7 is the tonic and IV7 the subdominant.
 
 **Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C. Figured bass isn't read: `I6` is C6 (a sixth chord, not an inversion), and `V65` is an error; write the bass after a slash instead (`V7/7` is G7/B in C).
 
@@ -577,7 +581,7 @@ Guitar diagrams use the voicings that make the whole progression easiest to play
 
 ## Circle of fifths
 
-A `circle` block draws the circle of fifths: the 12 major keys, their relative minors and the diminished chords, with each key signature around the outside. The chosen key's chords are tinted, with their numerals; its tonic and its IV and V (iv and v in minor) stand out. A row of the key's chords sits under the wheel.
+A `circle` block draws the circle of fifths: the 12 major keys, their relative minors and the diminished chords, with each key signature around the outside. The chosen key's chords are tinted, with their numerals; its tonic and its IV and V (iv and V in minor: the dominant of the harmonic minor, as cadences play it; `dominant: minor` marks v instead) stand out. A row of the key's chords sits under the wheel.
 
 ````markdown
 ```circle
@@ -593,6 +597,7 @@ key: G
 | `mode`       | `major`, `minor`, `dorian`, `phrygian`, `lydian`, `mixolydian`, `locrian`, `ionian` or `aeolian`. |
 | `chords`     | `triads` (default) or `sevenths`.                                                                 |
 | `neighbours` | `no` draws IV and V like the other chords.                                                        |
+| `dominant`   | Minor keys: `major` (default) marks V, from the harmonic minor (B in E minor); `minor`, v.        |
 | `title`      | A title above the wheel.                                                                          |
 
 A key that would need more than 7 sharps or flats (`Gb minor`, `G# major`) is refused: write the other name (`F# minor`, `Ab major`).
@@ -804,7 +809,7 @@ Supported:
 - Song details: `{title}` (`{t}`), `{subtitle}` (`{st}`), `{artist}`, `{key}`, `{capo}`, `{tempo}`, `{time}`.
 - Sections: verse, chorus, bridge (`{start_of_verse}`, `{sov}`, `{soc}`, `{sob}`…), with an optional label (`{start_of_verse: Verse 2}`); tab and grid sections are shown as written.
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
-- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their role in the new key: in G moved down to F#, C becomes B and D/F# becomes C#/E#.
+- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their role in the new key: in G moved down to F#, C becomes B and D/F# becomes C#/E#. Without `{key}`, the key the chords are likeliest in is used, so every chord moves the same way: C F G7 Bb up 1 is Db Gb Ab7 Cb.
 - Long lyric lines wrap on narrow screens.
 - Chord shapes and the chords used row: see below.
 
