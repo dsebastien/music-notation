@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { fingerVoicing, generateVoicings, voicingShape } from './generate.js'
+import { fingerVoicing, generateVoicings, voicingShape, isJazzGrip } from './generate.js'
 import { parseTuning } from '../fretboard/tuning.js'
 
 const frets = (text: string) =>
@@ -346,5 +346,42 @@ describe('after the guitar review (#67)', () => {
         expect(generateVoicings('G5')[0]!.bassString).toBe(6)
         expect(generateVoicings('C5')[0]!.bassString).toBe(5)
         expect(rank('G5', '355xxx')).toBeLessThanOrEqual(3)
+    })
+})
+
+describe('jazz grips (#72)', () => {
+    const top = (symbol: string, n: number) =>
+        generateVoicings(symbol)
+            .slice(0, n)
+            .map((v) => v.frets.map((f) => (f === null ? 'x' : f > 9 ? `(${f})` : f)).join(''))
+    it('puts the Hendrix grip among the first voicings of a 7#9', () => {
+        expect(top('C7#9', 4)).toContain('x3234x')
+        expect(top('E7#9', 8)).toContain('x7678x')
+    })
+
+    it('gives the m7b5 and dim7 grips with a muted inner string', () => {
+        expect(top('F#m7b5', 6)).toContain('2x221x')
+        expect(top('Gdim7', 6)).toContain('3x232x')
+        expect(top('G13', 8)).toContain('3x345x')
+        expect(isJazzGrip([2, null, 2, 2, 1, null])).toBe(true)
+        expect(isJazzGrip([3, 2, 0, 0, 0, 3])).toBe(false)
+    })
+
+    it('leaves the plain chords as they were', () => {
+        expect(top('G7', 3)).toEqual(['320001', '353433', '32300x'])
+        expect(top('Cmaj7', 1)).toEqual(['x32000'])
+    })
+})
+
+describe('shell names (#72)', () => {
+    const f = (s: string) => [...s].map((c) => (c === 'x' ? null : Number(c)))
+    it('names only three-note shells: root, third and seventh (or sixth)', () => {
+        expect(voicingShape(f('x3x45x'), 'Cmaj7')).toBe('Shell')
+        expect(voicingShape(f('3x34xx'), 'G7')).toBe('Shell')
+        expect(voicingShape(f('x3x35x'), 'C7')).toBe('Shell')
+        // Four notes with a doubled root, or a doubled third, are not shells.
+        expect(voicingShape(f('x3250x'), 'Cmaj7')).not.toBe('Shell')
+        expect(voicingShape(f('x3241x'), 'Cmaj7')).not.toBe('Shell')
+        expect(voicingShape(f('x2241x'), 'Bmaj7')).not.toBe('Shell')
     })
 })

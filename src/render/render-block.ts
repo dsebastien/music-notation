@@ -35,6 +35,7 @@ import { capoTuning, parseCapo } from '../chord/capo.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import {
     fingerVoicing,
+    distinctShapes,
     generateVoicings,
     MAX_GENERATED_STRINGS,
     type GeneratedVoicing,
@@ -480,7 +481,8 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
             throw new Error(`On ${count} strings, use one of ${wide.join(', ')} at a time`)
         }
     }
-    const voicings = cachedVoicings(chord.symbol, options).slice(0, wanted)
+    // One diagram per shape, the easiest ones, drawn up the neck (#72).
+    const voicings = distinctShapes(cachedVoicings(chord.symbol, options), wanted)
     if (!voicings.length) throw new Error(noVoicing(written, chord.symbol, options))
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
     const shared = SHARED_KEYS.chord

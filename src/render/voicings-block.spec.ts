@@ -19,7 +19,9 @@ describe('voicings blocks', () => {
     it('draws at most 32 with all', () => {
         const h = host()
         expect(renderBlock('chord', 'chord: Em\nvoicings: all', h).ok).toBe(true)
-        expect(cells(h)).toHaveLength(32)
+        // One per shape (#72): fewer than the 32 voicings the search finds.
+        expect(cells(h).length).toBeGreaterThan(16)
+        expect(cells(h).length).toBeLessThanOrEqual(32)
     })
 
     it('filters by area, root string, strings and inversion', () => {
@@ -28,7 +30,8 @@ describe('voicings blocks', () => {
         expect(area.querySelectorAll('.mn-open')).toHaveLength(0)
         const root = host()
         expect(renderBlock('chord', 'C\nvoicings: 3\nroot-string: 6', root).ok).toBe(true)
-        expect(titles(root)[0]).toBe('C, E shape')
+        // Up the neck (#72): the G shape at fret 5, then the E shape at fret 8.
+        expect(titles(root)).toContain('C, E shape')
         const triads = host()
         expect(renderBlock('chord', 'G\nvoicings: all\nstrings: 1-3', triads).ok).toBe(true)
         expect(titles(triads)[0]).toBe('G, Triad')
@@ -120,5 +123,61 @@ describe('voicings blocks', () => {
         const h = host()
         expect(renderBlock('chord', 'F\nvoicings: 1\ntuning: ukulele', h).ok).toBe(true)
         expect(h.querySelectorAll('.mn-dot')).toHaveLength(2)
+    })
+})
+
+describe('one diagram per shape, in neck order (#72)', () => {
+    const pitches = (h: HTMLElement) =>
+        [...cells(h)].map((svg) =>
+            (svg.getAttribute('data-mn-pitches') ?? '').split(' ').filter(Boolean).map(Number)
+        )
+    const voicingsOf = (h: HTMLElement) =>
+        [...cells(h)].map((svg) => {
+            const text = svg.getAttribute('data-mn-voicing') ?? ''
+            return (text.includes('-') ? text.split('-') : [...text]).map((f) =>
+                f === 'x' ? null : Number(f)
+            )
+        })
+    const lowestFrets = (h: HTMLElement) =>
+        [...cells(h)].map((svg) => {
+            const text = svg.getAttribute('data-mn-voicing') ?? ''
+            const frets = (text.includes('-') ? text.split('-') : [...text])
+                .filter((f) => f !== 'x')
+                .map(Number)
+                .filter((f) => f > 0)
+            return frets.length ? Math.min(...frets) : 0
+        })
+
+    it('leaves out copies of a listed voicing with strings muted', () => {
+        const h = host()
+        renderBlock('chord', 'A\nvoicings: all', h)
+        const sets = voicingsOf(h)
+        // No diagram is another one with strings muted (x0222x of x02220, 57765x of 577655).
+        const copy = sets.some((a, i) =>
+            sets.some(
+                (b, j) =>
+                    i !== j &&
+                    a.filter((f) => f !== null).length < b.filter((f) => f !== null).length &&
+                    a.every((f, s) => f === null || f === b[s]) &&
+                    a.findLastIndex((f) => f !== null) < b.findLastIndex((f) => f !== null) &&
+                    a.slice(0, a.findLastIndex((f) => f !== null) + 1).every((f, s) => f === b[s])
+            )
+        )
+        expect(copy).toBe(false)
+        expect(pitches(h).length).toBe(sets.length)
+        // The D and C shapes are there.
+        expect(titles(h)).toContain('A, D shape')
+        expect(titles(h)).toContain('A, C shape')
+    })
+
+    it('draws the list up the neck', () => {
+        const h = host()
+        renderBlock('chord', 'D\nvoicings: 6', h)
+        const lows = lowestFrets(h)
+        expect(lows).toEqual([...lows].sort((a, b) => a - b))
+        // The six easiest shapes still: the open D comes first, its C shape before fret 10.
+        expect(titles(h)[0]).toBe('D, Open')
+        const names = titles(h)
+        expect(names.indexOf('D, C shape')).toBeLessThan(names.indexOf('D, E shape'))
     })
 })

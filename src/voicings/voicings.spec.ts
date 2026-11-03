@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import db from '@tombatossals/chords-db/lib/guitar.json'
 import { lookupGuitarVoicing, voicingCount } from './index.js'
-import { fingeringProblem, voicingProblem } from './check.js'
+import { fingeringProblem, strummable, voicingProblem } from './check.js'
 import { detectChordFromFrets } from '../theory/detect.js'
 import { parseChord } from '../theory/chord-symbol.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
@@ -172,6 +172,24 @@ describe('every database voicing (#62)', () => {
         expect(all('Cmaj7')).not.toContain('332000')
         expect(all('B')).not.toContain('224442')
         expect(all('G7')).not.toContain('323033')
+    })
+
+    it('starts with a voicing you can strum: no muted string inside the shape (#72)', () => {
+        const failures: string[] = []
+        for (const [key, chords] of Object.entries(db.chords)) {
+            for (const chord of chords) {
+                const symbol = symbolOf(key, chord.suffix)
+                if (UNREAD.has(chord.suffix)) continue
+                const first = lookupGuitarVoicing(symbol, 0)
+                if (first && !strummable(first.frets))
+                    failures.push(`${symbol} ${show(first.frets)}`)
+            }
+        }
+        expect(failures).toEqual([])
+        expect(show(lookupGuitarVoicing('Bdim', 0)!.frets)).toBe('x2343x')
+        // The jazz grips keep their muted A string under a low-E root (F#6 2x132x).
+        expect(strummable([2, null, 1, 3, 2, null])).toBe(true)
+        expect(strummable([null, 2, 0, null, 0, 1])).toBe(false)
     })
 
     it('keeps standard dim7 and 6/9 grips', () => {

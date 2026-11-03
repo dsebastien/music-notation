@@ -105,3 +105,19 @@ export function fingeringProblem(
     }
     return null
 }
+
+/**
+ * Whether a strummed hand sounds only the voicing's notes: no muted string between two sounding
+ * ones (Bdim x20x01 can't be strummed cleanly), except the jazz grips that mute the A string under
+ * a root on the low E (F#6 2x132x, Fm6 1x0111, F#m7b5 2x221x), which players damp with the
+ * fretting hand (#72).
+ */
+export function strummable(frets: readonly (number | null)[]): boolean {
+    const sounding = frets.flatMap((f, s) => (f === null ? [] : [s]))
+    if (sounding.length < 2) return true
+    const inside = []
+    for (let s = sounding[0]!; s <= sounding[sounding.length - 1]!; s++)
+        if (frets[s] === null) inside.push(s)
+    if (!inside.length) return true
+    return frets.length === 6 && sounding[0] === 0 && inside.length === 1 && inside[0] === 1
+}

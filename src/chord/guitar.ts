@@ -212,6 +212,12 @@ export function renderGuitarDiagram(
     const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
     // Its hand, for a redraw that must keep it (#60).
     root.setAttribute('data-mn-hand', options.hand ?? 'right')
+    // The frets as written (x02220, x-12-14-14-14-12 past fret 9), for tools that read diagrams.
+    const fretText = voicing.frets.map((f) => (f === null ? 'x' : String(f)))
+    root.setAttribute(
+        'data-mn-voicing',
+        fretText.some((f) => f.length > 1) ? fretText.join('-') : fretText.join('')
+    )
     if (caption) {
         root.appendChild(
             svgText(doc, caption, {
