@@ -59,7 +59,17 @@ const EXTENDED = new Set([
     'm13',
     '6/9',
     'm6/9',
-    '9sus4'
+    '9sus4',
+    // Altered dominants, as jazz charts name them.
+    '7b13',
+    '7#5b9',
+    '7#5#9',
+    '7b9b13',
+    '7#9b13',
+    '13b9',
+    '13#11',
+    '7b9#11',
+    '7#9#11'
 ])
 
 /** tonal's suffixes, spelled as chord symbols are. */
@@ -128,19 +138,39 @@ function bassCost(root: string, quality: string, bass: string | undefined): numb
 }
 
 /**
- * Lower is preferred: how common the quality is, a fixed cost for a slash (so Dsus2 wins over
- * Asus4/D, but C/E still wins over the rare Em#5), then the usual spelling of the root, then the
- * bass spelled as the chord spells it.
+ * How far a reading's spelling is from the notes as written (pitch class → name): its root (2)
+ * and bass (1) spelled otherwise, and each other chord tone written another way (1); at most 3.
  */
-const rank = (symbol: string): number => {
+function spellingCost(symbol: string, spelled: ReadonlyMap<number, string>): number {
+    const m = /^([A-G][#b]*)(.*?)(?:\/([A-G][#b]*))?$/.exec(symbol)!
+    const differs = (note: string) => {
+        const given = spelled.get(chromaOf(note)!)
+        return given !== undefined && given !== note
+    }
+    let cost = (differs(m[1]!) ? 2 : 0) + (m[3] && differs(m[3]) ? 1 : 0)
+    for (const note of Chord.getChord(m[2]!, m[1]).notes.slice(1)) if (differs(note)) cost++
+    return Math.min(cost, 3)
+}
+
+/**
+ * Lower is preferred: how common the quality is, a fixed cost for a slash (so Dsus2 wins over
+ * Asus4/D, but C/E still wins over the rare Em#5), then the spelling: as the notes are written
+ * when they are (Db F B Eb is Db9, not C#9), else the usual root and the bass spelled as the chord
+ * spells it.
+ */
+const rank = (symbol: string, spelled: ReadonlyMap<number, string> | null): number => {
     const m = /^([A-G][#b]*)(.*?)(?:\/([A-G][#b]*))?$/.exec(symbol)!
     const common = COMMON.indexOf(m[2]!)
     return (
         ((common < 0 ? COMMON.length + 5 : common) + (m[3] ? 10 : 0)) * 4 +
-        (USUAL_ROOTS.has(m[1]!) ? 0 : 2) +
-        bassCost(m[1]!, m[2]!, m[3])
+        (spelled
+            ? spellingCost(symbol, spelled)
+            : (USUAL_ROOTS.has(m[1]!) ? 0 : 2) + bassCost(m[1]!, m[2]!, m[3]))
     )
 }
+
+/** An augmented 5th read as a flat 13th, the other name of the same note: 7#5b9 → 7b9b13. */
+const B13: Record<string, string> = { '7#5': '7b13', '7#5b9': '7b9b13', '7#5#9': '7#9b13' }
 
 /** A reading's sound regardless of spelling: root and bass as pitch classes, and the quality. */
 function soundOf(symbol: string): string {
@@ -148,14 +178,34 @@ function soundOf(symbol: string): string {
     return `${chromaOf(m[1]!)}${m[2]}/${m[3] ? chromaOf(m[3]) : ''}`
 }
 
-/** Note names (sharps, or flats when asked), lowest first, without repeats. */
-function namesOf(pitches: number[], flats: boolean): string[] {
+/** Note names (sharps, flats, or as written), lowest first, without repeats. */
+function namesOf(
+    pitches: number[],
+    flats: boolean,
+    spelled: ReadonlyMap<number, string> | null = null
+): string[] {
     const names: string[] = []
     for (const midi of [...pitches].sort((a, b) => a - b)) {
-        const name = nameOf(midi, flats)
+        const name = spelled?.get(((midi % 12) + 12) % 12) ?? nameOf(midi, flats)
         if (!names.includes(name)) names.push(name)
     }
     return names
+}
+
+/** Pitch class → name, from note names as written ("Db", "F4"); null without names. */
+function spellingOf(names: readonly string[] | undefined): Map<number, string> | null {
+    if (!names?.length) return null
+    const spelled = new Map<number, string>()
+    for (const raw of names) {
+        const name = raw
+            .trim()
+            .replace(/-?\d+$/, '')
+            .replace(/♯/g, '#')
+            .replace(/♭/g, 'b')
+        const chroma = /^[A-G]/.test(name) ? chromaOf(name) : null
+        if (chroma !== null && !spelled.has(chroma)) spelled.set(chroma, name)
+    }
+    return spelled.size ? spelled : null
 }
 
 /**
@@ -171,21 +221,34 @@ function isStepwiseRun(pitches: number[]): boolean {
     return sorted.every((pitch, i) => i === 0 || pitch - sorted[i - 1]! <= 2)
 }
 
-/** The chord played by these pitches (MIDI); null when no chord fits. */
-export function detectChordFromPitches(pitches: number[]): DetectedChord | null {
+/**
+ * The chord played by these pitches (MIDI); null when no chord fits. With `names`, the notes as
+ * written (Db, F, B, Eb), the name follows their spelling: Db9, not C#9; and G B F Ab Eb is
+ * G7b9b13 (Eb is a flat 13th), G B F Ab D# G7#5b9.
+ */
+export function detectChordFromPitches(
+    pitches: number[],
+    names?: readonly string[]
+): DetectedChord | null {
     if (pitches.length < 2 || isStepwiseRun(pitches)) return null
+    const spelled = spellingOf(names)
     const readings = new Set<string>()
-    for (const flats of [false, true]) {
+    for (const pass of spelled ? ['written', 'sharps', 'flats'] : ['sharps', 'flats']) {
+        const written = namesOf(pitches, pass === 'flats', pass === 'written' ? spelled : null)
         // Shell voicings (root, third, seventh) are named with the fifth assumed: 3x44xx is Gmaj7.
-        for (const symbol of Chord.detect(namesOf(pitches, flats), { assumePerfectFifth: true })) {
+        for (const symbol of Chord.detect(written, { assumePerfectFifth: true })) {
             const normalized = normalize(symbol)
-            if (normalized) readings.add(normalized)
+            if (!normalized) continue
+            readings.add(normalized)
+            // The same chord with a flat 13th, for notes written that way (Eb over G).
+            const m = /^([A-G][#b]*)(7#5(?:b9|#9)?)((?:\/.*)?)$/.exec(normalized)
+            if (spelled && m) readings.add(`${m[1]}${B13[m[2]!]}${m[3]}`)
         }
     }
-    // One spelling per reading: the usual one (Bb, not A#), which ranks first.
+    // One spelling per reading: as written, else the usual one (Bb, not A#), which ranks first.
     const seen = new Set<string>()
     const sorted = [...readings]
-        .sort((a, b) => rank(a) - rank(b))
+        .sort((a, b) => rank(a, spelled) - rank(b, spelled))
         .filter((symbol) => {
             const key = soundOf(symbol)
             if (seen.has(key)) return false

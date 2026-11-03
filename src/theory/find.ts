@@ -36,7 +36,8 @@ export interface FindScalesOptions {
     /**
      * How to read the items: note names or chord symbols. By default, chords when any item isn't
      * a plain note name (G D Em C); "G C D" reads as three notes unless you say chords. Notes with
-     * octaves (C4 E4 G4) are notes, unless every one could be a power chord (A5 D5 E5).
+     * octaves (C4 E4 G4) are notes, unless every one could be a power chord (A5 D5 E5) or a seventh
+     * chord (A7 D7 E7).
      */
     as?: 'notes' | 'chords'
     /** Scales with up to this many outside notes are listed too (after the others); 1 by default. */
@@ -121,32 +122,61 @@ const itemsOf = (input: string | readonly string[]): string[] =>
 interface Material {
     /** Each pitch class played, with its name as written. */
     written: Map<number, string>
-    /** Preferred tonics, best first (the first chord's root or the first note, then the others). */
-    tonics: number[]
+    /**
+     * How strongly each pitch class reads as the tonic, as a cost (0 is the strongest): for
+     * notes, the first note; for chords, the first chord's root, then a root the music ends on or
+     * resolves to (a V or V7 a fifth above the next chord), then the other roots.
+     */
+    tonicCost: (chroma: number) => number
+}
+
+/** Tonic costs for a progression's roots: first, last and cadence targets (see Material). */
+function chordTonicCost(roots: (number | null)[], symbols: string[]): (chroma: number) => number {
+    const costs = new Map<number, number>()
+    const set = (chroma: number | null | undefined, cost: number) => {
+        if (chroma === null || chroma === undefined) return
+        costs.set(chroma, Math.min(costs.get(chroma) ?? Infinity, cost))
+    }
+    const last = roots[roots.length - 1]
+    const targets = new Set<number>()
+    symbols.forEach((symbol, i) => {
+        const next = symbols[i + 1]
+        if (next && resolves(symbol, next) && roots[i + 1] !== null) targets.add(roots[i + 1]!)
+    })
+    for (const root of roots) set(root, 0.75)
+    for (const target of targets) set(target, 0.375)
+    set(last, last !== null && last !== undefined && targets.has(last) ? 0 : 0.375)
+    set(roots[0], 0)
+    return (chroma) => costs.get(chroma) ?? 1
 }
 
 /** The notes of a list of notes or chords; null when an item doesn't read. */
 function materialOf(items: string[], as: 'notes' | 'chords'): Material | null {
     const written = new Map<number, string>()
-    const tonics: number[] = []
-    for (const item of items) {
-        if (as === 'notes') {
+    if (as === 'notes') {
+        let first: number | null = null
+        for (const item of items) {
             // An octave ("C4") says nothing about the scale.
             const name = noteName(withoutOctave(item))
             if (!name) return null
             const chroma = chromaOf(name)!
             if (!written.has(chroma)) written.set(chroma, name)
-            if (!tonics.length) tonics.push(chroma)
-            continue
+            first ??= chroma
         }
+        return written.size
+            ? { written, tonicCost: (chroma) => (chroma === first ? 0 : 0.5) }
+            : null
+    }
+    const roots: (number | null)[] = []
+    for (const item of items) {
         const set = parseChord(item) ? chordNoteSet(item) : null
         if (!set) return null
         for (const member of set.members) {
             if (!written.has(member.chroma)) written.set(member.chroma, member.name)
         }
-        if (set.root !== null && !tonics.includes(set.root)) tonics.push(set.root)
+        roots.push(set.root)
     }
-    return written.size ? { written, tonics } : null
+    return written.size ? { written, tonicCost: chordTonicCost(roots, items) } : null
 }
 
 /** The scales over some material, ranked (see findScales). */
@@ -166,8 +196,9 @@ function rank(
             const spelled = spelledScale(type.name, tonic, material.written)
             if (!spelled) continue
             const missing = spelled.notes.filter((n) => !material.written.has(chromaOf(n)!))
-            const at = material.tonics.indexOf(tonic)
-            const tonicCost = at === 0 ? 0 : at > 0 ? 0.25 : 0.5
+            // A usual scale with exactly the notes played, no more, wins over a larger one
+            // (C D E G A is C major pentatonic, not C major without F and B).
+            const exact = !outside.length && !missing.length && typeCost(type.name) <= 1.25
             matches.push({
                 name: `${spelled.tonic} ${type.name}`,
                 tonic: spelled.tonic,
@@ -175,7 +206,12 @@ function rank(
                 notes: spelled.notes,
                 missing,
                 outside: outside.map((c) => material.written.get(c)!),
-                cost: outside.length * 2 + typeCost(type.name) + tonicCost + missing.length * 0.05
+                cost:
+                    outside.length * 2 +
+                    typeCost(type.name) +
+                    material.tonicCost(tonic) +
+                    missing.length * 0.05 -
+                    (exact ? 2 : 0)
             })
         }
     }
@@ -186,18 +222,22 @@ const strip = ({ cost: _cost, ...match }: ScaleMatch & { cost: number }): ScaleM
 
 /**
  * Whether the items are notes: plain note names (C, F#, Bb), or notes with octaves (C4 E4 G4)
- * unless every one could be a power chord (A5 D5 E5 are power chords).
+ * unless every one could be a power chord or a seventh chord (A5 D5 E5, A7 D7 E7 are chords).
  */
 const allNotes = (items: string[]) =>
     items.every((i) => noteName(i) !== null) ||
     (items.every((i) => /^[A-Ga-g][#♯b♭]?-?\d$/.test(i) && noteName(withoutOctave(i)) !== null) &&
-        !items.every((i) => /^[A-G][#♯b♭]?5$/.test(i)))
+        !items.every((i) => /^[A-G][#♯b♭]?5$/.test(i)) &&
+        !items.every((i) => /^[A-G][#♯b♭]?7$/.test(i)))
 
 /**
  * The scales that hold some notes, or the tones of some chords, best first: fewer outside notes
- * first, major and minor before their modes, then pentatonic and blues scales, then the harmonic
- * and melodic minor and their modes, the others last; a tonic on the first chord's root (or the
- * first note) first. Each match lists its missing notes (in the scale, not played) and outside
+ * first, a usual scale with exactly the notes played before larger ones (C D E G A: C major
+ * pentatonic), major and minor before their modes, then pentatonic and blues scales, then the
+ * harmonic and melodic minor and their modes, the others last; the tonic from the first chord's
+ * root (or the first note), then the last chord's and a V → I move's (Dm C G: D dorian; Dm7 G7
+ * Cmaj7: C major). Over a blues (see bluesTonic), the blues scale, the minor pentatonic and the
+ * mixolydian first. Each match lists its missing notes (in the scale, not played) and outside
  * notes (played, not in the scale). Empty when an item doesn't read.
  */
 export function findScales(
@@ -209,9 +249,55 @@ export function findScales(
     const as = options.as ?? (allNotes(items) ? 'notes' : 'chords')
     const material = materialOf(items, as)
     if (!material) return []
-    return rank(material, Math.max(0, options.maxOutside ?? 1))
-        .slice(0, options.limit ?? 20)
-        .map(strip)
+    const ranked = rank(material, Math.max(0, options.maxOutside ?? 1))
+    // A blues: what a teacher says first, whatever the chords' other notes.
+    const blues = as === 'chords' ? bluesTonic(items) : null
+    const onTonic = blues ? rank(material, 12, chromaOf(blues)) : []
+    const first = BLUES_SCALES.flatMap((type) => onTonic.filter((m) => m.type === type))
+    const rest = ranked.filter((m) => !first.some((f) => f.name === m.name))
+    return [...first, ...rest].slice(0, options.limit ?? 20).map(strip)
+}
+
+/** The scales a teacher suggests over a blues, in order: the blues scale (tonal's "minor
+ * blues"), the minor pentatonic, the mixolydian. */
+export const BLUES_SCALES = ['minor blues', 'minor pentatonic', 'mixolydian']
+
+/** A dominant seventh chord (A7, A9, A13, A7#9): a major third and a minor seventh. */
+function isDominant(symbol: string): boolean {
+    const set = chordNoteSet(symbol)
+    return (
+        !!set &&
+        set.members.some((m) => m.interval === '3M') &&
+        set.members.some((m) => m.interval === '7m')
+    )
+}
+
+/** Roots a blues uses, in semitones from its tonic: I, IV, V, and a jazz blues' ii, #iv°7, VI7. */
+const BLUES_ROOTS = new Set([0, 2, 5, 6, 7, 9])
+
+/**
+ * The tonic of a dominant-seventh blues, as written (A7 D7 E7 A7: A): dominant seventh chords on
+ * I and IV, and every chord on I, IV or V (or a jazz blues' ii, #iv°7 and VI7). The first chord's
+ * root wins when several could be. Null when the chords aren't a blues (C C7 F: IV isn't a
+ * seventh; D7 G7 C: C isn't a blues chord in D).
+ */
+export function bluesTonic(chords: string | readonly string[]): string | null {
+    const items = itemsOf(chords)
+    const parsed = items.map((item) => {
+        const set = parseChord(item) ? chordNoteSet(item) : null
+        return set && set.root !== null
+            ? { root: set.root, name: parseChord(item)!.root, dominant: isDominant(item) }
+            : null
+    })
+    if (!parsed.length || parsed.some((p) => p === null)) return null
+    const chords7 = parsed as { root: number; name: string; dominant: boolean }[]
+    const candidates = chords7.filter(
+        (tonic) =>
+            tonic.dominant &&
+            chords7.some((c) => c.dominant && (c.root - tonic.root + 12) % 12 === 5) &&
+            chords7.every((c) => BLUES_ROOTS.has((c.root - tonic.root + 12) % 12))
+    )
+    return (candidates.find((c) => c.root === chords7[0]!.root) ?? candidates[0])?.name ?? null
 }
 
 /**
@@ -286,6 +372,18 @@ export interface FoundKey extends KeyCandidate {
     candidates: KeyCandidate[]
     /** False when another key scores about as well (C major and A minor for C F G Am). */
     clear: boolean
+    /**
+     * A dominant-seventh blues on the key's tonic (A7 D7 E7 A7 in A major): its I7 and IV7 are
+     * the key's own chords.
+     */
+    blues?: boolean
+    /**
+     * The mode the chords play in, when it isn't plain major or minor: dorian for a minor key
+     * whose chords use the major 6th, not the minor one nor the raised 7th of a V7 (Dm C G: D
+     * dorian; Dm G A7 Dm stays D minor), mixolydian for a
+     * major key whose chords use the minor 7th and not the major one (C Bb F C: C mixolydian).
+     */
+    modal?: MusicalKey
 }
 
 /** Pitch classes of a key's chords: the scale, plus the raised 7th for a minor key (its V and vii°). */
@@ -322,15 +420,55 @@ function resolves(from: string, to: string): boolean {
     return major && (a.root - b.root + 12) % 12 === 7
 }
 
+/** A blues's own chords: a dominant seventh on its I or IV (A7, D7 in an A blues). */
+function bluesChord(symbol: string, key: MusicalKey): boolean {
+    const set = chordNoteSet(symbol)
+    const tonic = chromaOf(key.tonic)
+    if (!set || set.root === null || tonic === null || !isDominant(symbol)) return false
+    return [0, 5].includes((set.root - tonic + 12) % 12)
+}
+
+/** A major chord on a minor key's 4th degree, the dorian IV (D or D7 in A minor). */
+function dorianFour(symbol: string, key: MusicalKey): boolean {
+    const set = chordNoteSet(symbol)
+    const tonic = chromaOf(key.tonic)
+    return (
+        !!set &&
+        set.root !== null &&
+        tonic !== null &&
+        (set.root - tonic + 12) % 12 === 5 &&
+        set.members.some((m) => m.interval === '3M') &&
+        set.members.some((m) => m.interval === '5P')
+    )
+}
+
+/** The mode a key's chords play in (see FoundKey.modal); null for plain major or minor. */
+function modalOf(items: string[], key: MusicalKey): MusicalKey | null {
+    const tonic = chromaOf(key.tonic)!
+    const played = new Set(
+        items.flatMap((item) => chordNoteSet(item)!.members.map((m) => m.chroma))
+    )
+    const has = (semitones: number) => played.has((tonic + semitones) % 12)
+    const mode =
+        key.mode === 'minor' && has(9) && !has(8) && !has(11)
+            ? 'dorian'
+            : key.mode === 'major' && has(10) && !has(11)
+              ? 'mixolydian'
+              : null
+    return mode ? { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` } : null
+}
+
 /** Keys as they're usually spelled: F# major and C# minor, Db major and Bb minor. */
 const MAJOR_TONICS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
 const MINOR_TONICS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B']
 
 /**
  * The most likely key of a progression: the key whose chords are in it most (a chord borrowed
- * from the parallel key or a secondary dominant counts a little), with the first and last chords
- * on its tonic and dominant-to-tonic moves as evidence. The tonic is spelled as the chords spell
- * it (Gb major for Gb Db Ebm Cb), else the usual way. Null when a chord doesn't read.
+ * from the parallel key or a secondary dominant counts a little), with the first chord (most) and
+ * the last chord on its tonic and dominant-to-tonic moves (V7 → I more than V → I) as evidence.
+ * A dominant-seventh blues (A7 D7 E7 A7) is in the major key of its tonic, its I7 and IV7 counted
+ * in the key. The tonic is spelled as the chords spell it (Gb major for Gb Db Ebm Cb), else the
+ * usual way. Null when a chord doesn't read.
  */
 export function findKey(chords: string | readonly string[]): FoundKey | null {
     const items = itemsOf(chords)
@@ -340,6 +478,8 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
         const root = parseChord(item)!.root
         if (!roots.has(chromaOf(root)!)) roots.set(chromaOf(root)!, root)
     }
+    const blues = bluesTonic(items)
+    const bluesChroma = blues === null ? null : chromaOf(blues)
     const candidates: KeyCandidate[] = []
     for (let chroma = 0; chroma < 12; chroma++) {
         for (const mode of ['major', 'minor'] as const) {
@@ -358,19 +498,27 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
             }
             let score = 0
             const outside: string[] = []
+            const isBlues = mode === 'major' && chroma === bluesChroma
             items.forEach((item, i) => {
-                if (inKey(item, key)) score += 2
+                if (inKey(item, key) || (isBlues && bluesChord(item, key))) score += 2
                 else {
                     outside.push(item)
                     const next = items[i + 1]
                     // A secondary dominant resolving to the next chord, or a borrowed chord.
                     if (next && resolves(item, next) && inKey(next, key)) score += 1
+                    // A minor key's major IV (dorian: Am D) is common; other borrowed chords less.
+                    else if (mode === 'minor' && dorianFour(item, key)) score += 1
                     else if (inKey(item, parallel)) score += 0.5
                     else score -= 1
                 }
-                if (isTonic(item, key) && (i === 0 || i === items.length - 1)) score += 2
+                // The first chord says the most about the key, then the last one.
+                if (isTonic(item, key)) score += i === 0 ? 2.5 : i === items.length - 1 ? 2 : 0
                 const next = items[i + 1]
-                if (next && isTonic(next, key) && resolves(item, next)) score += 1
+                // A V7 → I cadence more than V → I, and most when it ends the progression.
+                if (next && isTonic(next, key) && resolves(item, next)) {
+                    const final = i + 1 === items.length - 1
+                    score += (isDominant(item) ? 1.5 : 1) + (final ? 1 : 0)
+                }
             })
             candidates.push({ ...key, score, outside })
         }
@@ -385,9 +533,13 @@ export function findKey(chords: string | readonly string[]): FoundKey | null {
         .filter((c) => c.score > 0)
         .sort((a, b) => a.outside.length - b.outside.length || b.score - a.score)
     const top = [best, ...others.slice(0, 4)]
+    const isBlues = best.mode === 'major' && chromaOf(best.tonic) === bluesChroma
+    const modal = isBlues ? null : modalOf(items, best)
     return {
         ...best,
         candidates: top,
-        clear: runnerUp.score <= 0 || best.score - runnerUp.score >= 2
+        clear: isBlues || runnerUp.score <= 0 || best.score - runnerUp.score >= 2.5,
+        ...(isBlues ? { blues: true } : {}),
+        ...(modal ? { modal } : {})
     }
 }

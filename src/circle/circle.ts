@@ -31,8 +31,13 @@ export interface CircleOptions {
     key?: MusicalKey
     /** Seventh chords instead of triads, for the marked chords. */
     sevenths?: boolean
-    /** Set the IV and V chords (iv and v in minor) apart; true by default. */
+    /** Set the IV and V chords (iv and V, or v, in minor) apart; true by default. */
     neighbours?: boolean
+    /**
+     * A minor key's dominant: `major` (default), the harmonic minor's V (B or B7 in E minor), as
+     * cadences play it; `minor`, the natural minor's v (Bm, Bm7).
+     */
+    dominant?: 'major' | 'minor'
     title?: string
 }
 
@@ -114,16 +119,30 @@ export function chordPitches(symbol: string): number[] {
     })
 }
 
+/** A minor key's chords with the harmonic minor's V (or V7) for the natural minor's v. */
+function majorDominant(chords: KeyChord[], seventh: boolean): KeyChord[] {
+    return chords.map((chord) => {
+        if (chord.degree !== 5) return chord
+        const root = splitChordSymbol(chord.symbol)!.root
+        return { degree: 5, numeral: seventh ? 'V7' : 'V', symbol: `${root}${seventh ? '7' : ''}` }
+    })
+}
+
 /** The diatonic triads, to place the chords (sevenths sit where their triad does). */
-function placed(key: MusicalKey, sevenths: boolean) {
-    const triads = keyChords(key, false)
-    const shown = sevenths ? keyChords(key, true) : triads
+function placed(key: MusicalKey, sevenths: boolean, harmonic: boolean) {
+    let triads = keyChords(key, false)
+    let shown = sevenths ? keyChords(key, true) : triads
+    if (harmonic) {
+        triads = majorDominant(triads, false)
+        shown = majorDominant(shown, sevenths)
+    }
     return shown.map((chord, i) => ({ chord, cell: cellOf(triads[i]!.symbol) }))
 }
 
 export function renderCircle(doc: Document, options: CircleOptions = {}): SVGElement {
     const key = options.key ?? { tonic: 'C', mode: 'major', name: 'C major' }
-    const chords = placed(key, options.sevenths ?? false)
+    const minor = key.mode === 'minor' || key.mode === 'aeolian'
+    const chords = placed(key, options.sevenths ?? false, minor && options.dominant !== 'minor')
     const neighbours = options.neighbours ?? true
     const top = options.title ? TITLE : 0
     const width = Math.max(SIZE, titleWidth(options.title))
@@ -327,7 +346,8 @@ const yes = (text: string | undefined, key: string, fallback: boolean): boolean 
 
 /**
  * The `circle` block: `key:` (or a shorthand line: G, E minor, D dorian), `mode:` (major, minor or
- * a church mode), `chords: triads | sevenths`, `neighbours: yes | no`, `title:`.
+ * a church mode), `chords: triads | sevenths`, `neighbours: yes | no`, `dominant: major | minor`
+ * (a minor key's V or v), `title:`.
  */
 export const renderCircleBlock: Renderer = (doc, source) => {
     const block = parseBlockSource(source)
@@ -362,11 +382,18 @@ export const renderCircleBlock: Renderer = (doc, source) => {
         throw new Error(`chords: use triads or sevenths, got "${chordsText}"`)
     }
     const neighbours = yes(get('neighbours') ?? get('neighbors'), 'neighbours', true)
+    const dominant = get('dominant')?.toLowerCase()
+    if (dominant !== undefined && dominant !== 'major' && dominant !== 'minor') {
+        throw new Error(
+            `dominant: use major (V, from the harmonic minor) or minor (v), got "${dominant}"`
+        )
+    }
     const title = get('title')
     return renderCircle(doc, {
         key,
         sevenths: chordsText === 'sevenths',
         neighbours,
+        ...(dominant ? { dominant } : {}),
         ...(title ? { title } : {})
     })
 }

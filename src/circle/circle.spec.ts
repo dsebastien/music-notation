@@ -80,20 +80,41 @@ describe('circle block', () => {
         // G# major would need 8 sharps, Fb major 8 flats.
         expect(sigs('key: C#')).toEqual(['6♯', '7♯', '4♭'])
         expect(sigs('key: Cb')).toEqual(['4♯', '7♭', '6♭'])
-        expect(sigs('key: Abm')).toEqual(['4♯', '7♭', '6♭'])
+        // Ab minor's V, Eb major, has its own 3 flats.
+        expect(sigs('key: Abm')).toEqual(['4♯', '7♭', '6♭', '3♭'])
+        expect(sigs('key: Abm\ndominant: minor')).toEqual(['4♯', '7♭', '6♭'])
     })
 
-    it('marks a minor key: i on the inner ring, iv and v its neighbours', () => {
+    it('marks a minor key: i on the inner ring, iv and V (harmonic minor) its neighbours', () => {
         const h = host()
         renderBlock('circle', 'key: E\nmode: minor', h)
         expect(cell(h, 'minor', 'Em')!.getAttribute('class')).toContain('mn-circle-tonic')
         expect(cell(h, 'minor', 'Am')!.getAttribute('class')).toContain('mn-circle-neighbour')
-        expect(cell(h, 'minor', 'Bm')!.getAttribute('class')).toContain('mn-circle-neighbour')
+        expect(cell(h, 'major', 'B')!.getAttribute('class')).toContain('mn-circle-neighbour')
+        expect(cell(h, 'minor', 'Bm')!.getAttribute('class')).not.toContain('mn-circle-neighbour')
         expect(cell(h, 'major', 'G')!.getAttribute('class')).toContain('mn-circle-diatonic')
-        const chips = [...h.querySelectorAll('.mn-circle-chip')].map((c) =>
-            c.getAttribute('data-mn-chord')
+        const chips = (el: HTMLElement) =>
+            [...el.querySelectorAll('.mn-circle-chip')].map((c) => c.getAttribute('data-mn-chord'))
+        expect(chips(h)).toEqual(['Em', 'F#dim', 'G', 'Am', 'B', 'C', 'D'])
+        expect(h.querySelector('.mn-circle-chip[data-mn-chord="B"] title')?.textContent).toBe(
+            'V: B'
         )
-        expect(chips).toEqual(['Em', 'F#dim', 'G', 'Am', 'Bm', 'C', 'D'])
+        const sevenths = host()
+        renderBlock('circle', 'key: Em\nchords: sevenths', sevenths)
+        expect(chips(sevenths)[4]).toBe('B7')
+        // The natural minor's v when asked.
+        const natural = host()
+        renderBlock('circle', 'key: Em\ndominant: minor', natural)
+        expect(chips(natural)).toEqual(['Em', 'F#dim', 'G', 'Am', 'Bm', 'C', 'D'])
+        expect(cell(natural, 'minor', 'Bm')!.getAttribute('class')).toContain('mn-circle-neighbour')
+        // Modes keep their own chords.
+        const dorian = host()
+        renderBlock('circle', 'E dorian', dorian)
+        expect(chips(dorian)[4]).toBe('Bm')
+        const error = host()
+        expect(renderBlock('circle', 'key: Em\ndominant: V7', error).error).toContain(
+            'dominant: use major'
+        )
     })
 
     it('marks modes, sevenths, and can leave the neighbours plain', () => {

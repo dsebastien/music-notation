@@ -236,16 +236,27 @@ export function romanText(degree: Degree, suffix: string): string {
 
 const SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹'
 
+/** Digits as superscript: "7" → "⁷". */
+const superscript = (digits: string) => [...digits].map((d) => SUPERSCRIPT[Number(d)]).join('')
+
 /**
  * The Nashville number for a chord on a degree: "b7", "6m", "2m7", and "5⁷" (a seventh right after
  * the number is raised, as charts write it, so it doesn't read as 57).
  */
 export function nashvilleText(degree: Degree, suffix: string): string {
-    const quality = nashvilleQuality(suffix).replace(/^\d+/, (digits) =>
-        [...digits].map((d) => SUPERSCRIPT[Number(d)]).join('')
-    )
+    const quality = nashvilleQuality(suffix).replace(/^\d+/, superscript)
     return `${degree.accidental}${degree.number}${quality}`
 }
+
+/**
+ * A typed Nashville number as charts print it: a seventh (or any number) right after the degree
+ * is raised, "57" → "5⁷", "b713" → "b7¹³"; "2m7", "5/3" and roman numerals stay as written.
+ */
+export const raisedNashville = (token: string): string =>
+    token.replace(
+        /^([b#♭♯]?[1-7])(\d+)/,
+        (_, degree: string, digits: string) => `${degree}${superscript(digits)}`
+    )
 
 /** "5⁷" → "57": superscript digits as plain ones. */
 export const plainDigits = (text: string): string =>

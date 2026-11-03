@@ -7,7 +7,7 @@ import { chordNoteSet } from './note-set.js'
 import { parseChord } from './chord-symbol.js'
 import { chromaOf, splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
-import { inKey } from './find.js'
+import { bluesTonic, inKey } from './find.js'
 import {
     degreeOf,
     isMinorMode,
@@ -22,7 +22,22 @@ import {
 
 /** What a chord does in its key. */
 export type HarmonicFunction =
-    'tonic' | 'subdominant' | 'dominant' | 'secondary dominant' | 'borrowed' | 'chromatic'
+    | 'tonic'
+    | 'subdominant'
+    | 'dominant'
+    | 'secondary dominant'
+    | 'neapolitan'
+    | 'borrowed'
+    | 'chromatic'
+
+/** How to read the chords of a progression. */
+export interface NumeralOptions {
+    /**
+     * A dominant-seventh blues (see `bluesTonic`): a dominant seventh on I or IV is the key's own
+     * chord (A7 is I7 and tonic in an A blues, not V7/IV), as blues players read it.
+     */
+    blues?: boolean
+}
 
 export interface ProgressionChord {
     /** As written: "V7/V", "6m", "Em". */
@@ -51,7 +66,9 @@ const keyOf = (key: string | MusicalKey): MusicalKey | null =>
  * leading tone: vii° in A minor is G#dim).
  */
 function noteOn(key: MusicalKey, degree: number, accidental: string, diminished: boolean): string {
-    const minor = isMinorMode(key.mode)
+    // Only minor keys read their own 3rd, 6th and 7th unmarked; modes count from the major scale
+    // (D dorian: bIII, IV, vi°, bVII), as numeralOf writes them.
+    const minor = key.mode === 'minor' || key.mode === 'aeolian'
     let interval = MAJOR[degree - 1]!
     let shift = accidental === '#' ? 1 : accidental === 'b' ? -1 : 0
     if (minor && [3, 6, 7].includes(degree)) {
@@ -212,60 +229,120 @@ const MINOR_FUNCTIONS: HarmonicFunction[] = [
     'subdominant'
 ]
 
-/** A major or dominant chord whose root is a fifth above a chord of the key (not its vii°). */
+/**
+ * The chord of the key a chord leads to, as a secondary dominant: a major or dominant chord a
+ * fifth above it (D7 → G in C), or a diminished chord a half step below it, the leading tone's
+ * chord (F#dim, F#dim7 or F#m7b5 → G in C). Only major and minor chords of the key are targets.
+ */
 function secondaryTarget(symbol: string, key: MusicalKey): string | null {
     const set = chordNoteSet(symbol)
     const parts = partsOf(symbol)
-    if (!set || !parts || !set.members.some((m) => m.interval === '3M')) return null
-    // A dominant has a perfect fifth and no major seventh (Dmaj7 doesn't lead to G).
-    if (set.members.some((m) => ['5d', '5A', '7M'].includes(m.interval ?? ''))) return null
-    const target = Note.transpose(parts.root, '-5P')
+    if (!set || !parts) return null
+    const has = (interval: string) => set.members.some((m) => m.interval === interval)
+    let target: string
+    if (has('3m') && has('5d')) {
+        // A leading-tone chord: no major 7th (a m(maj7)b5 leads nowhere).
+        if (has('7M')) return null
+        target = Note.transpose(parts.root, '2m')
+    } else {
+        if (!has('3M')) return null
+        // A dominant has a perfect fifth and no major seventh (Dmaj7 doesn't lead to G).
+        if (set.members.some((m) => ['5d', '5A', '7M'].includes(m.interval ?? ''))) return null
+        target = Note.transpose(parts.root, '-5P')
+    }
+    // The tonic's own dominant or leading-tone chord is V or vii°, not a secondary one.
+    if (chromaOf(target) === chromaOf(key.tonic)) return null
     for (const suffix of ['', 'm']) {
-        if (inKey(`${target}${suffix}`, key)) return `${target}${suffix}`
+        const chord = `${keySpelling(target, key)}${suffix}`
+        if (inKey(chord, key)) return chord
     }
     return null
 }
 
-/** What a chord does in a key: its diatonic function, or secondary dominant, borrowed, chromatic. */
+/** A diminished chord (dim, dim7, m7b5): a leading-tone chord rather than a dominant. */
+function isLeadingTone(symbol: string): boolean {
+    const members = chordNoteSet(symbol)?.members ?? []
+    return members.some((m) => m.interval === '3m') && members.some((m) => m.interval === '5d')
+}
+
+/**
+ * The Neapolitan: a major chord (or major seventh) on the lowered 2nd degree (Db in C, Bb in A
+ * minor), often over the 4th (bII6, Db/F).
+ */
+function isNeapolitan(root: string, suffix: string, key: MusicalKey): boolean {
+    const degree = degreeOf(key.tonic, root)
+    return degree?.number === 2 && degree.accidental === 'b' && ['', 'maj7'].includes(suffix)
+}
+
+/** A blues chord: a dominant seventh on the key's I or IV (see NumeralOptions.blues). */
+function bluesDegree(root: string, symbol: string, key: MusicalKey): number | null {
+    const set = chordNoteSet(symbol)
+    const degree = degreeOf(key.tonic, root)
+    if (!set || !degree || degree.accidental || ![1, 4].includes(degree.number)) return null
+    const dominant =
+        set.members.some((m) => m.interval === '3M') && set.members.some((m) => m.interval === '7m')
+    return dominant ? degree.number : null
+}
+
+/**
+ * What a chord does in a key: its diatonic function, or secondary dominant (leading-tone chords
+ * included: F#dim in C leads to G), neapolitan (bII), borrowed, chromatic.
+ */
 export function harmonicFunction(
     symbol: string,
-    key: string | MusicalKey
+    key: string | MusicalKey,
+    options: NumeralOptions = {}
 ): HarmonicFunction | null {
     const k = keyOf(key)
     const parts = k ? partsIn(symbol, k) : null
     if (!k || !parts || !chordNoteSet(symbol)) return null
     const plain = `${parts.root}${parts.suffix}`
     const minor = isMinorMode(k.mode)
+    if (options.blues && !minor) {
+        const blues = bluesDegree(parts.root, plain, k)
+        if (blues) return blues === 1 ? 'tonic' : 'subdominant'
+    }
     if (inKey(plain, k)) {
         const degree = degreeOf(k.tonic, parts.root)!
         // A minor key's raised 7th (vii°) leads to the tonic.
         if (minor && degree.number === 7 && degree.accidental === '') return 'dominant'
+        // A mode's own bVII (mixolydian) moves to the tonic as IV does.
+        if (degree.number === 7 && degree.accidental === 'b') return 'subdominant'
         return (minor ? MINOR_FUNCTIONS : MAJOR_FUNCTIONS)[degree.number - 1]!
     }
+    if (isNeapolitan(parts.root, parts.suffix, k)) return 'neapolitan'
+    // A leading-tone chord before borrowed: G#dim7 in C leads to Am (vii°7/vi), though C minor
+    // has its notes. A major tonic in minor stays borrowed (A in A minor), not V/iv.
+    const leading = isLeadingTone(plain)
+    if (leading && secondaryTarget(plain, k)) return 'secondary dominant'
     const parallel: MusicalKey = {
         tonic: k.tonic,
         mode: minor ? 'major' : 'minor',
         name: `${k.tonic} ${minor ? 'major' : 'minor'}`
     }
     if (inKey(plain, parallel)) return 'borrowed'
-    if (secondaryTarget(plain, k)) return 'secondary dominant'
+    if (!leading && secondaryTarget(plain, k)) return 'secondary dominant'
     return 'chromatic'
 }
 
 /**
  * A chord's numeral in a key: "bVII", "ii7", "vii°" (in minor too: the leading tone), a
- * secondary dominant as "V7/V", a bass as a degree ("I/3"). Roman numerals by default, or
- * Nashville numbers ("b7", "2m7", "1/3"). Null when the chord or the key doesn't read.
+ * secondary dominant as "V7/V" and a secondary leading-tone chord as "vii°7/V", a bass as a
+ * degree ("I/3"). Roman numerals by default, or Nashville numbers ("b7", "2m7", "1/3"). In a
+ * blues (see NumeralOptions), A7 in A is I7. Null when the chord or the key doesn't read.
  */
 export function numeralOf(
     symbol: string,
     key: string | MusicalKey,
-    style: 'roman' | 'nashville' = 'roman'
+    style: 'roman' | 'nashville' = 'roman',
+    options: NumeralOptions = {}
 ): string | null {
     const k = keyOf(key)
     const parts = k ? partsIn(symbol, k) : null
     if (!k || !parts || !chordNoteSet(symbol)) return null
-    const minor = isMinorMode(k.mode)
+    // Degrees count from the major scale; only minor keys mark their raised 3rd, 6th and 7th
+    // (#vi in A minor), as dorian's 6th and mixolydian's 3rd are their own.
+    const minor = k.mode === 'minor' || k.mode === 'aeolian'
     const text = (degree: Degree, suffix: string) =>
         style === 'nashville' ? nashvilleText(degree, suffix) : romanText(degree, suffix)
     const degree = degreeOf(k.tonic, parts.root, minor)
@@ -273,12 +350,18 @@ export function numeralOf(
     const bass = parts.bass ? degreeOf(k.tonic, parts.bass, minor) : null
     const slash = bass ? `/${bass.accidental}${bass.number}` : ''
     const plain = `${parts.root}${parts.suffix}`
-    // A secondary dominant (D7 in C is V7/V), named from the chord it leads to.
-    if (style === 'roman' && !bass && harmonicFunction(plain, k) === 'secondary dominant') {
+    // A secondary dominant (D7 in C is V7/V) or leading-tone chord (F#dim7 is vii°7/V), named
+    // from the chord it leads to; a blues's I7 and IV7 are its own.
+    if (
+        style === 'roman' &&
+        !bass &&
+        harmonicFunction(plain, k, options) === 'secondary dominant'
+    ) {
         const target = secondaryTarget(plain, k)!
         const targetNumeral = numeralOf(target, k)
+        const number = isLeadingTone(plain) ? 7 : 5
         if (targetNumeral)
-            return `${text({ number: 5, accidental: '' }, parts.suffix)}/${targetNumeral}`
+            return `${text({ number, accidental: '' }, parts.suffix)}/${targetNumeral}`
     }
     return `${text(leadingTone(degree, parts.suffix, minor), parts.suffix)}${slash}`
 }
@@ -298,17 +381,42 @@ export function progressionChords(
     const k = keyOf(key)
     if (!k) return null
     const tokens = typeof numerals === 'string' ? progressionTokens(numerals) : [...numerals]
-    const out: ProgressionChord[] = []
-    for (const written of tokens) {
-        const chord = progressionChord(written, k)
-        if (!chord) return null
-        out.push(chord)
+    const read = (options: NumeralOptions) => {
+        const out: ProgressionChord[] = []
+        for (const written of tokens) {
+            const chord = progressionChord(written, k, options)
+            if (!chord) return null
+            out.push(chord)
+        }
+        return out
     }
-    return out
+    const chords = read({})
+    // A blues on the key's tonic reads its I7 and IV7 as the key's own.
+    return chords &&
+        isBluesIn(
+            chords.map((c) => c.symbol),
+            k
+        )
+        ? read({ blues: true })
+        : chords
+}
+
+/** Whether chords are a dominant-seventh blues on a major key's tonic (A7 D7 E7 in A). */
+export function isBluesIn(symbols: readonly string[], key: MusicalKey): boolean {
+    const tonic = bluesTonic(symbols)
+    return (
+        tonic !== null &&
+        (key.mode === 'major' || key.mode === 'ionian') &&
+        chromaOf(tonic) === chromaOf(key.tonic)
+    )
 }
 
 /** One token of a progression (see progressionChords); null when it doesn't read. */
-export function progressionChord(written: string, key: MusicalKey): ProgressionChord | null {
+export function progressionChord(
+    written: string,
+    key: MusicalKey,
+    options: NumeralOptions = {}
+): ProgressionChord | null {
     const token = written.trim()
     // A chord name starts with a capital letter A to G; numerals never do.
     const isChord = /^[A-G]/.test(token)
@@ -323,8 +431,8 @@ export function progressionChord(written: string, key: MusicalKey): ProgressionC
     return {
         written: token,
         symbol: isChord ? symbol.replace(/♯/g, '#').replace(/♭/g, 'b') : symbol,
-        numeral: isChord ? numeralOf(symbol, key)! : token,
-        nashville: numeralOf(symbol, key, 'nashville')!,
-        function: secondary ? 'secondary dominant' : harmonicFunction(symbol, key)!
+        numeral: isChord ? numeralOf(symbol, key, 'roman', options)! : token,
+        nashville: numeralOf(symbol, key, 'nashville', options)!,
+        function: secondary ? 'secondary dominant' : harmonicFunction(symbol, key, options)!
     }
 }

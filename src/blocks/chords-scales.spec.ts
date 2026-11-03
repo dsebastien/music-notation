@@ -205,6 +205,33 @@ describe('chords recognized from their notes', () => {
         renderBlock('chord', 'symbol: C6/A\nfrets: x00210', h)
         expect(titles(h)).toEqual(['C6/A'])
     })
+
+    it('names a chord from its keys as they are spelled', () => {
+        const name = (pitches: string) => {
+            const h = host()
+            renderBlock('chord', `pitches: ${pitches}`, h)
+            return titles(h)[0]
+        }
+        expect(name('Db3 F4 B4 Eb5')).toBe('Db9')
+        expect(name('C#3 F4 B4 D#5')).toBe('C#9')
+        expect(name('G3 B3 F4 Ab4 Eb5')).toBe('G7b9b13')
+        expect(name('G3 B3 F4 Ab4 D#5')).toBe('G7#5b9')
+        expect(name('G3 B3 F4 Eb5')).toBe('G7b13')
+        // Without spellings (frets), the usual names.
+        expect(detectChordFromPitches([49, 65, 71, 75])?.symbol).toBe('C#9')
+    })
+
+    it('spells the keys by the symbol when there is one', () => {
+        const labels = (source: string) => {
+            const h = host()
+            renderBlock('chord', source, h)
+            return [...h.querySelectorAll('.mn-key-label')].map((t) => t.textContent)
+        }
+        expect(labels('symbol: Cdim7\npitches: C4 Eb4 Gb4 A4')).toEqual(
+            labels('Cdim7\ninstrument: piano')
+        )
+        expect(labels('symbol: C7\npitches: C4 E4 G4 A#4')).toContain('Bb')
+    })
 })
 
 describe('scales and modes', () => {

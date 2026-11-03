@@ -14,11 +14,19 @@ import { voiceLead, voiceLeadVoicings, type LedVoicing } from '../keyboard/voice
 import { chordNoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
 import { findKey } from '../theory/find.js'
-import { keyProblem, readKey, type MusicalKey } from '../theory/keys.js'
 import {
+    isMinorMode,
+    keyProblem,
+    raisedNashville,
+    readKey,
+    type MusicalKey
+} from '../theory/keys.js'
+import {
+    isBluesIn,
     numeralOf,
     progressionChord,
     progressionTokens,
+    type NumeralOptions,
     type ProgressionChord
 } from '../theory/numerals.js'
 import { transposeChord, transposeKey } from '../theory/transpose.js'
@@ -80,11 +88,14 @@ function keyOf(text: string): MusicalKey {
     return read
 }
 
-/** "G major" moved by semitones, spelled the usual way (Db, not C#). */
+/** "G major" moved by semitones, spelled the usual way (Db, not C#); a found mode keeps its mode
+ * (D dorian up 2 is E dorian). */
 function transposed(key: MusicalKey, semitones: number): MusicalKey {
     if (!semitones) return key
-    const moved = transposeKey(`${key.tonic}${key.mode === 'minor' ? 'm' : ''}`, semitones)
-    return keyOf(moved)
+    const minor = isMinorMode(key.mode)
+    const moved = keyOf(transposeKey(`${key.tonic}${minor ? 'm' : ''}`, semitones))
+    if (key.mode === 'major' || key.mode === 'minor') return moved
+    return { tonic: moved.tonic, mode: key.mode, name: `${moved.tonic} ${key.mode}` }
 }
 
 /** Figured bass (V65, V43, ii42, I64): inversions aren't read from it. */
@@ -106,6 +117,8 @@ interface Section {
     /** Found from the chords: the other likely keys, when it isn't clear. */
     others: string[]
     chords: ProgressionChord[]
+    /** A dominant-seventh blues on the key's tonic: I7 and IV7 are the key's own chords. */
+    blues: boolean
     block: BlockSource
 }
 
@@ -152,22 +165,31 @@ function sectionOf(block: BlockSource): Section {
         // Chord names without a key: the likeliest key names their numerals.
         const found = findKey(tokens)
         if (!found) throw unread(tokens.find((t) => !chordNoteSet(t)) ?? text)
-        key = { tonic: found.tonic, mode: found.mode, name: found.name }
+        // A mode the chords play in (Dm C G: D dorian) names their numerals from its tonic.
+        key = found.modal ?? { tonic: found.tonic, mode: found.mode, name: found.name }
         if (!found.clear) others = found.candidates.slice(1, 3).map((c) => c.name)
     } else throw new Error('Add the key: e.g. key: G or key: E minor')
     const to = transposed(key, shift)
     // Chord names move by the interval between the keys, so they keep their letters in it.
     const move = { from: key.tonic, to: to.tonic }
-    const chords = tokens.map((token) => {
-        // Numerals follow the key; chord names move with it.
-        const chord = /^[A-G]/.test(token)
-            ? progressionChord(shift ? transposeChord(token, shift, move) : token, to)
-            : progressionChord(token, to)
-        if (!chord) throw unread(token)
-        return chord
-    })
-    others = others.map((name) => (shift ? transposed(keyOf(name), shift).name : name))
-    return { key: to, others, chords, block }
+    const read = (options: NumeralOptions) =>
+        tokens.map((token) => {
+            // Numerals follow the key; chord names move with it.
+            const chord = /^[A-G]/.test(token)
+                ? progressionChord(shift ? transposeChord(token, shift, move) : token, to, options)
+                : progressionChord(token, to, options)
+            if (!chord) throw unread(token)
+            return chord
+        })
+    let chords = read({})
+    // A blues on the key's tonic (A7 D7 E7 in A): I7 and IV7, as blues players read them.
+    const blues = isBluesIn(
+        chords.map((c) => c.symbol),
+        to
+    )
+    if (blues) chords = read({ blues })
+    others = blues ? [] : others.map((name) => (shift ? transposed(keyOf(name), shift).name : name))
+    return { key: to, others, chords, blues, block }
 }
 
 /**
@@ -237,7 +259,10 @@ function renderSection(
     const el = html(doc, 'div', 'mn-progression-section')
     // The key, so numerals can be read (and a found key checked).
     const others = section.others.length ? ` (or ${section.others.join(', ')})` : ''
-    el.appendChild(html(doc, 'div', 'mn-progression-key', `Key: ${section.key.name}${others}`))
+    const blues = section.blues ? ' (blues)' : ''
+    el.appendChild(
+        html(doc, 'div', 'mn-progression-key', `Key: ${section.key.name}${blues}${others}`)
+    )
     const instrument = (field(block, 'instrument') ?? options.instrument ?? 'guitar').toLowerCase()
     if (!['guitar', 'piano', 'keyboard'].includes(instrument)) {
         throw new Error(`Unknown instrument "${instrument}": use guitar or piano`)
@@ -314,10 +339,10 @@ function renderSection(
                 ? null
                 : style === 'nashville'
                   ? isNashville(chord.written)
-                      ? chord.written
+                      ? raisedNashville(chord.written)
                       : chord.nashville
                   : isNashville(chord.written)
-                    ? numeralOf(chord.symbol, section.key)!
+                    ? numeralOf(chord.symbol, section.key, 'roman', { blues: section.blues })!
                     : chord.numeral
         if (numeral) cell.appendChild(html(doc, 'div', 'mn-progression-numeral', numeral))
         if (diagrams) {
