@@ -1,9 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.5.3 (2026-11-03)
 
-- Chord symbols written the way chord sheets on the web write them now work: alterations in parentheses (`C7(b9)`, `C7(b5,#9)`) and spellings like `Cmaj7b5`, `C-5`, `Cm6/9` and `Csus2sus4` (#40).
-- A `chord` block with only a symbol no longer shows an error when the built-in voicing database doesn't have the chord. It draws the 4 easiest voicings the library finds instead (#40).
+- Chord symbols written the way chord sheets on the web write them now work: alterations in parentheses (`C7(b9)`, `C7(b5,#9)`, and `C(#5)` for C augmented) and spellings like `Cmaj7b5`, `C-5`, `Cm6/9` and `Csus2sus4` (#40).
+- A sharp or flat at the start of a group in parentheses never changes the chord's root: `C(b9)` is not a chord, and the block says what to write instead. Only whole groups are read, so `C,` and `C()` are not chords either, and a lyric line with commas (`G, D, Em, C`) stays lyrics in the chord-sheet import (#40).
+- A `chord` block with only a symbol no longer shows an error when the built-in voicing database doesn't have the chord. It draws the 4 easiest voicings the library finds instead (#40). `C7alt` now gets the database's own voicings, and `Cmaj7b5` and `Cmmaj9` keep theirs.
+- Diagrams that the app moves to another window (Obsidian popout windows) now play through that window. When you press play, the play bar asks for the player of the window the diagram is in, not the one it was drawn in.
 
 ## 0.5.2 (2026-11-02)
 
