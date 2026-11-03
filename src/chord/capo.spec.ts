@@ -116,6 +116,10 @@ describe('capo in blocks', () => {
         expect(renderBlock('chord', 'G 320003\nsounds: B', host()).error).toBe(
             'sounds goes with a capo: add e.g. capo: 2'
         )
+        expect(renderBlock('chord', 'Mystery x02220\ncapo: 2\nsounds: yes', host()).error).toBe(
+            'sounds: yes needs a chord the library knows: add its symbol (e.g. symbol: A), or write the chord: sounds: B'
+        )
+        expect(renderBlock('chord', 'Mystery x02220\ncapo: 2\nsounds: B', host()).ok).toBe(true)
         // No capo (a template's capo: 0) and sounds: yes say nothing.
         expect(renderBlock('chord', 'G 320003\ncapo: 0\nsounds: yes', host()).ok).toBe(true)
     })

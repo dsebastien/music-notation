@@ -447,7 +447,12 @@ function soundsField(
         throw new Error(`sounds goes with a capo: add e.g. capo: 2`)
     }
     if (auto) {
-        if (!shape) throw new Error('sounds: yes needs the chord: add its symbol, e.g. symbol: A')
+        // A title the library can't read as a chord can't be moved up.
+        if (!shape || !chordNoteSet(shape)) {
+            throw new Error(
+                'sounds: yes needs a chord the library knows: add its symbol (e.g. symbol: A), or write the chord: sounds: B'
+            )
+        }
         return soundingChord(shape, capo)
     }
     const read = readChord(value)
