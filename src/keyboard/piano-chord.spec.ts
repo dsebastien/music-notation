@@ -3,6 +3,7 @@ import { pianoOptionsOf, pianoPitches, pianoVoicing, triadFingering } from './pi
 import { midiOf, noteOf } from '../theory/pitch.js'
 import { renderBlock } from '../render/render-block.js'
 import { attachPlayback } from '../playback/controls.js'
+import { accessibleName } from '../render/dom.js'
 
 /** Pitches as note names with octaves, flats when asked. */
 const names = (pitches: number[] | undefined, flats = false) =>
@@ -282,7 +283,7 @@ describe('piano chord blocks', () => {
         expect(svg.querySelector('[data-midi="55"]')?.getAttribute('class')).toContain(
             'mn-hand-left'
         )
-        expect(svg.getAttribute('aria-label')).toBe('C/G, left hand: G3, right hand: G4 C5 E5')
+        expect(accessibleName(svg)).toBe('C/G, left hand: G3, right hand: G4 C5 E5')
     })
 
     it('fingers triads with fingering: auto', () => {

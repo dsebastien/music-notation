@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { renderBlock } from '../render/render-block.js'
 import { describeBlock } from '../cli/describe.js'
+import { accessibleName } from '../render/dom.js'
 
 const host = () => document.createElement('div')
 
@@ -29,7 +30,7 @@ describe('a chord over a scale', () => {
         expect(classesOf(h, 'C')[0]).toBe('mn-dot mn-tone')
         expect(classesOf(h, 'D')[0]).toBe('mn-dot mn-passing')
         expect(classesOf(h, 'A')[0]).toBe('mn-dot mn-root mn-tone')
-        expect(svg.getAttribute('aria-label')).toContain('chord tones: A C E G')
+        expect(accessibleName(svg)).toContain('chord tones: A C E G')
     })
 
     it('marks the chord tones on a keyboard; the scale root keeps its color', () => {

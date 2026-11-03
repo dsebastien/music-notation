@@ -78,6 +78,8 @@ Everything is created in `host.ownerDocument`, so popout windows work.
 
 `injectStyles(document)` adds the stylesheet once; or ship `@dsebastien/music-notation/music-notation.css`. Colors use CSS variables (`--mn-accent`, `--mn-root`, `--mn-fg`, `--mn-muted`…) that default to Obsidian's theme variables, with fallbacks elsewhere. Override them on `.mn-block`.
 
+Diagrams are `<svg role="img">` named for screen readers by a `<title>` inside their `<defs>` (`aria-labelledby` points to it), never by `aria-label`: Obsidian shows a tooltip for any element with `aria-label`, and its tooltip code fails on SVG elements. Read a diagram's name from that title, not from `aria-label`. Buttons, sliders and the play bar keep `aria-label`.
+
 ## Browser bundle
 
 `dist/music-notation.publish.min.js` renders every notation block on the page and exposes the API (plus `lookupGuitarVoicing` and `stop()`) as `window.MusicNotation`. It reads `window.musicNotationOptions` (`orientation`, `hand`) when the page sets it before loading. See [Obsidian Publish](publish.md).

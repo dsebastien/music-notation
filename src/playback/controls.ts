@@ -3,7 +3,7 @@
  * sound, at the bottom of the diagram, shown on hover (on tap on touch screens). A click on a dot
  * or a key plays that note.
  */
-import { html, svg } from '../render/dom.js'
+import { accessibleName, html, setAccessibleName, svg } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
 import {
@@ -229,9 +229,8 @@ function redrawFor(doc: Document, diagram: Element, data: DiagramData): Element 
               playAs: data.kind
           })
     // Its name stays the diagram's, for screen readers.
-    const name = diagram.getAttribute('aria-label')
-    if (name)
-        drawn.setAttribute('aria-label', `${name}, drawn for ${toGuitar ? 'guitar' : 'piano'}`)
+    const name = accessibleName(diagram)
+    if (name) setAccessibleName(drawn, `${name}, drawn for ${toGuitar ? 'guitar' : 'piano'}`)
     drawn.classList.add('mn-redrawn')
     return drawn
 }
@@ -269,7 +268,7 @@ function barFor(
     const bar = html(doc, 'div', 'mn-play')
     bar.setAttribute('role', 'group')
     // Named after the diagram, so a page with many bars reads clearly.
-    const name = diagram.getAttribute('aria-label')
+    const name = accessibleName(diagram)
     bar.setAttribute('aria-label', name ? `Play ${name}` : 'Playback')
     wrap.appendChild(bar)
 

@@ -8,6 +8,7 @@ import {
     renderGuitarDiagram
 } from './guitar.js'
 import { titleWidth } from '../render/layout.js'
+import { accessibleName } from '../render/dom.js'
 
 describe('frets and fingers', () => {
     it('reads compact and separated frets', () => {
@@ -52,7 +53,7 @@ describe('renderGuitarDiagram', () => {
         ])
         // The open A string and the G string at the 2nd fret.
         expect(el.querySelectorAll('.mn-root')).toHaveLength(2)
-        expect(el.getAttribute('aria-label')).toBe('A chord diagram')
+        expect(accessibleName(el)).toBe('A chord diagram')
     })
 
     it('draws barres and the base fret up the neck', () => {

@@ -6,6 +6,7 @@ import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.j
 import { blockFromProperties, instrumentOf, DEFAULT_PROPERTY_NAMES } from './properties.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
 import { chordNoteSet, labelOf, scaleNoteSet } from '../theory/note-set.js'
+import { accessibleName } from '../render/dom.js'
 
 const host = () => document.createElement('div')
 const titles = (h: HTMLElement) => [...h.querySelectorAll('.mn-title')].map((t) => t.textContent)
@@ -698,9 +699,7 @@ describe('after review', () => {
     it('names the marked notes for screen readers', () => {
         const h = host()
         renderBlock('keyboard', 'C lydian\nrange: C4-B4', h)
-        expect(h.querySelector('svg')?.getAttribute('aria-label')).toContain(
-            'characteristic notes: F#'
-        )
+        expect(accessibleName(h.querySelector('svg')!)).toContain('characteristic notes: F#')
     })
 })
 

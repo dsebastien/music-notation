@@ -318,7 +318,11 @@ describe('orientation and hand', () => {
         const lowX = (el: HTMLElement) => Number(el.querySelector('.mn-string')?.getAttribute('x1'))
         expect(lowX(left)).toBeGreaterThan(lowX(right))
         const keys = (o: { hand?: 'left' }) =>
-            renderBlock('keyboard', 'C major', host(), o).el.innerHTML
+            // Each diagram's name has its own id.
+            renderBlock('keyboard', 'C major', host(), o).el.innerHTML.replace(
+                /mn-name-[\w-]+/g,
+                ''
+            )
         expect(keys({ hand: 'left' })).toBe(keys({}))
     })
 

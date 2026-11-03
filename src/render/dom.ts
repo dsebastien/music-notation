@@ -64,7 +64,20 @@ export function html<K extends keyof HTMLElementTagNameMap>(
     return el
 }
 
-/** A root <svg> sized by its viewBox, scaling with the container up to its natural width. */
+// Ids of diagram names: a counter, behind a prefix drawn once per copy of the library, so two
+// copies on one page (two plugins bundling it) never hand out the same id.
+const NAME_PREFIX = `mn-name-${Math.random().toString(36).slice(2, 8)}-`
+let names = 0
+
+/**
+ * A root <svg> sized by its viewBox, scaling with the container up to its natural width.
+ *
+ * Its name for screen readers (`label`) is a `<title>` inside `<defs>`, pointed at by
+ * `aria-labelledby` (role="img"). Never `aria-label` on SVG: Obsidian shows a tooltip for every
+ * element with one and calls HTMLElement-only methods on it, which throw on SVG elements. The
+ * title sits in `<defs>` (never drawn, never the parent of what the pointer is over) so browsers
+ * show no hover tooltip for it: the diagram's visible title already says what it is.
+ */
 export function svgRoot(
     doc: Document,
     width: number,
@@ -72,14 +85,47 @@ export function svgRoot(
     cls: string,
     label: string
 ): SVGElement {
-    return svg(doc, 'svg', {
-        'xmlns': SVG_NS,
-        'viewBox': `0 0 ${width} ${height}`,
-        'width': width,
-        'class': `mn-svg ${cls}`,
-        'role': 'img',
-        'aria-label': label
-    })
+    const id = `${NAME_PREFIX}${++names}`
+    const title = svg(doc, 'title', { class: 'mn-name', id })
+    title.textContent = label
+    return svg(
+        doc,
+        'svg',
+        {
+            'xmlns': SVG_NS,
+            'viewBox': `0 0 ${width} ${height}`,
+            'width': width,
+            'class': `mn-svg ${cls}`,
+            'role': 'img',
+            'aria-labelledby': id
+        },
+        [svg(doc, 'defs', {}, [title])]
+    )
+}
+
+// The element holding a diagram's name: looked up inside the diagram, so it works before the
+// diagram is on the page.
+const nameElement = (el: Element): Element | null => {
+    const id = el.getAttribute('aria-labelledby')
+    if (!id) return null
+    for (const candidate of el.querySelectorAll('[id]')) {
+        if (candidate.getAttribute('id') === id) return candidate
+    }
+    return el.ownerDocument.getElementById(id)
+}
+
+/** A diagram's name for screen readers (its `aria-labelledby` text, else its `aria-label`). */
+export function accessibleName(el: Element): string | null {
+    const named = nameElement(el)
+    if (named) return named.textContent
+    return el.getAttribute('aria-label')
+}
+
+/** Renames a diagram made by `svgRoot` (or any element named with `aria-label`). */
+export function setAccessibleName(el: Element, name: string): void {
+    const named = nameElement(el)
+    if (named) named.textContent = name
+    else el.setAttribute('aria-label', name)
 }
 
 /**

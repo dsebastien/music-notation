@@ -11,6 +11,7 @@ import {
 } from './player.js'
 import { renderBlock } from '../render/render-block.js'
 import { strumsOf } from './controls.js'
+import { accessibleName } from '../render/dom.js'
 
 describe('sequenceOf', () => {
     it('strums a chord low to high, then lets it ring', () => {
@@ -567,11 +568,12 @@ describe('choosing the other instrument redraws the diagram', () => {
         renderBlock('fretboard', 'A minor pentatonic\nposition: 1\norientation: vertical', h, {
             play: {}
         })
-        const name = h.querySelector('.mn-fretboard')!.getAttribute('aria-label')
+        const name = accessibleName(h.querySelector('.mn-fretboard')!)
         choose(h, 'piano')
         const keyboard = h.querySelector('.mn-keyboard')!
         expect(keyboard.getAttribute('data-mn-orientation')).toBe('vertical')
-        expect(keyboard.getAttribute('aria-label')).toBe(`${name}, drawn for piano`)
+        expect(name).toContain('A minor pentatonic')
+        expect(accessibleName(keyboard)).toBe(`${name}, drawn for piano`)
         h.remove()
     })
 
