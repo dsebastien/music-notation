@@ -23,6 +23,27 @@ describe('progression block', () => {
         expect(h.querySelector('.mn-progression-function')).toBeNull()
     })
 
+    it('reads the chords before, between or after the keys, on one line or several', () => {
+        const chords = (source: string) => {
+            const h = host()
+            const result = renderBlock('progression', source, h)
+            expect(result.error).toBeNull()
+            return texts(h, 'mn-progression-name')
+        }
+        expect(chords('key: G\ndiagrams: no\nI V vi IV')).toEqual(['G', 'D', 'Em', 'C'])
+        expect(chords('key: G\nI V vi IV\ndiagrams: no')).toEqual(['G', 'D', 'Em', 'C'])
+        expect(chords('key: G\nI V\ndiagrams: no\nvi IV')).toEqual(['G', 'D', 'Em', 'C'])
+        expect(chords('key: C\ndiagrams: no\n---\nI V vi IV\n---\nkey: Eb\nI IV V')).toEqual([
+            'C',
+            'G',
+            'Am',
+            'F',
+            'Eb',
+            'Ab',
+            'Bb'
+        ])
+    })
+
     it('shows functions, and Nashville numbers as written', () => {
         const h = host()
         renderBlock('progression', '1 5 6m 4\nkey: G\nfunctions: yes\ndiagrams: no', h)

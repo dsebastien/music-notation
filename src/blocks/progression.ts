@@ -4,7 +4,7 @@
  * function, and a guitar or piano diagram for each. `---` starts a section in another key.
  */
 import { html } from '../render/dom.js'
-import { parseBlockSource, splitParts, type BlockSource } from './block-source.js'
+import { splitParts, type BlockSource } from './block-source.js'
 import type { DiagramRenderer, RenderOptions } from './renderers.js'
 import { smoothProgression } from '../chord/transitions.js'
 import { parseTuning } from '../fretboard/tuning.js'
@@ -103,6 +103,25 @@ interface Section {
     others: string[]
     chords: ProgressionChord[]
     block: BlockSource
+}
+
+const FIELD = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/
+
+/**
+ * A section's source: `key: value` lines, and the chords on the lines that aren't (before, after
+ * or between the keys; several lines are one progression, in order).
+ */
+function sourceOf(part: string): BlockSource {
+    const fields = new Map<string, string>()
+    const lines: string[] = []
+    for (const raw of part.split(/\r?\n/)) {
+        const line = raw.trim()
+        if (!line) continue
+        const m = FIELD.exec(line)
+        if (m) fields.set(m[1]!.toLowerCase(), m[2]!.trim())
+        else lines.push(line)
+    }
+    return { head: lines.length ? lines.join(' ') : null, fields }
 }
 
 /** A section's chords as written. */
@@ -279,7 +298,7 @@ export function renderProgression(
     renderChord: DiagramRenderer
 ): Element {
     const parts = splitParts(source) ?? [source]
-    const blocks = parts.map((part) => parseBlockSource(part))
+    const blocks = parts.map(sourceOf)
     // A first part with no chords and only shared keys holds the settings of every section.
     const first = blocks[0]
     const sharedOnly =
