@@ -2,12 +2,12 @@
  * `scales-for: G D Em C` (chords) or `scales-for-notes: C D E G A` on a keyboard or fretboard: the
  * best scale for them, drawn like `scale:` (#42).
  */
-import type { BlockSource } from './block-source.js'
+import { parseBlockSource, type BlockSource } from './block-source.js'
 import type { DiagramRenderer } from './renderers.js'
 import { findScales } from '../theory/find.js'
 
 /** Keys that choose the notes themselves: they can't go with `scales-for`. */
-const OWN_NOTES = ['scale', 'chord', 'notes', 'root', 'modes', 'positions']
+const OWN_NOTES = ['scale', 'chord', 'notes', 'root', 'modes']
 
 /** At most this many chords or notes are repeated in the title. */
 const TITLE_ITEMS = 6
@@ -49,6 +49,25 @@ export function scalesForBlock(block: BlockSource): BlockSource {
     fields.set('scale', best.name)
     if (!fields.get('title')) fields.set('title', `${best.name} for ${listed}${outside}`)
     return { head: null, fields }
+}
+
+/**
+ * A whole block's source with `scales-for` replaced by its scale, for the keys that split a block
+ * into a row before it reaches the renderer (`positions:`, `modes:`): `positions: all` draws the
+ * found scale's positions, `modes:` is refused by scalesForBlock. The source as it was otherwise.
+ */
+export function resolveScalesFor(source: string): string {
+    let block: BlockSource
+    try {
+        block = parseBlockSource(source)
+    } catch {
+        return source
+    }
+    const { fields } = block
+    if (!fields.has('scales-for') && !fields.has('scales-for-notes')) return source
+    if (!fields.has('positions') && !fields.has('modes')) return source
+    const resolved = scalesForBlock(block)
+    return [...resolved.fields].map(([key, value]) => `${key}: ${value}`).join('\n')
 }
 
 /** A keyboard or fretboard renderer that also reads `scales-for`. */

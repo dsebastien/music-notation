@@ -122,7 +122,8 @@ export {
     SHARP_NAMES,
     FLAT_NAMES
 } from './theory/pitch.js'
-export { transposeChord, transposeKey, keyPrefersFlats } from './theory/transpose.js'
+export { transposeChord, transposeKey, keyPrefersFlats, keyMove } from './theory/transpose.js'
+export type { KeyMove } from './theory/transpose.js'
 export {
     chordNoteSet,
     scaleNoteSet,
@@ -211,6 +212,8 @@ export {
     keyChords,
     parentMajor,
     signatureText,
+    keyProblem,
+    MAX_SIGNATURE,
     MODES,
     type Mode,
     type MusicalKey,

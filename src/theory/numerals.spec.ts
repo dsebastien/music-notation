@@ -67,9 +67,25 @@ describe('readNumeral', () => {
         expect(symbols('1/3 4/5', 'G')).toEqual(['G/B', 'C/D'])
     })
 
+    it('reads chords whose root needs a double sharp or flat', () => {
+        expect(symbols('i iv V vii°', 'G#m')).toEqual(['G#m', 'C#m', 'D#', 'F##dim'])
+        expect(symbols('i V vii°7', 'D#m')).toEqual(['D#m', 'A#', 'C##dim7'])
+        expect(symbols('V vii°', 'A#m')).toEqual(['E#', 'G##dim'])
+        expect(symbols('vii°/vi', 'B')).toEqual(['F##dim'])
+        expect(symbols('vii°/vi', 'C#')).toEqual(['G##dim'])
+        expect(symbols('I bVI bVII', 'Gb')).toEqual(['Gb', 'Ebb', 'Fb'])
+        expect(numeralOf('F##dim', 'G#m')).toBe('vii°')
+        expect(numeralOf('Ebb', 'Gb')).toBe('bVI')
+        expect(harmonicFunction('C##dim7', 'D#m')).toBe('dominant')
+    })
+
     it('refuses what does not read', () => {
         for (const token of ['VIII', 'IVv', 'Iv', 'x', 'I/', 'V//V', '8', 'V/9', 'I/V/V'])
             expect(readNumeral(token, 'C')).toBeNull()
+        // Figured bass isn't read: I6 is a sixth chord, V65 and V64 aren't chords.
+        expect(readNumeral('I6', 'C')).toBe('C6')
+        expect(readNumeral('V65', 'C')).toBeNull()
+        expect(readNumeral('V64', 'C')).toBeNull()
         expect(readNumeral('I', 'H')).toBeNull()
         expect(progressionChords('I VIII', 'C')).toBeNull()
     })
@@ -113,6 +129,22 @@ describe('numeralOf', () => {
                 if (!numeral.includes('/')) expect(readNumeral(numeral, key)).toBe(symbol.symbol)
             }
         }
+    })
+})
+
+describe('chords spelled another way than the key', () => {
+    it('take the key’s spelling of a pitch it has', () => {
+        expect(numeralOf('Fdim', 'F#')).toBe('vii°')
+        expect(harmonicFunction('Fdim', 'F#')).toBe('dominant')
+        expect(numeralOf('Gb/Bb', 'F#')).toBe('I/3')
+        expect(numeralOf('C#/F', 'F#')).toBe('V/7')
+        expect(numeralOf('Abdim7', 'Am')).toBe('vii°7')
+        expect(harmonicFunction('Abdim7', 'Am')).toBe('dominant')
+        expect(numeralOf('C#m', 'Db')).toBe('i')
+        expect(harmonicFunction('C#m', 'Db')).toBe('borrowed')
+        expect(
+            progressionChords('F# B C# Fdim', 'F#')?.map((c) => `${c.numeral} ${c.function}`)
+        ).toEqual(['I tonic', 'IV subdominant', 'V dominant', 'vii° dominant'])
     })
 })
 

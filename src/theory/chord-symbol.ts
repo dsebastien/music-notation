@@ -40,8 +40,16 @@ export interface ParsedChord {
     name: string
 }
 
-const spell = (note: string) =>
-    note[0]! + (note[1] === '#' ? ' Sharp' : note[1] === 'b' ? ' Flat' : '')
+const ACCIDENTAL_WORDS: Record<string, string> = {
+    '#': ' Sharp',
+    '##': ' Double Sharp',
+    'b': ' Flat',
+    'bb': ' Double Flat'
+}
+
+/** "F#" → "F Sharp", "Ebb" → "E Double Flat". */
+export const spellNote = (note: string): string =>
+    note[0]! + (ACCIDENTAL_WORDS[note.slice(1)] ?? '')
 
 /** "5 (Power)" → "5" for names. */
 const plain = (quality: string) => quality.replace(/\s*\([^)]*\)/g, '').trim()
@@ -77,6 +85,6 @@ export function parseChord(symbol: string): ParsedChord | null {
         root,
         quality,
         bass,
-        name: `${spell(root)} ${plain(quality)}${bass ? ` over ${spell(bass)}` : ''}`
+        name: `${spellNote(root)} ${plain(quality)}${bass ? ` over ${spellNote(bass)}` : ''}`
     }
 }

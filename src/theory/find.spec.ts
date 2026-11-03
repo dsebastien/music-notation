@@ -124,6 +124,9 @@ describe('findScales', () => {
         // Notes with octaves when asked (A3 C4 E4 is A C E); else A5 D5 E5 are power chords.
         expect(findScales('A3 C4 E4', { as: 'notes' })[0]!.name).toBe('A minor')
         expect(findScales('A5 D5 E5')[0]!.missing).not.toContain('B')
+        // Notes with octaves that aren't all power chords are notes.
+        expect(findScales('C4 E4 G4')[0]!.name).toBe('C major')
+        expect(findScales('A3 C4 E5')[0]!.name).toBe('A minor')
     })
 
     it('spells scales the way the input does, without double accidentals', () => {
@@ -216,6 +219,14 @@ describe('findKey', () => {
         expect(findKey('Dm G7 C')!.clear).toBe(true)
         expect(findKey('C A7 Dm G7 C')!.outside).toEqual(['A7'])
         expect(findKey('C E7 Am')!.name).toBe('A minor')
+    })
+
+    it('lists the keys that hold every chord first among the others', () => {
+        const names = (chords: string) => findKey(chords)!.candidates.map((c) => c.name)
+        expect(names('Am F C G').slice(0, 3)).toEqual(['A minor', 'C major', 'G major'])
+        expect(names('Em C G D').slice(0, 3)).toEqual(['E minor', 'G major', 'D major'])
+        // The best key is still the best score: a borrowed bVII doesn't move C Bb F C to F major.
+        expect(names('C Bb F C').slice(0, 2)).toEqual(['C major', 'F major'])
     })
 
     it('needs chords that read', () => {

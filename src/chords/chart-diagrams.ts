@@ -12,7 +12,7 @@ import type { Hand, LayoutDefaults } from '../render/layout.js'
 import { chordNoteSet, listNoteSet, type NoteSet } from '../theory/note-set.js'
 import { parseChord } from '../theory/chord-symbol.js'
 import { chromaOf, noteOf, splitChordSymbol } from '../theory/pitch.js'
-import { transposeChord } from '../theory/transpose.js'
+import { transposeChord, type KeyMove } from '../theory/transpose.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import type { Song } from './chordpro.js'
 import { absoluteFrets, findDefinition, type ChordDefinition } from './defines.js'
@@ -187,8 +187,9 @@ export function missingMessage(names: readonly string[], instrument: ChartInstru
 export interface ChordsUsedOptions extends ChordDrawing {
     /** Semitones the chart moves chords by. */
     semitones: number
-    /** Spell transposed chords with flats (the transposed key's way), or as written. */
-    flats?: boolean
+    /** Spell transposed chords with flats or sharps, by the move between two keys (letters kept),
+     * or as written when absent. */
+    spelling?: boolean | KeyMove
     /**
      * A "Capo N" caption over guitar shapes (default true). Charts leave it out when the row is
      * right under the chart's own line that says the capo.
@@ -207,13 +208,13 @@ export function renderChordsUsed(
     song: Song,
     options: ChordsUsedOptions
 ): HTMLElement | null {
-    const { semitones, flats } = options
+    const { semitones, spelling } = options
     const shownSeen = new Set<string>()
     const cells: HTMLElement[] = []
     const missing: string[] = []
     let skipped = 0
     for (const written of chordsUsed(song)) {
-        const shown = transposeChord(written, semitones, flats)
+        const shown = transposeChord(written, semitones, spelling)
         if (shownSeen.has(shown)) continue
         shownSeen.add(shown)
         const definition = findDefinition(song.definitions, written)

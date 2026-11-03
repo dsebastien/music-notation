@@ -36,7 +36,9 @@ describe('chord names in words', () => {
             'C13',
             'G7sus4',
             'Cm6',
-            'Cm9'
+            'Cm9',
+            'F##dim',
+            'Ebbm7/Bbb'
         ]) {
             expect(parseChordName(parseChord(symbol)!.name)?.symbol).toBe(symbol)
         }

@@ -56,6 +56,8 @@ title: A (open)</code></pre></div>
 | `frets-from`        | `nut`: the frets you write count from the nut. See [capo](#capo).                                                                                                                                                                                                                                                                                                  |
 | `sounds`            | `yes`, or the chord: the chord the shape sounds with the capo, in the caption.                                                                                                                                                                                                                                                                                     |
 
+Roots and basses can have double sharps and flats: `F##dim` (or `Fxdim`), `Ebb`.
+
 Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Five notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G), Csus2 (C D G) and four-note jazz clusters like Cmaj9/B (B C D E). A chord the library doesn't recognize says what to write instead.
 
 A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below. [Piano voicings](#piano-voicings) change that.
@@ -465,6 +467,7 @@ Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, m
 - `positions: all` (or a list, `positions: 1 3`) draws the shapes side by side in neck order, each one at or above the one before; `frets:` with one position draws it in the lowest octave inside those frets. These are the same rules as for scale positions.
 - A chord with a position is an arpeggio too (`chord: G7` with `shape: A`), unless the block also has a `scale:` (see [a chord over a scale](#which-scale-fits)). `labels:` works as usual. Arpeggios have no 3NPS positions.
 - On a keyboard, `arpeggio:` plays the notes one at a time.
+- Use `arpeggio:` or `chord:`, not both.
 
 ````markdown
 ```fretboard
@@ -480,7 +483,7 @@ columns: 3</code></pre></div>
 
 ## Which scale fits
 
-**Scales for chords.** On a keyboard or a fretboard, `scales-for:` with the chords of a song draws the scale that fits them best. The title names the scale, and any chord notes outside it. `scales-for-notes:` does the same for a list of notes. Other keys (`frets`, `labels`, `position`, `range`…) work as for `scale:`.
+**Scales for chords.** On a keyboard or a fretboard, `scales-for:` with the chords of a song draws the scale that fits them best. The title names the scale, and any chord notes outside it. `scales-for-notes:` does the same for a list of notes. Other keys (`frets`, `labels`, `position`, `positions`, `range`…) work as for `scale:`.
 
 ````markdown
 ```fretboard
@@ -492,7 +495,7 @@ frets: 0-5
 <div class="mn-live" markdown="0"><pre><code class="language-fretboard">scales-for: G D Em C
 frets: 0-5</code></pre></div>
 
-The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note.
+The best scale has the fewest notes outside the chords. Then major and minor come first, then their modes, then the pentatonic and blues scales, then the harmonic and melodic minor; a scale on the first chord's root comes before the others. For G D Em C that's G major; for Am Dm E7, A harmonic minor. A single letter in `scales-for:` is a major chord (`G C D` are three chords); in `scales-for-notes:` it's a note, and notes can have octaves (`C4 E4 G4`).
 
 **A chord over a scale.** Give both `scale:` and `chord:` and the scale stays drawn, with the chord's notes solid and the scale's other notes hollow: the notes to aim for when you solo over that chord. A chord note that isn't in the scale is drawn faint. `arpeggio:` works like `chord:` here. With `position:` or `positions:`, you get the scale's positions with the chord tones marked; a chord or arpeggio without `scale:` draws its own [arpeggio positions](#arpeggios).
 
@@ -528,7 +531,7 @@ functions: yes</code></pre></div>
 
 | Key                          | Meaning                                                                                                                           |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| first line                   | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.                 |
+| chords line                  | The chords: `I V vi IV`, `1 5 6m 4` or `G D Em C`. Spaces, commas or bar lines between them. Also `progression:`.                 |
 | `key`                        | `G`, `Em`, `F# minor`, `Bb major`. Needed for numerals; chord names without a key get the likeliest one (shown, with others).     |
 | `transpose`                  | Semitones up or down, `transpose: -2`: the key moves, and chords are spelled for the new key.                                     |
 | `numerals`                   | `roman`, `nashville` or `none`. By default, Nashville when you wrote Nashville numbers, else roman.                               |
@@ -540,7 +543,9 @@ functions: yes</code></pre></div>
 | `tuning`                     | For guitar diagrams, as for chords.                                                                                               |
 | `title`                      | A title above the progression.                                                                                                    |
 
-**Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C.
+The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
+
+**Numerals.** Uppercase is major, lowercase minor: `I`, `ii`, `V`, `vi`. Add `°` (or `o`) for diminished, `ø` for half-diminished, `+` for augmented, and any chord ending: `V7`, `ii7`, `Imaj7`, `vii°7`, `IVadd9`. `b` and `#` move a chord off the scale: `bVII`, `bVI`, `#iv°`. `V/V` and `V7/ii` are secondary dominants (the chord in the key of the numeral after the slash), and a number after the slash is the bass: `I/3` is C/E in C. Figured bass isn't read: `I6` is C6 (a sixth chord, not an inversion), and `V65` is an error; write the bass after a slash instead (`V7/7` is G7/B in C).
 
 **Minor keys.** Write `i iv v` (or `V`), `bIII bVI bVII`. The plain `III`, `VI` and `VII` mean the same chords (C, F and G in A minor), and `vii°` is the chord on the raised seventh (G#dim in A minor). `#vi` raises the sixth (F#m in A minor).
 
@@ -568,7 +573,7 @@ key: C
 I IV V I
 key: D</code></pre></div>
 
-Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`.
+Guitar diagrams use the voicings that make the whole progression easiest to play, as `progression:` does in a `chord` block. Piano chords are in root position from middle C, unless you ask for `voice-leading`. The keyboards of a row show the same keys (whole octaves around every chord), so they have the same width; if that would take more than 3 octaves, or a chord can't be drawn, each keyboard keeps its own keys.
 
 ## Circle of fifths
 
@@ -589,6 +594,8 @@ key: G
 | `chords`     | `triads` (default) or `sevenths`.                                                                 |
 | `neighbours` | `no` draws IV and V like the other chords.                                                        |
 | `title`      | A title above the wheel.                                                                          |
+
+A key that would need more than 7 sharps or flats (`Gb minor`, `G# major`) is refused: write the other name (`F# minor`, `Ab major`).
 
 With playback on, a click on a key or a chord plays it, and the play button plays the key's scale.
 
@@ -797,7 +804,7 @@ Supported:
 - Song details: `{title}` (`{t}`), `{subtitle}` (`{st}`), `{artist}`, `{key}`, `{capo}`, `{tempo}`, `{time}`.
 - Sections: verse, chorus, bridge (`{start_of_verse}`, `{sov}`, `{soc}`, `{sob}`…), with an optional label (`{start_of_verse: Verse 2}`); tab and grid sections are shown as written.
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
-- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key.
+- `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their place in it: in G moved down to F#, C becomes B and D/F# becomes C#/E#.
 - Long lyric lines wrap on narrow screens.
 - Chord shapes and the chords used row: see below.
 

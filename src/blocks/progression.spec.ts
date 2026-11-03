@@ -23,6 +23,27 @@ describe('progression block', () => {
         expect(h.querySelector('.mn-progression-function')).toBeNull()
     })
 
+    it('reads the chords before, between or after the keys, on one line or several', () => {
+        const chords = (source: string) => {
+            const h = host()
+            const result = renderBlock('progression', source, h)
+            expect(result.error).toBeNull()
+            return texts(h, 'mn-progression-name')
+        }
+        expect(chords('key: G\ndiagrams: no\nI V vi IV')).toEqual(['G', 'D', 'Em', 'C'])
+        expect(chords('key: G\nI V vi IV\ndiagrams: no')).toEqual(['G', 'D', 'Em', 'C'])
+        expect(chords('key: G\nI V\ndiagrams: no\nvi IV')).toEqual(['G', 'D', 'Em', 'C'])
+        expect(chords('key: C\ndiagrams: no\n---\nI V vi IV\n---\nkey: Eb\nI IV V')).toEqual([
+            'C',
+            'G',
+            'Am',
+            'F',
+            'Eb',
+            'Ab',
+            'Bb'
+        ])
+    })
+
     it('shows functions, and Nashville numbers as written', () => {
         const h = host()
         renderBlock('progression', '1 5 6m 4\nkey: G\nfunctions: yes\ndiagrams: no', h)
@@ -49,6 +70,12 @@ describe('progression block', () => {
         expect(n.querySelector('.mn-progression-numeral')).toBeNull()
     })
 
+    it('finds a key the chords spell with too many flats under its other name', () => {
+        const h = host()
+        renderBlock('progression', 'Gbm Cbm Db Gbm\ndiagrams: no', h)
+        expect(texts(h, 'mn-progression-key')[0]).toMatch(/^Key: F# minor/)
+    })
+
     it('finds the key of chord names and gives their numerals', () => {
         const h = host()
         renderBlock('progression', 'G D Em C\ndiagrams: no', h)
@@ -56,7 +83,7 @@ describe('progression block', () => {
         expect(texts(h, 'mn-progression-numeral')).toEqual(['I', 'V', 'vi', 'IV'])
         const unclear = host()
         renderBlock('progression', 'Am F C G\ndiagrams: no', unclear)
-        expect(texts(unclear, 'mn-progression-key')[0]).toMatch(/^Key: A minor \(or /)
+        expect(texts(unclear, 'mn-progression-key')).toEqual(['Key: A minor (or C major, G major)'])
     })
 
     it('transposes numerals and chord names, spelled for the new key', () => {
@@ -69,6 +96,60 @@ describe('progression block', () => {
         expect(texts(names, 'mn-progression-key')).toEqual(['Key: Bb major'])
         expect(texts(names, 'mn-progression-name')).toEqual(['Bb', 'F', 'Gm', 'Eb'])
         expect(texts(names, 'mn-progression-numeral')).toEqual(['I', 'V', 'vi', 'IV'])
+        const down = host()
+        renderBlock(
+            'progression',
+            'G C D F#dim\nkey: G\ntranspose: -1\nfunctions: yes\ndiagrams: no',
+            down
+        )
+        expect(texts(down, 'mn-progression-name')).toEqual(['F#', 'B', 'C#', 'E#dim'])
+        expect(texts(down, 'mn-progression-numeral')).toEqual(['I', 'IV', 'V', 'vii°'])
+        expect(texts(down, 'mn-progression-function')).toEqual([
+            'tonic',
+            'subdominant',
+            'dominant',
+            'dominant'
+        ])
+        const minor = host()
+        renderBlock('progression', 'Em Am B7 C\nkey: Em\ntranspose: -1\ndiagrams: no', minor)
+        expect(texts(minor, 'mn-progression-name')).toEqual(['Ebm', 'Abm', 'Bb7', 'Cb'])
+        expect(texts(minor, 'mn-progression-numeral')).toEqual(['i', 'iv', 'V7', 'bVI'])
+    })
+
+    it('draws chords whose root needs a double sharp', () => {
+        const h = host()
+        const result = renderBlock('progression', 'i iv V vii°\nkey: G#m', h)
+        expect(result.error).toBeNull()
+        const diagrams = [...h.querySelectorAll('svg.mn-guitar-chord')]
+        expect(diagrams.map((d) => d.getAttribute('data-mn-chord'))).toEqual([
+            'G#m',
+            'C#m',
+            'D#',
+            'F##dim'
+        ])
+    })
+
+    it('gives every piano keyboard of a row the same range', () => {
+        const range = (source: string) => {
+            const h = host()
+            expect(renderBlock('progression', source, h).error).toBeNull()
+            return [...h.querySelectorAll('svg.mn-keyboard')].map((svg) => {
+                const keys = [...svg.querySelectorAll('[data-midi]')].map((k) =>
+                    Number(k.getAttribute('data-midi'))
+                )
+                return `${Math.min(...keys)}-${Math.max(...keys)} ${svg.getAttribute('width')}`
+            })
+        }
+        // A slash chord's bass an octave below: every keyboard from C3, not only that one.
+        expect(new Set(range('I V/3 vi IV/1\nkey: C\ninstrument: piano'))).toEqual(
+            new Set(['48-83 464'])
+        )
+        expect(
+            new Set(range('I IV V vii° vi\nkey: F#\ninstrument: piano\nvoice-leading: yes')).size
+        ).toBe(1)
+        expect(new Set(range('ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: shell')).size).toBe(
+            1
+        )
     })
 
     it('draws piano chords, voice-led when asked', () => {
@@ -145,7 +226,13 @@ describe('progression block', () => {
         expect(error('I VIII\nkey: C')).toContain('Didn\'t read "VIII"')
         expect(error('I IV V')).toBe('Add the key: e.g. key: G or key: E minor')
         expect(error('I IV\nkey: H')).toContain('Unknown key "H"')
-        expect(error('I IV\nkey: D dorian')).toContain('Unknown key "D dorian"')
+        expect(error('i iv\nkey: Gbm')).toBe('Gb minor needs 9 flats: write F# minor')
+        expect(error('I IV\nkey: Fb')).toBe('Fb major needs 8 flats: write E major')
+        expect(error('I IV\nkey: D dorian')).toBe(
+            'Progression keys are major or minor: write key: D major or key: D minor, got "D dorian"'
+        )
+        expect(error('I V65\nkey: C')).toContain("figured bass isn't read")
+        expect(error('I V43\nkey: C')).toContain('V7/7 is G7/B')
         expect(error('key: C')).toContain('Add the chords')
         expect(error('I IV\nkey: C\ntranspose: 1.5')).toContain('transpose')
         expect(error('I IV\nkey: C\nfunctions: maybe')).toBe(
@@ -154,7 +241,20 @@ describe('progression block', () => {
         expect(error('I IV\nkey: C\nvoice-leading: yes')).toContain('instrument: piano')
         expect(error('I IV\nkey: C\ninstrument: banjo')).toContain('Unknown instrument')
         expect(error('I IV\nkey: C\nnumerals: greek')).toContain('numerals: use roman')
+        expect(error('I IV V\nkey: C\ninstrument: piano\nvoicing: drop2')).toContain(
+            'voicing: use close, open, shell'
+        )
+        expect(error('I IV V\nkey: C\ninstrument: piano\noctave: 9')).toContain(
+            'octave: use a number from 0 to 8'
+        )
+        expect(error('I IV V\nkey: C\ninstrument: piano\nhands: three')).toContain('hands: use')
         expect(error(`${Array(33).fill('I').join(' ')}\nkey: C`)).toContain('At most 32 chords')
         expect(error('G Dxyz')).toContain('Didn\'t read "Dxyz"')
+        // Counted before reading: 800 chords (and one that doesn't read) fail fast on the count.
+        const start = performance.now()
+        expect(error(`${Array(800).fill('G').join(' ')} Xyz`)).toBe(
+            'At most 32 chords per block, found 801'
+        )
+        expect(performance.now() - start).toBeLessThan(100)
     })
 })

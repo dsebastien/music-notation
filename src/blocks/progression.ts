@@ -4,25 +4,29 @@
  * function, and a guitar or piano diagram for each. `---` starts a section in another key.
  */
 import { html } from '../render/dom.js'
-import { parseBlockSource, splitParts, type BlockSource } from './block-source.js'
+import { splitParts, type BlockSource } from './block-source.js'
 import type { DiagramRenderer, RenderOptions } from './renderers.js'
 import { smoothProgression } from '../chord/transitions.js'
 import { parseTuning } from '../fretboard/tuning.js'
+import { pianoOptionsOf, pianoPitches, type PianoVoicingOptions } from '../keyboard/piano-chord.js'
 import { voiceLead } from '../keyboard/voice-leading.js'
 import { chordNoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
 import { findKey } from '../theory/find.js'
-import { readKey, type MusicalKey } from '../theory/keys.js'
+import { keyProblem, readKey, type MusicalKey } from '../theory/keys.js'
 import {
     numeralOf,
     progressionChord,
     progressionTokens,
     type ProgressionChord
 } from '../theory/numerals.js'
-import { keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose.js'
+import { transposeChord, transposeKey } from '../theory/transpose.js'
 
 /** More chords than this in one block is an error, so a page stays quick to draw. */
 const MAX_CHORDS = 32
+
+/** A row of piano chords shares one keyboard range when it spans at most this many octaves. */
+const MAX_SHARED_OCTAVES = 3
 
 /** Keys the first part may share with every section. */
 const SHARED = [
@@ -61,10 +65,18 @@ function keyOf(text: string): MusicalKey {
     const key = readKey(text)
     const mode =
         key?.mode === 'ionian' ? 'major' : key?.mode === 'aeolian' ? 'minor' : (key?.mode ?? null)
+    if (key && mode !== 'major' && mode !== 'minor') {
+        throw new Error(
+            `Progression keys are major or minor: write key: ${key.tonic} major or key: ${key.tonic} minor, got "${text}"`
+        )
+    }
     if (!key || (mode !== 'major' && mode !== 'minor')) {
         throw new Error(`Unknown key "${text}": use e.g. key: G, key: Em or key: F# minor`)
     }
-    return { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` }
+    const read: MusicalKey = { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` }
+    const problem = keyProblem(read)
+    if (problem) throw new Error(problem)
+    return read
 }
 
 /** "G major" moved by semitones, spelled the usual way (Db, not C#). */
@@ -74,10 +86,17 @@ function transposed(key: MusicalKey, semitones: number): MusicalKey {
     return keyOf(moved)
 }
 
+/** Figured bass (V65, V43, ii42, I64): inversions aren't read from it. */
+const FIGURED = /^[b#♭♯]?(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)[°ø+]?(65|64|43|42)$/
+
 const unread = (token: string) =>
-    new Error(
-        `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
-    )
+    FIGURED.test(token)
+        ? new Error(
+              `Didn't read "${token}": figured bass isn't read; write the bass after a slash (V7/7 is G7/B in C, I/5 is C/G)`
+          )
+        : new Error(
+              `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
+          )
 
 const isNashville = (token: string) => /^[b#♭♯]?[1-7]/.test(token)
 
@@ -89,9 +108,32 @@ interface Section {
     block: BlockSource
 }
 
+const FIELD = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/
+
+/**
+ * A section's source: `key: value` lines, and the chords on the lines that aren't (before, after
+ * or between the keys; several lines are one progression, in order).
+ */
+function sourceOf(part: string): BlockSource {
+    const fields = new Map<string, string>()
+    const lines: string[] = []
+    for (const raw of part.split(/\r?\n/)) {
+        const line = raw.trim()
+        if (!line) continue
+        const m = FIELD.exec(line)
+        if (m) fields.set(m[1]!.toLowerCase(), m[2]!.trim())
+        else lines.push(line)
+    }
+    return { head: lines.length ? lines.join(' ') : null, fields }
+}
+
+/** A section's chords as written. */
+const chordsText = (block: BlockSource): string | undefined =>
+    block.head ?? field(block, 'progression') ?? field(block, 'chords')
+
 /** One section's chords in its key, transposed. */
 function sectionOf(block: BlockSource): Section {
-    const text = block.head ?? field(block, 'progression') ?? field(block, 'chords')
+    const text = chordsText(block)
     if (!text) {
         throw new Error('Add the chords: e.g. I V vi IV with key: G, 1 5 6m 4, or G D Em C')
     }
@@ -113,17 +155,45 @@ function sectionOf(block: BlockSource): Section {
         if (!found.clear) others = found.candidates.slice(1, 3).map((c) => c.name)
     } else throw new Error('Add the key: e.g. key: G or key: E minor')
     const to = transposed(key, shift)
-    const flats = keyPrefersFlats(`${to.tonic}${to.mode === 'minor' ? 'm' : ''}`)
+    // Chord names move by the interval between the keys, so they keep their letters in it.
+    const move = { from: key.tonic, to: to.tonic }
     const chords = tokens.map((token) => {
         // Numerals follow the key; chord names move with it.
         const chord = /^[A-G]/.test(token)
-            ? progressionChord(shift ? transposeChord(token, shift, flats) : token, to)
+            ? progressionChord(shift ? transposeChord(token, shift, move) : token, to)
             : progressionChord(token, to)
         if (!chord) throw unread(token)
         return chord
     })
     others = others.map((name) => (shift ? transposed(keyOf(name), shift).name : name))
     return { key: to, others, chords, block }
+}
+
+/**
+ * One keyboard range for a row of piano chords (whole octaves around all their keys, as one
+ * chord's keyboard would be), so every keyboard has the same width: "C4-B5". Null when a chord
+ * doesn't voice, or the row would span more than MAX_SHARED_OCTAVES (each chord keeps its own).
+ */
+function sharedRange(pitches: (number[] | null)[]): string | null {
+    if (!pitches.length || pitches.some((p) => !p?.length)) return null
+    const all = pitches.flat() as number[]
+    const low = Math.min(...all)
+    const high = Math.max(...all)
+    const from = low - (((low % 12) + 12) % 12)
+    const to = high + 11 - (((high % 12) + 12) % 12)
+    if ((to - from + 1) / 12 > MAX_SHARED_OCTAVES) return null
+    return `${noteOf(from)}-${noteOf(to)}`
+}
+
+/** Each chord's piano keys as its diagram will draw them; null for one that doesn't voice. */
+function pianoKeysOf(symbols: string[], options: PianoVoicingOptions): (number[] | null)[] {
+    return symbols.map((symbol) => {
+        try {
+            return pianoPitches(symbol, options).pitches
+        } catch {
+            return null
+        }
+    })
 }
 
 /** Guitar voicings that make the section easiest to play, or null when one can't be found. */
@@ -184,9 +254,14 @@ function renderSection(
     if (pianoKeys.length && led) {
         throw new Error(`Use voice-leading or ${pianoKeys[0]}, not both`)
     }
+    // A value that can't be read is the block's mistake, not each chord's.
+    const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
     const symbols = chords.map((c) => c.symbol)
     const guitar = diagrams && !piano ? guitarVoicings(symbols, field(block, 'tuning')) : null
     const pitches = diagrams && piano && led ? voiceLead(symbols) : null
+    // Piano keyboards of a row share one range, so they have the same width.
+    const range =
+        diagrams && piano ? sharedRange(pitches ?? pianoKeysOf(symbols, pianoOptions)) : null
     const row = html(doc, 'div', 'mn-row mn-progression-chords')
     chords.forEach((chord, i) => {
         const cell = html(doc, 'div', 'mn-cell mn-progression-chord')
@@ -211,6 +286,7 @@ function renderSection(
                 if (piano) {
                     lines.push(['instrument', 'piano'])
                     for (const key of pianoKeys) lines.push([key, field(block, key)!])
+                    if (range) lines.push(['range', range])
                     const midi = pitches?.[i]
                     if (midi) {
                         const set = chordNoteSet(chord.symbol)
@@ -256,7 +332,7 @@ export function renderProgression(
     renderChord: DiagramRenderer
 ): Element {
     const parts = splitParts(source) ?? [source]
-    const blocks = parts.map((part) => parseBlockSource(part))
+    const blocks = parts.map(sourceOf)
     // A first part with no chords and only shared keys holds the settings of every section.
     const first = blocks[0]
     const sharedOnly =
@@ -269,12 +345,12 @@ export function renderProgression(
     const shared = sharedOnly ? first.fields : new Map<string, string>()
     const own = sharedOnly ? blocks.slice(1) : blocks
     if (!own.length) throw new Error('Add the chords after the shared settings, after a "---" line')
-    const sections = own.map((b) =>
-        sectionOf({ head: b.head, fields: new Map([...shared, ...b.fields]) })
-    )
-    const count = sections.reduce((n, s) => n + s.chords.length, 0)
+    const merged = own.map((b) => ({ head: b.head, fields: new Map([...shared, ...b.fields]) }))
+    // Counted before any chord is read: finding the key of hundreds of chords takes a while.
+    const count = merged.reduce((n, b) => n + progressionTokens(chordsText(b) ?? '').length, 0)
     if (count > MAX_CHORDS)
         throw new Error(`At most ${MAX_CHORDS} chords per block, found ${count}`)
+    const sections = merged.map(sectionOf)
     const el = html(doc, 'div', 'mn-progression')
     // One title for the block (shared, or a single section's); else each section's own.
     const blockTitle =

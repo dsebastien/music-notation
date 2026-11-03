@@ -15,6 +15,8 @@ import { parseBlockSource } from '../blocks/block-source.js'
 import type { Renderer } from '../blocks/renderers.js'
 import {
     keyChords,
+    keyProblem,
+    MAX_SIGNATURE,
     readKey,
     MODES,
     keyNotes,
@@ -220,15 +222,13 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
         }
     }
 
-    // Key signatures around the wheel: the marked major keys' own (C# major: 7♯).
+    // Key signatures around the wheel: the marked major keys' own (C# major: 7♯), unless that
+    // spelling would need more than 7 (G# in C# major: the ring's own label).
     for (let position = 0; position < 12; position++) {
         const chord = at('major', position)
-        const text = chord
-            ? signatureText(Key.majorKey(splitChordSymbol(chord.symbol)!.root).alteration).replace(
-                  'no ♯ or ♭',
-                  '0'
-              )
-            : SIGNATURES[position]!
+        const count = chord ? Key.majorKey(splitChordSymbol(chord.symbol)!.root).alteration : 0
+        const own = chord !== undefined && Math.abs(count) <= MAX_SIGNATURE
+        const text = own ? signatureText(count).replace('no ♯ or ♭', '0') : SIGNATURES[position]!
         const [x, y] = point((R.sig + R.major) / 2, position * 30, top)
         g.appendChild(
             svgText(doc, text, {
@@ -354,6 +354,9 @@ export const renderCircleBlock: Renderer = (doc, source) => {
         key.mode = modeText as MusicalKey['mode']
         key.name = `${key.tonic} ${key.mode}`
     }
+    // A key that needs double sharps or flats: the other spelling.
+    const problem = keyProblem(key)
+    if (problem) throw new Error(problem)
     const chordsText = get('chords')?.toLowerCase()
     if (chordsText !== undefined && chordsText !== 'triads' && chordsText !== 'sevenths') {
         throw new Error(`chords: use triads or sevenths, got "${chordsText}"`)

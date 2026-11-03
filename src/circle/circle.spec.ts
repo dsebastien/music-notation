@@ -71,6 +71,18 @@ describe('circle block', () => {
         expect(cell(flat, 'minor', 'Abm')).not.toBeNull()
     })
 
+    it('labels a chord whose own signature would pass 7 with the ring’s label', () => {
+        const sigs = (source: string) => {
+            const h = host()
+            renderBlock('circle', source, h)
+            return [...h.querySelectorAll('.mn-circle-sig-key')].map((t) => t.textContent)
+        }
+        // G# major would need 8 sharps, Fb major 8 flats.
+        expect(sigs('key: C#')).toEqual(['6♯', '7♯', '4♭'])
+        expect(sigs('key: Cb')).toEqual(['4♯', '7♭', '6♭'])
+        expect(sigs('key: Abm')).toEqual(['4♯', '7♭', '6♭'])
+    })
+
     it('marks a minor key: i on the inner ring, iv and v its neighbours', () => {
         const h = host()
         renderBlock('circle', 'key: E\nmode: minor', h)
@@ -140,6 +152,10 @@ describe('circle block', () => {
     it('says what to write instead', () => {
         const error = (source: string) => renderBlock('circle', source, host()).error
         expect(error('key: H')).toContain('Unknown key "H"')
+        expect(error('key: Gbm')).toBe('Gb minor needs 9 flats: write F# minor')
+        expect(error('key: G#')).toBe('G# major needs 8 sharps: write Ab major')
+        expect(error('A# dorian')).toBe('A# dorian needs 8 sharps: write Bb dorian')
+        expect(error('key: G#\nmode: minor')).toBeNull()
         expect(error('key: C\nmode: blues')).toContain('Unknown mode "blues"')
         expect(error('key: Am\nmode: major')).toContain('already says minor')
         expect(error('key: C\nchords: ninths')).toContain('chords: use triads or sevenths')
