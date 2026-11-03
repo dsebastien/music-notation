@@ -170,6 +170,19 @@ export {
     type PositionSystem
 } from './fretboard/positions.js'
 export {
+    exerciseTab,
+    exerciseRun,
+    exerciseTex,
+    exercisePosition,
+    parseDirection,
+    parseRhythm,
+    DEFAULT_EXERCISE_TEMPO,
+    type ExerciseDirection,
+    type ExerciseRhythm,
+    type ExerciseNotes,
+    type ExerciseOptions
+} from './fretboard/exercise.js'
+export {
     blockFromProperties,
     instrumentOf,
     DEFAULT_PROPERTY_NAMES,
