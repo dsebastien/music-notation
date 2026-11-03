@@ -363,6 +363,27 @@
     stroke: var(--mn-root);
 }
 
+/* A capo: a bar across the strings, in the text color but lighter than the dots. */
+.mn-svg .mn-capo {
+    fill: var(--mn-fg);
+    opacity: 0.55;
+}
+
+/* A string the capo plays (frets counted from the nut): a ring on the capo. */
+.mn-svg .mn-capo-open {
+    fill: var(--mn-bg);
+    stroke: var(--mn-fg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-capo-open.mn-root {
+    stroke: var(--mn-root);
+}
+
+.mn-svg .mn-caption {
+    fill: var(--mn-muted);
+}
+
 .mn-svg .mn-muted,
 .mn-svg .mn-base-fret,
 .mn-svg .mn-fret-number,
@@ -411,6 +432,17 @@
     font-size: 10px;
     fill: var(--mn-fg);
     font-weight: 600;
+}
+
+/* Which hand plays each key of a piano chord (hands: left+right): L or R under the keys. */
+.mn-svg .mn-key-hand {
+    font-size: 10px;
+    font-weight: 600;
+    fill: var(--mn-muted);
+}
+
+.mn-svg .mn-key-hand.mn-hand-left {
+    fill: var(--mn-fg);
 }
 
 /* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that

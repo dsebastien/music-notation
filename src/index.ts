@@ -21,9 +21,20 @@ export {
     parseFingers,
     baseFretOf,
     STANDARD_TUNING,
+    capoCaption,
     type FrettedVoicing,
     type GuitarDiagramOptions
 } from './chord/guitar.js'
+export {
+    soundingChord,
+    soundsLike,
+    fretsFromCapo,
+    capoTuning,
+    parseCapo,
+    parseFretsFrom,
+    MAX_CAPO,
+    type FretsFrom
+} from './chord/capo.js'
 export {
     generateVoicings,
     fingerVoicing,
@@ -77,6 +88,16 @@ export {
     keyRangeOf,
     type KeyboardOptions
 } from './keyboard/keyboard.js'
+export {
+    pianoVoicing,
+    pianoPitches,
+    triadFingering,
+    type PianoVoicing,
+    type PianoVoicingOptions,
+    type PianoVoicingStyle,
+    type PianoHands,
+    type RootlessForm
+} from './keyboard/piano-chord.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
 export { parseTuning } from './fretboard/tuning.js'
 export {
@@ -130,6 +151,7 @@ export {
 export {
     scalePosition,
     neckPositions,
+    isArpeggio,
     positionCount,
     CAGED_SHAPES,
     MAX_FRET,

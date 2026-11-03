@@ -29,6 +29,11 @@ export interface GuitarChordDiagram {
     fretRange: [number, number]
     /** Lowest string first. */
     strings: GuitarString[]
+    /** The capo's fret, when there is one (frets then count from it unless `fretsFrom` is nut). */
+    capo?: number
+    fretsFrom?: 'capo' | 'nut'
+    /** The chord the shape sounds with the capo ("B" for an A shape with a capo on 2). */
+    sounds?: string
 }
 
 export interface FretboardDot {
@@ -53,6 +58,9 @@ export interface FretboardDiagram {
     dots: FretboardDot[]
     /** A compared scale's notes missing here (`compare:`), drawn faint. */
     ghosts: { string: number; fret: number; note: string }[]
+    /** The capo's fret, when there is one; `tuning` is then what the strings sound. */
+    capo?: number
+    fretsFrom?: 'capo' | 'nut'
 }
 
 export interface KeyboardKey {
@@ -61,6 +69,8 @@ export interface KeyboardKey {
     finger: string | null
     root: boolean
     marks: string[]
+    /** The hand that plays it, when the piano chord says (hands: left+right). */
+    hand?: 'left' | 'right'
 }
 
 export interface KeyboardDiagram {
@@ -119,9 +129,18 @@ const labelAfter = (el: Element, cls: string) => {
     return next && has(next, cls) ? text(next) : null
 }
 
+/** A capo's fret and where frets count from, when the diagram has a capo. */
+function capoOf(svg: Element): { capo?: number; fretsFrom?: 'capo' | 'nut' } {
+    const capo = int(svg.getAttribute('data-mn-capo'))
+    if (!capo) return {}
+    return { capo, fretsFrom: svg.getAttribute('data-mn-frets-from') === 'nut' ? 'nut' : 'capo' }
+}
+
 function guitarChord(svg: Element): GuitarChordDiagram {
     const chord = svg.getAttribute('data-mn-chord')
-    const set = chord ? chordNoteSet(chord) : null
+    const sounds = svg.getAttribute('data-mn-sounds')
+    // Notes are what sounds: with a capo, spelled as the sounding chord spells them.
+    const set = sounds ? chordNoteSet(sounds) : chord ? chordNoteSet(chord) : null
     const strings = [...svg.querySelectorAll('[data-mn-string]')].map((el): GuitarString => {
         const fret = int(el.getAttribute('data-mn-fret'))
         const midi = int(el.getAttribute('data-midi'))
@@ -148,7 +167,9 @@ function guitarChord(svg: Element): GuitarChordDiagram {
         chord,
         frets: frets.join(frets.some((f) => f.length > 1) ? '-' : ''),
         fretRange: [base, base + rows - 1],
-        strings
+        strings,
+        ...capoOf(svg),
+        ...(sounds ? { sounds } : {})
     }
 }
 
@@ -186,7 +207,8 @@ function fretboard(svg: Element): FretboardDiagram {
         fretRange: [range[0] ?? 0, range[1] ?? 0],
         tuning: tuning.reverse(),
         dots,
-        ghosts
+        ghosts,
+        ...capoOf(svg)
     }
 }
 
@@ -209,7 +231,12 @@ function keyboard(svg: Element): KeyboardDiagram {
                 label: labelAfter(el, 'mn-key-label'),
                 finger: fingers.get(midi) ?? null,
                 root: has(el, 'mn-root'),
-                marks: marksOf(el)
+                marks: marksOf(el),
+                ...(has(el, 'mn-hand-left')
+                    ? { hand: 'left' as const }
+                    : has(el, 'mn-hand-right')
+                      ? { hand: 'right' as const }
+                      : {})
             }
         })
         .sort((a, b) => a.midi - b.midi)
@@ -266,6 +293,10 @@ const listed = (parts: (string | null | false)[]) => parts.filter(Boolean).join(
 const extra = (label: string | null, root: boolean, more: string[] = []) =>
     [label !== null ? `"${label}"` : null, root ? 'root' : null, ...more].filter(Boolean).join(' ')
 
+/** "capo 2" (frets from the capo) or "capo 2, frets from the nut". */
+const capoText = (capo: number, from?: 'capo' | 'nut') =>
+    `capo ${capo}${from === 'nut' ? ', frets from the nut' : ''}`
+
 /** One diagram in words: a heading line, then what each string, dot or key shows. */
 export function formatDiagram(d: Diagram, n: number): string[] {
     const head = `${n}. `
@@ -292,6 +323,8 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                     'chord diagram',
                     quoted(d.title),
                     d.chord && `chord ${d.chord}`,
+                    d.capo !== undefined && capoText(d.capo, d.fretsFrom),
+                    d.sounds !== undefined && `sounds ${d.sounds}`,
                     `frets ${d.fretRange[0]}-${d.fretRange[1]}`,
                     d.frets
                 ])}`,
@@ -304,6 +337,7 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                     'fretboard',
                     quoted(d.title),
                     d.notes,
+                    d.capo !== undefined && capoText(d.capo, d.fretsFrom),
                     `frets ${d.fretRange[0]}-${d.fretRange[1]}`,
                     `tuning ${d.tuning.join(' ')}`
                 ])}`
@@ -348,6 +382,7 @@ export function formatDiagram(d: Diagram, n: number): string[] {
                                 k.note,
                                 extra(k.label, k.root, [
                                     ...(k.finger ? [`finger ${k.finger}`] : []),
+                                    ...(k.hand ? [`${k.hand} hand`] : []),
                                     ...k.marks
                                 ])
                             ]

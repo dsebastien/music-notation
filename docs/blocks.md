@@ -52,10 +52,13 @@ title: A (open)</code></pre></div>
 | `hand`              | `left` mirrors the diagram for left-handed players.                                                                                                                                                                                                                                                                                                                |
 | `labels`            | Guitar: what the dots say, `fingers` (default), `intervals` (R, 3, 5, as triad charts show them), `notes` or `none`.                                                                                                                                                                                                                                               |
 | `anchors`, `guides` | Guitar: strings (1 = the highest) whose finger stays on its fret (a ring) or slides along the string (a dashed ring), as [chord transitions](#chord-transitions) mark them.                                                                                                                                                                                        |
+| `capo`              | Guitar: a capo on that fret; frets count from it. See [capo](#capo).                                                                                                                                                                                                                                                                                               |
+| `frets-from`        | `nut`: the frets you write count from the nut. See [capo](#capo).                                                                                                                                                                                                                                                                                                  |
+| `sounds`            | `yes`, or the chord: the chord the shape sounds with the capo, in the caption.                                                                                                                                                                                                                                                                                     |
 
 Without a symbol or name, the chord is recognized from its `frets` (in the block's tuning) or `pitches`, and titled with what it found: `frets: x02220` draws an A diagram. Common chords come first, so `E4 G4 C5` reads as C/E. Shell voicings (root, 3rd and 7th, without the 5th) are named as if the 5th were there: `3x44xx` is Gmaj7. 13th grips that leave out the 5th, 9th and 11th are still 13th chords, so `020120` is E13. And a slash chord's bass is spelled the way the chord spells it: `x12010` is C7/Bb, not C7/A#. Five notes or more that only move by steps (half or whole steps) within an octave are a hand position, not a chord: `pitches: C4 D4 E4 F4 G4` gets no name and no root marks (it isn't Dm11/C). Chords with a step in them still get their names, such as Cadd9 (C D E G), Csus2 (C D G) and four-note jazz clusters like Cmaj9/B (B C D E). A chord the library doesn't recognize says what to write instead.
 
-A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below.
+A piano chord from its symbol is voiced in root position from middle C; a slash chord's bass goes an octave below. [Piano voicings](#piano-voicings) change that.
 
 ````markdown
 ```chord
@@ -68,6 +71,76 @@ fingering: 5-1-2-4
 <div class="mn-live" markdown="0"><pre><code class="language-chord">C/G
 instrument: piano
 fingering: 5-1-2-4</code></pre></div>
+
+## Piano voicings
+
+A piano chord from a symbol can be inverted, moved, voiced and split between the hands:
+
+````markdown
+```chord
+C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto</code></pre></div>
+
+| Key         | Meaning                                                                                                                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inversion` | The chord's note in the bass: `root` (or `0`), `first` (`1`, the third), `second` (`2`, the fifth), `third` (`3`, the seventh). C first inversion is E4 G4 C5. A slash chord already has its bass.                              |
+| `octave`    | The octave of the lowest right-hand note: `4` (middle C's) by default, `3` one octave lower.                                                                                                                                    |
+| `voicing`   | `close` (default: the notes stacked as close as they go), `open` (the note above the bass goes up an octave: C G E), `shell` (root, third, seventh: Cmaj7 is C E B), `rootless A` or `rootless B` (jazz).                       |
+| `hands`     | `left+right`: the bass (the root, or a slash chord's bass) in the left hand, an octave below the right hand. `left`: the whole chord in the left hand (octave 3 by default). An L or R under each key says which hand plays it. |
+| `fingering` | `auto`: the usual fingers for a three-note chord in close position (right hand 1 3 5, first inversion 1 2 5; left hand 5 3 1, second inversion 5 2 1). Otherwise, write the fingers.                                            |
+
+Rootless voicings leave out the root, which a bass player or the left hand plays. Form A is 3 5 7 9, form B is 7 9 3 5. Dominant chords use the 13th instead of the 5th, and keep an altered 9th or 5th when the symbol has one. A ii-V-I in C: Dm7 (A) F A C E, G7 (B) F A B E, Cmaj7 (A) E G B D. They work for major, minor and dominant seventh and sixth chords; `labels: intervals` shows the added 9th and 13th.
+
+`inversion` means something else in [all the ways to play a chord](#all-the-ways-to-play-a-chord): there it picks guitar voicings with that note in the bass. `hand: left` (singular) mirrors guitar diagrams; `hands` is for piano chords. These keys need a chord symbol: with `pitches`, the keys are already given.
+
+## Capo
+
+`capo: 2` puts a capo on fret 2 of a `chord` or `fretboard` block. It is drawn as a bar across the strings, and a caption under the diagram says "Capo 2".
+
+````markdown
+```chord
+A x02220 x01230
+capo: 2
+sounds: yes
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A x02220 x01230
+capo: 2
+sounds: yes</code></pre></div>
+
+- Frets count from the capo, the way players read them: an A shape is still `x02220`. The capo is drawn where the nut is, and an open string sounds at the capo.
+- The chord is the shape you play (`A`). It sounds higher: an A shape with a capo on 2 sounds B. Root marks, `labels: notes` and playback use the notes that sound.
+- `sounds: yes` adds the chord that sounds to the caption ("Capo 2, sounds B"). You can write the chord instead (`sounds: B`); if it isn't the chord the shape sounds, the block tells you which one it is.
+- `frets-from: nut` counts the frets you write from the nut: `frets: x24442` with `capo: 2` is the same A shape. The diagram then shows the real neck: the capo sits on its fret, and the strings it plays are rings on it. Every sounding fret must be at the capo or above.
+- On a fretboard, `frets:` and positions count from the capo too, and the strings are named by what they sound. Positions are found from the capo, as if it were the nut. With `frets-from: nut`, the fretboard shows the real neck and nothing behind the capo.
+- `capo`, `frets-from` and `sounds` can be shared by a row. `voicings:`, `triads:` and transitions draw the shapes as played from the capo.
+- A capo goes from fret 1 to 12; `capo: 0` is no capo. Piano chords don't take one.
+
+````markdown
+```fretboard
+A minor pentatonic
+position: 1
+capo: 2
+labels: intervals
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">A minor pentatonic
+position: 1
+capo: 2
+labels: intervals</code></pre></div>
 
 ## All the ways to play a chord
 
@@ -249,6 +322,8 @@ labels: intervals</code></pre></div>
 | `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                |
 | `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                       |
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                      |
+| `capo`, `frets-from`                         | A capo; `frets` and positions count from it. See [capo](#capo).                                                                                 |
+| `arpeggio`                                   | A chord's notes, labeled with intervals; with `position` or `positions`, its CAGED shapes. See [arpeggios](#arpeggios).                         |
 
 **A root for a list.** A list of notes has no root, so `labels: intervals` and `labels: degrees` show note names. Add `root:` and each note shows its interval from that root; with `degrees`, you get the interval's number (1, 3, 5). The root doesn't have to be in the list, and when it is, it gets the root color. Keyboards work the same way. Scales and chords already have a root, so `root:` is only for lists: in a `chord` block, it's an error that says so.
 
@@ -381,6 +456,27 @@ The altered scale is spelled without double sharps. When its usual jazz spelling
 
 Known scales: altered, augmented, bebop (major, minor, locrian), blues (minor, major, composite), chromatic, diminished, dorian (and #4, b2), double harmonic major, egyptian, enigmatic, flamenco, harmonic major, harmonic minor, hirajoshi, hungarian major and minor, in-sen, iwato, kumoijoshi, locrian (and #2, 6, major), lydian (and #9, augmented, dominant, minor), major, major pentatonic, melodic minor, minor, minor pentatonic, mixolydian (and b6), neapolitan major, oriental, pelog, persian, phrygian, phrygian dominant, prometheus, scriabin, spanish heptatonic, ultralocrian, whole tone, and more: every scale [tonal](https://github.com/tonaljs/tonal) knows.
 
+## Arpeggios
+
+`arpeggio: Am7` draws a chord's notes on a fretboard, like `chord: Am7`, but labeled with intervals (R, b3, 5, b7) by default; the root has its own color. Add a position to learn it one shape at a time, as for scales:
+
+- `position: 1` to `5`, or `shape: E`, `D`, `C`, `A`, `G`: the chord tones of that CAGED shape. Each shape is the CAGED position of the root's major scale (natural minor for chords with a minor third), keeping only the chord's notes. Chord notes outside that scale (G7's F, Caug's G#) are added on the string that keeps the hand in place.
+- `positions: all` (or a list, `positions: 1 3`) draws the shapes side by side in neck order, each one at or above the one before; `frets:` with one position draws it in the lowest octave inside those frets. These are the same rules as for scale positions.
+- A chord with a position is an arpeggio too (`chord: G7` with `shape: A`). `labels:` works as usual. Arpeggios have no 3NPS positions.
+- On a keyboard, `arpeggio:` plays the notes one at a time.
+
+````markdown
+```fretboard
+arpeggio: Am7
+positions: all
+columns: 3
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">arpeggio: Am7
+positions: all
+columns: 3</code></pre></div>
+
 ## From a note's properties
 
 An empty `chord`, `fretboard` or `keyboard` block can draw what the note's properties say, so a note doesn't repeat its frets or its scale in the body. Apps pass the note's properties to the library (Music Practice does); on Obsidian Publish, see [Publish](publish.md). A block with content always draws its content.
@@ -416,7 +512,7 @@ D xx0232 xx0132
 ---
 Em 022000 023000</code></pre></div>
 
-Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning` and `range` for chords; `range` for keyboards; `tuning` and `frets` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
+Settings for every diagram go in a first part, before the first `---`. It holds only shared keys: `orientation`, `hand` and `labels` for every block; `instrument`, `tuning`, `range`, `capo`, `frets-from` and `sounds` for chords; `range` for keyboards; `tuning`, `frets`, `capo` and `frets-from` for fretboards. A diagram's own keys win over them (an empty key, like `labels:` alone, keeps the shared value). `columns` draws a grid with at most that many columns (1 to 12); on narrow screens it wraps rather than shrinking the diagrams. With `columns`, any other key in that part is refused by name.
 
 ````markdown
 ```fretboard

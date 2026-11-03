@@ -10,8 +10,12 @@
  * Scales with no pentatonic inside (locrian, harmonic minor…) use 3NPS for their CAGED positions.
  * Major pentatonic positions can be numbered from the relative minor (`numbering: minor`), as many
  * courses do: position 1 is then the relative minor's box 1.
+ *
+ * Arpeggios (a chord's notes): CAGED positions are the chord tones of the CAGED position of the
+ * root's major scale (natural minor for chords with a minor third), chord tones outside that scale
+ * added on the string that keeps the hand in place.
  */
-import type { NoteSet } from '../theory/note-set.js'
+import { scaleNoteSet, type NoteSet } from '../theory/note-set.js'
 
 export type PositionSystem = 'box' | 'caged' | '3nps'
 
@@ -56,8 +60,17 @@ function fill(sequence: number[], tuning: number[], perString: number): Cell[] {
     return cells
 }
 
-/** How many positions a scale has in a system. */
+/** A chord's notes (not a scale, not a list): positions are arpeggios. */
+export const isArpeggio = (set: NoteSet): boolean =>
+    set.root !== null && !set.scaleType && !set.list
+
+/** A chord's own tones (a slash chord's bass outside the chord left out), root first. */
+const chordTones = (set: NoteSet) =>
+    set.members.filter((m) => m.interval !== null).map((m) => m.chroma)
+
+/** How many positions a scale or chord has in a system. */
 export function positionCount(set: NoteSet, system: PositionSystem): number {
+    if (isArpeggio(set)) return 5
     if (system === '3nps') return set.members.length
     return 5
 }
@@ -158,20 +171,22 @@ export function scalePosition(
 /**
  * Every position in neck order, position 1 first: the first in its lowest octave, each next one in
  * the lowest octave at or above the previous one (by their lowest frets), or in its own lowest
- * octave when that would go past fret 36. Null for a position that doesn't fit the system.
+ * octave when that would go past fret 36 (or `maxFret`: a capo leaves fewer frets). Null for a
+ * position that doesn't fit the system.
  * With `numbering: 'minor'`, a major pentatonic starts from its relative minor's box 1.
  */
 export function neckPositions(
     set: NoteSet,
     tuning: number[],
     system: PositionSystem,
-    numbering: Numbering = 'root'
+    numbering: Numbering = 'root',
+    maxFret: number = MAX_FRET
 ): (Cell[] | null)[] {
     let floor = 0
     return Array.from({ length: positionCount(set, system) }, (_, i) => {
         const octaves = octavesOf(set, tuning, system, fromRoot(set, system, i + 1, numbering))
         const cells =
-            octaves.find((c) => lowestFret(c) >= floor && highestFret(c) <= MAX_FRET) ??
+            octaves.find((c) => lowestFret(c) >= floor && highestFret(c) <= maxFret) ??
             octaves[0] ??
             null
         if (cells) floor = lowestFret(cells)
@@ -182,6 +197,7 @@ export function neckPositions(
 /** Position `n` in each octave where every note is on the neck, lowest first. */
 function octavesOf(set: NoteSet, tuning: number[], system: PositionSystem, n: number): Cell[][] {
     if (set.root === null || n < 1 || n > positionCount(set, system)) return []
+    if (isArpeggio(set)) return arpeggioOctaves(set, tuning, system, n)
     const open = tuning[0]!
     const chromas = chromasOf(set)
     const notes = tuning.length * 3
@@ -203,6 +219,34 @@ function octavesOf(set: NoteSet, tuning: number[], system: PositionSystem, n: nu
         if (cells && cells.every((c) => c.fret >= 0)) out.push(cells)
     }
     return out
+}
+
+/**
+ * An arpeggio's position `n` in each octave where every note is on the neck: the chord tones of
+ * the root's major (or natural minor) scale's CAGED position n (3NPS has no arpeggio positions).
+ */
+function arpeggioOctaves(
+    set: NoteSet,
+    tuning: number[],
+    system: PositionSystem,
+    n: number
+): Cell[][] {
+    const tones = chordTones(set)
+    if (system === '3nps') return []
+    // A chord with a minor third sits in the natural minor scale's shapes, others in the major's.
+    const minor = set.members.some((m) => m.interval === '3m')
+    const parent = scaleNoteSet(`${set.members[0]!.name} ${minor ? 'minor' : 'major'}`)
+    if (!parent) return []
+    const inScale = new Set(parent.members.map((m) => m.chroma))
+    const outside = tones.filter((c) => !inScale.has(c))
+    const pitch = (c: Cell) => tuning[c.string]! + c.fret
+    return octavesOf(parent, tuning, 'caged', n)
+        .map((cells) =>
+            (outside.length ? withOtherNotes(cells, outside, tuning) : cells).filter((c) =>
+                tones.includes(pitch(c) % 12)
+            )
+        )
+        .filter((cells) => cells.length > 0)
 }
 
 /** A box as is, or with the other scale notes (CAGED); null when a note falls off the neck. */
@@ -241,7 +285,7 @@ function withOtherNotes(box: Cell[], chromas: number[], tuning: number[]): Cell[
     return out
 }
 
-/** Parses `position:` and `shape:` for a scale: the system and the position number. */
+/** Parses `position:` and `shape:` for a scale or an arpeggio: the system and the position number. */
 export function positionOf(
     positionText: string | undefined,
     shapeText: string | undefined

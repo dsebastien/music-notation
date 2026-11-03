@@ -24,6 +24,8 @@ export interface KeyboardOptions {
     marks?: NoteMarks
     /** How playback plays the highlighted keys: together (a chord) or one by one (a scale). */
     playAs?: 'chord' | 'scale'
+    /** Which hand plays each key (MIDI → left or right): an L or R row past the keys. */
+    hands?: Map<number, 'left' | 'right'>
 }
 
 const BLACK = new Set([1, 3, 6, 8, 10])
@@ -34,6 +36,8 @@ const BLACK_H = 64
 const TITLE = 22
 /** The row of finger numbers past the keys' near end, when the keys show other labels. */
 const FINGER_ROW = 16
+/** The row of hands (L, R) past the keys and the fingers. */
+const HAND_ROW = 16
 
 const isBlack = (midi: number) => BLACK.has(((midi % 12) + 12) % 12)
 
@@ -77,7 +81,10 @@ export function renderKeyboard(
         [...(options.fingers?.keys() ?? [])].some((midi) => midi >= from && midi <= to)
             ? FINGER_ROW
             : 0
-    const depth = WHITE_H + fingerRow
+    const handRow = [...(options.hands?.keys() ?? [])].some((midi) => midi >= from && midi <= to)
+        ? HAND_ROW
+        : 0
+    const depth = WHITE_H + fingerRow + handRow
     const content = (vertical ? depth : length) + 2
     const width = Math.max(content, titleWidth(options.title))
     const shift = (width - content) / 2
@@ -99,12 +106,25 @@ export function renderKeyboard(
             height: Math.abs(y2 - y1)
         }
     }
+    // Which hand plays what, in words for screen readers: ", left hand: C3, right hand: E4 G4 C5".
+    const handWords = (['left', 'right'] as const)
+        .map((hand) => {
+            const keys = [...(options.hands ?? [])]
+                .filter(([midi, h]) => h === hand && midi >= from && midi <= to)
+                .map(([midi]) => midi)
+                .sort((a, b) => a - b)
+            return keys.length
+                ? `${hand} hand: ${keys.map((midi) => `${memberOf(set, midi)?.name ?? nameOf(midi, set.preferFlats)}${Math.floor(midi / 12) - 1}`).join(' ')}`
+                : ''
+        })
+        .filter(Boolean)
+        .join(', ')
     const root = svgRoot(
         doc,
         width,
         height,
         'mn-keyboard',
-        `${options.title ?? `Keyboard: ${set.title}`}${describeMarks(set, options.marks)}`
+        `${options.title ?? `Keyboard: ${set.title}`}${handWords ? `, ${handWords}` : ''}${describeMarks(set, options.marks)}`
     )
     if (options.title) {
         root.appendChild(
@@ -121,7 +141,9 @@ export function renderKeyboard(
         const member = memberOf(set, midi)
         const chroma = ((midi % 12) + 12) % 12
         const base = black ? 'mn-key-black' : 'mn-key-white'
-        if (member) return `${base} mn-on${markClasses(set, member.chroma, options.marks)}`
+        const hand = options.hands?.get(midi)
+        if (member)
+            return `${base} mn-on${markClasses(set, member.chroma, options.marks)}${hand ? ` mn-hand-${hand}` : ''}`
         return options.marks?.ghosts?.has(chroma) ? `${base} mn-ghost` : base
     }
     // Labels sit near the player's end of the key.
@@ -189,6 +211,23 @@ export function renderKeyboard(
             )
             label.setAttribute('data-mn-key', String(midi))
             root.appendChild(label)
+        }
+    }
+    if (handRow) {
+        for (const [midi, hand] of options.hands!) {
+            if (midi < from || midi > to) continue
+            const whitesBelow = whites.filter((w) => w < midi).length
+            const along = isBlack(midi)
+                ? whitesBelow * WHITE_W
+                : whitesBelow * WHITE_W + WHITE_W / 2
+            const mark = svgLabel(
+                doc,
+                hand === 'left' ? 'L' : 'R',
+                at(along, WHITE_H + fingerRow + HAND_ROW / 2 - 1),
+                `mn-key-hand mn-hand-${hand}`
+            )
+            mark.setAttribute('data-mn-key', String(midi))
+            root.appendChild(mark)
         }
     }
     // What playback plays: the highlighted keys, low to high.

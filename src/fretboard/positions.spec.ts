@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'bun:test'
 import {
+    isArpeggio,
     neckPositions,
     numberingOf,
+    positionCount,
     positionOf,
     relativeMinorOf,
     scalePosition,
     type Cell
 } from './positions.js'
-import { scaleNoteSet } from '../theory/note-set.js'
+import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 
 const STANDARD = [40, 45, 50, 55, 59, 64]
 
@@ -258,5 +260,55 @@ describe('positionOf', () => {
         expect(positionOf(undefined, undefined)).toBeNull()
         expect(() => positionOf('0', undefined)).toThrow('position must be a whole number')
         expect(() => positionOf(undefined, 'F')).toThrow('Unknown shape "F"')
+    })
+})
+
+describe('arpeggio positions', () => {
+    const chord = (symbol: string) => chordNoteSet(symbol)!
+    const span = (cells: Cell[] | null) =>
+        cells
+            ? `${Math.min(...cells.map((c) => c.fret))}-${Math.max(...cells.map((c) => c.fret))}`
+            : null
+
+    it('draws the Am7 E shape (the Em7 barre form at fret 5)', () => {
+        expect(isArpeggio(chord('Am7'))).toBe(true)
+        expect(isArpeggio(scaleNoteSet('A minor')!)).toBe(false)
+        // Low E to high E: R b3 | 5 | b7 R | b3 | 5 b7 | R b3.
+        expect(byString(scalePosition(chord('Am7'), STANDARD, 'caged', 1))).toEqual([
+            '5,8',
+            '7',
+            '5,7',
+            '5',
+            '5,8',
+            '5,8'
+        ])
+    })
+
+    it('adds chord tones outside the parent scale (G7 b7, Caug #5)', () => {
+        // G7 E shape: the b7 (F) isn't in G major, it still shows.
+        const g7 = scalePosition(chord('G7'), STANDARD, 'caged', 1)!
+        const notes = new Set(g7.map((c) => (STANDARD[c.string]! + c.fret) % 12))
+        expect([...notes].sort((a, b) => a - b)).toEqual([2, 5, 7, 11])
+        const aug = scalePosition(chord('Caug'), STANDARD, 'caged', 1)!
+        expect(aug.some((c) => (STANDARD[c.string]! + c.fret) % 12 === 8)).toBe(true)
+    })
+
+    it('follows the neck like scale positions, five shapes', () => {
+        expect(positionCount(chord('Am7'), 'caged')).toBe(5)
+        expect(neckPositions(chord('Am7'), STANDARD, 'caged').map(span)).toEqual([
+            '5-8',
+            '7-10',
+            '9-13',
+            '12-15',
+            '14-17'
+        ])
+        // Within frets: the octave inside them.
+        expect(span(scalePosition(chord('C'), STANDARD, 'caged', 3, { within: [0, 5] }))).toBe(
+            '0-3'
+        )
+        // No 3NPS arpeggios; a slash chord's bass outside the chord isn't an arpeggio note.
+        expect(scalePosition(chord('Am7'), STANDARD, '3nps', 1)).toBeNull()
+        const slash = scalePosition(chord('C/Bb'), STANDARD, 'caged', 1)!
+        expect(slash.some((c) => (STANDARD[c.string]! + c.fret) % 12 === 10)).toBe(false)
     })
 })
