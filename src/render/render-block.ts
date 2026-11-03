@@ -141,6 +141,25 @@ export function renderBlock(
         return failed(el, host, language, messageOf(e))
     }
     host.appendChild(el)
+    // A fretboard exercise's tab (#47): the app draws it, once the block is on the page (its
+    // colors come from the page); else its source stays for the tab bundle of web pages.
+    const freeTabs: (() => void)[] = []
+    if (options.tab) {
+        for (const pre of el.querySelectorAll<HTMLElement>('pre.mn-exercise')) {
+            const holder = html(doc, 'div', 'mn-exercise-tab')
+            for (const { name, value } of [...pre.attributes]) {
+                if (name.startsWith('data-mn-')) holder.setAttribute(name, value)
+            }
+            pre.replaceWith(holder)
+            try {
+                const free = options.tab(pre.textContent ?? '', holder)
+                if (typeof free === 'function') freeTabs.push(free)
+            } catch {
+                // The app couldn't draw it: the source shows instead.
+                holder.replaceWith(pre)
+            }
+        }
+    }
     // Hear the diagrams: a playback bar on each one that has notes to play.
     const stopPlayback = options.play
         ? attachPlayback(el, {
@@ -155,6 +174,7 @@ export function renderBlock(
         error,
         destroy: () => {
             stopPlayback?.()
+            for (const free of freeTabs) free()
             el.remove()
         }
     }
@@ -232,6 +252,9 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     }
     const value = block.fields.get('positions')?.trim()
     if (value === undefined) return null
+    if (block.fields.has('exercise')) {
+        throw new Error('exercise plays one position: write position: 1 (not positions:)')
+    }
     // A scale, or a chord: its arpeggio (`arpeggio: Am7`, `chord: Am7`, or a shorthand chord).
     const chordText = chordField(block)
     const scaleText = block.fields.get('scale') ?? (chordText === undefined ? block.head : null)
@@ -953,13 +976,24 @@ function renderRow(
             if (directive) {
                 throw new Error(`"${directive}" draws its own row: use it in a block of its own`)
             }
+            if (block.fields.has('exercise') || shared.some(([key]) => key === 'exercise')) {
+                throw new Error(
+                    'exercise draws a tab under one diagram: use it in a block of its own'
+                )
+            }
             // The diagram's own keys win over the shared ones.
             const fields = new Map([...shared, ...block.fields])
             cell.appendChild(DIAGRAMS[language](doc, { head: block.head, fields }, options))
         } catch (e) {
             let message = `diagram ${i + 1}: ${messageOf(e)}`
             // A first part meant as shared settings but holding another key draws as a diagram.
-            if (i === 0 && !header && sharesSomething(language, part)) {
+            // (An exercise's own message says what to do.)
+            if (
+                i === 0 &&
+                !header &&
+                sharesSomething(language, part) &&
+                !/^\s*exercise\s*:/im.test(part)
+            ) {
                 message += ` (shared settings before the first "---" may only hold: ${SHARED_KEYS[language].join(', ')}, columns)`
             }
             errors.push(message)

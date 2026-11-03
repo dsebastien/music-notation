@@ -79,6 +79,14 @@ import {
     type Cell,
     type PositionSystem
 } from '../fretboard/positions.js'
+import {
+    exerciseRun,
+    exerciseTex,
+    parseDirection,
+    parseRhythm,
+    DEFAULT_EXERCISE_TEMPO
+} from '../fretboard/exercise.js'
+import { html } from '../render/dom.js'
 import { withScalesFor } from './scales-for.js'
 import { renderProgression } from './progression.js'
 import { renderCircleBlock } from '../circle/circle.js'
@@ -109,6 +117,13 @@ export interface RenderOptions extends LayoutDefaults {
      * `'bottom'` or `'off'` (the default). Guitar or piano diagrams follow `instrument`.
      */
     chartDiagrams?: 'top' | 'bottom' | 'off'
+    /**
+     * Draws the tab of a fretboard's `exercise:` (#47): its alphaTex, as a `tab` block holds it, in
+     * `holder` (for example with `renderTab` from `/tab`); returns what frees it, called when the
+     * block is destroyed. Without it, the alphaTex shows under the diagram in a
+     * `pre > code.language-tab`, which the tab bundle draws on web pages.
+     */
+    tab?: (source: string, holder: HTMLElement) => (() => void) | void
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element
@@ -771,10 +786,19 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const stringsText = field(block, 'strings')
     const count = (tuning ?? STANDARD_TUNING).length
     const strings = stringsText ? parseStrings(stringsText, count).map((n) => count - n) : undefined
+    const exercise = exerciseOf(
+        block,
+        options,
+        set,
+        tuning ?? STANDARD_TUNING,
+        cells,
+        capo,
+        strings
+    )
     // A single position is titled like the diagrams of `positions:` ("G major, E shape",
     // "A minor pentatonic, box 2", "G7 arpeggio, A shape") (#73).
     const shapeTitle = at ? positionTitle(set, at, arpeggio, field(block, 'numbering')) : undefined
-    return renderFretboard(doc, set, {
+    const diagram = renderFretboard(doc, set, {
         title: field(block, 'title') ?? shapeTitle,
         ...(strings ? { strings } : {}),
         // Arpeggios (`arpeggio:`, or a chord's position) show intervals unless told otherwise.
@@ -787,6 +811,72 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         orientation: orientationOf(block, options.orientation?.fretboard),
         hand: handOf(block, options)
     })
+    if (!exercise) return diagram
+    // The tab under the diagram, as a `tab` block's source: the app (or the tab bundle) draws it.
+    const wrap = html(doc, 'div', 'mn-exercise-block')
+    const pre = html(doc, 'pre', 'mn-exercise')
+    pre.setAttribute(
+        'data-mn-exercise',
+        exercise.direction === 'both' ? 'up-down' : exercise.direction
+    )
+    pre.setAttribute('data-mn-rhythm', exercise.rhythm)
+    pre.setAttribute('data-mn-tempo', String(exercise.tempo))
+    pre.setAttribute('data-mn-notes', exercise.notes.join(' '))
+    pre.appendChild(html(doc, 'code', 'language-tab', exercise.tex))
+    wrap.append(diagram, pre)
+    return wrap
+}
+
+/**
+ * A fretboard's `exercise:` (with `rhythm:` and `tempo:` or `bpm:`; the app's tempo, else 60): the
+ * run of its position's notes as alphaTex (#47). Null without `exercise:`.
+ */
+function exerciseOf(
+    block: BlockSource,
+    options: RenderOptions,
+    set: NoteSet,
+    open: number[],
+    cells: Cell[] | undefined,
+    capo: number,
+    strings: number[] | undefined
+) {
+    const text = field(block, 'exercise')
+    const rhythmText = field(block, 'rhythm')
+    if (text === undefined) {
+        if (rhythmText !== undefined) {
+            throw new Error('rhythm goes with exercise: e.g. exercise: up-down')
+        }
+        return null
+    }
+    const direction = parseDirection(text)
+    const rhythm = rhythmText === undefined ? '8ths' : parseRhythm(rhythmText)
+    if (!cells) throw new Error('exercise plays one position: add position: 1 (or shape: E)')
+    if (capo) {
+        throw new Error(
+            'exercise does not go with capo yet: leave capo out (the shape is the same)'
+        )
+    }
+    const tempoText = field(block, 'tempo', 'bpm')
+    let tempo = typeof options.play === 'object' ? options.play.bpm : undefined
+    if (tempoText !== undefined) {
+        tempo = Number(tempoText.replace(/\s*bpm$/i, ''))
+        if (!Number.isFinite(tempo) || tempo < 20 || tempo > 240) {
+            throw new Error(
+                `Invalid tempo "${tempoText}": use beats a minute from 20 to 240, e.g. tempo: 80`
+            )
+        }
+    }
+    tempo = tempo === undefined || !Number.isFinite(tempo) ? DEFAULT_EXERCISE_TEMPO : tempo
+    tempo = Math.min(240, Math.max(20, Math.round(tempo)))
+    const shown = strings ? cells.filter((c) => strings.includes(c.string)) : cells
+    const run = exerciseRun(shown, open, set.root, direction)
+    return {
+        direction,
+        rhythm,
+        tempo,
+        notes: run.map((c) => `${c.fret}.${open.length - c.string}`),
+        tex: exerciseTex(run, open, { rhythm, tempo })
+    }
 }
 
 /** A single position's title, as `positions:` titles each of its diagrams. */

@@ -955,3 +955,21 @@
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
     fill: var(--mn-on-playing);
 }
+
+/* A fretboard exercise (#47): the run's tab under the diagram, as wide as the block. */
+.mn-block .mn-exercise-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5em;
+}
+
+.mn-block .mn-exercise-block > .mn-exercise-tab,
+.mn-block .mn-exercise-block > .mn-tab-holder {
+    align-self: stretch;
+}
+
+.mn-block pre.mn-exercise {
+    margin: 0;
+    white-space: pre-wrap;
+}
