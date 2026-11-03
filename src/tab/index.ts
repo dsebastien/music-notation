@@ -136,6 +136,16 @@ function messageOf(error: unknown, lineOffset: number): string {
 const PROFILE: Record<Staves, string> = { tab: 'Tab', score: 'Score', both: 'ScoreTab' }
 
 /**
+ * The stave profile for a block. Drums have no tablature: in a `tab` block, alphaTex with a
+ * percussion track draws notation too, else the drums would draw nothing.
+ */
+function staveProfileOf(staves: Staves, tex: string): string {
+    return staves === 'tab' && /\binstrument\s+percussion\b/i.test(tex)
+        ? 'ScoreTab'
+        : PROFILE[staves]
+}
+
+/**
  * A CSS color as rgba(), whatever the theme wrote (oklch(), color(srgb …), names): alphaTab only
  * reads hex and rgb()/rgba(). Read through a canvas; null when it can't be.
  */
@@ -439,7 +449,10 @@ export function renderTab(
                     logLevel: at.LogLevel.Warning
                 },
                 display: {
-                    staveProfile: PROFILE[parsed.staves] as unknown as AT.StaveProfile,
+                    staveProfile: staveProfileOf(
+                        parsed.staves,
+                        parsed.file ? '' : parsed.tex
+                    ) as unknown as AT.StaveProfile,
                     resources: colorsOf(el)
                 },
                 // The player starts at the first Play (playerBar).

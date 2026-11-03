@@ -294,3 +294,36 @@ describe('renderTab', () => {
         )
     })
 })
+
+describe('renderTab, drums (#37)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    /** The stave profile renderTab asks alphaTab for. */
+    async function profileOf(language: 'tab' | 'score', source: string) {
+        const mod = fakeAlphaTab()
+        let profile: unknown
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => object
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                profile = (args[1] as { display: { staveProfile: unknown } }).display.staveProfile
+            }
+        }
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        await renderTab(language, source, h, { alphaTab: mod, assets }).ready
+        h.remove()
+        return profile
+    }
+
+    it('draws a percussion track as notation in a tab block: drums have no tablature', async () => {
+        const drums = textTabToAlphaTex('HH|x-x-x-x-|\nS |--o---o-|\nB |o---o---|')!
+        expect(await profileOf('tab', drums)).toBe('ScoreTab')
+        expect(await profileOf('tab', ':8 0.1 3.1')).toBe('Tab')
+        expect(await profileOf('score', drums)).toBe('Score')
+        expect(await profileOf('tab', `staves: both\n${drums}`)).toBe('ScoreTab')
+    })
+})
