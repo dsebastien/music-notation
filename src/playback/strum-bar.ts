@@ -96,7 +96,7 @@ export function strumBarFor(
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
     const compound = (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat
     const settings: StrumSettings = {
-        // The app's bpm counts quarters: two thirds of it in compound time.
+        // The app's bpm counts quarters: the counted dotted beat's in compound time.
         bpm: tempoOf(
             drawing.hasAttribute('data-mn-tempo') && Number.isFinite(tempo)
                 ? tempo
