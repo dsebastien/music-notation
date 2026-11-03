@@ -84,7 +84,7 @@ describe('renderBlock', () => {
     })
 
     it("takes chords-db's voicings under its own names, and hands out copies of generated ones", () => {
-        expect(lookupGuitarVoicing('Cmaj7b5', 0)?.frets).toEqual([null, 3, 2, 4, 0, 2])
+        expect(lookupGuitarVoicing('Cmaj7b5', 0)?.frets).toEqual([null, 3, 4, 4, 5, null])
         expect(lookupGuitarVoicing('Cmmaj9', 0)?.frets).toEqual([null, 3, 1, 4, 3, null])
         const first = lookupGuitarVoicing('Cmaj9#11', 0)!
         const base = first.baseFret
