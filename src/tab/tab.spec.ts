@@ -9,6 +9,7 @@ import {
     parseTabSource,
     renderTab,
     scoreToAlphaTex,
+    soundfontPlayer,
     type AlphaTabModule
 } from './index.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
@@ -181,6 +182,61 @@ describe('createSoundfontPlayer readiness (review)', () => {
         made[0]!.playerReady.fire()
         await new Promise((r) => setTimeout(r, 0))
         expect(fallbackPlays).toBe(1)
+    })
+})
+
+describe('soundfont players say when their notes start (#41)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    const note = [{ midi: 60, time: 0, duration: 1 }]
+
+    it('calls onStart right after the synthesizer starts the notes', async () => {
+        const order: string[] = []
+        const api = {
+            masterVolume: 1,
+            playbackSpeed: 1,
+            player: { playOneTimeMidiFile: () => order.push('play'), stop() {} }
+        }
+        const player = soundfontPlayer(alphaTab as unknown as AlphaTabModule, () => api as never)
+        expect(player.reportsStart).toBe(true)
+        player.play(note, { sound: 'guitar', volume: 1, onStart: () => order.push('start') })
+        await Promise.resolve()
+        expect(order).toEqual(['play', 'start'])
+        const stopped = player.play(note, {
+            sound: 'guitar',
+            volume: 1,
+            onStart: () => order.push('late')
+        })
+        stopped.stop()
+        await Promise.resolve()
+        expect(order).not.toContain('late')
+    })
+
+    it('waits for the soundfont, then lets a fallback that says nothing start now', async () => {
+        const mod = fakeAlphaTab()
+        type Fake = { soundFontLoaded: { fire(): void }; playerReady: { fire(): void } }
+        const made: Fake[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => Fake
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(this)
+            }
+        }
+        let started = 0
+        const player = createSoundfontPlayer(mod, assets, document, { play: () => ({ stop() {} }) })
+        expect(player.reportsStart).toBe(true)
+        player.play(note, { sound: 'piano', volume: 1, onStart: () => started++ })
+        made[0]!.soundFontLoaded.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(started).toBe(0)
+        made[0]!.playerReady.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(started).toBe(1)
+        player.destroy()
     })
 })
 

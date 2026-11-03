@@ -534,7 +534,8 @@ export function soundfontPlayer(
     api: () => AT.AlphaTabApi | null
 ): NotePlayer {
     return {
-        play(events: NoteEvent[], { sound, volume, onEnd }) {
+        reportsStart: true,
+        play(events: NoteEvent[], { sound, volume, onEnd, onStart }) {
             const current = api()
             const player = current?.player
             if (!current || !player) throw new Error('The soundfont player is not ready')
@@ -552,9 +553,15 @@ export function soundfontPlayer(
             const end = Math.max(...events.map((e) => e.time + e.duration), 0)
             current.playbackSpeed = 1
             player.playOneTimeMidiFile(midi)
+            let stopped = false
+            // The synthesizer starts the song right away: its notes sound from now.
+            queueMicrotask(() => {
+                if (!stopped) onStart?.()
+            })
             const timer = setTimeout(() => onEnd?.(), (end + 0.2) * 1000)
             return {
                 stop() {
+                    stopped = true
                     clearTimeout(timer)
                     player.stop()
                 }
@@ -634,6 +641,8 @@ export function createSoundfontPlayer(
     }
     const inner = soundfontPlayer(alphaTab, () => api)
     return {
+        // Its notes start once the soundfont is in: `onStart` says when (the fallback's too).
+        reportsStart: true,
         play(events, options) {
             let handle: { stop(): void } | null = null
             let stopped = false
@@ -647,7 +656,10 @@ export function createSoundfontPlayer(
                 } catch {
                     // Falls through to the fallback.
                 }
-                if (fallback) handle = fallback.play(events, options)
+                if (!fallback) return
+                handle = fallback.play(events, options)
+                // A fallback that doesn't say when it starts starts now.
+                if (!fallback.reportsStart) options.onStart?.()
             })
             return {
                 stop() {
