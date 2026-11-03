@@ -278,6 +278,15 @@ export function renderKeyboard(
         const fingered = played.filter((midi) => options.fingers?.has(midi))
         played = fingered.length ? fingered : (chordVoicingIn(set, from, to) ?? played)
     }
+    // A list of exact keys (notes: G4 F4 E4, or a fingered list) plays in the order written.
+    const written =
+        set.list && set.pitches && options.playAs !== 'chord'
+            ? set.pitches.filter((midi) => midi >= from && midi <= to)
+            : null
+    if (written?.length) {
+        played = [...new Set(written)]
+        root.setAttribute('data-mn-order', 'written')
+    }
     root.setAttribute('data-mn-pitches', played.join(' '))
     root.setAttribute('data-mn-play', options.playAs ?? 'scale')
     root.setAttribute('data-mn-sound', 'piano')

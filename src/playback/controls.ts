@@ -360,7 +360,9 @@ function barFor(
         const events = sequenceOf(data.kind, pitchesShown(), {
             ...settings,
             root: rootShown(),
-            ...(tones ? { tones } : {})
+            ...(tones ? { tones } : {}),
+            // A list of notes plays as written (keyboard data-mn-order), then back.
+            ...(shown.getAttribute('data-mn-order') === 'written' ? { ordered: true } : {})
         })
         playing = play(
             events,
