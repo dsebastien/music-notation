@@ -9,17 +9,26 @@ import { chordNoteSet, type NoteSetMember } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { canonicalSuffix } from '../theory/suffix.js'
 
-/** Shape names, as guitar teachers use them: one name per CAGED shape, barre or not. */
+type CagedLetter = 'C' | 'A' | 'G' | 'E' | 'D'
+
+/**
+ * Shape names, as guitar teachers use them: one name per CAGED shape, barre or not. A voicing none
+ * of the first names fit gets one of the others (#72): a CAGED shape's strings ("E shape (strings
+ * 1-4)", F xx3211), drop 2 and drop 3 four-note voicings, the Hendrix chord, open strings ringing
+ * up the neck, else the strings it sounds ("Strings 3-6").
+ */
 export type VoicingShape =
     | 'Open'
-    | 'C shape'
-    | 'A shape'
-    | 'G shape'
-    | 'E shape'
-    | 'D shape'
+    | `${CagedLetter} shape`
     | 'Power chord'
     | 'Triad'
     | 'Shell'
+    | `${CagedLetter} shape (strings ${string})`
+    | `Drop ${2 | 3} (strings ${string})`
+    | 'Hendrix chord'
+    | 'Open bass'
+    | 'Open strings'
+    | `Strings ${string}`
 
 /** The E and A shapes: with a barre, the barre chords everyone learns. */
 const isBarreShape = (shape: VoicingShape | null) => shape === 'E shape' || shape === 'A shape'
@@ -297,7 +306,7 @@ export function fingerVoicing(frets: readonly (number | null)[]): (string | null
 }
 
 /** Where each open-position CAGED chord has its root: string index, lowest first. */
-const CAGED_ROOT_STRING: Record<'C' | 'A' | 'G' | 'E' | 'D', number> = {
+const CAGED_ROOT_STRING: Record<CagedLetter, number> = {
     C: 1,
     A: 1,
     G: 0,
@@ -385,9 +394,9 @@ function shapeOf(
     if (sounding.length === 3 && adjacent && chromas.size === 3) return 'Triad'
     const fretted = sounding.map((s) => frets[s]!).filter((f) => f > 0)
     const open = sounding.some((s) => frets[s] === 0)
-    // Open chords sound the highest string and at least four strings, fretted within frets 1–4.
-    const top = sounding[sounding.length - 1] === frets.length - 1
-    if (open && top && sounding.length >= 4 && (!fretted.length || Math.max(...fretted) <= 4)) {
+    // Open chords sound at least four strings, fretted within frets 1–4 (the top string may be
+    // muted: A x0222x, Bb x1033x, #72).
+    if (open && sounding.length >= 4 && (!fretted.length || Math.max(...fretted) <= 4)) {
         return 'Open'
     }
     if (sameTuning(tuning, STANDARD_TUNING) && !open && fretted.length) {
@@ -411,6 +420,120 @@ function shapeOf(
     return null
 }
 
+/** The open chords of `OPEN_CHORDS`, as frets: the templates of a CAGED shape's strings. */
+const OPEN_CHORD_FRETS: readonly (number | null)[][] = [...OPEN_CHORDS].map((t) =>
+    [...t].map((c) => (c === 'x' ? null : Number(c)))
+)
+
+/** Strings as guitarists number them (1 = the highest), runs joined: "1-4", "2-4, 6". */
+function stringsText(sounding: readonly number[], count: number): string {
+    const numbers = sounding.map((s) => count - s).sort((a, b) => a - b)
+    const runs: string[] = []
+    for (let i = 0; i < numbers.length;) {
+        let j = i
+        while (j + 1 < numbers.length && numbers[j + 1] === numbers[j]! + 1) j++
+        runs.push(i === j ? `${numbers[i]}` : `${numbers[i]}-${numbers[j]}`)
+        i = j + 1
+    }
+    return runs.join(', ')
+}
+
+/**
+ * The CAGED shape a voicing is some strings of (F xx3211: the E shape's top four): every string it
+ * sounds is fretted where one of the usual open chords of that letter and quality, moved up the
+ * neck, has it, on fewer strings than that chord, with no open string. Standard tuning only.
+ */
+function cagedPartOf(
+    frets: readonly (number | null)[],
+    sounding: readonly number[],
+    info: ChordInfo
+): CagedLetter | null {
+    if (info.bass !== null || sounding.length < 3) return null
+    if (sounding.some((s) => frets[s] === 0)) return null
+    for (const letter of ['E', 'A', 'C', 'G', 'D'] as const) {
+        const target = chordInfo(letter + info.suffix)
+        if (!target) continue
+        const tones = new Set(target.tones.map((t) => t.chroma))
+        const base = (((info.root - chromaOf(letter)!) % 12) + 12) % 12
+        for (const open of OPEN_CHORD_FRETS) {
+            const strings = open.flatMap((f, s) => (f === null ? [] : [s]))
+            if (strings[0] !== CAGED_ROOT_STRING[letter] || strings.length <= sounding.length) {
+                continue
+            }
+            const chromas = strings.map((s) => (STANDARD_TUNING[s]! + open[s]!) % 12)
+            if (chromas[0] !== chromaOf(letter)) continue
+            // The open chord is that letter's chord of the same quality: only its notes, and all
+            // the ones it needs.
+            if (!chromas.every((c) => tones.has(c))) continue
+            if (!target.tones.every((t) => !t.required || chromas.includes(t.chroma))) continue
+            for (const shift of [base, base + 12]) {
+                if (shift === 0) continue
+                if (sounding.every((s) => open[s] !== null && frets[s] === open[s]! + shift)) {
+                    return letter
+                }
+            }
+        }
+    }
+    return null
+}
+
+/**
+ * Drop 2 or drop 3: four notes on four strings, each of the chord's notes once, that come within an
+ * octave (a close voicing) when the lowest goes up an octave; it lands second from the top (drop
+ * 2: the close voicing's second note from the top was dropped an octave) or third (drop 3).
+ */
+function dropOf(pitches: readonly number[]): 2 | 3 | null {
+    if (pitches.length !== 4 || new Set(pitches.map((p) => p % 12)).size !== 4) return null
+    const sorted = [...pitches].sort((a, b) => a - b)
+    const raised = sorted[0]! + 12
+    const close = [...sorted.slice(1), raised].sort((a, b) => a - b)
+    if (close[3]! - close[0]! >= 12) return null
+    const fromTop = 3 - close.indexOf(raised)
+    return fromTop === 1 ? 2 : fromTop === 2 ? 3 : null
+}
+
+/**
+ * The Hendrix grip (R 3 b7 #9, root on the A string: x3234x for C7#9) of a chord with a major third
+ * and a #9, in standard tuning. Named so before any shape: at C it is no CAGED shape, at E (x7678x)
+ * the C shape's pitches would name it, and a guitarist knows it by this name at every fret.
+ */
+function isHendrixChord(
+    frets: readonly (number | null)[],
+    info: ChordInfo,
+    tuning: readonly number[]
+): boolean {
+    if (!sameTuning(tuning, STANDARD_TUNING) || !isJazzGrip(frets) || frets[1] === null)
+        return false
+    if (frets[0] !== null || (tuning[1]! + frets[1]!) % 12 !== info.root) return false
+    const chromas = new Set(info.tones.map((t) => t.chroma))
+    return chromas.has((info.root + 3) % 12) && chromas.has((info.root + 4) % 12)
+}
+
+/**
+ * The name of a voicing none of the shapes fit (#72): a CAGED shape's strings,
+ * drop 2 or drop 3, open strings up the neck (only the bass: "Open bass"), else the strings it
+ * sounds. Never null for a voicing that sounds a note.
+ */
+function otherNameOf(
+    frets: readonly (number | null)[],
+    info: ChordInfo,
+    tuning: readonly number[]
+): VoicingShape | null {
+    const sounding = frets.flatMap((f, s) => (f === null ? [] : [s]))
+    if (!sounding.length || tuning.length !== frets.length) return null
+    const strings = stringsText(sounding, frets.length)
+    const standard = sameTuning(tuning, STANDARD_TUNING)
+    const pitches = sounding.map((s) => tuning[s]! + frets[s]!)
+    const letter = standard ? cagedPartOf(frets, sounding, info) : null
+    if (letter) return `${letter} shape (strings ${strings})`
+    const drop = dropOf(pitches)
+    if (drop) return `Drop ${drop} (strings ${strings})`
+    const open = sounding.filter((s) => frets[s] === 0)
+    if (open.length)
+        return open.length === 1 && open[0] === sounding[0] ? 'Open bass' : 'Open strings'
+    return `Strings ${strings}`
+}
+
 /**
  * The shape a voicing is played with: power chord, shell (root, third and seventh or sixth on three
  * or four strings), triad (three adjacent strings, three notes), open (open strings, frets 1–4),
@@ -426,7 +549,9 @@ export function voicingShape(
     _fingers?: readonly (string | null)[] | null
 ): VoicingShape | null {
     const info = chordInfo(symbol)
-    return info ? shapeOf(frets, info, cagedTargets(info), tuning) : null
+    if (!info) return null
+    if (isHendrixChord(frets, info, tuning)) return 'Hendrix chord'
+    return shapeOf(frets, info, cagedTargets(info), tuning) ?? otherNameOf(frets, info, tuning)
 }
 
 /** Usual shapes rank higher: they're the ones teachers and songbooks use. */
@@ -457,11 +582,14 @@ const JAZZ_GRIPS: readonly { rootString: number; offsets: readonly (number | nul
  * One voicing per shape: leaves out a voicing that is another one of the list with its highest
  * strings muted (A x0222x and 57765x, copies of x02220 and 577655), then draws the rest up the neck (lowest
  * fretted note; ties keep the list's order, the easiest first). `count` voicings are kept, the
- * easiest ones, before they are put in neck order (#72).
+ * easiest ones, before they are put in neck order (#72). In standard tuning (`tuning`, the
+ * default) a known jazz grip is kept and the longer voicing left out: C7#9 shows the Hendrix grip
+ * x3234x, not x32340.
  */
 export function distinctShapes<T extends { frets: readonly (number | null)[] }>(
     voicings: readonly T[],
-    count = voicings.length
+    count = voicings.length,
+    tuning: readonly number[] = STANDARD_TUNING
 ): T[] {
     const sounding = (v: T) => v.frets.flatMap((f, s) => (f === null ? [] : [s]))
     // The same grip with its highest strings muted: its strings are the other's lowest ones.
@@ -475,7 +603,14 @@ export function distinctShapes<T extends { frets: readonly (number | null)[] }>(
             mine.every((s, i) => theirs[i] === s && w.frets[s] === v.frets[s])
         )
     }
-    const kept = voicings.filter((v) => !voicings.some((w) => w !== v && copyOf(v, w)))
+    const standard = sameTuning(tuning, STANDARD_TUNING)
+    const grip = (v: T) => standard && isJazzGrip(v.frets)
+    const kept = voicings.filter(
+        (v) =>
+            !voicings.some(
+                (w) => w !== v && ((copyOf(v, w) && !grip(v)) || (copyOf(w, v) && grip(w)))
+            )
+    )
     const lowest = (v: T) => {
         const fretted = v.frets.filter((f): f is number => f !== null && f > 0)
         return fretted.length ? Math.min(...fretted) : 0
@@ -662,7 +797,10 @@ export function generateVoicings(symbol: string, options: VoicingOptions = {}): 
             baseFret: base,
             bassString,
             inversion: inBass < 0 ? null : inBass,
-            shape,
+            // The ranking counts the shapes above; the other names only title the voicing.
+            shape: isHendrixChord(candidate, info, tuning)
+                ? 'Hendrix chord'
+                : (shape ?? otherNameOf(candidate, info, tuning)),
             difficulty: Math.max(0, Math.round(difficulty * 10) / 10),
             reasons
         }

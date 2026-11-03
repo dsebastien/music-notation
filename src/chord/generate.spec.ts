@@ -206,10 +206,11 @@ describe('voicingShape', () => {
     })
 
     it('says nothing of shapes it does not know', () => {
-        expect(voicingShape(frets('x-3-5-0-5-0'), 'C')).toBeNull()
         expect(voicingShape(frets('x32010'), 'Hm')).toBeNull()
-        // A barre that is no CAGED shape has no name ("other barre" told a student nothing).
-        expect(voicingShape(frets('xx3211'), 'F')).toBeNull()
+        // A barre that is no CAGED shape has no barre name ("other barre" told a student nothing);
+        // since #72 every voicing gets a name: the E shape's top four strings.
+        expect(voicingShape(frets('xx3211'), 'F')).toBe('E shape (strings 1-4)')
+        expect(voicingShape(frets('x-3-5-0-5-0'), 'C')).toBe('Open strings')
     })
 
     it('gives a CAGED shape one name, with a barre or not', () => {
@@ -383,5 +384,61 @@ describe('shell names (#72)', () => {
         expect(voicingShape(f('x3250x'), 'Cmaj7')).not.toBe('Shell')
         expect(voicingShape(f('x3241x'), 'Cmaj7')).not.toBe('Shell')
         expect(voicingShape(f('x2241x'), 'Bmaj7')).not.toBe('Shell')
+    })
+})
+
+describe('names for every voicing (#72)', () => {
+    it('names an open-position chord with its top string muted Open', () => {
+        expect(voicingShape(frets('x0222x'), 'A')).toBe('Open')
+        expect(voicingShape(frets('x1033x'), 'Bb')).toBe('Open')
+        expect(voicingShape(frets('0120xx'), 'Edim')).toBe('Open')
+    })
+
+    it('names the top strings of a CAGED barre shape after the shape and its strings', () => {
+        expect(voicingShape(frets('xx3211'), 'F')).toBe('E shape (strings 1-4)')
+        expect(voicingShape(frets('xx8766'), 'Bb')).toBe('E shape (strings 1-4)')
+        expect(voicingShape(frets('x-x-10-8-8-8'), 'Cm')).toBe('E shape (strings 1-4)')
+        expect(voicingShape(frets('xx5333'), 'Gm')).toBe('E shape (strings 1-4)')
+        // Not the strings of a CAGED shape: R 3 R 3 on the low strings.
+        expect(voicingShape(frets('2143xx'), 'F#')).toBe('Strings 3-6')
+    })
+
+    it('names four-note voicings by the note dropped an octave: drop 2 and drop 3', () => {
+        // F#2 E3 A3 C4: E3 F#3 A3 C4 with F#3, third from the top, dropped an octave.
+        expect(voicingShape(frets('2x221x'), 'F#m7b5')).toBe('Drop 3 (strings 2-4, 6)')
+        expect(voicingShape(frets('3x232x'), 'Gdim7')).toBe('Drop 3 (strings 2-4, 6)')
+        // C3 G3 A3 E4: G3 A3 C4 E4 with C4, second from the top, dropped an octave.
+        expect(voicingShape(frets('x3525x'), 'C6')).toBe('Drop 2 (strings 2-5)')
+        expect(voicingShape(frets('3524xx'), 'G6')).toBe('Drop 2 (strings 3-6)')
+        // The CAGED name comes first: Cmaj7 x3545x is the A shape with its top string muted.
+        expect(voicingShape(frets('x3545x'), 'Cmaj7')).toBe('A shape')
+    })
+
+    it('names the Hendrix grip', () => {
+        expect(voicingShape(frets('x3234x'), 'C7#9')).toBe('Hendrix chord')
+        expect(voicingShape(frets('x7678x'), 'E7#9')).toBe('Hendrix chord')
+    })
+
+    it('names voicings with open strings up the neck by where the open strings ring', () => {
+        expect(voicingShape(frets('xx0775'), 'D')).toBe('Open bass')
+        expect(voicingShape(frets('x07555'), 'Am')).toBe('Open bass')
+        expect(voicingShape(frets('780707'), 'Bdim')).toBe('Open strings')
+        expect(voicingShape(frets('070000'), 'Em7')).toBe('Open strings')
+    })
+
+    it('gives every voicing of the common chords a name, and keeps the names it gave', () => {
+        const roots = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']
+        const suffixes = ['', 'm', '7', 'm7', 'maj7', 'dim', 'aug', 'sus4', 'sus2']
+        const unnamed = roots.flatMap((r) =>
+            suffixes.flatMap((s) =>
+                generateVoicings(r + s)
+                    .filter((v) => v.shape === null)
+                    .map((v) => `${r + s} ${show(v.frets)}`)
+            )
+        )
+        expect(unnamed).toEqual([])
+        expect(voicingShape(frets('133211'), 'F')).toBe('E shape')
+        expect(voicingShape(frets('x5777x'), 'D')).toBe('A shape')
+        expect(voicingShape(frets('x32010'), 'C')).toBe('Open')
     })
 })
