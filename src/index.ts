@@ -124,6 +124,7 @@ export {
     CAGED_SHAPES,
     MAX_FRET,
     type Cell,
+    type Numbering,
     type PositionOptions,
     type PositionSystem
 } from './fretboard/positions.js'

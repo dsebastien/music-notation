@@ -273,6 +273,39 @@ describe('scales and modes', () => {
         expect(lowest(moved)).toEqual([52])
     })
 
+    it('numbers major pentatonic positions from the relative minor', () => {
+        const h = host()
+        expect(
+            renderBlock('fretboard', 'A major pentatonic\npositions: all\nnumbering: minor', h).ok
+        ).toBe(true)
+        expect(titles(h)).toEqual(
+            [1, 2, 3, 4, 5].map((n) => `A major pentatonic, box ${n} (numbered from F# minor)`)
+        )
+        const pitches = (h: HTMLElement) =>
+            [...h.querySelectorAll('[data-mn-pitches]')].map((svg) =>
+                svg.getAttribute('data-mn-pitches')
+            )
+        // Position 1 is F# minor's box 1, at the same frets.
+        const one = host()
+        renderBlock('fretboard', 'A major pentatonic\nposition: 1\nnumbering: minor', one)
+        const minor = host()
+        renderBlock('fretboard', 'F# minor pentatonic\nposition: 1', minor)
+        expect(pitches(one)).toEqual(pitches(minor))
+        expect(pitches(h)[0]).toEqual(pitches(minor)[0])
+        expect(
+            renderBlock('fretboard', 'A minor pentatonic\npositions: all\nnumbering: minor', host())
+                .error
+        ).toBe(
+            'numbering: minor is for major pentatonic positions (e.g. A major pentatonic), not A minor pentatonic'
+        )
+        expect(
+            renderBlock('fretboard', 'C major\nposition: 1\nnumbering: minor', host()).error
+        ).toContain('not C major')
+        expect(renderBlock('fretboard', 'A major pentatonic\nnumbering: minor', host()).error).toBe(
+            'numbering goes with a position: e.g. position: 1 or positions: all'
+        )
+    })
+
     it('draws every mode of a key in a row', () => {
         const h = host()
         expect(renderBlock('keyboard', 'modes: C major\nrange: C4-B5', h).ok).toBe(true)

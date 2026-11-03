@@ -20,7 +20,13 @@ import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
-import { CAGED_SHAPES, neckPositions, positionCount } from '../fretboard/positions.js'
+import {
+    CAGED_SHAPES,
+    neckPositions,
+    numberingOf,
+    positionCount,
+    relativeMinorOf
+} from '../fretboard/positions.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import {
     fingerVoicing,
@@ -169,7 +175,8 @@ function propertiesSource(
  * `positions: all` (or `1 3 5`) on a fretboard with a scale: one diagram per position, in a row.
  * Boxes for 5-note scales, CAGED shapes for 7-note scales, or 3NPS with `shape: 3nps`. Positions
  * follow the neck: each diagram gets the frets `neckPositions` puts it at (a list picks from that
- * layout). Null when the block has no `positions:`.
+ * layout). With `numbering: minor`, a major pentatonic's positions count from its relative minor
+ * and their titles say so. Null when the block has no `positions:`.
  */
 function positionParts(language: DiagramLanguage, source: string): string[] | null {
     if (language !== 'fretboard') return null
@@ -197,11 +204,16 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     }
     // Up the neck, each position at or above the one before; an unknown tuning fails in the diagram.
     const tuningText = block.fields.get('tuning')
+    // numbering: minor numbers a major pentatonic's positions from its relative minor.
+    const numbering = numberingOf(block.fields.get('numbering'), set, system)
     const neck = neckPositions(
         set,
         (tuningText && parseTuning(tuningText)) || STANDARD_TUNING,
-        system
+        system,
+        numbering
     )
+    const numbered = numbering === 'minor' ? ['numbering: minor'] : []
+    const from = numbering === 'minor' ? ` (numbered from ${relativeMinorOf(set)} minor)` : ''
     const fretsOf = (n: number) => {
         const cells = neck[n - 1]
         if (!cells?.length) return []
@@ -211,7 +223,10 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     // Shared keys (and columns) go in a shared part; the others repeat in every diagram.
     const shared = SHARED_KEYS.fretboard
     const others = [...block.fields].filter(
-        ([key]) => !['positions', 'scale', 'shape', 'position', 'title', 'frets'].includes(key)
+        ([key]) =>
+            !['positions', 'scale', 'shape', 'position', 'numbering', 'title', 'frets'].includes(
+                key
+            )
     )
     const header = others
         .filter(([key]) => key === 'columns' || shared.includes(key))
@@ -227,9 +242,9 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
                       `title: ${set.title}, ${CAGED_SHAPES[n - 1]} shape`
                   ]
                 : system === '3nps'
-                  ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}`]
-                  : [`position: ${n}`, `title: ${set.title}, box ${n}`]
-        return [`scale: ${scale}`, ...at, ...fretsOf(n), ...own].join('\n')
+                  ? ['shape: 3nps', `position: ${n}`, `title: ${set.title}, 3nps ${n}${from}`]
+                  : [`position: ${n}`, `title: ${set.title}, box ${n}${from}`]
+        return [`scale: ${scale}`, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
 }

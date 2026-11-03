@@ -8,6 +8,8 @@
  *   come the D, C, A and G shapes.
  * - 3NPS: 3 notes per string, starting from the n-th scale degree.
  * Scales with no pentatonic inside (locrian, harmonic minor…) use 3NPS for their CAGED positions.
+ * Major pentatonic positions can be numbered from the relative minor (`numbering: minor`), as many
+ * courses do: position 1 is then the relative minor's box 1.
  */
 import type { NoteSet } from '../theory/note-set.js'
 
@@ -76,10 +78,60 @@ function pentatonicOf(set: NoteSet): number[] | null {
 /** The highest fret a fretboard can show. */
 export const MAX_FRET = 36
 
-/** Where to draw a position: `within` picks the lowest octave inside those frets (else the lowest). */
+/** How positions are numbered: from the scale's root (default), or from the relative minor. */
+export type Numbering = 'root' | 'minor'
+
+/**
+ * Where to draw a position and how it's numbered: `within` picks the lowest octave inside those
+ * frets (else the lowest); `numbering: 'minor'` counts a major pentatonic's positions from its
+ * relative minor.
+ */
 export interface PositionOptions {
     within?: [number, number]
+    numbering?: Numbering
 }
+
+const isMajorPentatonic = (set: NoteSet) =>
+    set.members.map((m) => m.interval).join(' ') === MAJOR_PENTATONIC.join(' ')
+
+/** The relative minor's root, as the scale spells it (its 5th note: the 6th degree). */
+export const relativeMinorOf = (set: NoteSet): string | undefined =>
+    isMajorPentatonic(set) ? set.members[4]!.name : undefined
+
+/**
+ * Reads `numbering:` for a scale's positions. `minor` (or `relative minor`) only applies to major
+ * pentatonic boxes and 3NPS positions; anywhere else it's an error that says where it applies.
+ */
+export function numberingOf(
+    text: string | undefined,
+    set: NoteSet,
+    system: PositionSystem
+): Numbering {
+    const value = text?.trim().toLowerCase().replace(/\s+/g, ' ')
+    if (!value) return 'root'
+    if (value !== 'minor' && value !== 'relative minor') {
+        throw new Error(`numbering: use minor (positions from the relative minor), got "${text}"`)
+    }
+    if (!isMajorPentatonic(set)) {
+        throw new Error(
+            `numbering: minor is for major pentatonic positions (e.g. A major pentatonic), not ${set.title}`
+        )
+    }
+    if (system === 'caged') {
+        throw new Error('numbering: minor numbers boxes and 3nps positions, not CAGED shapes')
+    }
+    return 'minor'
+}
+
+/** Position `n` in a numbering, as numbered from the root (the relative minor's root is 5th). */
+const fromRoot = (set: NoteSet, system: PositionSystem, n: number, numbering?: Numbering) =>
+    numbering === 'minor' &&
+    system !== 'caged' &&
+    isMajorPentatonic(set) &&
+    n >= 1 &&
+    n <= positionCount(set, system)
+        ? ((n + 3) % positionCount(set, system)) + 1
+        : n
 
 const lowestFret = (cells: Cell[]) => Math.min(...cells.map((c) => c.fret))
 const highestFret = (cells: Cell[]) => Math.max(...cells.map((c) => c.fret))
@@ -95,7 +147,7 @@ export function scalePosition(
     n: number,
     options: PositionOptions = {}
 ): Cell[] | null {
-    const octaves = octavesOf(set, tuning, system, n)
+    const octaves = octavesOf(set, tuning, system, fromRoot(set, system, n, options.numbering))
     const within = options.within
     const inside = within
         ? octaves.find((cells) => lowestFret(cells) >= within[0] && highestFret(cells) <= within[1])
@@ -107,15 +159,17 @@ export function scalePosition(
  * Every position in neck order, position 1 first: the first in its lowest octave, each next one in
  * the lowest octave at or above the previous one (by their lowest frets), or in its own lowest
  * octave when that would go past fret 36. Null for a position that doesn't fit the system.
+ * With `numbering: 'minor'`, a major pentatonic starts from its relative minor's box 1.
  */
 export function neckPositions(
     set: NoteSet,
     tuning: number[],
-    system: PositionSystem
+    system: PositionSystem,
+    numbering: Numbering = 'root'
 ): (Cell[] | null)[] {
     let floor = 0
     return Array.from({ length: positionCount(set, system) }, (_, i) => {
-        const octaves = octavesOf(set, tuning, system, i + 1)
+        const octaves = octavesOf(set, tuning, system, fromRoot(set, system, i + 1, numbering))
         const cells =
             octaves.find((c) => lowestFret(c) >= floor && highestFret(c) <= MAX_FRET) ??
             octaves[0] ??

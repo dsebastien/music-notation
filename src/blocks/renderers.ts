@@ -34,6 +34,7 @@ import type { Instrument, PropertyNames } from './properties.js'
 import { labelField, marksOf, noteSetOf, orFail } from './note-set-field.js'
 import {
     MAX_FRET,
+    numberingOf,
     positionCount,
     positionOf,
     scalePosition,
@@ -84,6 +85,7 @@ export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
         'compare',
         'position',
         'shape',
+        'numbering',
         'strings'
     ]
 }
@@ -431,6 +433,9 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const tuningText = field(block, 'tuning')
     const tuning = tuningText ? tuningOf(tuningText) : undefined
     let cells: Cell[] | undefined
+    if (!at && field(block, 'numbering')) {
+        throw new Error('numbering goes with a position: e.g. position: 1 or positions: all')
+    }
     if (at) {
         if (set.root === null || set.list) {
             throw new Error('Positions need a scale: e.g. scale: A minor')
@@ -440,8 +445,12 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         const count = positionCount(set, at.system)
         const named = { 'box': 'box', 'caged': 'CAGED', '3nps': '3nps' }[at.system]
         // With frets, the lowest octave inside them (how `positions:` puts them in neck order).
+        const numbering = numberingOf(field(block, 'numbering'), set, at.system)
         cells = orFail(
-            scalePosition(set, tuning ?? STANDARD_TUNING, at.system, at.n, { within: frets }),
+            scalePosition(set, tuning ?? STANDARD_TUNING, at.system, at.n, {
+                within: frets,
+                numbering
+            }),
             `${set.title} has ${count} ${named} positions: use position 1 to ${count}`
         )
     }

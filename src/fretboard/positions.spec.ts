@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { neckPositions, positionOf, scalePosition, type Cell } from './positions.js'
+import {
+    neckPositions,
+    numberingOf,
+    positionOf,
+    relativeMinorOf,
+    scalePosition,
+    type Cell
+} from './positions.js'
 import { scaleNoteSet } from '../theory/note-set.js'
 
 const STANDARD = [40, 45, 50, 55, 59, 64]
@@ -186,6 +193,59 @@ describe('positions in neck order', () => {
             '12-15'
         ])
         expect(spans([scalePosition(set, STANDARD, 'box', 4, { within: [5, 8] })])).toEqual(['0-3'])
+    })
+})
+
+describe('numbering from the relative minor', () => {
+    it('makes the relative minor box 1 the major pentatonic position 1', () => {
+        const major = scaleNoteSet('C major pentatonic')!
+        const minor = scaleNoteSet('A minor pentatonic')!
+        for (let n = 1; n <= 5; n++) {
+            expect(
+                byString(scalePosition(major, STANDARD, 'box', n, { numbering: 'minor' }))
+            ).toEqual(byString(scalePosition(minor, STANDARD, 'box', n)))
+        }
+        // Without it, the minor box 1 shape is the major's position 5.
+        expect(byString(scalePosition(major, STANDARD, 'box', 5))).toEqual(
+            byString(scalePosition(minor, STANDARD, 'box', 1))
+        )
+        expect(relativeMinorOf(major)).toBe('A')
+        expect(relativeMinorOf(minor)).toBeUndefined()
+    })
+
+    it('lays major pentatonic positions up the neck from the relative minor', () => {
+        const set = scaleNoteSet('A major pentatonic')!
+        expect(spans(neckPositions(set, STANDARD, 'box'))).toEqual([
+            '4-7',
+            '6-10',
+            '9-12',
+            '11-14',
+            '14-17'
+        ])
+        expect(spans(neckPositions(set, STANDARD, 'box', 'minor'))).toEqual([
+            '2-5',
+            '4-7',
+            '6-10',
+            '9-12',
+            '11-14'
+        ])
+        // 3NPS from the relative minor's root (F#, fret 2).
+        expect(neckPositions(set, STANDARD, '3nps', 'minor')[0]).toEqual(
+            scalePosition(set, STANDARD, '3nps', 5)
+        )
+    })
+
+    it('reads numbering only where it means something', () => {
+        const major = scaleNoteSet('A major pentatonic')!
+        expect(numberingOf(undefined, major, 'box')).toBe('root')
+        expect(numberingOf('Minor', major, 'box')).toBe('minor')
+        expect(numberingOf('relative minor', major, '3nps')).toBe('minor')
+        expect(() => numberingOf('major', major, 'box')).toThrow('numbering: use minor')
+        expect(() => numberingOf('minor', scaleNoteSet('A minor pentatonic')!, 'box')).toThrow(
+            'numbering: minor is for major pentatonic positions (e.g. A major pentatonic), not A minor pentatonic'
+        )
+        expect(() => numberingOf('minor', scaleNoteSet('C major')!, 'caged')).toThrow('not C major')
+        expect(() => numberingOf('minor', major, 'caged')).toThrow('not CAGED shapes')
     })
 })
 
