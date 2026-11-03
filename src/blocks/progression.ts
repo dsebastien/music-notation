@@ -32,6 +32,9 @@ import {
     type ProgressionChord
 } from '../theory/numerals.js'
 import { transposeChord, transposeKey } from '../theory/transpose.js'
+import { STANDARD_TUNING } from '../chord/guitar.js'
+import { PROGRESSION_STRUMS, progressionPitches } from '../playback/progression.js'
+import { MAX_TEMPO, MIN_TEMPO, parseStrum, parseTime } from '../strum/pattern.js'
 
 /** More chords than this in one block is an error, so a page stays quick to draw. */
 const MAX_CHORDS = 32
@@ -55,7 +58,11 @@ const SHARED = [
     'orientation',
     'hand',
     'labels',
-    'title'
+    'title',
+    'time',
+    'tempo',
+    'bpm',
+    'strum'
 ]
 
 const yes = (text: string | undefined, key: string, fallback: boolean): boolean => {
@@ -267,6 +274,71 @@ function diagramBlock(block: BlockSource, lines: [string, string][]): BlockSourc
     return { head: null, fields }
 }
 
+/** A chord's notes for the play bar, as MIDI numbers; null when it has none. */
+function soundOf(
+    symbol: string,
+    piano: boolean,
+    tuningText: string | undefined,
+    options: RenderOptions
+): string | null {
+    try {
+        const tuning = (tuningText ? parseTuning(tuningText) : null) ?? STANDARD_TUNING
+        const pitches = progressionPitches(
+            symbol,
+            piano ? 'piano' : 'guitar',
+            tuning,
+            options.voicings
+        )
+        return pitches.length ? pitches.join(' ') : null
+    } catch {
+        return null
+    }
+}
+
+/**
+ * The play bar's settings (#46): `time:` (4/4 by default), `tempo:` or `bpm:` (20–240, counted
+ * beats a minute), `strum:` (beats, bar, arpeggio, or a strumming pattern). Throws a message.
+ */
+function playSettingsOf(fields: Map<string, string>): [string, string][] {
+    const get = (key: string) => {
+        const value = fields.get(key)?.trim()
+        return value ? value : undefined
+    }
+    const settings: [string, string][] = []
+    const time = get('time')
+    if (time) {
+        const { beatsPerBar, beatUnit } = parseTime(time)
+        settings.push(['data-mn-time', `${beatsPerBar}/${beatUnit}`])
+    }
+    const tempoText = get('tempo') ?? get('bpm')
+    if (tempoText) {
+        const tempo = Number(tempoText)
+        if (!Number.isFinite(tempo) || tempo < MIN_TEMPO || tempo > MAX_TEMPO)
+            throw new Error(
+                `tempo: write beats a minute from ${MIN_TEMPO} to ${MAX_TEMPO}, got "${tempoText}"`
+            )
+        settings.push(['data-mn-tempo', String(Math.round(tempo))])
+    }
+    const strum = get('strum')
+    if (strum) {
+        const plain = strum.toLowerCase()
+        if (!(PROGRESSION_STRUMS as readonly string[]).includes(plain)) {
+            try {
+                parseStrum(`${time ? `time: ${time}\n` : ''}${strum}`)
+            } catch (e) {
+                throw new Error(
+                    `strum: write beats, bar, arpeggio or a strumming pattern (D DU UDU): ${e instanceof Error ? e.message : String(e)}`
+                )
+            }
+        }
+        settings.push([
+            'data-mn-strum',
+            PROGRESSION_STRUMS.includes(plain as never) ? plain : strum
+        ])
+    }
+    return settings
+}
+
 function renderSection(
     doc: Document,
     section: Section,
@@ -427,6 +499,12 @@ function renderSection(
         if (functions) {
             cell.appendChild(html(doc, 'div', 'mn-progression-function', chord.function))
         }
+        // What the block's play bar sounds for this chord (#46): the diagram's notes, else the
+        // strum's guitar voicing (a piano voicing on piano).
+        const drawn = cell.querySelector('svg[data-mn-pitches]')?.getAttribute('data-mn-pitches')
+        const voicing = drawn ?? soundOf(chord.symbol, piano, field(block, 'tuning'), options)
+        if (voicing) cell.setAttribute('data-mn-voicing', voicing)
+        cell.setAttribute('data-mn-sound', piano ? 'piano' : 'guitar')
         row.appendChild(cell)
     })
     el.appendChild(row)
@@ -464,6 +542,9 @@ export function renderProgression(
         throw new Error(`At most ${MAX_CHORDS} chords per block, found ${count}`)
     const sections = merged.map(sectionOf)
     const el = html(doc, 'div', 'mn-progression')
+    // Played in time from its bar (#46): one chord a bar, every section in turn.
+    el.setAttribute('data-mn-progression-play', '')
+    for (const [name, value] of playSettingsOf(merged[0]!.fields)) el.setAttribute(name, value)
     // One title for the block (shared, or a single section's); else each section's own.
     const blockTitle =
         shared.get('title') ?? (own.length === 1 ? field(own[0]!, 'title') : undefined)
@@ -473,5 +554,11 @@ export function renderProgression(
         if (title) el.appendChild(html(doc, 'div', 'mn-progression-section-title', title))
         el.appendChild(renderSection(doc, section, options, renderChord))
     })
+    el.querySelectorAll('.mn-progression-chord').forEach((cell, i) =>
+        cell.setAttribute('data-mn-bar', String(i))
+    )
+    // The first section's instrument sounds the bar.
+    const sound = el.querySelector('.mn-progression-chord')?.getAttribute('data-mn-sound')
+    el.setAttribute('data-mn-sound', sound === 'piano' ? 'piano' : 'guitar')
     return el
 }

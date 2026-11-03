@@ -74,6 +74,36 @@ function unitOf(drawing: Element): number {
     return Number.isInteger(unit) && unit > 0 ? unit : 4
 }
 
+/**
+ * The app's player in the window `wrap` is in now (a host may move it to a popout), the light
+ * synthesizer when that one fails. It says when its notes start like the player it wraps (the
+ * light one does too), or once the player it wraps was seen saying it, here or on another bar.
+ */
+export function barPlayer(wrap: Element, win: Window, options: PlayOptions): NotePlayer {
+    const here = wrap.ownerDocument.defaultView ?? win
+    const chosen = playerFor(here, options)
+    return {
+        reportsStart: startsReported(chosen),
+        play(events: NoteEvent[], opts: Parameters<NotePlayer['play']>[1]) {
+            const onStart = opts.onStart
+            const given = onStart
+                ? {
+                      ...opts,
+                      onStart: () => {
+                          sawStart(chosen)
+                          onStart()
+                      }
+                  }
+                : opts
+            try {
+                return chosen.play(events, given)
+            } catch {
+                return lightFor(here).play(events, opts)
+            }
+        }
+    }
+}
+
 /** A metronome, for the count-in. */
 const COUNT_IN = 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7'
 
@@ -125,36 +155,7 @@ export function strumBarFor(
         playing = null
         show()
     }
-    /**
-     * The app's player in the window the drawing is in now (a host may move it to a popout), the
-     * light synthesizer when that one fails.
-     */
-    const player = (): NotePlayer => {
-        const here = wrap.ownerDocument.defaultView ?? win
-        const chosen = playerFor(here, options)
-        return {
-            // Says when its notes start like the player it wraps (the light one does too), or
-            // once the player it wraps was seen saying it, here or on another bar.
-            reportsStart: startsReported(chosen),
-            play(events: NoteEvent[], opts: Parameters<NotePlayer['play']>[1]) {
-                const onStart = opts.onStart
-                const given = onStart
-                    ? {
-                          ...opts,
-                          onStart: () => {
-                              sawStart(chosen)
-                              onStart()
-                          }
-                      }
-                    : opts
-                try {
-                    return chosen.play(events, given)
-                } catch {
-                    return lightFor(here).play(events, opts)
-                }
-            }
-        }
-    }
+    const player = (): NotePlayer => barPlayer(wrap, win, options)
     const start = () => {
         stop()
         // A pattern no longer on the page (redrawn, or the note closed) doesn't play.

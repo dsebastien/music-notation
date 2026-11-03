@@ -955,3 +955,24 @@
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
     fill: var(--mn-on-playing);
 }
+
+/* Progressions and charts in time (#46): the bar sits above the chords, always shown. */
+.mn-play.mn-play-static {
+    position: static;
+    display: inline-flex;
+    justify-content: flex-start;
+    margin: 0 0 6px;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.mn-progression-chord.mn-playing {
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--mn-playing) 22%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mn-playing) 70%, transparent);
+}
+
+.mn-chart .mn-chord.mn-playing {
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--mn-playing) 45%, transparent);
+}
