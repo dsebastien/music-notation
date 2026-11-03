@@ -158,9 +158,19 @@ function namesOf(pitches: number[], flats: boolean): string[] {
     return names
 }
 
+/**
+ * Four notes or more that only move by steps (1 or 2 semitones) within an octave: a hand position
+ * or a scale fragment (C D E F G), not a chord, though tonal would name one (Dm11/C).
+ */
+function isStepwiseRun(pitches: number[]): boolean {
+    const sorted = [...new Set(pitches)].sort((a, b) => a - b)
+    if (sorted.length < 4 || sorted[sorted.length - 1]! - sorted[0]! >= 12) return false
+    return sorted.every((pitch, i) => i === 0 || pitch - sorted[i - 1]! <= 2)
+}
+
 /** The chord played by these pitches (MIDI); null when no chord fits. */
 export function detectChordFromPitches(pitches: number[]): DetectedChord | null {
-    if (pitches.length < 2) return null
+    if (pitches.length < 2 || isStepwiseRun(pitches)) return null
     const readings = new Set<string>()
     for (const flats of [false, true]) {
         // Shell voicings (root, third, seventh) are named with the fifth assumed: 3x44xx is Gmaj7.

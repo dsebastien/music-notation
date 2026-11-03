@@ -96,6 +96,18 @@ describe('root: in chord blocks (#56) and hand positions (#57)', () => {
         // An empty root: line is no root.
         expect(renderBlock('chord', 'C\ninstrument: piano\nroot:', host()).ok).toBe(true)
     })
+
+    it('does not name a stepwise run of four notes or more as a chord', () => {
+        expect(detectChordFromPitches([60, 62, 64, 65, 67])).toBeNull()
+        expect(detectChordFromPitches([60, 62, 64, 65])).toBeNull()
+        const h = host()
+        renderBlock('chord', 'pitches: C4 D4 E4 F4 G4\nfingering: 1 2 3 4 5', h)
+        expect(titles(h)).toEqual([])
+        expect(h.querySelectorAll('.mn-root')).toHaveLength(0)
+        // Chords with a step in them still read: C D E G is Cadd9, C D G a sus2.
+        expect(detectChordFromPitches([60, 62, 64, 67])?.symbol).toBe('Cadd9')
+        expect(detectChordFromPitches([60, 62, 67])?.symbol).toBe('Csus2')
+    })
 })
 
 describe('chord-sheet spellings (#40)', () => {
