@@ -90,6 +90,8 @@ function suffixOf(mark: string, lower: boolean): string | null {
     if (s === 'ø' || s === 'ø7' || s === 'm7b5') return 'm7b5'
     if (s === '+' || s === 'aug') return 'aug'
     if (s === '+7') return '7#5'
+    // An added sixth, written out (a plain 6 after a roman numeral is first inversion).
+    if (s === 'add6') return lower ? 'm6' : '6'
     if (!lower) return s
     if (s.startsWith('maj')) return `mMaj${s.slice(3)}`
     if (s.startsWith('sus')) return s
@@ -144,6 +146,41 @@ function readOne(
     return symbol ? { symbol, degree, roman: !!roman } : null
 }
 
+/** Figured bass after a roman numeral: the inversion and whether the chord is a seventh. */
+const FIGURES: Record<string, { inversion: number; seventh: boolean }> = {
+    '6': { inversion: 1, seventh: false },
+    '64': { inversion: 2, seventh: false },
+    '65': { inversion: 1, seventh: true },
+    '43': { inversion: 2, seventh: true },
+    '42': { inversion: 3, seventh: true }
+}
+
+/** A roman numeral with figured bass: the numeral, an optional quality mark, the figures. */
+const FIGURED = /^([b#♭♯]?(?:VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i|N))([°oø+]?)(64|65|43|42|6)$/
+
+/**
+ * One roman numeral, with figured bass read as an inversion, as theory books write it: 6 and 64
+ * are a triad's first and second inversions (I6 C/E, IV64 F/C, bII6 Db/F), 65, 43 and 42 a
+ * seventh chord's (V65 G7/B, V43 G7/D, V42 G7/F, viiø65 Bm7b5/D). N is the Neapolitan, bII (N6
+ * Db/F in C). Anything else as readOne reads it.
+ */
+function readHead(
+    key: MusicalKey,
+    text: string
+): { symbol: string; degree: number; roman: boolean } | null {
+    const m = FIGURED.exec(text.replace(/^N(?=\d|$)/, 'bII'))
+    const plain = text === 'N' ? 'bII' : text
+    if (!m) return readOne(key, plain)
+    const figure = FIGURES[m[3]!]!
+    const mark = m[2]!.replace('o', '°')
+    const chord = readOne(key, `${m[1]}${mark}${figure.seventh ? '7' : ''}`)
+    if (!chord) return null
+    const members = chordNoteSet(chord.symbol)?.members.filter((x) => x.interval !== null) ?? []
+    const bass = members[figure.inversion]
+    if (!bass || members.length !== (figure.seventh ? 4 : 3)) return null
+    return { ...chord, symbol: `${chord.symbol}/${bass.name}` }
+}
+
 /**
  * A roman numeral or Nashville number in a key → its chord symbol; null when it doesn't read.
  * Roman: case for the quality (V major, vi minor), °, ø, +, and any chord suffix (V7, ii7, Imaj7,
@@ -156,10 +193,12 @@ export function readNumeral(token: string, key: string | MusicalKey): string | n
     if (!k) return null
     const [head, after, ...rest] = plainDigits(token.trim()).split('/')
     if (!head || rest.length) return null
-    if (after === undefined) return readOne(k, head)?.symbol ?? null
-    // A bass degree (I/3, 5/b7), else a secondary chord (V/V).
+    if (after === undefined) return readHead(k, head)?.symbol ?? null
+    // A bass degree (I/3, 5/b7), else a secondary chord (V/V, V65/V).
     const bass = bassOf(k, after)
     if (bass !== null) {
+        // Figured bass already says the bass: I6/3 is one bass too many.
+        if (FIGURED.test(head)) return null
         const chord = readOne(k, head)
         return chord ? `${chord.symbol}/${bass}` : null
     }
@@ -168,7 +207,7 @@ export function readNumeral(token: string, key: string | MusicalKey): string | n
     if (!target?.roman) return null
     const targetRoot = splitChordSymbol(target.symbol)!.root
     return (
-        readOne({ tonic: targetRoot, mode: 'major', name: `${targetRoot} major` }, head)?.symbol ??
+        readHead({ tonic: targetRoot, mode: 'major', name: `${targetRoot} major` }, head)?.symbol ??
         null
     )
 }

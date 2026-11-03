@@ -384,8 +384,12 @@ describe('progression block', () => {
         expect(error('I IV\nkey: D dorian')).toBe(
             'Progression keys are major or minor: write key: D major or key: D minor, got "D dorian"'
         )
-        expect(error('I V65\nkey: C')).toContain("figured bass isn't read")
-        expect(error('I V43\nkey: C')).toContain('V7/7 is G7/B')
+        // Figured bass reads as inversions: I6 is C/E, V65 G7/B.
+        const figured = host()
+        renderBlock('progression', 'I6 IV64 V65 I\nkey: C\ndiagrams: no', figured)
+        expect(texts(figured, 'mn-progression-name')).toEqual(['C/E', 'F/C', 'G7/B', 'C'])
+        expect(texts(figured, 'mn-progression-numeral')).toEqual(['I6', 'IV64', 'V65', 'I'])
+        expect(error('I Imaj765\nkey: C')).toContain('I6, V65')
         expect(error('key: C')).toContain('Add the chords')
         expect(error('I IV\nkey: C\ntranspose: 1.5')).toContain('transpose')
         expect(error('I IV\nkey: C\nfunctions: maybe')).toBe(

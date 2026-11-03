@@ -100,17 +100,10 @@ function transposed(key: MusicalKey, semitones: number): MusicalKey {
     return { tonic: moved.tonic, mode: key.mode, name: `${moved.tonic} ${key.mode}` }
 }
 
-/** Figured bass (V65, V43, ii42, I64): inversions aren't read from it. */
-const FIGURED = /^[b#♭♯]?(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)[°ø+]?(65|64|43|42)$/
-
 const unread = (token: string) =>
-    FIGURED.test(token)
-        ? new Error(
-              `Didn't read "${token}": figured bass isn't read; write the bass after a slash (V7/7 is G7/B in C, I/5 is C/G)`
-          )
-        : new Error(
-              `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
-          )
+    new Error(
+        `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V, I6, V65), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
+    )
 
 const isNashville = (token: string) => /^[b#♭♯]?[1-7]/.test(token)
 
