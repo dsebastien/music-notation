@@ -199,7 +199,7 @@ columns: 4</code></pre></div>
 | `open`        | `no`: no open strings.                                                                                                          |
 | `gaps`        | `yes`: muted strings may sit between sounding ones (jazz shells).                                                               |
 
-`tuning`, `orientation`, `hand`, `labels`, `columns` and `title` work as in any row (`title` replaces the chord in each diagram's title). `frets`, `fingers`, `voicing`, `position` and piano keys can't be used with `voicings:`.
+`tuning`, `orientation`, `hand`, `labels`, `columns` and `title` work as in any row (`title` replaces the chord in each diagram's title). A long name such as "F#m7b5, Drop 3 (strings 2-4, 6)" wraps onto two lines, and every diagram of the list keeps room for the longest title, so the necks stay in line. `frets`, `fingers`, `voicing`, `position` and piano keys can't be used with `voicings:`.
 
 On a re-entrant tuning (a ukulele's high G string), any chord note may be lowest unless `inversion` says otherwise, so the usual shapes (F `2010`, G `0232`) come first. On 7 or 8 strings, use one of `gaps`, `stretch` and a wide `area` at a time, and `inversion: any` with six `strings` or fewer: there are many more combinations to go through.
 
@@ -535,7 +535,8 @@ Add `exercise:` to a fretboard with a scale or an arpeggio and one position, and
 - `rhythm: 8ths` (the default), `triplets` or `16ths`, in 4/4: the metronome clicks the quarters. The last bar ends with rests.
 - `tempo: 80` (or `bpm:`), from 20 to 240. Without it, the app's tempo, else 60.
 - A note the position has on two strings plays once, on the lower string.
-- `strings:` and `frets:` work as usual. One position per block: `exercise:` doesn't go with `positions:`, a capo or `---`.
+- `strings:` and `frets:` work as usual. One position per block: `exercise:` doesn't go with `positions:` or `---`.
+- With a [capo](#capo), the tab shows the frets the diagram shows. By default they count from the capo, and the tab marks the capo, so it sounds where the capo puts it. With `frets-from: nut`, the tab shows the real neck's frets instead. Both sound the same: A minor pentatonic `position: 1` with `capo: 2` is a tab on frets 3 to 6 from the capo, or 5 to 8 from the nut.
 
 ````markdown
 ```fretboard
@@ -784,6 +785,8 @@ A minor pentatonic
 title: A blues
 scale: A blues</code></pre></div>
 
+A long title on a chord diagram or a fretboard wraps onto two or three lines. It never makes the diagram wider. The other diagrams of the block keep the same room above them, so their necks line up. Keyboards keep their title on one line.
+
 A mistake in one diagram is shown in its place; the others still draw. A block holds at most 32 diagrams, each at most 12 strings or 88 keys. A block with only `---` lines draws nothing, like an empty one. Chord charts (`chords`) don't split: `---` is text there.
 
 ## Orientation and left-handed diagrams
@@ -851,7 +854,7 @@ Apps that turn playback on (Music Practice does, and Obsidian Publish pages thro
 
 Choosing the other sound also stops what is playing, then redraws the diagram for that instrument, with the same notes. A piano chord becomes a guitar chord diagram you can play, the easiest grip of that chord (C is x32010), with the same labels; a scale or a list becomes a fretboard. A title's "right hand" or "left hand" is dropped on guitar. A guitar chord or a fretboard becomes a keyboard with those exact keys. A keyboard becomes a fretboard, frets 0 to 12 (up to 24 for high notes); notes below the low E or past fret 24 are left out. The title and the root come along, and so do note, degree and interval labels; finger numbers turn into note names. Choose the diagram's own instrument to get its drawing back. A click on a note plays it on either drawing.
 
-A click on a dot, an open string's circle or a key plays that note. Each dot and circle can be clicked anywhere in its string's lane, a little above and below it, so you don't have to hit it exactly. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
+A click on a dot, an open string's circle or a key plays that note. Each dot and circle can be clicked anywhere in its string's lane, a little above and below it, so you don't have to hit it exactly. On touch screens, chord diagrams and fretboards are drawn a third larger, so each string is easier to tap. They still fit the page. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
 
 While it plays, each note lights up on the drawing when you hear it: the dot, the key, or the string's mark. A strummed chord lights its strings from the low one up. A clicked note lights only the dot or key you clicked. Stop or a new sound turns every light off.
 
@@ -936,7 +939,35 @@ Supported:
 
 Other directives are ignored.
 
-With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped. A piano chart (`{instrument: piano}`) plays on piano. The chord that plays lights up in the lyrics.
+With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. The chord that plays lights up in the lyrics.
+
+### How long each chord lasts
+
+A chart plays each chord above the lyrics for one bar. To hold a chord longer, or to put two chords in one bar, write bar lines `|` in the line:
+
+- The chords between two bar lines share the bar evenly: `| [C] [G] |` in 4/4 is two beats each. With three chords, the first one gets the extra beat: `| [C] [F] [G] |` is 2, 1 and 1.
+- Dots give each chord its beats, one dot a beat: `| [G5]. . [D5]. [A5]. |` is two beats of G5, then one of D5 and one of A5.
+- Slashes add a beat to the chord before them: `| [C] / / [G] |` is three beats of C and one of G.
+- Dots and slashes count only when they add up to the beats of the bar. Else the chords share the bar evenly. In 6/8, 9/8 and 12/8, a beat is a dotted quarter: `| [C]. [G]. |` in 6/8 is three eighths each.
+- A bar with no chord holds the chord before it: `| [G] | | [Em] |` is two bars of G, then one of Em. A bar with only lyrics or `%` in it works the same, and so does an empty bar at the start of the next line.
+- A bar with only N.C. is a bar of silence. It keeps its time, and the N.C. lights up while it lasts. In a bar with other chords, N.C. takes no time.
+- A line without a bar line plays one chord a bar.
+
+With the bar's strum on **On the beats**, each beat strums the chord that sounds then. **Once a bar** also strums at each chord change, and **Arpeggio** starts again on each new chord. The bar lines stay in the lyrics as you wrote them, so the chart looks the same. Other ChordPro apps show them as text.
+
+````markdown
+```chords
+{title: Riff}
+{time: 4/4}
+| [E5]. . . . | [G5]. . [A5]. . |
+| [E5]. . . . | [G5]. . [D5]. [A5]. |
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Riff}
+{time: 4/4}
+| [E5]. . . . | [G5]. . [A5]. . |
+| [E5]. . . . | [G5]. . [D5]. [A5]. |</code></pre></div>
 
 ### Chord diagrams in a chart
 
