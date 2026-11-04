@@ -93,6 +93,15 @@ describe('caption: fingering (#53)', () => {
         expect(caption.hidden).toBe(false)
     })
 
+    it('spells the strings as the tuning is written (flats for half step down)', () => {
+        expect(render('C x32010\ntuning: half step down\ncaption: fingering').captions[0]).toBe(
+            'Strum from the 5th string (Ab). Ring on the Ab string, 3rd fret. Middle on the Db string, 2nd fret. Index on the Bb string, 1st fret. The Gb and high Eb strings ring open.'
+        )
+        expect(
+            render('Am x02210\ntuning: Eb2 Ab2 Db3 Gb3 Bb3 Eb4\ncaption: fingering').captions[0]
+        ).toContain('Index on the Bb string, 1st fret.')
+    })
+
     it('says what to write for another value', () => {
         const { result } = render('A x02220\ncaption: Diagram')
         expect(result.ok).toBe(false)

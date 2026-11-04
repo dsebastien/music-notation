@@ -16,6 +16,8 @@ export interface GuitarFingering {
     fingers?: readonly (string | null)[]
     /** Open strings as MIDI numbers, lowest first. Standard tuning for 6 strings when absent. */
     tuning?: readonly number[]
+    /** The open strings' names as the tuning spells them (Eb, Ab…), lowest first; else sharps. */
+    tuningNames?: readonly string[]
     /** A capo's fret: the frets count from it, as the diagram draws them. */
     capo?: number
     /** `nut`: the frets are the real neck's, with the capo below them. */
@@ -66,15 +68,19 @@ const letter = (midi: number) => noteOf(midi).replace(/-?\d+$/, '')
  * open tunings) two strings could read alike, so every string is named by its number and note:
  * "the 4th string (D)". Without a tuning, numbers only.
  */
-function stringNames(tuning: readonly number[] | null, count: number): string[] {
-    const letters = tuning?.map(letter) ?? []
+function stringNames(
+    tuning: readonly number[] | null,
+    count: number,
+    spelled?: readonly string[]
+): string[] {
+    const letters = tuning?.map((p, s) => spelled?.[s] ?? letter(p)) ?? []
     const repeated = letters.filter((name, i) => letters.indexOf(name) !== i)
     const byName =
         tuning !== null &&
         (repeated.length === 0 ||
             (repeated.length === 1 && letters[0] === letters[count - 1] && count > 2))
     return Array.from({ length: count }, (_, s) => {
-        if (!byName) return numbered(tuning, count, s)
+        if (!byName) return numbered(tuning, count, s, spelled)
         const name = letters[s]!
         if (repeated.length && s === 0) return `the low ${name} string`
         if (repeated.length && s === count - 1) return `the high ${name} string`
@@ -83,15 +89,22 @@ function stringNames(tuning: readonly number[] | null, count: number): string[] 
 }
 
 /** "the 5th string (A)", for the strings to strum. */
-function numbered(tuning: readonly number[] | null, count: number, s: number): string {
-    return `the ${ordinal(count - s)} string${tuning ? ` (${letter(tuning[s]!)})` : ''}`
+function numbered(
+    tuning: readonly number[] | null,
+    count: number,
+    s: number,
+    spelled?: readonly string[]
+): string {
+    const name = tuning ? (spelled?.[s] ?? letter(tuning[s]!)) : null
+    return `the ${ordinal(count - s)} string${name ? ` (${name})` : ''}`
 }
 
 function guitarWords(input: GuitarFingering): string[] {
     const { frets } = input
     const count = frets.length
     const tuning = input.tuning ?? (count === 6 ? STANDARD_TUNING : null)
-    const names = stringNames(tuning, count)
+    const spelled = input.tuningNames?.length === count ? input.tuningNames : undefined
+    const names = stringNames(tuning, count, spelled)
     const capo = input.capo ?? 0
     const fromNut = capo > 0 && input.fretsFrom === 'nut'
     // The shape as the hand plays it: frets from the capo (the real neck's minus the capo with
@@ -113,10 +126,10 @@ function guitarWords(input: GuitarFingering): string[] {
     if (low === 0 && high === count - 1) {
         sentences.push(count === 6 ? 'Strum all six strings.' : 'Strum every string.')
     } else if (high === count - 1) {
-        sentences.push(`Strum from ${numbered(tuning, count, low)}.`)
+        sentences.push(`Strum from ${numbered(tuning, count, low, spelled)}.`)
     } else {
         sentences.push(
-            `Strum from ${numbered(tuning, count, low)} to ${numbered(tuning, count, high)}.`
+            `Strum from ${numbered(tuning, count, low, spelled)} to ${numbered(tuning, count, high, spelled)}.`
         )
     }
     // Barres: one finger on two strings or more at the same fret.

@@ -56,3 +56,25 @@ export function parseTuning(text: string): number[] | null {
     }
     return midis
 }
+
+/**
+ * The open strings' note names as a tuning writes them, lowest first ("half step down": Eb Ab Db
+ * Gb Bb Eb; "Bb1 Eb2 …": Bb Eb …), for words that name strings. Null when the tuning doesn't read.
+ */
+export function tuningNames(text: string): string[] | null {
+    const trimmed = text.trim()
+    const named = NAMED.get(trimmed.toLowerCase().replace(/\s*\(.*\)$/, ''))
+    if (named) return tuningNames(named)
+    if (!parseTuning(trimmed)) return null
+    const spaced = trimmed.split(/[\s,]+/).filter(Boolean)
+    const names = spaced.length > 1 ? spaced : (trimmed.match(/[A-G][#♯b♭]?|[a-g][#♯♭]?/g) ?? [])
+    return names.map((n) => {
+        const letter = n.charAt(0).toUpperCase()
+        const accidental = n
+            .slice(1)
+            .replace(/-?\d+$/, '')
+            .replace('♯', '#')
+            .replace('♭', 'b')
+        return letter + accidental
+    })
+}

@@ -22,7 +22,7 @@ import {
 import { parseChordPro } from '../chords/chordpro.js'
 import { renderChart } from '../chords/chart.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
-import { parseTuning } from '../fretboard/tuning.js'
+import { parseTuning, tuningNames } from '../fretboard/tuning.js'
 import {
     keyRangeOf,
     parseKeyRange,
@@ -532,6 +532,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             frets: voicing.frets,
             fingers: voicing.fingers,
             ...(strings ? { tuning: strings } : {}),
+            ...(tuningText && tuning ? { tuningNames: tuningNames(tuningText) ?? [] } : {}),
             ...(capo ? { capo, fretsFrom: fromNut ? 'nut' : 'capo' } : {})
         })
     )
