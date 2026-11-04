@@ -186,6 +186,22 @@ export function parseFingerList(text: string): string[] {
  * `fingering: auto` and its hands: "auto", "auto left", "left hand", "right"… The hand, or null
  * when the value is a list of fingers.
  */
+/**
+ * True for a fingering asking for both hands' standard fingering (#49): `auto both`, `both`,
+ * `both hands`, `auto (both hands)`. A keyboard block with it draws two keyboards.
+ */
+export function isBothHandsFingering(text: string): boolean {
+    return /^(auto)?[\s:(,-]*both(?:[\s-]*hands?)?\)?$/.test(text.trim().toLowerCase())
+}
+
+/** The message for `fingering: auto` on something other than a scale. */
+export const AUTO_FINGERING_NEEDS_SCALE =
+    'fingering: auto goes with a major or minor scale (scale: G major): write one finger per note, e.g. fingering: 1 2 3 4 5'
+
+/** The message for `fingering: auto` on a scale without a standard fingering. */
+export const autoFingeringUnknown = (scale: string): string =>
+    `fingering: auto knows the major, natural minor, harmonic minor and melodic minor scales: write the fingers for ${scale}, root to root, e.g. fingering: 1 2 3 1 2 3 4 5`
+
 export function autoFingeringHand(text: string): ScaleHand | null {
     const m = /^(auto)?[\s:(,-]*(?:(left|right)(?:[\s-]*hand)?)?\)?$/.exec(
         text.trim().toLowerCase()

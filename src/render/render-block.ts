@@ -21,7 +21,13 @@ import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { resolveScalesFor } from '../blocks/scales-for.js'
-import { chordField } from '../blocks/note-set-field.js'
+import { chordField, noteSetOf } from '../blocks/note-set-field.js'
+import {
+    AUTO_FINGERING_NEEDS_SCALE,
+    autoFingeringUnknown,
+    isBothHandsFingering,
+    standardScaleFingering
+} from '../keyboard/scale-fingering.js'
 import { chordNoteSet, scaleNoteSet } from '../theory/note-set.js'
 import {
     CAGED_SHAPES,
@@ -113,6 +119,7 @@ export function renderBlock(
             ? (splitParts(text) ??
               modeParts(language, text) ??
               positionParts(language, text) ??
+              handParts(language, text) ??
               transitionParts(language, text, options.voicings) ??
               triadParts(language, text) ??
               voicingParts(language, text))
@@ -348,6 +355,46 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
         return [what, ...over, ...at, ...numbered, ...fretsOf(n), ...own].join('\n')
     })
     return [...(header.length ? [header.join('\n')] : []), ...diagrams]
+}
+
+/**
+ * `fingering: auto both` on a keyboard scale (#49): two keyboards in a column (or the columns
+ * written), the right hand's standard fingering, then the left hand's an octave lower, as
+ * `fingering: auto` and `auto left` draw them alone. A title is kept, with the hand after it.
+ * A scale without a standard fingering, or no scale, fails once for the block. Null when the
+ * block doesn't ask for both hands.
+ */
+function handParts(language: DiagramLanguage, source: string): string[] | null {
+    if (language !== 'keyboard') return null
+    let block: BlockSource
+    try {
+        block = parseBlockSource(source)
+    } catch {
+        return null
+    }
+    const fingering = block.fields.get('fingering')
+    if (fingering === undefined || !isBothHandsFingering(fingering)) return null
+    const set = noteSetOf(block)
+    if (set.root === null || set.list || set.pitches || !set.scaleType) {
+        throw new Error(AUTO_FINGERING_NEEDS_SCALE)
+    }
+    if (!standardScaleFingering(set.root, set.scaleType, 'right')) {
+        throw new Error(autoFingeringUnknown(set.title))
+    }
+    const title = block.fields.get('title')?.trim()
+    const others = [...block.fields]
+        .filter(([key]) => !['fingering', 'title', 'columns'].includes(key))
+        .map(([key, value]) => `${key}: ${value}`)
+    const head = block.head ? [block.head] : []
+    const hand = (side: 'right' | 'left') =>
+        [
+            ...head,
+            ...others,
+            `fingering: auto ${side}`,
+            ...(title ? [`title: ${title}, ${side} hand`] : [])
+        ].join('\n')
+    const columns = block.fields.get('columns')?.trim() || '1'
+    return [`columns: ${columns}`, hand('right'), hand('left')]
 }
 
 /** A block's capo fret (0 without one, or when it isn't valid: the diagram says so). */
