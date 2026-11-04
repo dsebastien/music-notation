@@ -139,6 +139,8 @@ export interface ExerciseDiagram {
     direction: string
     rhythm: string
     tempo: number
+    /** A capo, when the tab's frets count from it (#76). */
+    capo?: number
     notes: string[]
 }
 
@@ -413,6 +415,9 @@ export function describeBlock(el: Element): Diagram[] {
                 direction: d.getAttribute('data-mn-exercise') ?? '',
                 rhythm: d.getAttribute('data-mn-rhythm') ?? '',
                 tempo: Number(d.getAttribute('data-mn-tempo')),
+                ...(d.hasAttribute('data-mn-capo')
+                    ? { capo: Number(d.getAttribute('data-mn-capo')) }
+                    : {}),
                 notes: (d.getAttribute('data-mn-notes') ?? '').split(' ').filter(Boolean)
             } satisfies ExerciseDiagram
         }
@@ -459,7 +464,7 @@ export function formatDiagram(d: Diagram, n: number): string[] {
             return [`${head}error: ${d.message}`]
         case 'exercise':
             return [
-                `${head}${listed(['exercise', d.direction, d.rhythm, `tempo ${d.tempo}`, `${d.notes.length} notes`])}`,
+                `${head}${listed(['exercise', d.direction, d.rhythm, `tempo ${d.tempo}`, ...(d.capo ? [`capo ${d.capo}`] : []), `${d.notes.length} notes`])}`,
                 `${pad}${d.notes.join(' ')}`
             ]
         case 'circle':

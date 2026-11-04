@@ -115,14 +115,66 @@ describe('fretboard exercises (#47)', () => {
         expect(error('scale: A minor pentatonic\npositions: all\nexercise: up')).toBe(
             'exercise plays one position: write position: 1 (not positions:)'
         )
-        expect(error('scale: A minor pentatonic\nposition: 1\ncapo: 2\nexercise: up')).toBe(
-            'exercise does not go with capo yet: leave capo out (the shape is the same)'
-        )
         expect(
             error(
                 'scale: A minor pentatonic\nposition: 1\nexercise: up\n---\nscale: A minor pentatonic\nposition: 2'
             )
         ).toBe('diagram 1: exercise draws a tab under one diagram: use it in a block of its own')
+    })
+
+    it('plays from the capo as the diagram shows it (#76)', () => {
+        for (const [source, expected] of [
+            [
+                'scale: A minor pentatonic\nposition: 1\ncapo: 2\nexercise: up-down',
+                exerciseTab({ scale: 'A minor pentatonic' }, { position: 1, capo: 2 })
+            ],
+            [
+                'scale: G major\nshape: E\ncapo: 3\nexercise: up\nrhythm: 16ths',
+                exerciseTab(
+                    { scale: 'G major' },
+                    { shape: 'E', capo: 3, direction: 'up', rhythm: '16ths' }
+                )
+            ],
+            [
+                'arpeggio: Am7\nshape: A\ncapo: 5\nexercise: down',
+                exerciseTab({ arpeggio: 'Am7' }, { shape: 'A', capo: 5, direction: 'down' })
+            ]
+        ] as const) {
+            const h = host()
+            expect(renderBlock('fretboard', source, h).ok).toBe(true)
+            const tex = texOf(h)!
+            expect(tex).toBe(expected)
+            // Every note of the tab is a dot of the diagram, at the fret the diagram shows.
+            const dots = new Set(
+                [...h.querySelectorAll('svg.mn-fretboard circle[data-mn-fret]')].map(
+                    (d) => `${d.getAttribute('data-mn-fret')}.${d.getAttribute('data-mn-string')}`
+                )
+            )
+            const notes = h
+                .querySelector('pre.mn-exercise')!
+                .getAttribute('data-mn-notes')!
+                .split(' ')
+            expect(notes.every((n) => dots.has(n))).toBe(true)
+            expect(h.querySelector('pre.mn-exercise')!.getAttribute('data-mn-capo')).toBe(
+                /capo: (\d+)/.exec(source)![1]!
+            )
+        }
+    })
+
+    it('with frets-from: nut, writes the real neck and no capo, as the diagram does', () => {
+        const h = host()
+        renderBlock(
+            'fretboard',
+            'scale: A minor pentatonic\nposition: 1\ncapo: 2\nfrets-from: nut\nexercise: up',
+            h
+        )
+        const tex = texOf(h)!
+        expect(tex).not.toContain('\\capo')
+        // The capo on 2 and A minor sounding: the same frets as without a capo.
+        expect(tex).toBe(
+            exerciseTab({ scale: 'A minor pentatonic' }, { position: 1, direction: 'up' })
+        )
+        expect(h.querySelector('pre.mn-exercise')!.hasAttribute('data-mn-capo')).toBe(false)
     })
 
     it('describes the exercise for the check command', () => {
@@ -138,5 +190,14 @@ describe('fretboard exercises (#47)', () => {
             '2. exercise, up-down, triplets, tempo 60, 23 notes',
             '   5.6 8.6 5.5 7.5 5.4 7.4 5.3 7.3 5.2 8.2 5.1 8.1 5.1 8.2 5.2 7.3 5.3 7.4 5.4 7.5 5.5 8.6 5.6'
         ])
+    })
+
+    it('describes an exercise with a capo, frets counted from it (#76)', () => {
+        const h = host()
+        renderBlock('fretboard', 'scale: A minor pentatonic\nposition: 1\ncapo: 2\nexercise: up', h)
+        const diagrams = describeBlock(h)
+        expect(formatDiagram(diagrams[1]!, 2)[0]).toBe(
+            '2. exercise, up, 8ths, tempo 60, capo 2, 12 notes'
+        )
     })
 })

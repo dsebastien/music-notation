@@ -794,6 +794,7 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         tuning ?? STANDARD_TUNING,
         cells,
         capo,
+        fromNut,
         strings
     )
     // A single position is titled like the diagrams of `positions:` ("G major, E shape",
@@ -823,6 +824,7 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     pre.setAttribute('data-mn-rhythm', exercise.rhythm)
     pre.setAttribute('data-mn-tempo', String(exercise.tempo))
     pre.setAttribute('data-mn-notes', exercise.notes.join(' '))
+    if (exercise.capo) pre.setAttribute('data-mn-capo', String(exercise.capo))
     pre.appendChild(html(doc, 'code', 'language-tab', exercise.tex))
     wrap.append(diagram, pre)
     return wrap
@@ -830,7 +832,9 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
 
 /**
  * A fretboard's `exercise:` (with `rhythm:` and `tempo:` or `bpm:`; the app's tempo, else 60): the
- * run of its position's notes as alphaTex (#47). Null without `exercise:`.
+ * run of its position's notes as alphaTex (#47). Null without `exercise:`. With a capo (#76), the
+ * tab shows the frets the diagram shows: counted from the capo with `\capo` (alphaTab sounds them
+ * a capo higher), or with `frets-from: nut` the real neck's frets and no `\capo`.
  */
 function exerciseOf(
     block: BlockSource,
@@ -839,6 +843,7 @@ function exerciseOf(
     open: number[],
     cells: Cell[] | undefined,
     capo: number,
+    fromNut: boolean,
     strings: number[] | undefined
 ) {
     const text = field(block, 'exercise')
@@ -852,11 +857,6 @@ function exerciseOf(
     const direction = parseDirection(text)
     const rhythm = rhythmText === undefined ? '8ths' : parseRhythm(rhythmText)
     if (!cells) throw new Error('exercise plays one position: add position: 1 (or shape: E)')
-    if (capo) {
-        throw new Error(
-            'exercise does not go with capo yet: leave capo out (the shape is the same)'
-        )
-    }
     const tempoText = field(block, 'tempo', 'bpm')
     let tempo = typeof options.play === 'object' ? options.play.bpm : undefined
     if (tempoText !== undefined) {
@@ -870,13 +870,16 @@ function exerciseOf(
     tempo = tempo === undefined || !Number.isFinite(tempo) ? DEFAULT_EXERCISE_TEMPO : tempo
     tempo = Math.min(240, Math.max(20, Math.round(tempo)))
     const shown = strings ? cells.filter((c) => strings.includes(c.string)) : cells
-    const run = exerciseRun(shown, open, set.root, direction)
+    // Frets from the capo sound on strings a capo higher; frets from the nut on the open strings.
+    const fromCapo = capo > 0 && !fromNut
+    const run = exerciseRun(shown, fromCapo ? capoTuning(open, capo) : open, set.root, direction)
     return {
         direction,
         rhythm,
         tempo,
+        capo: fromCapo ? capo : 0,
         notes: run.map((c) => `${c.fret}.${open.length - c.string}`),
-        tex: exerciseTex(run, open, { rhythm, tempo })
+        tex: exerciseTex(run, open, { rhythm, tempo, ...(fromCapo ? { capo } : {}) })
     }
 }
 
