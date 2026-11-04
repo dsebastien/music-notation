@@ -521,7 +521,8 @@
 .mn-block .mn-captioned {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    /* The diagram centered over its words, which can be wider than a chord diagram. */
+    align-items: center;
     gap: 0.35em;
     margin: 0;
 }
@@ -535,7 +536,9 @@
     margin: 0;
     font-size: 0.85em;
     line-height: 1.4;
-    color: var(--mn-muted);
+    /* Obsidian's muted text; elsewhere the page's own text color, readable on any background
+       (the grey fallback of --mn-muted is too light for small text on white). */
+    color: var(--text-muted, currentColor);
 }
 
 /* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that
