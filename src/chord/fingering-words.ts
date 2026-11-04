@@ -99,6 +99,16 @@ function numbered(
     return `the ${ordinal(count - s)} string${name ? ` (${name})` : ''}`
 }
 
+/** The strings from one index to another, both included. */
+const range = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => from + i)
+
+/** "the A and G strings", or each name in full when one has a number. */
+const together = (names: string[]) =>
+    names.every((n) => /^the [^(]+ string$/.test(n))
+        ? `the ${andList(names.map((n) => n.slice(4, -7)))} strings`
+        : andList(names)
+
 function guitarWords(input: GuitarFingering): string[] {
     const { frets } = input
     const count = frets.length
@@ -152,7 +162,15 @@ function guitarWords(input: GuitarFingering): string[] {
         if (said.has(finger)) return
         said.add(finger)
         const strings = byFinger.get(finger)!.filter((t) => frets[t] === fret)
-        if (strings.length > 1) {
+        // A barre lies across every string between: each is fretted at that fret or higher, or
+        // muted. With an open string (or a lower fret) between, the finger can't be flat there.
+        const between = strings.length > 1 ? range(strings[0]!, strings.at(-1)!) : []
+        const flat = between.every((t) => shape[t] === null || shape[t]! >= shape[s]!)
+        if (strings.length > 1 && !flat) {
+            sentences.push(
+                `${fingerName(finger)} on ${together(strings.map((t) => names[t]!))}, ${ordinal(fret)} fret.`
+            )
+        } else if (strings.length > 1) {
             const from = count - strings.at(-1)!
             const to = count - strings[0]!
             for (const t of strings) barred.add(t)

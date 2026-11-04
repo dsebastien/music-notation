@@ -21,6 +21,19 @@ describe('fingeringInWords: guitar (#53)', () => {
         ])
     })
 
+    it('calls one finger on two strings a barre only when no string between rings open', () => {
+        expect(guitar('x20200', 'x10100')).toEqual([
+            'Strum from the 5th string (A).',
+            'Index on the A and G strings, 2nd fret.',
+            'The D, B and high E strings ring open.'
+        ])
+        // A string between at a higher fret, or muted, keeps the barre.
+        expect(guitar('x24442', 'x13331')).toContain('Index bars the 2nd fret, strings 1 to 5.')
+        expect(guitar('3x0003', '1x0001')).toContain(
+            'Index on the low E and high E strings, 3rd fret.'
+        )
+    })
+
     it('says a barre once, with its strings', () => {
         expect(guitar('133211', '134211')).toEqual([
             'Strum all six strings.',
