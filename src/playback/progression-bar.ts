@@ -18,6 +18,7 @@ import {
     type ProgressionStrum
 } from './progression.js'
 import { barPlayer } from './strum-bar.js'
+import { handToApp } from './app-bar.js'
 
 /** A metronome, for the count-in. */
 const COUNT_IN = 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7'
@@ -245,7 +246,10 @@ export function progressionBarFor(
         20,
         240,
         settings.bpm,
-        (n) => (settings.bpm = tempoOf(n)),
+        (n) => {
+            settings.bpm = tempoOf(n)
+            app.tempoChanged(settings.bpm)
+        },
         compound ? '♩.' : '♩'
     )
     slider(
@@ -294,5 +298,15 @@ export function progressionBarFor(
         { guitar: 'Guitar', piano: 'Piano' },
         (value) => (settings.sound = value === 'piano' ? 'piano' : 'guitar')
     )
-    return stop
+    // Last, so the app's controls come after the bar's own (#77).
+    const app = handToApp(options, bar, {
+        kind: drawing.classList.contains('mn-chart') ? 'chart' : 'progression',
+        drawing,
+        compound,
+        tempo: () => settings.bpm
+    })
+    return () => {
+        stop()
+        app.free()
+    }
 }

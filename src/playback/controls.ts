@@ -64,6 +64,34 @@ export interface PlayOptions {
      * has no hand (a keyboard, a piano chord) is drawn for it. Right by default (#60).
      */
     hand?: Hand
+    /**
+     * Called with each bar that plays a piece in time (strum, picking, progression, ChordPro chart;
+     * #77), once it's built, so the app can add its own controls (`bar.add`) and read the tempo set
+     * on it. What it returns (a function) is called when the block is destroyed. A hook that
+     * throws leaves the bar as it is.
+     */
+    timedBar?: (bar: TimedBar) => void | (() => void)
+}
+
+/** A bar that plays a piece in time, as an app sees it (`PlayOptions.timedBar`, #77). */
+export interface TimedBar {
+    /** What it plays: a strumming or picking pattern, a progression block or a ChordPro chart. */
+    kind: 'strum' | 'picking' | 'progression' | 'chart'
+    /** The bar itself (`.mn-play`, role group). */
+    element: HTMLElement
+    /** The drawing it plays: the pattern's SVG, the `.mn-progression` or the `.mn-chart`. */
+    drawing: Element
+    /** Counted in dotted beats (6/8, 9/8, 12/8): the tempo counts dotted quarters. */
+    compound: boolean
+    /** The tempo set on the bar (20 to 240), in the beat it counts: what the next pass plays at. */
+    tempo(): number
+    /** Calls `listener` with each new tempo set on the bar; returns a function that stops it. */
+    onTempo(listener: (bpm: number) => void): () => void
+    /**
+     * Adds an app control at the end of the bar, after the bar's own (so they come last in the
+     * focus order), in its `.mn-play-app` slot. It shows and hides with the bar.
+     */
+    add(control: HTMLElement): void
 }
 
 /** A number within bounds; the fallback when it isn't a number at all. */

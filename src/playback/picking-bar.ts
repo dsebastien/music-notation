@@ -58,6 +58,7 @@ export function pickingBarFor(
     const score = pickingScoreFromDrawing(drawing)
     if (!score) return () => {}
     return timedBarFor(doc, win, drawing, options, {
+        kind: 'picking',
         cls: 'mn-strum-playable mn-picking-playable',
         label: 'Play the picking pattern',
         compound: score.slotsPerPulse > score.slotsPerBeat,
