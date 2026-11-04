@@ -55,6 +55,7 @@ import { parseChord } from '../theory/chord-symbol.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
 import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
 import { fingerVoicing } from '../chord/generate.js'
+import { fingeringInWords } from '../chord/fingering-words.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import {
@@ -152,7 +153,9 @@ export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
         'inversion',
         'octave',
         'hands',
-        'fingering'
+        'fingering',
+        // Fingering in words under each diagram (#53).
+        'caption'
     ],
     keyboard: ['orientation', 'hand', 'labels', 'range', 'highlight', 'compare'],
     fretboard: [
@@ -368,7 +371,8 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         const range = field(block, 'range')
         // Checked even though keyboards ignore it, so a typo doesn't go unnoticed.
         handOf(block, options)
-        return named(
+        const caption = captionOf(block)
+        const keyboard = named(
             renderKeyboard(doc, set, {
                 // A piano chord plays together.
                 playAs: 'chord',
@@ -381,6 +385,18 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                 orientation: orientationOf(block, options.orientation?.keyboard)
             }),
             symbol
+        )
+        if (!caption) return keyboard
+        const names = new Map(set.members.map((m) => [m.chroma, m.name]))
+        return captioned(
+            doc,
+            keyboard,
+            fingeringInWords({
+                keys: set.pitches!,
+                fingers,
+                ...(hands ? { hands } : {}),
+                names
+            })
         )
     }
 
@@ -505,7 +521,36 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     )
     // What the shape sounds, for playback's redrawing and tools that read diagrams.
     if (capo && sounding && sounding !== symbol) diagram.setAttribute('data-mn-sounds', sounding)
-    return diagram
+    if (!captionOf(block)) return diagram
+    return captioned(
+        doc,
+        diagram,
+        fingeringInWords({
+            frets: voicing.frets,
+            fingers: voicing.fingers,
+            ...(strings ? { tuning: strings } : {}),
+            ...(capo ? { capo, fretsFrom: fromNut ? 'nut' : 'capo' } : {})
+        })
+    )
+}
+
+/** `caption: fingering` (#53) writes the fingering in words under the diagram; `none` writes nothing. */
+function captionOf(block: BlockSource): 'fingering' | null {
+    const written = field(block, 'caption')?.trim()
+    const text = written?.toLowerCase()
+    if (!text || ['none', 'no', 'off', 'false'].includes(text)) return null
+    if (text === 'fingering') return 'fingering'
+    throw new Error(`caption: use fingering (the fingering in words) or none, got "${written}"`)
+}
+
+/**
+ * A diagram with its caption under it, in HTML so it wraps, and screen readers and search read it
+ * (the diagram's accessible name stays its title).
+ */
+function captioned(doc: Document, diagram: SVGElement, sentences: string[]): HTMLElement {
+    const figure = html(doc, 'figure', 'mn-captioned')
+    figure.append(diagram, html(doc, 'figcaption', 'mn-fingering', sentences.join(' ')))
+    return figure
 }
 
 /**

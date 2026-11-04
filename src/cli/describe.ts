@@ -22,6 +22,8 @@ export interface GuitarString {
 export interface GuitarChordDiagram {
     type: 'guitar-chord'
     title: string | null
+    /** The fingering in words, with `caption: fingering` (#53). */
+    words?: string
     chord: string | null
     /** Lowest string first, as blocks write them ("x02210", "8-10-10-9-8-8"). */
     frets: string
@@ -86,6 +88,8 @@ export interface KeyboardKey {
 export interface KeyboardDiagram {
     type: 'keyboard'
     title: string | null
+    /** The fingering in words, with `caption: fingering` (#53). */
+    words?: string
     /** The chord, for piano chords. */
     chord: string | null
     notes: string | null
@@ -437,11 +441,19 @@ export function describeBlock(el: Element): Diagram[] {
             } satisfies CircleDiagram
         }
         if (has(d, 'mn-fretboard')) return fretboard(d)
-        if (has(d, 'mn-keyboard')) return keyboard(d)
+        if (has(d, 'mn-keyboard')) return withWords(d, keyboard(d))
         if (has(d, 'mn-strum')) return strum(d)
         if (has(d, 'mn-picking')) return picking(d)
-        return guitarChord(d)
+        return withWords(d, guitarChord(d))
     })
+}
+
+/** A chord's fingering in words (`caption: fingering`, #53), when its figure has one. */
+function withWords<D extends GuitarChordDiagram | KeyboardDiagram>(svg: Element, diagram: D): D {
+    const words = text(
+        svg.closest('figure.mn-captioned')?.querySelector('figcaption.mn-fingering') ?? null
+    )
+    return words ? { ...diagram, words } : diagram
 }
 
 const quoted = (s: string | null) => (s ? `"${s}"` : null)
@@ -457,6 +469,15 @@ const capoText = (capo: number, from?: 'capo' | 'nut') =>
 
 /** One diagram in words: a heading line, then what each string, dot or key shows. */
 export function formatDiagram(d: Diagram, n: number): string[] {
+    const lines = formatLines(d, n)
+    // The fingering in words, last (#53).
+    if ((d.type === 'guitar-chord' || d.type === 'keyboard') && d.words) {
+        lines.push(`${' '.repeat(`${n}. `.length)}words: ${d.words}`)
+    }
+    return lines
+}
+
+function formatLines(d: Diagram, n: number): string[] {
     const head = `${n}. `
     const pad = ' '.repeat(head.length)
     switch (d.type) {
