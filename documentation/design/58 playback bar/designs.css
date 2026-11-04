@@ -1,0 +1,296 @@
+/* Obsidian's theme variables, so the library's colors follow the toggle as in Obsidian. */
+body.theme-light {
+    --background-primary: #ffffff;
+    --background-secondary: #f6f6f6;
+    --text-normal: #222222;
+    --text-muted: #5c5c5c;
+    --background-modifier-border: #d0d0d0;
+    --interactive-accent: #7c3aed;
+    --text-on-accent: #ffffff;
+}
+body.theme-dark {
+    --background-primary: #1e1e1e;
+    --background-secondary: #262626;
+    --text-normal: #dadada;
+    --text-muted: #a3a3a3;
+    --background-modifier-border: #3f3f3f;
+    --interactive-accent: #8b5cf6;
+    --text-on-accent: #ffffff;
+}
+body {
+    margin: 0;
+    background: var(--background-primary);
+    color: var(--text-normal);
+    font:
+        15px/1.45 system-ui,
+        sans-serif;
+}
+.p-top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    padding: 8px 16px;
+    background: var(--background-secondary);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+.p-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.p-tabs button {
+    font: inherit;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: inherit;
+    cursor: pointer;
+}
+.p-tabs button[aria-selected='true'] {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+    border-color: transparent;
+}
+.p-theme {
+    margin-left: auto;
+}
+main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 8px 20px 80px;
+}
+.p-frame main,
+.p-frame #main {
+    padding: 0 8px;
+}
+.p-panel h1 {
+    font-size: 1.3em;
+    margin: 0.8em 0 0.2em;
+}
+.p-panel h2 {
+    font-size: 1em;
+    margin: 1.6em 0 0.3em;
+    color: var(--text-muted);
+}
+.p-note {
+    margin: 0 0 0.5em;
+    max-width: 60em;
+}
+.p-today {
+    width: 100%;
+    height: 1900px;
+    border: 0;
+}
+pre {
+    margin: 0;
+}
+
+/* Shared controls: plain buttons and sliders, the size of the library's bar. */
+.p-btn {
+    font: inherit;
+    font-size: 13px;
+    line-height: 1;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 6px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+    cursor: pointer;
+}
+.p-btn:hover,
+.p-btn:focus-visible {
+    border-color: var(--interactive-accent);
+    outline: none;
+}
+.p-btn[aria-pressed='true'] {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+.p-field {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.p-field input {
+    width: 64px;
+    accent-color: var(--interactive-accent);
+}
+.p-select {
+    font: inherit;
+    font-size: 12px;
+    height: 26px;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    color: var(--text-normal);
+}
+
+/* A: a strip under each diagram, outside it. Faint until hover or focus; full on touch. */
+.p-a-holder {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    max-width: 100%;
+}
+.p-strip {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+    opacity: 0.45;
+    transition: opacity 120ms;
+}
+.p-a-holder:hover .p-strip,
+.p-strip:focus-within {
+    opacity: 1;
+}
+@media (hover: none) {
+    .p-strip {
+        opacity: 1;
+    }
+}
+
+/* B: a title row above each diagram, the rest in an inline drawer (pushes, never covers). */
+.p-b-holder {
+    display: inline-flex;
+    flex-direction: column;
+    max-width: 100%;
+}
+.p-head {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 26px;
+}
+.p-head .p-btn {
+    border-color: transparent;
+    background: transparent;
+    color: var(--text-muted);
+}
+.p-head .p-btn:hover,
+.p-head .p-btn:focus-visible {
+    border-color: var(--interactive-accent);
+    color: var(--text-normal);
+}
+.p-head-fill {
+    flex: 1;
+}
+.p-drawer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+    padding: 4px;
+    margin: 2px 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+}
+
+/* C: one bar above the block, like the progression and tab bars. */
+.p-bar {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+    margin: 2px 0 10px;
+    padding: 3px 6px;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+}
+.p-target {
+    font-size: 12px;
+    color: var(--text-muted);
+    min-width: 3em;
+}
+svg.p-selected {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* C and D: the diagram is clickable. */
+svg.p-clickable {
+    cursor: pointer;
+    border-radius: 4px;
+}
+svg.p-clickable:hover {
+    outline: 1px dashed var(--background-modifier-border);
+    outline-offset: 2px;
+}
+svg.p-clickable:focus-visible {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+svg.p-d.p-now {
+    outline: 2px solid #facc15;
+    outline-offset: 2px;
+}
+.p-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 4px;
+}
+.p-fab {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 20px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+}
+.p-sheet {
+    position: fixed;
+    right: 20px;
+    bottom: 72px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
+}
+
+/* #81: the hand cursor on everything that does something, the default cursor elsewhere. In
+   Obsidian, app.css gives buttons `cursor: var(--cursor)` (the arrow): the library's own rules
+   must be more specific than Obsidian's (for example `.mn-block .mn-play button`), never
+   `!important`. */
+[data-design] svg[data-mn-pitches] {
+    cursor: default;
+}
+[data-design] svg [data-midi],
+[data-design] svg .mn-hit,
+[data-design] svg .mn-mark,
+[data-design] svg.p-clickable,
+[data-design] .p-btn,
+[data-design] .p-select,
+[data-design] .p-field input[type='range'],
+.p-tabs button,
+.p-theme,
+.p-theme input {
+    cursor: pointer;
+}
+[data-design] .p-field,
+[data-design] .p-target,
+[data-design] .p-hint,
+[data-design] .p-note {
+    cursor: default;
+}
+
+/* The hidden attribute wins over the display rules above. */
+[hidden] {
+    display: none !important;
+}

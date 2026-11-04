@@ -13,6 +13,8 @@ export default defineConfig([
             '**/dist/**',
             '**/node_modules/**',
             'docs/**',
+            // Throwaway design prototypes (plain browser JS), not library code.
+            'documentation/design/**',
             '.cz-config.cjs',
             'prettier.config.cjs',
             'package.json'

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>#58 playback UI prototypes</title>
+        <link rel="stylesheet" href="designs.css" />
+        <script>
+            window.musicNotationOptions = { play: false }
+        </script>
+    </head>
+    <body class="theme-light">
+        <header class="p-top">
+            <strong>music-notation #58: playback UI prototypes</strong>
+            <nav class="p-tabs" role="tablist" aria-label="Designs">
+                <button role="tab" data-tab="today">Today</button>
+                <button role="tab" data-tab="a">A · Strip under</button>
+                <button role="tab" data-tab="b">B · Play in the title row</button>
+                <button role="tab" data-tab="c">C · Bar under each block (decided)</button>
+                <button role="tab" data-tab="d">D · Click the diagram</button>
+            </nav>
+            <label class="p-theme"><input type="checkbox" id="dark" /> Dark</label>
+        </header>
+        <main id="main"></main>
+        <script src="designs.js"></script>
+    </body>
+</html>
