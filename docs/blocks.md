@@ -615,9 +615,10 @@ functions: yes</code></pre></div>
 | `voicing`, `octave`, `hands` | Piano voicings for every chord, as in [piano voicings](#piano-voicings): `voicing: rootless` or `voicing: shell` for a ii-V-I.                                                                                     |
 | `tuning`                     | For guitar diagrams, as for chords.                                                                                                                                                                                |
 | `title`                      | A title above the progression.                                                                                                                                                                                     |
+| `harmonize`                  | `triads`, `sevenths`, `sus` or `power`: draws the chords of the scale in `key:`, one per degree, instead of a chords line. See [harmonize a scale](#harmonize-a-scale).                                            |
 | `time`, `tempo`, `strum`     | How the progression plays in time. See [play a progression in time](#play-a-progression-in-time).                                                                                                                  |
 
-The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
+The chords line can go before or after the keys, and a long progression can take several lines. Keys are major or minor (`key: D dorian` is refused, except with [`harmonize`](#harmonize-a-scale)). A key that would need more than 7 sharps or flats, such as `Gb minor`, is refused: write the other name, `F# minor`.
 
 **Finding the key.** Chord names without a key get the likeliest one. The first chord counts most, then the last one, and a V7 → I move (also from the last chord back to the first: All of Me's C E7 A7 Dm7 E7 Am D7 G7 is in C major, its E7, A7 and D7 secondary dominants). The other keys shown hold as many of the chords as the first: `Am F C G` shows C major, not G major (no F). When the chords play in a mode, the block says so: `Dm C G` is in D dorian (i bVII IV), `C Bb F C` in C mixolydian. Every chord must fit the mode, and a C7 going to F is V7/IV: `C C7 F C` is in C major. A blues is in the key of its first chord: `A7 D7 E7 A7` shows "Key: A major (blues)" with I7 IV7 V7, as blues players read them, not V7/IV.
 
@@ -670,6 +671,30 @@ voicing: rootless
 key: C minor
 instrument: piano
 voicing: rootless</code></pre></div>
+
+### Harmonize a scale
+
+`harmonize:` draws the chords of a scale instead of a progression you write: the chord on each degree, with its numeral and a diagram. Leave out the chords line. `key:` takes any scale of 7 notes: major and minor keys, the modes (`D dorian`, `E phrygian`), `A harmonic minor`, `A melodic minor`, and other 7-note scales such as `C phrygian dominant`.
+
+- `harmonize: triads` stacks three notes of the scale in thirds on each degree, `sevenths` four.
+- `harmonize: sus` puts a sus4 on each degree whose fourth is perfect, else a sus2 (F in C major: Fsus2, because B is an augmented fourth above F).
+- `harmonize: power` puts a power chord (root and fifth) on each degree.
+
+A sus or power chord needs a perfect fifth, so a degree without one (the diminished degree, vii° in a major key) is left out, and a line under the key says so.
+
+````markdown
+```progression
+key: A harmonic minor
+harmonize: sevenths
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">key: A harmonic minor
+harmonize: sevenths</code></pre></div>
+
+The numerals read back to the same chords in a progression. Major keys, minor keys and the modes write them as the rest of this block does: D dorian is i ii bIII IV v vi° bVII. Other scales write theirs in the major or minor key of their third, and a minor key marks the 6th and 7th it raises, so A melodic minor with sevenths is imaj7 ii7 bIIImaj7#5 IV7 V7 #viø7 viiø7 (vii° is the leading tone, as in A minor). A minor-major seventh shows as `imaj7` (lowercase for the minor third).
+
+`functions: yes` names each chord's function in the key the numerals are written in. A chord that the key reads as something else (D7 in A minor reads as V7/bVII) gets its function by degree instead (minor: tonic, subdominant, tonic, subdominant, dominant, subdominant, dominant), so the melodic minor's IV7 is a subdominant. `transpose`, `instrument`, `numerals: nashville`, the piano keys and the play bar work as for any progression. `harmonize:` can go in a first part shared by every section, each section with its own `key:`.
 
 ### Play a progression in time
 

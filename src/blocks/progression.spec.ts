@@ -454,3 +454,124 @@ describe('progression block', () => {
         expect(performance.now() - start).toBeLessThan(100)
     })
 })
+
+describe('progression block: harmonize (#43)', () => {
+    const draw = (source: string) => {
+        const h = host()
+        const result = renderBlock('progression', source, h)
+        return { h, error: result.error }
+    }
+
+    it('draws the chords of any 7-note scale with numerals and diagrams', () => {
+        const { h, error } = draw('key: A harmonic minor\nharmonize: sevenths')
+        expect(error).toBeNull()
+        expect(texts(h, 'mn-progression-key')).toEqual(['Key: A harmonic minor'])
+        expect(texts(h, 'mn-progression-numeral')).toEqual([
+            'imaj7',
+            'iiø7',
+            'bIIImaj7#5',
+            'iv7',
+            'V7',
+            'bVImaj7',
+            'vii°7'
+        ])
+        const cells = [...h.querySelectorAll('.mn-progression-chord')]
+        expect(cells.map((c) => c.getAttribute('data-mn-chord'))).toEqual([
+            'AmMaj7',
+            'Bm7b5',
+            'Cmaj7#5',
+            'Dm7',
+            'E7',
+            'Fmaj7',
+            'G#dim7'
+        ])
+        expect(h.querySelectorAll('.mn-progression-chord svg').length).toBe(7)
+        // Played in time like any progression: one bar per chord.
+        expect(cells.map((c) => c.getAttribute('data-mn-bar'))).toEqual([
+            '0',
+            '1',
+            '2',
+            '3',
+            '4',
+            '5',
+            '6'
+        ])
+    })
+
+    it('takes modes, which a progression without harmonize refuses', () => {
+        const { h, error } = draw('key: D dorian\nharmonize: triads\ndiagrams: no')
+        expect(error).toBeNull()
+        expect(texts(h, 'mn-progression-key')).toEqual(['Key: D dorian'])
+        expect(texts(h, 'mn-progression-name')).toEqual(['Dm', 'Em', 'F', 'G', 'Am', 'Bdim', 'C'])
+        expect(draw('I IV V\nkey: D dorian').error).toContain('Progression keys are major or minor')
+    })
+
+    it('shows functions and Nashville numbers', () => {
+        const { h } = draw(
+            'key: G\nharmonize: sevenths\nfunctions: yes\nnumerals: nashville\ndiagrams: no'
+        )
+        expect(texts(h, 'mn-progression-numeral')).toEqual([
+            '1maj⁷',
+            '2m⁷',
+            '3m⁷',
+            '4maj⁷',
+            '5⁷',
+            '6m⁷',
+            '7ø⁷'
+        ])
+        expect(texts(h, 'mn-progression-function')).toEqual([
+            'tonic',
+            'subdominant',
+            'tonic',
+            'subdominant',
+            'dominant',
+            'tonic',
+            'dominant'
+        ])
+    })
+
+    it('says which degrees are left out', () => {
+        const { h, error } = draw('key: E phrygian\nharmonize: power\ndiagrams: no')
+        expect(error).toBeNull()
+        expect(texts(h, 'mn-progression-name')).toEqual(['E5', 'F5', 'G5', 'A5', 'C5', 'D5'])
+        expect(texts(h, 'mn-progression-note')).toEqual([
+            'Left out: degree 5 (B), no perfect fifth'
+        ])
+    })
+
+    it('transposes the scale', () => {
+        const { h } = draw('key: A harmonic minor\nharmonize: triads\ntranspose: 2\ndiagrams: no')
+        expect(texts(h, 'mn-progression-key')).toEqual(['Key: B harmonic minor'])
+        expect(texts(h, 'mn-progression-name')).toEqual([
+            'Bm',
+            'C#dim',
+            'Daug',
+            'Em',
+            'F#',
+            'G',
+            'A#dim'
+        ])
+    })
+
+    it('shares harmonize across sections, each with its own scale', () => {
+        const { h, error } = draw(
+            'harmonize: triads\ndiagrams: no\n---\nkey: C major\n---\nkey: A harmonic minor'
+        )
+        expect(error).toBeNull()
+        expect(texts(h, 'mn-progression-key')).toEqual(['Key: C major', 'Key: A harmonic minor'])
+        expect(texts(h, 'mn-progression-name').length).toBe(14)
+    })
+
+    it('reports mistakes in words', () => {
+        expect(draw('harmonize: sevenths').error).toBe('Add the scale: e.g. key: A harmonic minor')
+        expect(draw('key: G\nharmonize: ninths').error).toBe(
+            'harmonize: write triads, sevenths, sus or power, got "ninths"'
+        )
+        expect(draw('I IV V\nkey: G\nharmonize: triads').error).toBe(
+            'harmonize draws the chords of the scale: leave out the chords (I IV V)'
+        )
+        expect(draw('key: A minor pentatonic\nharmonize: triads').error).toBe(
+            'harmonize needs a scale of 7 notes: A minor pentatonic has 5'
+        )
+    })
+})
