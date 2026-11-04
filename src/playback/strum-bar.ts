@@ -18,6 +18,7 @@ import { isCompound, type Stroke } from '../strum/pattern.js'
 import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
+import { handToApp } from './app-bar.js'
 
 const STROKES = new Set<Stroke>(['down', 'up', 'mute', 'rest'])
 
@@ -118,6 +119,7 @@ export function strumBarFor(
     const score = scoreFromDrawing(drawing)
     if (!score) return () => {}
     return timedBarFor(doc, win, drawing, options, {
+        kind: 'strum',
         cls: 'mn-strum-playable',
         label: 'Play the strumming pattern',
         compound: (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat,
@@ -133,6 +135,8 @@ export function strumBarFor(
 
 /** What a timed bar plays: its passes, and how it's counted. */
 export interface TimedPiece {
+    /** What it plays, for the app (#77). */
+    kind: 'strum' | 'picking'
     /** The wrapper's own class, beside `mn-playable`. */
     cls: string
     /** The bar's name for screen readers. */
@@ -318,7 +322,10 @@ export function timedBarFor(
         20,
         240,
         settings.bpm,
-        (n) => (settings.bpm = tempoOf(n)),
+        (n) => {
+            settings.bpm = tempoOf(n)
+            app.tempoChanged(settings.bpm)
+        },
         compound ? '♩.' : '♩'
     )
     slider(
@@ -348,5 +355,15 @@ export function timedBarFor(
         if (event.pointerType !== 'touch' || bar.contains(event.target as Node)) return
         wrap.classList.toggle('mn-play-open')
     })
-    return stop
+    // Last, so the app's controls come after the bar's own (#77).
+    const app = handToApp(options, bar, {
+        kind: piece.kind,
+        drawing,
+        compound,
+        tempo: () => settings.bpm
+    })
+    return () => {
+        stop()
+        app.free()
+    }
 }

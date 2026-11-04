@@ -63,7 +63,7 @@ export {
     type Sound,
     type SequenceOptions
 } from './playback/player.js'
-export { attachPlayback, type PlayOptions } from './playback/controls.js'
+export { attachPlayback, type PlayOptions, type TimedBar } from './playback/controls.js'
 export {
     followNotes,
     noteTargets,

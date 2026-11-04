@@ -1043,3 +1043,10 @@
 .mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-fret {
     fill: var(--mn-on-playing);
 }
+
+/* App controls in a timed play bar (#77): after the bar's own, styled like them. */
+.mn-play .mn-play-app {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px 6px;
+}
