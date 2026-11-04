@@ -526,6 +526,10 @@
     margin: 0;
 }
 
+.mn-block .mn-fingering[hidden] {
+    display: none;
+}
+
 .mn-block .mn-fingering {
     max-width: 16em;
     margin: 0;

@@ -565,6 +565,13 @@ function barFor(
     let other: Element | null | undefined
     // A drawing that isn't an instrument (the circle of fifths) keeps itself: only the sound changes.
     const redraws = diagram.getAttribute('data-mn-redraw') !== 'no'
+    // A caption in words under the diagram (caption: fingering) speaks of the diagram's own
+    // instrument: hidden while the other instrument's drawing shows.
+    const figure = wrap.parentElement
+    const caption = figure?.classList.contains('mn-captioned')
+        ? ([...figure.children].find((c) => c.classList.contains('mn-fingering')) as
+              HTMLElement | undefined)
+        : undefined
     const drawFor = () => {
         if (!redraws) return
         if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data, options.hand)
@@ -574,6 +581,7 @@ function barFor(
             wrap.replaceChild(next, shown)
             shown = next
         }
+        if (caption) caption.hidden = shown !== diagram
     }
     sound.addEventListener('change', () => {
         // What plays stops first: its notes belong to the drawing that goes away.

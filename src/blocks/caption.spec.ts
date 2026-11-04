@@ -81,6 +81,18 @@ describe('caption: fingering (#53)', () => {
         expect(host.querySelector('.mn-playable figcaption')).toBeNull()
     })
 
+    it('hides the caption while the play bar shows the chord on the other instrument', () => {
+        const { host } = render('C x32010\ncaption: fingering', { play: { sound: 'piano' } })
+        const caption = host.querySelector<HTMLElement>('figcaption.mn-fingering')!
+        expect(host.querySelector('.mn-redrawn')).not.toBeNull()
+        expect(caption.hidden).toBe(true)
+        const sound = host.querySelector<HTMLSelectElement>('.mn-play select')!
+        sound.value = 'guitar'
+        sound.dispatchEvent(new Event('change'))
+        expect(host.querySelector('figure.mn-captioned svg.mn-guitar-chord')).not.toBeNull()
+        expect(caption.hidden).toBe(false)
+    })
+
     it('says what to write for another value', () => {
         const { result } = render('A x02220\ncaption: Diagram')
         expect(result.ok).toBe(false)
