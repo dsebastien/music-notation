@@ -111,7 +111,10 @@ export function readHarmonyScale(text: string): HarmonyScale | { error: string }
         }
     }
     const tonic = scale.tonic
-    const minor = scale.intervals.includes('3m')
+    const notes = scaleSpelling(scale).notes
+    // The third as the scale spells it (B altered has D, a minor third, though tonal's intervals
+    // list a major third for its Eb).
+    const minor = Interval.distance(tonic, notes[2]!) === '3m'
     const key: MusicalKey = {
         tonic,
         mode: minor ? 'minor' : 'major',
@@ -123,7 +126,7 @@ export function readHarmonyScale(text: string): HarmonyScale | { error: string }
             error: `${scale.name} needs ${Math.abs(count)} ${count > 0 ? 'sharps' : 'flats'}: write ${Note.enharmonic(tonic)} ${scale.type}`
         }
     }
-    return { name: scale.name, notes: scaleSpelling(scale).notes, key }
+    return { name: scale.name, notes, key }
 }
 
 /** The chord of a kind on a degree, or why there is none. */

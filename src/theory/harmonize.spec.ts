@@ -86,6 +86,14 @@ describe('harmonize', () => {
         expect(harmonize('Em')!.name).toBe('E minor')
     })
 
+    it('reads the key from the third as the scale spells it', () => {
+        // B altered is spelled B C D Eb F G A: its third is D, a minor third.
+        const altered = harmonize('B altered')!
+        expect(altered.key.name).toBe('B minor')
+        const d = altered.chords.find((c) => c.symbol.startsWith('D'))!
+        expect(readNumeral(d.numeral, altered.key)).toBe(d.symbol)
+    })
+
     it('reads every numeral back to its chord in the key it names', () => {
         for (const scale of [
             'A harmonic minor',
