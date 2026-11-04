@@ -37,6 +37,16 @@
     height: auto;
 }
 
+/* Touch screens (#73): chord diagrams and fretboards a third larger, so each string's lane (the
+   hit area of its marks across, 18 and 20 units) is at least 24 px, the minimum target size of
+   WCAG 2.5.8. max-width still keeps them inside the page. */
+@media (pointer: coarse) {
+    .mn-svg.mn-guitar-chord,
+    .mn-svg.mn-fretboard {
+        zoom: 1.34;
+    }
+}
+
 .mn-svg text {
     fill: var(--mn-fg);
     font-size: 11px;

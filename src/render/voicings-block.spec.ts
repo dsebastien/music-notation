@@ -201,3 +201,17 @@ describe('one diagram per shape, in neck order (#72)', () => {
         expect(names.indexOf('D, C shape')).toBeLessThan(names.indexOf('D, E shape'))
     })
 })
+
+describe('voicings: rows line up their necks (#74)', () => {
+    it('gives every diagram the room of the longest title', () => {
+        const host = document.createElement('div')
+        const result = renderBlock('chord', 'chord: F\nvoicings: 6', host, {})
+        expect(result.ok).toBe(true)
+        const svgs = [...host.querySelectorAll('svg.mn-guitar-chord')]
+        const lines = new Set(svgs.map((s) => s.getAttribute('data-mn-title-lines')))
+        expect(lines.size).toBe(1)
+        const widths = new Set(svgs.map((s) => s.getAttribute('width')))
+        // One width for every six-string vertical diagram: no title widens one.
+        expect(widths.size).toBe(1)
+    })
+})

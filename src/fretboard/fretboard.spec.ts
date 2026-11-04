@@ -126,3 +126,17 @@ describe('renderFretboard orientation', () => {
         expect(numbers(left)[0]).toBeGreaterThan(numbers(left)[4]!)
     })
 })
+
+describe('fretboard titles (#74)', () => {
+    const n = (el: Element, name: string) => Number(el.getAttribute(name))
+    it('keep a vertical fretboard as wide as its neck: a long title wraps', () => {
+        const set = scaleNoteSet('A minor pentatonic')!
+        const options = { frets: [5, 8] as [number, number], orientation: 'vertical' as const }
+        const plain = renderFretboard(document, set, { ...options, title: 'A' })
+        const title = 'A minor pentatonic, box 1, from the low E'
+        const long = renderFretboard(document, set, { ...options, title })
+        expect(n(long, 'width')).toBe(n(plain, 'width'))
+        expect(long.querySelectorAll('.mn-title tspan').length).toBeGreaterThan(1)
+        expect(long.querySelector('.mn-title')!.textContent).toBe(title)
+    })
+})

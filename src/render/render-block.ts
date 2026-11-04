@@ -17,7 +17,7 @@ import {
 } from '../blocks/block-source.js'
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
-import { layoutDefaults, parseHand, parseOrientation } from './layout.js'
+import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
 import { resolveScalesFor } from '../blocks/scales-for.js'
@@ -143,6 +143,9 @@ export function renderBlock(
     } catch (e) {
         return failed(el, host, language, messageOf(e))
     }
+    // Titles wrap instead of widening a diagram (#74): every diagram of the block gets the room
+    // of its longest title, so the necks of a row line up.
+    alignTitleLines(el.querySelectorAll('svg.mn-guitar-chord, svg.mn-fretboard'))
     host.appendChild(el)
     // A fretboard exercise's tab (#47): the app draws it, once the block is on the page (its
     // colors come from the page); else its source stays for the tab bundle of web pages.
