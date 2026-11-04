@@ -32,7 +32,10 @@ import {
     tonicNearMiddleC
 } from '../keyboard/keyboard.js'
 import {
+    AUTO_FINGERING_NEEDS_SCALE,
     autoFingeringHand,
+    autoFingeringUnknown,
+    isBothHandsFingering,
     parseFingerList,
     scaleFingers,
     standardScaleFingering
@@ -604,10 +607,14 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     let fingers: Map<number, string> | undefined
     let title = field(block, 'title')
     const autoHand = fingering ? autoFingeringHand(fingering) : null
-    if (autoHand && (set.root === null || set.list || set.pitches || !set.scaleType)) {
+    // Both hands split the block into two keyboards (#49), which a diagram of a row can't do.
+    if (fingering && isBothHandsFingering(fingering)) {
         throw new Error(
-            'fingering: auto goes with a major or minor scale (scale: G major): write one finger per note, e.g. fingering: 1 2 3 4 5'
+            'fingering: auto both draws two keyboards: put it in a block of its own, not in a --- row'
         )
+    }
+    if (autoHand && (set.root === null || set.list || set.pitches || !set.scaleType)) {
+        throw new Error(AUTO_FINGERING_NEEDS_SCALE)
     }
     if (fingering && set.scaleType && set.root !== null && !set.list && !set.pitches) {
         const chromas = set.members.map((m) => m.chroma)
@@ -615,9 +622,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         if (autoHand) {
             const standard = standardScaleFingering(set.root, set.scaleType, autoHand)
             if (!standard) {
-                throw new Error(
-                    `fingering: auto knows the major, natural minor, harmonic minor and melodic minor scales: write the fingers for ${set.title}, root to root, e.g. fingering: 1 2 3 1 2 3 4 5`
-                )
+                throw new Error(autoFingeringUnknown(set.title))
             }
             octave = standard
             title ??= `${set.title}, ${autoHand} hand`

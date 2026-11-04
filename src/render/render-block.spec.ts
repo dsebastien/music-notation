@@ -784,3 +784,104 @@ describe('root: in blocks that expand into rows (#56, review)', () => {
         }
     })
 })
+
+describe("both hands' scale fingering (#49)", () => {
+    /** Each diagram's title, fingers low to high and pitches. */
+    const hands = (source: string) => {
+        const h = document.createElement('div')
+        const result = renderBlock('keyboard', source, h)
+        return {
+            result,
+            h,
+            diagrams: [...h.querySelectorAll('svg.mn-keyboard')].map((svg) => ({
+                title: svg.querySelector('.mn-title')?.textContent,
+                keys: svg.getAttribute('data-mn-pitches'),
+                fingers: [...svg.querySelectorAll('[data-midi]')]
+                    .map((key) => {
+                        const label = key.nextElementSibling
+                        return label?.classList.contains('mn-key-label')
+                            ? ([Number(key.getAttribute('data-midi')), label.textContent] as const)
+                            : null
+                    })
+                    .filter((x) => x !== null)
+                    .sort((x, y) => x[0] - y[0])
+                    .map(([, f]) => f)
+                    .join(' ')
+            }))
+        }
+    }
+
+    it('draws the right hand, then the left hand an octave lower, in a column', () => {
+        const { result, h, diagrams } = hands('C major\nfingering: auto both')
+        expect(result.error).toBeNull()
+        expect(h.querySelector('.mn-grid.mn-cols-1')).not.toBeNull()
+        expect(h.querySelectorAll('.mn-cell')).toHaveLength(2)
+        expect(diagrams).toEqual([
+            {
+                title: 'C major, right hand',
+                keys: '60 62 64 65 67 69 71 72 74 76 77 79 81 83 84',
+                fingers: '1 2 3 1 2 3 4 1 2 3 1 2 3 4 5'
+            },
+            {
+                title: 'C major, left hand',
+                keys: '48 50 52 53 55 57 59 60 62 64 65 67 69 71 72',
+                fingers: '5 4 3 2 1 3 2 1 4 3 2 1 3 2 1'
+            }
+        ])
+    })
+
+    it('draws each hand as fingering: auto and auto left draw it alone', () => {
+        for (const scale of ['scale: Bb major', 'scale: F# harmonic minor', 'A melodic minor']) {
+            const alone = (fingering: string) =>
+                hands(`${scale}\nfingering: ${fingering}`).diagrams.at(0)!
+            expect(hands(`${scale}\nfingering: auto both`).diagrams).toEqual([
+                alone('auto'),
+                alone('auto left')
+            ])
+        }
+    })
+
+    it('reads the usual spellings', () => {
+        for (const fingering of ['both', 'both hands', 'auto both hands', 'Auto (both hands)']) {
+            const { result, diagrams } = hands(`G major\nfingering: ${fingering}`)
+            expect(result.error).toBeNull()
+            expect(diagrams.map((d) => d.title)).toEqual([
+                'G major, right hand',
+                'G major, left hand'
+            ])
+        }
+    })
+
+    it('keeps the range, the labels, a title and the columns written', () => {
+        const ranged = hands('C major\nfingering: auto both\nrange: C3-C5\nlabels: notes')
+        expect(ranged.diagrams.map((d) => d.keys)).toEqual([
+            '48 50 52 53 55 57 59 60 62 64 65 67 69 71 72',
+            '48 50 52 53 55 57 59 60 62 64 65 67 69 71 72'
+        ])
+        // Labels stay on the keys: the fingers get their own row.
+        expect(ranged.h.querySelectorAll('svg.mn-keyboard .mn-key-finger').length).toBe(30)
+        const titled = hands('C major\nfingering: auto both\ntitle: Daily scale')
+        expect(titled.diagrams.map((d) => d.title)).toEqual([
+            'Daily scale, right hand',
+            'Daily scale, left hand'
+        ])
+        const side = hands('C major\nfingering: auto both\ncolumns: 2')
+        expect(side.h.querySelector('.mn-grid.mn-cols-2')).not.toBeNull()
+    })
+
+    it('refuses what it cannot finger, once', () => {
+        const pentatonic = hands('A minor pentatonic\nfingering: auto both')
+        expect(pentatonic.result.ok).toBe(false)
+        expect(pentatonic.h.querySelectorAll('.mn-error-message')).toHaveLength(1)
+        expect(pentatonic.result.error).toContain('fingering: auto knows the major')
+        expect(hands('notes: C4 E4 G4\nfingering: both').result.error).toContain(
+            'fingering: auto goes with a major or minor scale'
+        )
+        // In a --- row, a diagram can't split in two.
+        const row = hands('C major\nfingering: auto both\n---\nG major')
+        expect(row.result.ok).toBe(false)
+        expect(row.h.querySelector('.mn-error-message')?.textContent).toContain(
+            'fingering: auto both draws two keyboards'
+        )
+    })
+})
