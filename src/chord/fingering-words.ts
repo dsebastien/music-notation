@@ -223,19 +223,23 @@ function pianoWords(input: PianoFingering): string[] {
         if (!octaves) return name
         return `${name}${Math.floor((midi - (Note.get(name).alt || 0)) / 12) - 1}`
     }
+    // Fingered keys first ("thumb on C"), then the keys without a finger: "C, E and G" alone,
+    // "thumb on C, and also play E and G" when only some have one.
     const part = (group: number[]) => {
-        const fingered = group.map((k) => {
-            const finger = input.fingers?.get(k)
-            return finger
-                ? `${PIANO_FINGERS[finger] ?? `finger ${finger}`} on ${keyName(k)}`
-                : keyName(k)
+        const withFinger = group.filter((k) => input.fingers?.has(k))
+        const without = group.filter((k) => !input.fingers?.has(k)).map(keyName)
+        const fingered = withFinger.map((k) => {
+            const finger = input.fingers!.get(k)!
+            return `${PIANO_FINGERS[finger] ?? `finger ${finger}`} on ${keyName(k)}`
         })
-        return group.every((k) => input.fingers?.has(k)) ? fingered.join(', ') : andList(fingered)
+        if (!fingered.length) return andList(without)
+        if (!without.length) return fingered.join(', ')
+        return `${fingered.join(', ')}, and also play ${andList(without)}`
     }
     const hands = input.hands
     if (!hands?.size) {
         return [
-            keys.every((k) => input.fingers?.has(k))
+            keys.some((k) => input.fingers?.has(k))
                 ? `${capitalized(part(keys))}.`
                 : `Play ${part(keys)}.`
         ]

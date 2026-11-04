@@ -198,3 +198,22 @@ describe('fingeringInWords: spelled octaves (#53)', () => {
         ).toEqual(['Left hand: Fb3.', 'Right hand: Fb4, Ab4 and Cb5.'])
     })
 })
+
+describe('fingeringInWords: some keys without a finger (#53)', () => {
+    it('says the fingered keys, then the others to play', () => {
+        expect(fingeringInWords({ keys: [60, 64, 67], fingers: new Map([[60, '1']]) })).toEqual([
+            'Thumb on C, and also play E and G.'
+        ])
+        expect(
+            fingeringInWords({
+                keys: [48, 60, 64],
+                fingers: new Map([[60, '1']]),
+                hands: new Map([
+                    [48, 'left'],
+                    [60, 'right'],
+                    [64, 'right']
+                ])
+            })
+        ).toEqual(['Left hand: C3.', 'Right hand: thumb on C4, and also play E4.'])
+    })
+})
