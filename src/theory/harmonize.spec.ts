@@ -86,6 +86,13 @@ describe('harmonize', () => {
         expect(harmonize('Em')!.name).toBe('E minor')
     })
 
+    it('writes a major chord with a flat fifth as musicians do: G(b5), V(b5)', () => {
+        const h = harmonize('C double harmonic major')!
+        const fifth = h.chords[4]!
+        expect([fifth.symbol, fifth.numeral, fifth.nashville]).toEqual(['G(b5)', 'V(b5)', '5(b⁵)'])
+        expect(readNumeral(fifth.numeral, h.key)).toBe('GMb5')
+    })
+
     it('reads the key from the third as the scale spells it', () => {
         // B altered is spelled B C D Eb F G A: its third is D, a minor third.
         const altered = harmonize('B altered')!

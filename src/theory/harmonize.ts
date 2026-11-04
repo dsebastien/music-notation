@@ -171,12 +171,14 @@ export function harmonize(scale: string, options: HarmonizeOptions = {}): Harmon
         }
         const { symbol } = made
         const fn = harmonicFunction(symbol, key)
+        // A major chord with a flat fifth is tonal's "Mb5": musicians write G(b5) and V(b5).
+        const shown = (text: string) => text.replace(/Mb5$/, '(b5)').replace(/Mb⁵$/, '(b⁵)')
         chords.push({
             degree: i + 1,
             note,
-            symbol,
-            numeral: numeralOf(symbol, key, 'roman', { byDegree: true }) ?? symbol,
-            nashville: numeralOf(symbol, key, 'nashville', { byDegree: true }) ?? symbol,
+            symbol: shown(symbol),
+            numeral: shown(numeralOf(symbol, key, 'roman', { byDegree: true }) ?? symbol),
+            nashville: shown(numeralOf(symbol, key, 'nashville', { byDegree: true }) ?? symbol),
             function: fn && DIATONIC.includes(fn) ? fn : byDegree[i]!
         })
     })
