@@ -862,6 +862,14 @@
     margin-bottom: 0.3em;
 }
 
+/* Degrees a harmonized scale leaves out (#43). */
+.mn-progression-note {
+    color: var(--mn-muted);
+    font-size: 0.8em;
+    font-style: italic;
+    margin-bottom: 0.3em;
+}
+
 .mn-block .mn-progression-chord {
     display: flex;
     flex-direction: column;

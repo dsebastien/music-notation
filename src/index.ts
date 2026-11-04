@@ -290,6 +290,16 @@ export {
     type HarmonicFunction
 } from './theory/numerals.js'
 export {
+    harmonize,
+    readHarmonyScale,
+    HARMONIZE_KINDS,
+    type HarmonizeKind,
+    type HarmonizeOptions,
+    type HarmonyScale,
+    type HarmonizedChord,
+    type Harmonized
+} from './theory/harmonize.js'
+export {
     voiceLead,
     voiceLeadVoicings,
     voiceMotion,

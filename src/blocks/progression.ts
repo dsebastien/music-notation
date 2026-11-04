@@ -32,6 +32,12 @@ import {
     type ProgressionChord
 } from '../theory/numerals.js'
 import { transposeChord, transposeKey } from '../theory/transpose.js'
+import {
+    HARMONIZE_KINDS,
+    harmonize,
+    readHarmonyScale,
+    type HarmonizeKind
+} from '../theory/harmonize.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { PROGRESSION_STRUMS, progressionPitches } from '../playback/progression.js'
 import { MAX_TEMPO, MIN_TEMPO, parseStrum, parseTime } from '../strum/pattern.js'
@@ -62,8 +68,26 @@ const SHARED = [
     'time',
     'tempo',
     'bpm',
-    'strum'
+    'strum',
+    'harmonize'
 ]
+
+/** Words `harmonize:` takes for each kind (#43). */
+const KIND_WORDS: Record<string, HarmonizeKind> = {
+    'triad': 'triads',
+    'triads': 'triads',
+    'seventh': 'sevenths',
+    'sevenths': 'sevenths',
+    '7th': 'sevenths',
+    '7ths': 'sevenths',
+    '7': 'sevenths',
+    'sus': 'sus',
+    'power': 'power',
+    '5': 'power'
+}
+
+/** Chords drawn by a harmonized section: always one per degree at most. */
+const HARMONIZED_CHORDS = 7
 
 const yes = (text: string | undefined, key: string, fallback: boolean): boolean => {
     if (text === undefined || text === '') return fallback
@@ -122,6 +146,10 @@ interface Section {
     /** A dominant-seventh blues on the key's tonic: I7 and IV7 are the key's own chords. */
     blues: boolean
     block: BlockSource
+    /** The key line's name when it isn't the key's (a harmonized scale: "A harmonic minor"). */
+    name?: string
+    /** A line under the key: degrees a harmonized scale leaves out. */
+    note?: string
 }
 
 const FIELD = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/
@@ -147,8 +175,64 @@ function sourceOf(part: string): BlockSource {
 const chordsText = (block: BlockSource): string | undefined =>
     block.head ?? field(block, 'progression') ?? field(block, 'chords')
 
+/**
+ * A harmonized section (#43): the chords of the scale in `key:`, any 7-note scale, as numerals of
+ * the key the scale is written in, transposed.
+ */
+function harmonizedSectionOf(block: BlockSource, kindText: string): Section {
+    const kind = KIND_WORDS[kindText.toLowerCase()]
+    if (!kind || !HARMONIZE_KINDS.includes(kind)) {
+        throw new Error(`harmonize: write triads, sevenths, sus or power, got "${kindText}"`)
+    }
+    const written = chordsText(block)
+    if (written) {
+        throw new Error(
+            `harmonize draws the chords of the scale: leave out the chords (${written})`
+        )
+    }
+    const keyText = field(block, 'key')
+    if (!keyText) throw new Error('Add the scale: e.g. key: A harmonic minor')
+    const shift = Number(field(block, 'transpose') ?? 0)
+    if (!Number.isInteger(shift)) {
+        throw new Error(`transpose must be a whole number of semitones, e.g. transpose: -2`)
+    }
+    let scale = readHarmonyScale(keyText)
+    if ('error' in scale) throw new Error(scale.error)
+    if (shift) {
+        // The tonic moves as its major or minor key would (usual spelling), the scale type stays.
+        const { tonic, mode } = scale.key
+        const moved = transposeKey(`${tonic}${isMinorMode(mode) ? 'm' : ''}`, shift).replace(
+            /m$/,
+            ''
+        )
+        const type = scale.name.slice(tonic.length).trim()
+        scale = readHarmonyScale(`${moved} ${type}`)
+        if ('error' in scale) throw new Error(scale.error)
+    }
+    const harmonized = harmonize(scale.name, { kind })!
+    const chords: ProgressionChord[] = harmonized.chords.map((c) => ({
+        written: c.numeral,
+        symbol: c.symbol,
+        numeral: c.numeral,
+        nashville: c.nashville,
+        function: c.function
+    }))
+    const left = harmonized.skipped.map((s) => `degree ${s.degree} (${s.note}), ${s.reason}`)
+    return {
+        key: harmonized.key,
+        others: [],
+        chords,
+        blues: false,
+        block,
+        name: harmonized.name,
+        ...(left.length ? { note: `Left out: ${left.join('; ')}` } : {})
+    }
+}
+
 /** One section's chords in its key, transposed. */
 function sectionOf(block: BlockSource): Section {
+    const kindText = field(block, 'harmonize')
+    if (kindText) return harmonizedSectionOf(block, kindText)
     const text = chordsText(block)
     if (!text) {
         throw new Error('Add the chords: e.g. I V vi IV with key: G, 1 5 6m 4, or G D Em C')
@@ -351,8 +435,14 @@ function renderSection(
     const others = section.others.length ? ` (or ${section.others.join(', ')})` : ''
     const blues = section.blues ? ' (blues)' : ''
     el.appendChild(
-        html(doc, 'div', 'mn-progression-key', `Key: ${section.key.name}${blues}${others}`)
+        html(
+            doc,
+            'div',
+            'mn-progression-key',
+            `Key: ${section.name ?? section.key.name}${blues}${others}`
+        )
     )
+    if (section.note) el.appendChild(html(doc, 'div', 'mn-progression-note', section.note))
     const instrument = (field(block, 'instrument') ?? options.instrument ?? 'guitar').toLowerCase()
     if (!['guitar', 'piano', 'keyboard'].includes(instrument)) {
         throw new Error(`Unknown instrument "${instrument}": use guitar or piano`)
@@ -537,7 +627,14 @@ export function renderProgression(
     if (!own.length) throw new Error('Add the chords after the shared settings, after a "---" line')
     const merged = own.map((b) => ({ head: b.head, fields: new Map([...shared, ...b.fields]) }))
     // Counted before any chord is read: finding the key of hundreds of chords takes a while.
-    const count = merged.reduce((n, b) => n + progressionTokens(chordsText(b) ?? '').length, 0)
+    const count = merged.reduce(
+        (n, b) =>
+            n +
+            (field(b, 'harmonize')
+                ? HARMONIZED_CHORDS
+                : progressionTokens(chordsText(b) ?? '').length),
+        0
+    )
     if (count > MAX_CHORDS)
         throw new Error(`At most ${MAX_CHORDS} chords per block, found ${count}`)
     const sections = merged.map(sectionOf)
