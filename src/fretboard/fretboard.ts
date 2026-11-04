@@ -3,7 +3,16 @@
  * on top like tabs; vertical has the nut on top, like a chord diagram.
  */
 import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
-import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
+import {
+    drawTitle,
+    neckFrame,
+    titleLines,
+    titleWidth,
+    TITLE_LINE,
+    type Hand,
+    type NeckLayout,
+    type Orientation
+} from '../render/layout.js'
 import {
     labelOf,
     describeMarks,
@@ -85,7 +94,7 @@ export function renderFretboard(
     const vertical = orientation === 'vertical'
     const openW = from === 0 ? OPEN_W : 0
     const acrossLength = (strings - 1) * STRING_GAP
-    const frame = neckFrame({
+    const layout: NeckLayout = {
         orientation,
         hand: options.hand ?? 'right',
         across: acrossLength,
@@ -95,8 +104,14 @@ export function renderFretboard(
         after: 8,
         low: NUMBERS,
         high: 12,
-        top: options.title ? TITLE : 0,
-        minWidth: Math.max(titleWidth(options.title), titleWidth(caption))
+        top: 0,
+        minWidth: titleWidth(caption)
+    }
+    // The title never widens the diagram (#74): it wraps onto more lines instead.
+    const lines = options.title ? titleLines(options.title, neckFrame(layout).width) : []
+    const frame = neckFrame({
+        ...layout,
+        top: lines.length ? TITLE + (lines.length - 1) * TITLE_LINE : 0
     })
     // Neck coordinates: strings across (lowest first), from the open strings along.
     const across = (string: number) => string * STRING_GAP
@@ -123,16 +138,7 @@ export function renderFretboard(
         root.setAttribute('data-mn-capo', String(capo))
         root.setAttribute('data-mn-frets-from', fromNut ? 'nut' : 'capo')
     }
-    if (options.title) {
-        root.appendChild(
-            svgText(doc, options.title, {
-                'class': 'mn-title',
-                'x': frame.width / 2,
-                'y': 15,
-                'text-anchor': 'middle'
-            })
-        )
-    }
+    if (lines.length) drawTitle(doc, root, lines, frame.width / 2, 15)
 
     // What each string shows at each fret: a note dot, a faint ring (a compared scale's note
     // missing here), or nothing.

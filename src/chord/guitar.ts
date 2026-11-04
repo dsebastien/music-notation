@@ -1,6 +1,15 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
 import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
-import { neckFrame, titleWidth, type Hand, type Orientation } from '../render/layout.js'
+import {
+    drawTitle,
+    neckFrame,
+    titleLines,
+    titleWidth,
+    TITLE_LINE,
+    type Hand,
+    type NeckLayout,
+    type Orientation
+} from '../render/layout.js'
 import { chromaOf, nameOf } from '../theory/pitch.js'
 
 /** Standard tuning, lowest string first. */
@@ -190,7 +199,7 @@ export function renderGuitarDiagram(
     const capoFret = fromNut ? capo : null
     const caption =
         capo && options.caption !== false ? capoCaption(capo, options.sounds) : undefined
-    const frame = neckFrame({
+    const layout: NeckLayout = {
         orientation,
         hand: options.hand ?? 'right',
         across: (strings - 1) * SPACING,
@@ -199,8 +208,14 @@ export function renderGuitarDiagram(
         after: 10,
         low: vertical || base > 1 ? BASE : 10,
         high: vertical ? 14 : 10,
-        top: options.title ? TITLE : 4,
-        minWidth: Math.max(titleWidth(options.title), titleWidth(caption))
+        top: 4,
+        minWidth: titleWidth(caption)
+    }
+    // The title never widens the diagram (#74): it wraps onto more lines instead.
+    const lines = options.title ? titleLines(options.title, neckFrame(layout).width) : []
+    const frame = neckFrame({
+        ...layout,
+        top: lines.length ? TITLE + (lines.length - 1) * TITLE_LINE : 4
     })
     // Neck coordinates: strings across (lowest first), fret rows along.
     const across = (string: number) => string * SPACING
@@ -232,16 +247,7 @@ export function renderGuitarDiagram(
         root.setAttribute('data-mn-capo', String(capo))
         root.setAttribute('data-mn-frets-from', fromNut ? 'nut' : 'capo')
     }
-    if (options.title) {
-        root.appendChild(
-            svgText(doc, options.title, {
-                'class': 'mn-title',
-                'x': frame.width / 2,
-                'y': 15,
-                'text-anchor': 'middle'
-            })
-        )
-    }
+    if (lines.length) drawTitle(doc, root, lines, frame.width / 2, 15)
 
     for (let row = 0; row <= rows; row++) {
         // From the capo, the capo takes the nut's place.

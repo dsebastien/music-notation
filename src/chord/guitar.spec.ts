@@ -7,7 +7,7 @@ import {
     parseFrets,
     renderGuitarDiagram
 } from './guitar.js'
-import { titleWidth } from '../render/layout.js'
+import { TITLE_LINE, titleLineWidth } from '../render/layout.js'
 import { accessibleName } from '../render/dom.js'
 
 describe('frets and fingers', () => {
@@ -209,8 +209,45 @@ describe('renderGuitarDiagram orientation', () => {
         expect(num(el.querySelector('.mn-base-fret'), 'x')).toBeGreaterThan(num(strings[0], 'x1'))
     })
 
-    it('makes room for a long title', () => {
-        const el = renderGuitarDiagram(document, a, { title: 'A major, open position' })
-        expect(num(el, 'width')).toBe(titleWidth('A major, open position'))
+    it('keeps its neck width with a long title: the title wraps (#74)', () => {
+        const plain = renderGuitarDiagram(document, a, { title: 'A' })
+        const el = renderGuitarDiagram(document, a, { title: '9. E shape (strings 1-4)' })
+        // Same width as with a short title: a row or a host's grid draws every neck alike.
+        expect(num(el, 'width')).toBe(num(plain, 'width'))
+        const text = el.querySelector('.mn-title')!
+        const lines = [...text.querySelectorAll('tspan')]
+        expect(lines.length).toBe(2)
+        for (const line of lines)
+            expect(titleLineWidth((line.textContent ?? '').trim())).toBeLessThanOrEqual(
+                num(el, 'width')
+            )
+        // The text still reads as the title (lines after the first start with a space).
+        expect(text.textContent).toBe('9. E shape (strings 1-4)')
+        expect(el.getAttribute('data-mn-title-lines')).toBe('2')
+        // The neck moves down by one line: the diagram is taller, not wider.
+        const nut = (d: Element) => num(d.querySelector('.mn-nut'), 'y1')
+        expect(nut(el) - nut(plain)).toBe(TITLE_LINE)
+    })
+
+    it('draws a title that fits on one line, as before', () => {
+        const el = renderGuitarDiagram(document, a, { title: 'A, Open' })
+        const text = el.querySelector('.mn-title')!
+        expect(text.querySelector('tspan')).toBeNull()
+        expect(text.textContent).toBe('A, Open')
+        expect(text.getAttribute('textLength')).toBeNull()
+        expect(el.getAttribute('data-mn-title-lines')).toBe('1')
+    })
+
+    it('squeezes what does not fit in three lines, never wider than the diagram', () => {
+        const title = 'Mandolin G chop chord, G/D with D in the bass (G D A E tuning)'
+        const el = renderGuitarDiagram(document, a, { title })
+        const plain = renderGuitarDiagram(document, a, { title: 'A' })
+        expect(num(el, 'width')).toBe(num(plain, 'width'))
+        const lines = [...el.querySelectorAll('.mn-title tspan')]
+        expect(lines.length).toBe(3)
+        expect(el.querySelector('.mn-title')!.textContent).toBe(title)
+        const last = lines[2]!
+        expect(Number(last.getAttribute('textLength'))).toBeLessThanOrEqual(num(el, 'width') - 8)
+        expect(last.getAttribute('lengthAdjust')).toBe('spacingAndGlyphs')
     })
 })

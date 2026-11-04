@@ -9,6 +9,12 @@ export {
     parseOrientation,
     parseHand,
     layoutDefaults,
+    alignTitleLines,
+    titleLines,
+    titleLineWidth,
+    MAX_TITLE_LINES,
+    TITLE_LINE,
+    type TitleLine,
     type Orientation,
     type Hand,
     type LayoutDefaults

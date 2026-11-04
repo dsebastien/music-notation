@@ -93,3 +93,54 @@ describe('neckFrame', () => {
         expect(titleWidth('')).toBe(0)
     })
 })
+
+describe('titles that wrap (#74)', () => {
+    it('stay on one line when they fit, else wrap at spaces into lines that fit', async () => {
+        const { titleLines, titleLineWidth } = await import('./layout.js')
+        expect(titleLines('A, Open', 134)).toEqual([{ text: 'A, Open', textLength: null }])
+        const lines = titleLines('F#m7b5, Drop 3 (strings 2-4, 6)', 134)
+        expect(lines.map((l) => l.text).join(' ')).toBe('F#m7b5, Drop 3 (strings 2-4, 6)')
+        expect(lines.map((l) => l.text)).toEqual(['F#m7b5, Drop 3', '(strings 2-4, 6)'])
+        for (const l of lines) expect(titleLineWidth(l.text)).toBeLessThanOrEqual(134)
+    })
+
+    it('squeeze a word wider than the diagram, and the rest past three lines', async () => {
+        const { titleLines, MAX_TITLE_LINES } = await import('./layout.js')
+        expect(titleLines('Supercalifragilistic', 60)).toEqual([
+            { text: 'Supercalifragilistic', textLength: 52 }
+        ])
+        const many = titleLines('one two three four five six seven eight nine ten', 50)
+        expect(many.length).toBe(MAX_TITLE_LINES)
+        expect(many.at(-1)!.textLength).toBe(42)
+        expect(many.map((l) => l.text).join(' ')).toBe(
+            'one two three four five six seven eight nine ten'
+        )
+    })
+
+    it('line up the necks of a set: fewer lines move down by the missing lines', async () => {
+        const { alignTitleLines, TITLE_LINE } = await import('./layout.js')
+        const { renderGuitarDiagram } = await import('../chord/guitar.js')
+        const a = { frets: [null, 0, 2, 2, 2, 0], fingers: [null, null, '1', '2', '3', null] }
+        const short = renderGuitarDiagram(document, a, { title: 'A, Open' })
+        const long = renderGuitarDiagram(document, a, { title: '9. E shape (strings 1-4)' })
+        const height = Number(short.getAttribute('viewBox')!.split(' ')[3])
+        alignTitleLines([short, long])
+        expect(short.getAttribute('data-mn-title-lines')).toBe('2')
+        expect(Number(short.getAttribute('viewBox')!.split(' ')[3])).toBe(height + TITLE_LINE)
+        const pad = short.querySelector(':scope > g.mn-title-pad')!
+        expect(pad.getAttribute('transform')).toBe(`translate(0 ${TITLE_LINE})`)
+        expect(pad.querySelector('.mn-nut')).not.toBeNull()
+        // Its name for screen readers stays where it was.
+        expect(short.querySelector(':scope > defs > title')).not.toBeNull()
+        expect(long.querySelector(':scope > g.mn-title-pad')).toBeNull()
+    })
+})
+
+describe('title helpers for apps (#74)', () => {
+    it('are exported from the main entry', async () => {
+        const lib = await import('../index.js')
+        expect(typeof lib.alignTitleLines).toBe('function')
+        expect(typeof lib.titleLines).toBe('function')
+        expect(lib.MAX_TITLE_LINES).toBe(3)
+    })
+})
