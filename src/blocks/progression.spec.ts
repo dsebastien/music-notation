@@ -562,6 +562,32 @@ describe('progression block: harmonize (#43)', () => {
         expect(texts(h, 'mn-progression-name').length).toBe(14)
     })
 
+    it('reads a first part with harmonize and a key as a section, not shared settings', () => {
+        const two = draw(
+            'key: C\nharmonize: triads\ndiagrams: no\n---\nkey: A harmonic minor\nharmonize: triads'
+        )
+        expect(two.error).toBeNull()
+        expect(texts(two.h, 'mn-progression-key')).toEqual([
+            'Key: C major',
+            'Key: A harmonic minor'
+        ])
+        // The harmonize of the first section doesn't reach the next one.
+        const mixed = draw('key: C\nharmonize: triads\n---\nkey: G\nI IV V')
+        expect(mixed.error).toBeNull()
+        expect(texts(mixed.h, 'mn-progression-key')).toEqual(['Key: C major', 'Key: G major'])
+    })
+
+    it('says what to write for an empty harmonize, and harmonize: none cancels a shared one', () => {
+        expect(draw('key: G\nharmonize:').error).toBe(
+            'harmonize: write triads, sevenths, sus or power, got nothing'
+        )
+        const { h, error } = draw(
+            'harmonize: triads\ndiagrams: no\n---\nkey: C\n---\nkey: G\nharmonize: none\nI IV V'
+        )
+        expect(error).toBeNull()
+        expect(texts(h, 'mn-progression-name').slice(7)).toEqual(['G', 'C', 'D'])
+    })
+
     it('reports mistakes in words', () => {
         expect(draw('harmonize: sevenths').error).toBe('Add the scale: e.g. key: A harmonic minor')
         expect(draw('key: G\nharmonize: ninths').error).toBe(

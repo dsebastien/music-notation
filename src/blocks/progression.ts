@@ -229,9 +229,22 @@ function harmonizedSectionOf(block: BlockSource, kindText: string): Section {
     }
 }
 
+/**
+ * The kind a section is harmonized with (#43): undefined when it isn't (no key, or `harmonize:
+ * none`, which cancels a shared one). An empty `harmonize:` says what to write.
+ */
+function harmonizeText(block: BlockSource): string | undefined {
+    if (!block.fields.has('harmonize')) return undefined
+    const text = field(block, 'harmonize')
+    if (text === undefined) {
+        throw new Error('harmonize: write triads, sevenths, sus or power, got nothing')
+    }
+    return text.toLowerCase() === 'none' ? undefined : text
+}
+
 /** One section's chords in its key, transposed. */
 function sectionOf(block: BlockSource): Section {
-    const kindText = field(block, 'harmonize')
+    const kindText = harmonizeText(block)
     if (kindText) return harmonizedSectionOf(block, kindText)
     const text = chordsText(block)
     if (!text) {
@@ -613,12 +626,17 @@ export function renderProgression(
 ): Element {
     const parts = splitParts(source) ?? [source]
     const blocks = parts.map(sourceOf)
-    // A first part with no chords and only shared keys holds the settings of every section.
+    // A first part with no chords and only shared keys holds the settings of every section. With
+    // `harmonize:` and a `key:` it is a harmonized section of its own (#43): the chords it draws
+    // are its scale's, and its harmonize doesn't reach the sections after it.
     const first = blocks[0]
+    const harmonizedFirst =
+        first !== undefined && first.fields.has('harmonize') && field(first, 'key') !== undefined
     const sharedOnly =
         blocks.length > 1 &&
         first !== undefined &&
         first.head === null &&
+        !harmonizedFirst &&
         !first.fields.has('progression') &&
         !first.fields.has('chords') &&
         [...first.fields.keys()].every((k) => SHARED.includes(k))
@@ -630,9 +648,7 @@ export function renderProgression(
     const count = merged.reduce(
         (n, b) =>
             n +
-            (field(b, 'harmonize')
-                ? HARMONIZED_CHORDS
-                : progressionTokens(chordsText(b) ?? '').length),
+            (harmonizeText(b) ? HARMONIZED_CHORDS : progressionTokens(chordsText(b) ?? '').length),
         0
     )
     if (count > MAX_CHORDS)
