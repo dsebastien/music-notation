@@ -164,6 +164,70 @@ describe('exerciseTab', () => {
     })
 })
 
+describe('exercises with a capo (#76)', () => {
+    /** The pitch of a fret.string token with the capo on (alphaTab adds it to every string). */
+    const sounding = (token: string, capo: number) => pitchOf(token) + capo
+
+    it('counts frets from the capo and writes \\capo for alphaTab', () => {
+        const open = exerciseTab({ scale: 'A minor pentatonic' }, { position: 1 })
+        const tex = exerciseTab({ scale: 'A minor pentatonic' }, { position: 1, capo: 2 })
+        expect(tex).toContain('\\capo 2')
+        // The same notes, two frets lower: the box sits on frets 3 to 6 from the capo.
+        expect(notesOf(tex)).toEqual(
+            notesOf(open).map((t) => {
+                const [fret, string] = t.split('.')
+                return `${Number(fret) - 2}.${string}`
+            })
+        )
+        expect(notesOf(tex).map((t) => sounding(t, 2))).toEqual(
+            notesOf(open).map((t) => pitchOf(t))
+        )
+        // alphaTab reads the capo and sounds each note a capo higher.
+        const score = alphaTab.importer.ScoreLoader.loadAlphaTex(tex)
+        const staff = score.tracks[0]!.staves[0]!
+        expect(staff.capo).toBe(2)
+        const heard = staff.bars.flatMap((b) =>
+            b.voices[0]!.beats.flatMap((beat) => beat.notes.map((n) => n.realValue))
+        )
+        expect(heard).toEqual(notesOf(open).map((t) => pitchOf(t)))
+    })
+
+    it('plays a high capo from its own frets, the scale as it sounds', () => {
+        const tex = exerciseTab({ scale: 'A minor pentatonic' }, { position: 1, capo: 7 })
+        expect(tex).toContain('\\capo 7')
+        const notes = notesOf(tex)
+        expect(notes.every((t) => Number(t.split('.')[0]) >= 0)).toBe(true)
+        // The run starts on the lowest A it finds above the capo, and every note is in the scale.
+        expect(sounding(notes[0]!, 7) % 12).toBe(9)
+        const scale = scaleNoteSet('A minor pentatonic')!.members.map((m) => m.chroma)
+        expect(notes.every((t) => scale.includes(sounding(t, 7) % 12))).toBe(true)
+    })
+
+    it('takes a CAGED shape, a 3NPS position and an arpeggio with a capo', () => {
+        for (const [notes, options] of [
+            [{ scale: 'G major' }, { shape: 'E', capo: 3 }],
+            [{ scale: 'G major' }, { shape: '3nps', position: 2, capo: 2 }],
+            [{ arpeggio: 'Am7' }, { shape: 'A', capo: 5 }]
+        ] as const) {
+            const tex = exerciseTab(notes, options)
+            expect(tex).toContain(`\\capo ${options.capo}`)
+            expect(notesOf(tex).length).toBeGreaterThan(4)
+        }
+    })
+
+    it('reads no capo as 0 and refuses one off the neck', () => {
+        expect(exerciseTab({ scale: 'A minor pentatonic' }, { position: 1, capo: 0 })).toBe(
+            exerciseTab({ scale: 'A minor pentatonic' }, { position: 1 })
+        )
+        expect(() => exerciseTab({ scale: 'A minor pentatonic' }, { capo: 13 })).toThrow(
+            'capo: use a fret from 1 to 12 (0 for none), got 13'
+        )
+        expect(() => exerciseTab({ scale: 'A minor pentatonic' }, { capo: 1.5 })).toThrow(
+            'capo: use a fret from 1 to 12 (0 for none), got 1.5'
+        )
+    })
+})
+
 describe('exercise settings', () => {
     it('reads directions and rhythms', () => {
         expect(parseDirection('Up')).toBe('up')

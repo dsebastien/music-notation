@@ -10,11 +10,15 @@
  *   bottom note once each. With the root lowest, that is up and back down.
  * - Rhythms in 4/4 (the metronome clicks quarters): 8ths (8 notes a bar), triplets (3 eighths a
  *   beat, 12 a bar, as tuplets), 16ths (16 a bar). The last bar ends with rests.
+ * - With a capo (#76), the position is found from the capo as if it were the nut (the scale as it
+ *   sounds), its frets are counted from the capo, and `\capo` tells alphaTab, which adds the capo
+ *   to every string: the tab shows the frets a player reads and sounds the scale.
  */
 import { chordNoteSet, scaleNoteSet, type NoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { parseTuning } from './tuning.js'
+import { capoTuning } from '../chord/capo.js'
 import {
     isArpeggio,
     positionCount,
@@ -51,6 +55,8 @@ export interface ExerciseOptions {
     numbering?: Numbering
     /** A title over the tab. */
     title?: string
+    /** A capo on this fret (1 to 12; 0 for none): frets count from it, as players read them. */
+    capo?: number
 }
 
 /** The tempo of an exercise without one: slow enough to learn the run. */
@@ -125,7 +131,7 @@ export function exerciseRun(
 export function exerciseTex(
     run: Cell[],
     tuning: number[],
-    options: { rhythm?: ExerciseRhythm; tempo?: number; title?: string } = {}
+    options: { rhythm?: ExerciseRhythm; tempo?: number; title?: string; capo?: number } = {}
 ): string {
     const rhythm = options.rhythm ?? '8ths'
     const perBar = PER_BAR[rhythm]
@@ -146,6 +152,8 @@ export function exerciseTex(
                       .map((m) => noteOf(m))
                       .join(' ')})`
               ]),
+        // alphaTab adds the capo to every string: the frets stay as written, the sound goes up.
+        ...(options.capo ? [`\\capo ${options.capo}`] : []),
         '\\ts 4 4',
         `${DURATION[rhythm]} ${bars.join(' |\n')}`
     ].join('\n')
@@ -216,14 +224,25 @@ export function exerciseTab(notes: ExerciseNotes, options: ExerciseOptions = {})
             ? parseTuning(options.tuning)
             : (options.tuning ?? STANDARD_TUNING)
     if (!tuning || tuning.length < 2) throw new Error(`Unknown tuning "${String(options.tuning)}"`)
+    const capo = options.capo ?? 0
+    if (!Number.isInteger(capo) || capo < 0 || capo > 12) {
+        throw new Error(`capo: use a fret from 1 to 12 (0 for none), got ${String(options.capo)}`)
+    }
+    // From the capo, as if it were the nut: the strings sound `capo` semitones higher.
+    const sounding = capo ? capoTuning(tuning, capo) : tuning
     const at = positionOf(
         options.position === undefined ? undefined : String(options.position),
         options.shape
     ) ?? { system: 'box', n: 1 }
-    const cells = exercisePosition(set, tuning, at, options)
-    return exerciseTex(exerciseRun(cells, tuning, set.root, options.direction ?? 'both'), tuning, {
-        ...(options.rhythm ? { rhythm: options.rhythm } : {}),
-        ...(options.tempo !== undefined ? { tempo: options.tempo } : {}),
-        ...(options.title ? { title: options.title } : {})
-    })
+    const cells = exercisePosition(set, sounding, at, options)
+    return exerciseTex(
+        exerciseRun(cells, sounding, set.root, options.direction ?? 'both'),
+        tuning,
+        {
+            ...(options.rhythm ? { rhythm: options.rhythm } : {}),
+            ...(options.tempo !== undefined ? { tempo: options.tempo } : {}),
+            ...(options.title ? { title: options.title } : {}),
+            ...(capo ? { capo } : {})
+        }
+    )
 }
