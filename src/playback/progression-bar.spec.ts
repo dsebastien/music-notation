@@ -165,6 +165,13 @@ describe('ChordPro chart play bar (#46)', () => {
         expect(marks.map((m) => m.getAttribute('data-mn-beats'))).toEqual(['2', '1', '3'])
     })
 
+    it('reads beat dots in a bar: each dot a beat of the chord it follows (#75)', () => {
+        const h = host()
+        renderBlock('chords', '| [C]. . . [G]. | [E5]. . . . |', h, { play: true })
+        const marks = [...h.querySelectorAll('.mn-chart .mn-chord[data-mn-bar]')]
+        expect(marks.map((m) => m.getAttribute('data-mn-beats'))).toEqual(['3', '1', '4'])
+    })
+
     it('keeps one chord a bar on lines without bar lines, and draws them as before', () => {
         const h = host()
         renderBlock('chords', '[G]Hello [C]world', h, { play: true })

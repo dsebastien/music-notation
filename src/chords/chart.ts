@@ -44,8 +44,9 @@ const PLACEMENTS = new Set(['top', 'bottom', 'off'])
 /**
  * How long each chord of a lyrics line lasts (#75), in beats as written, or nothing: a line
  * without a bar line `|` plays each chord a bar. On a line with bar lines, the chords between two
- * share the bar (evenly, in counted beats when they go round, else in written beats; a `/` after a
- * chord gives it one counted beat more when the bar's slashes and chords add up to its beats), and
+ * share the bar: by its beat marks when they add up to the bar's counted beats (a `.` after a chord
+ * is one of its beats, `[C]. . . [G].`; a `/` one beat more, `[C] / / [G]`), else evenly (in
+ * counted beats when they go round, else in written beats), and
  * a bar with no chord holds the chord before it. A chord that doesn't play (N.C.) takes no time.
  * Linear in the line's length. `steps` lists, in order, each chord's beats and each held bar.
  */
@@ -58,16 +59,19 @@ export function lineBeats(
     if (!segments.some((s) => s.text.includes('|'))) return { measured: false, steps: [] }
     const steps: ({ segment: number; beats: number } | { hold: number })[] = []
     const counted = Math.max(1, Math.round(beatsPerBar / perPulse))
-    let bar: { segment: number; slashes: number }[] = []
+    let bar: { segment: number; slashes: number; dots: number }[] = []
     // A bar with a chord that doesn't play (N.C.): silent, it holds nothing.
     let silent = false
     let opened = false
     const close = (ended: boolean) => {
         if (bar.length) {
             const n = bar.length
-            const marked = bar.reduce((sum, c) => sum + 1 + c.slashes, 0)
+            const slashed = bar.reduce((sum, c) => sum + 1 + c.slashes, 0)
+            const dotted = bar.reduce((sum, c) => sum + c.dots, 0)
             let lengths: number[]
-            if (bar.some((c) => c.slashes) && marked === counted)
+            if (bar.every((c) => c.dots) && dotted === counted)
+                lengths = bar.map((c) => c.dots * perPulse)
+            else if (bar.some((c) => c.slashes) && slashed === counted)
                 lengths = bar.map((c) => (1 + c.slashes) * perPulse)
             else {
                 const [whole, unit] = n <= counted ? [counted, perPulse] : [beatsPerBar, 1]
@@ -83,12 +87,13 @@ export function lineBeats(
     }
     segments.forEach((segment, i) => {
         if (segment.chord !== null) {
-            if (playable(segment.chord)) bar.push({ segment: i, slashes: 0 })
+            if (playable(segment.chord)) bar.push({ segment: i, slashes: 0, dots: 0 })
             else silent = true
         }
         for (const ch of segment.text) {
             if (ch === '|') close(true)
             else if (ch === '/' && bar.length) bar[bar.length - 1]!.slashes++
+            else if (ch === '.' && bar.length) bar[bar.length - 1]!.dots++
         }
     })
     if (bar.length) close(false)
