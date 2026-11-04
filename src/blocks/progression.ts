@@ -36,8 +36,10 @@ import {
     HARMONIZE_KINDS,
     harmonize,
     readHarmonyScale,
-    type HarmonizeKind
+    type HarmonizeKind,
+    type HarmonyScale
 } from '../theory/harmonize.js'
+import { Note } from 'tonal'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { PROGRESSION_STRUMS, progressionPitches } from '../playback/progression.js'
 import { MAX_TEMPO, MIN_TEMPO, parseStrum, parseTime } from '../strum/pattern.js'
@@ -206,8 +208,17 @@ function harmonizedSectionOf(block: BlockSource, kindText: string): Section {
             ''
         )
         const type = scale.name.slice(tonic.length).trim()
-        scale = readHarmonyScale(`${moved} ${type}`)
-        if ('error' in scale) throw new Error(scale.error)
+        // A mode can need another spelling than its major or minor key gives (Eb locrian needs 8
+        // flats, D# locrian 5 sharps): of the two spellings that read, the one with fewer
+        // accidentals.
+        const spellings = [...new Set([moved, Note.enharmonic(moved)])].map((t) =>
+            readHarmonyScale(`${t} ${type}`)
+        )
+        const valid = spellings.filter((sp): sp is HarmonyScale => !('error' in sp))
+        const accidentals = (sp: HarmonyScale) => sp.notes.join('').replace(/[^#b]/g, '').length
+        const best = valid.sort((a, b) => accidentals(a) - accidentals(b))[0]
+        if (!best) throw new Error((spellings[0] as { error: string }).error)
+        scale = best
     }
     const harmonized = harmonize(scale.name, { kind })!
     const chords: ProgressionChord[] = harmonized.chords.map((c) => ({

@@ -553,6 +553,15 @@ describe('progression block: harmonize (#43)', () => {
         ])
     })
 
+    it('spells a transposed scale with the fewer accidentals', () => {
+        const locrian = draw('key: B locrian\nharmonize: triads\ntranspose: 4\ndiagrams: no')
+        expect(locrian.error).toBeNull()
+        expect(texts(locrian.h, 'mn-progression-key')).toEqual(['Key: D# locrian'])
+        const phrygian = draw('key: E phrygian\nharmonize: triads\ntranspose: -1\ndiagrams: no')
+        expect(texts(phrygian.h, 'mn-progression-key')).toEqual(['Key: D# phrygian'])
+        expect(texts(phrygian.h, 'mn-progression-name')[0]).toBe('D#m')
+    })
+
     it('shares harmonize across sections, each with its own scale', () => {
         const { h, error } = draw(
             'harmonize: triads\ndiagrams: no\n---\nkey: C major\n---\nkey: A harmonic minor'
