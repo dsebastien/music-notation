@@ -102,6 +102,16 @@ describe('caption: fingering (#53)', () => {
         ).toContain('Index on the Bb string, 1st fret.')
     })
 
+    it('names the left hand when fingering: auto gives a voicing to it', () => {
+        expect(
+            render(
+                'symbol: C7\ninstrument: piano\nvoicing: rootless A\nfingering: auto\ncaption: fingering'
+            ).captions
+        ).toEqual([
+            'Left hand: little finger on E, middle finger on A, index finger on Bb, thumb on D.'
+        ])
+    })
+
     it('says what to write for another value', () => {
         const { result } = render('A x02220\ncaption: Diagram')
         expect(result.ok).toBe(false)

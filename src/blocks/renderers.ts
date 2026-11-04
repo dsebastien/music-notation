@@ -41,6 +41,7 @@ import {
     standardScaleFingering
 } from '../keyboard/scale-fingering.js'
 import {
+    autoVoicingHand,
     pianoOptionsOf,
     pianoPitches,
     pianoVoicing,
@@ -285,6 +286,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         const voicingOptions = pianoOptionsOf((key) => field(block, key))
         const fingering = field(block, 'fingering', 'fingers')
         let auto: Map<number, string> | null = null
+        let captionHands: Map<number, 'left'> | undefined
         let hands: Map<number, 'left' | 'right'> | undefined
         let set: NoteSet
         if (pitchesText) {
@@ -360,6 +362,10 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             }
             if (fingering?.trim().toLowerCase() === 'auto') {
                 auto = triadFingering(voiced)
+                // A voicing auto gives to the left hand says so in the caption.
+                if (autoVoicingHand(voiced) === 'left') {
+                    captionHands = new Map(voiced.pitches.map((p): [number, 'left'] => [p, 'left']))
+                }
                 if (!auto) {
                     throw new Error(
                         'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position, and rootless and shell voicings one hand can reach: write the fingers, e.g. fingering: 1 2 3 4 5'
@@ -397,7 +403,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             fingeringInWords({
                 keys: set.pitches!,
                 fingers,
-                ...(hands ? { hands } : {}),
+                ...(hands ? { hands } : captionHands ? { hands: captionHands } : {}),
                 names
             })
         )

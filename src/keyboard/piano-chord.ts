@@ -439,6 +439,15 @@ export function triadFingering(voicing: PianoVoicing): Map<number, string> | nul
  * both hands, the left hand's root gets 5 and the right hand its notes (two notes: 1 and 5, 4, 3
  * or 2 by their span). Null for a hand that would span more than an octave (a shell R-7, C B E).
  */
+/**
+ * The hand `fingering: auto` gives a rootless or shell voicing without `hands` (#53 captions):
+ * the left below middle C, else the right. Null for other voicings, or when `hands` names them.
+ */
+export function autoVoicingHand(voicing: PianoVoicing): 'left' | 'right' | null {
+    if (voicing.hands || (voicing.style !== 'rootless' && voicing.style !== 'shell')) return null
+    return voicing.pitches[0]! < 60 ? 'left' : 'right'
+}
+
 function jazzFingering(voicing: PianoVoicing): Map<number, string> | null {
     const both = voicing.hands === 'left+right'
     const chord = both ? voicing.right : voicing.pitches
