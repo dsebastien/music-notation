@@ -161,3 +161,27 @@ describe('fingeringInWords: piano (#53)', () => {
         ).toEqual(['Play Db, F and Ab.'])
     })
 })
+
+describe('fingeringInWords: spelled octaves (#53)', () => {
+    it('gives a spelled name its own octave (B#3 is MIDI 60, Cb5 is MIDI 71)', () => {
+        expect(fingeringInWords({ keys: [60, 64, 67, 72], names: new Map([[0, 'B#']]) })).toEqual([
+            'Play B#3, E4, G4 and B#4.'
+        ])
+        expect(
+            fingeringInWords({
+                keys: [52, 64, 68, 71],
+                names: new Map([
+                    [4, 'Fb'],
+                    [8, 'Ab'],
+                    [11, 'Cb']
+                ]),
+                hands: new Map([
+                    [52, 'left'],
+                    [64, 'right'],
+                    [68, 'right'],
+                    [71, 'right']
+                ])
+            })
+        ).toEqual(['Left hand: Fb3.', 'Right hand: Fb4, Ab4 and Cb5.'])
+    })
+})

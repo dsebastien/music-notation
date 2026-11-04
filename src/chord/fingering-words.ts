@@ -6,6 +6,7 @@
  */
 import { fingerVoicing } from './generate.js'
 import { STANDARD_TUNING } from './guitar.js'
+import { Note } from 'tonal'
 import { noteOf } from '../theory/pitch.js'
 
 /** A fretted chord: frets and fingers lowest string first, as `chord` blocks write them. */
@@ -185,8 +186,12 @@ function pianoWords(input: PianoFingering): string[] {
     // When a name comes twice (C3 and C4), every key gets its octave, so the keys read alike.
     const plain = (midi: number) => input.names?.get(midi % 12) ?? letter(midi)
     const octaves = new Set(keys.map(plain)).size < keys.length
-    const keyName = (midi: number) =>
-        octaves ? `${plain(midi)}${Math.floor(midi / 12) - 1}` : plain(midi)
+    // The octave of the spelled name: B#3 is MIDI 60 and Cb5 is MIDI 71.
+    const keyName = (midi: number) => {
+        const name = plain(midi)
+        if (!octaves) return name
+        return `${name}${Math.floor((midi - (Note.get(name).alt || 0)) / 12) - 1}`
+    }
     const part = (group: number[]) => {
         const fingered = group.map((k) => {
             const finger = input.fingers?.get(k)
