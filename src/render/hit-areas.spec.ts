@@ -95,3 +95,20 @@ describe('hit areas', () => {
         expect(host.querySelectorAll('.mn-dot').length).toBeGreaterThan(0)
     })
 })
+
+describe('touch screens (#73)', () => {
+    it('draw chord diagrams and fretboards larger, so a string lane is at least 24 px', async () => {
+        const { STYLES } = await import('../styles.js')
+        const media = /@media \(pointer: coarse\)\s*{([\s\S]*?)\n}/.exec(STYLES)
+        expect(media).not.toBeNull()
+        const body = media![1]!
+        const zoomOf = (cls: string) => {
+            const rule = new RegExp(`[^{}]*\\.mn-svg\\.${cls}[^{}]*{([^}]*)}`).exec(body)
+            const zoom = rule && /zoom:\s*([\d.]+)/.exec(rule[1]!)
+            return zoom ? Number(zoom[1]) : 1
+        }
+        // A chord diagram's lane is one string spacing (18 units), a fretboard's 20 (#69).
+        expect(18 * zoomOf('mn-guitar-chord')).toBeGreaterThanOrEqual(24)
+        expect(20 * zoomOf('mn-fretboard')).toBeGreaterThanOrEqual(24)
+    })
+})
