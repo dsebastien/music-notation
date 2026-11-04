@@ -35,10 +35,50 @@ export type ProgressionStrum = 'beats' | 'bar' | 'arpeggio'
 
 export const PROGRESSION_STRUMS: readonly ProgressionStrum[] = ['beats', 'bar', 'arpeggio']
 
-/** One bar: its chord (as shown, null when unnamed) and the notes it sounds, lowest first. */
+/**
+ * One chord of a progression: its name (as shown, null when unnamed), the notes it sounds (lowest
+ * first) and how long it lasts: `beats` of the time signature as written (quarters in 4/4,
+ * eighths in 6/8), a bar when absent (#75). The last chord fills the last bar.
+ */
 export interface ProgressionBar {
     chord: string | null
     pitches: readonly number[]
+    beats?: number
+}
+
+/** Where each chord starts and how long it lasts, in written beats, and the bars they fill. */
+interface Spans {
+    /** Each chord's first written beat and length. */
+    spans: { start: number; length: number }[]
+    /** The chord sounding on each written beat. */
+    chordAt: number[]
+    /** Whole bars. */
+    bars: number
+}
+
+function spansOf(chords: readonly ProgressionBar[], beatsPerBar: number): Spans {
+    const spans: Spans['spans'] = []
+    const chordAt: number[] = []
+    let at = 0
+    chords.forEach((chord, i) => {
+        const given = chord.beats
+        const length =
+            given === undefined || !Number.isFinite(given)
+                ? beatsPerBar
+                : Math.max(1, Math.round(given))
+        spans.push({ start: at, length })
+        for (let k = 0; k < length; k++) chordAt.push(i)
+        at += length
+    })
+    const bars = Math.max(1, Math.ceil(at / beatsPerBar))
+    // The last chord rings to the end of its bar.
+    const last = spans[spans.length - 1]
+    if (last) {
+        const end = bars * beatsPerBar
+        last.length += end - at
+        while (chordAt.length < end) chordAt.push(spans.length - 1)
+    }
+    return { spans, chordAt, bars }
 }
 
 export interface ProgressionEventOptions {
@@ -84,13 +124,16 @@ function patternBars(pattern: StrumPattern): StrumPattern['slots'][] {
  * ringing the bar; a pattern plays its bars in turn.
  */
 function strumScoreOf(
-    bars: readonly ProgressionBar[],
+    chords: readonly ProgressionBar[],
+    timeline: Spans,
     beatsPerBar: number,
     perPulse: number,
     strum: Exclude<ProgressionStrum, 'arpeggio'>,
     pattern: StrumPattern | null
 ): StrumScore {
     const plain = { accent: false, ghost: false }
+    const pitchesAt = (beat: number) => [...chords[timeline.chordAt[beat] ?? 0]!.pitches]
+    const bars = Array.from({ length: timeline.bars }, (_, b) => b)
     if (pattern) {
         const own = patternBars(pattern)
         return {
@@ -98,30 +141,35 @@ function strumScoreOf(
             beatsPerBar: pattern.beatsPerBar,
             slotsPerPulse: pattern.slotsPerPulse,
             swing: pattern.swing,
-            slots: bars.flatMap((bar, b) =>
-                own[b % own.length]!.map((s) => ({
+            // Each slot strums the chord of its beat.
+            slots: bars.flatMap((b) =>
+                own[b % own.length]!.map((s, k) => ({
                     stroke: s.stroke,
                     accent: s.accent,
                     ghost: s.ghost,
-                    pitches: [...bar.pitches]
+                    pitches: pitchesAt(b * beatsPerBar + Math.floor(k / pattern.slotsPerBeat))
                 }))
             )
         }
     }
+    const starts = new Set(timeline.spans.map((s) => s.start))
     return {
         slotsPerBeat: 1,
         beatsPerBar,
         slotsPerPulse: perPulse,
         swing: null,
-        slots: bars.flatMap((bar) =>
-            Array.from({ length: beatsPerBar }, (_, beat) => ({
-                ...plain,
-                stroke:
-                    (strum === 'bar' && beat > 0) || beat % perPulse
-                        ? ('rest' as const)
-                        : ('down' as const),
-                pitches: [...bar.pitches]
-            }))
+        slots: bars.flatMap((b) =>
+            Array.from({ length: beatsPerBar }, (_, beat) => {
+                const at = b * beatsPerBar + beat
+                // Once a bar: the bar's first beat and each chord change.
+                const struck =
+                    strum === 'bar' ? beat === 0 || starts.has(at) : beat % perPulse === 0
+                return {
+                    ...plain,
+                    stroke: struck ? ('down' as const) : ('rest' as const),
+                    pitches: pitchesAt(at)
+                }
+            })
         )
     }
 }
@@ -164,6 +212,7 @@ export function progressionEvents(
     const bpm = tempoOf(options.bpm, compound)
     const tail = Math.max(0, options.tail ?? 1)
     const spread = options.spread
+    const timeline = spansOf(bars, beatsPerBar)
     // The written beat (an 8th in 6/8).
     let beat: number
     let events: NoteEvent[]
@@ -173,30 +222,40 @@ export function progressionEvents(
         // Eighths: two a quarter, one an eighth in x/8.
         const slotsPerBeat = beatUnit >= 8 ? 1 : 8 / beatUnit
         const slot = beat / slotsPerBeat
-        const end = start + bars.length * beatsPerBar * beat
+        const end = start + timeline.bars * beatsPerBar * beat
         events = []
-        bars.forEach((bar, b) => {
-            const order = arpeggioOrder(bar.pitches)
+        const slots = Math.max(1, Math.round(beatsPerBar * slotsPerBeat))
+        for (let b = 0; b < timeline.bars; b++) {
             const barStart = start + b * beatsPerBar * beat
-            const barEnd = b === bars.length - 1 ? end + tail : barStart + beatsPerBar * beat
-            const slots = Math.max(1, Math.round(beatsPerBar * slotsPerBeat))
-            for (let k = 0; k < slots && order.length; k++) {
+            const barEnd = barStart + beatsPerBar * beat
+            for (let k = 0; k < slots; k++) {
+                const at = b * beatsPerBar + Math.floor(k / slotsPerBeat)
+                const index = timeline.chordAt[at] ?? 0
+                const span = timeline.spans[index]!
+                const order = arpeggioOrder(bars[index]!.pitches)
+                if (!order.length) continue
+                // From the chord's first note in this bar: a new chord starts the arpeggio again.
+                const from = Math.max(span.start * slotsPerBeat, b * slots)
+                const n = b * slots + k - from
                 const time = barStart + k * slot
+                const spanEnd = start + (span.start + span.length) * beat
+                const ring = Math.min(barEnd, spanEnd)
                 const counted = k % (slotsPerBeat * perPulse) === 0
-                // Each note rings to the bar's end (let ring), as a picked chord does.
+                // Each note rings to the bar's or the chord's end (let ring), as a picked chord.
                 events.push({
-                    midi: order[k % order.length]!,
+                    midi: order[n % order.length]!,
                     time,
-                    duration: Math.max(0.06, barEnd - time),
+                    duration: Math.max(0.06, (ring >= end ? end + tail : ring) - time),
                     velocity: k === 0 ? 92 : counted ? 80 : 72
                 })
             }
-        })
+        }
         if (options.countIn)
             for (let i = 0; i < beatsPerBar; i++) events.push(clickAt(i * beat, i, perPulse, true))
     } else {
         const score = strumScoreOf(
             bars,
+            timeline,
             beatsPerBar,
             perPulse,
             strum === 'arpeggio' ? 'beats' : strum,
@@ -216,21 +275,37 @@ export function progressionEvents(
     const barLength = beatsPerBar * beat
     // The metronome clicks the counted beats (1 and 4 in 6/8).
     if (options.click ?? true)
-        bars.forEach((_, b) => {
+        for (let b = 0; b < timeline.bars; b++)
             for (let i = 0; i < beatsPerBar; i += perPulse)
                 events.push(clickAt(start + b * barLength + i * beat, i, perPulse, false))
-        })
     events.sort((a, b) => a.time - b.time)
-    const strums: StrumTiming[] = bars.map((_, b) => ({
+    // Each chord as it sounds (to light it), and each bar (to count bars).
+    const strums: StrumTiming[] = timeline.spans.map((span, i) => ({
+        slot: i,
+        time: start + span.start * beat,
+        duration: span.length * beat
+    }))
+    const barTimes: StrumTiming[] = Array.from({ length: timeline.bars }, (_, b) => ({
         slot: b,
         time: start + b * barLength,
         duration: barLength
     }))
-    return { events, length: start + bars.length * barLength, strums, bars: strums }
+    return { events, length: start + timeline.bars * barLength, strums, bars: barTimes }
 }
 
-/** A chord to play: a symbol (or words), or its notes (lowest first) with the name to show. */
-export type ProgressionChordInput = string | { chord?: string | null; pitches: readonly number[] }
+/** The chord sounding at the start of each bar (its index in the progression). */
+export function chordOfBars(bars: readonly ProgressionBar[], beatsPerBar: number): number[] {
+    const perBar = Math.min(16, Math.max(1, Math.round(beatsPerBar) || 4))
+    const timeline = spansOf(bars, perBar)
+    return Array.from({ length: timeline.bars }, (_, b) => timeline.chordAt[b * perBar] ?? 0)
+}
+
+/**
+ * A chord to play: a symbol (or words), or an object with its name to show, its notes (lowest
+ * first; from the name when absent) and how long it lasts (`beats` as written, a bar by default).
+ */
+export type ProgressionChordInput =
+    string | { chord?: string | null; pitches?: readonly number[]; beats?: number }
 
 export interface PlayProgressionOptions {
     /** Counted beats a minute (a quarter in 4/4, a dotted quarter with a 6/8 pattern); 90. */
@@ -260,8 +335,10 @@ export interface PlayProgressionOptions {
     sound?: Sound
     /** 0 to 1, 0.8 by default. */
     volume?: number
-    /** Called as each bar starts sounding: its index, its chord, the pass (from 1). */
+    /** Called as each bar starts sounding: its index, the chord sounding, the pass (from 1). */
     onBar?: (bar: number, chord: string | null, pass: number) => void
+    /** Called as each chord starts sounding: its index in `chords`, its name, the pass (#75). */
+    onChord?: (index: number, chord: string | null, pass: number) => void
     /** Called once the progression is over (not after stop). */
     onEnd?: () => void
 }
@@ -343,7 +420,7 @@ export function runProgression(
     settings: () => ProgressionSettings,
     timers: Pick<Window, 'setTimeout' | 'clearTimeout'>,
     onEnd?: () => void,
-    follow?: (bars: StrumTiming[], player: NotePlayer, pass: number) => StrumFollower
+    follow?: (chords: StrumTiming[], player: NotePlayer, pass: number, made: Pass) => StrumFollower
 ): PlayHandle {
     let pass = 0
     const make = (s: StrumSettings, first: boolean, id: number): Pass =>
@@ -365,7 +442,7 @@ export function runProgression(
         settings,
         timers,
         onEnd,
-        follow ? (strums, current) => follow(strums, current, pass) : undefined
+        follow ? (strums, current, made) => follow(strums, current, pass, made) : undefined
     )
 }
 
@@ -390,12 +467,17 @@ export function playProgression(
     if (!tuning) throw new Error(`Unknown tuning "${String(given)}"`)
     if (!chords.length) throw new Error('playProgression needs at least one chord')
     const bars: ProgressionBar[] = chords.slice(0, MAX_PROGRESSION_BARS).map((c) => {
-        if (typeof c !== 'string') return { chord: c.chord ?? null, pitches: [...c.pitches] }
-        const read = readChord(c)
-        if (!read) throw new Error(`Didn't recognize the chord "${c}"`)
+        const name = typeof c === 'string' ? c : (c.chord ?? null)
+        const beats = typeof c === 'string' ? undefined : c.beats
+        const timed = beats === undefined ? {} : { beats }
+        if (typeof c !== 'string' && c.pitches)
+            return { chord: name, pitches: [...c.pitches], ...timed }
+        const read = name ? readChord(name) : null
+        if (!read) throw new Error(`Didn't recognize the chord "${name ?? ''}"`)
         return {
-            chord: c,
-            pitches: progressionPitches(read.symbol, sound, tuning, options.voicings)
+            chord: name,
+            pitches: progressionPitches(read.symbol, sound, tuning, options.voicings),
+            ...timed
         }
     })
     const pattern =
@@ -417,7 +499,9 @@ export function playProgression(
         volume: Number.isFinite(options.volume) ? Math.min(1, Math.max(0, options.volume!)) : 0.8
     }
     const timers = win ?? globalThis
-    const onBar = options.onBar
+    const { onBar, onChord } = options
+    const perBar = pattern ? pattern.beatsPerBar : (options.beatsPerBar ?? 4)
+    const barChords = chordOfBars(bars, perBar)
     const handle = runProgression(
         bars,
         {
@@ -430,14 +514,41 @@ export function playProgression(
         () => settings,
         timers,
         options.onEnd,
-        onBar
-            ? (timings, current, pass) =>
-                  followTimes(
-                      timers,
-                      timings,
-                      (t) => onBar(t.slot, bars[t.slot]?.chord ?? null, pass),
-                      startsReported(current) ? Infinity : START_WAIT
-                  )
+        onBar || onChord
+            ? (timings, current, pass, made) => {
+                  const wait = startsReported(current) ? Infinity : START_WAIT
+                  const followers = [
+                      ...(onChord
+                          ? [
+                                followTimes(
+                                    timers,
+                                    timings,
+                                    (t) => onChord(t.slot, bars[t.slot]?.chord ?? null, pass),
+                                    wait
+                                )
+                            ]
+                          : []),
+                      ...(onBar
+                          ? [
+                                followTimes(
+                                    timers,
+                                    made.bars ?? timings,
+                                    (t) =>
+                                        onBar(
+                                            t.slot,
+                                            bars[barChords[t.slot] ?? 0]?.chord ?? null,
+                                            pass
+                                        ),
+                                    wait
+                                )
+                            ]
+                          : [])
+                  ]
+                  return {
+                      heard: () => followers.forEach((f) => f.heard()),
+                      stop: () => followers.forEach((f) => f.stop())
+                  }
+              }
             : undefined
     )
     return {
