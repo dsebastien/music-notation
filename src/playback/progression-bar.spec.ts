@@ -134,6 +134,48 @@ describe('ChordPro chart play bar (#46)', () => {
         expect(notes(calls[0]!.events)[0]!.midi).toBe(strumVoicing('G')[0]! + 2)
     })
 
+    it('reads bar lines: chords between two share the bar, an empty bar holds the chord (#75)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chords', '{tempo: 60}\n[G] | [C] [D] | | [Em] |\n| | [A]', h, {
+            play: { player }
+        })
+        const marks = [...h.querySelectorAll('.mn-chart .mn-chord[data-mn-bar]')]
+        expect(marks.map((m) => [m.textContent, m.getAttribute('data-mn-beats')])).toEqual([
+            ['G', '4'],
+            ['C', '2'],
+            ['D', '6'],
+            ['Em', '8'],
+            ['A', '4']
+        ])
+        click(h, 'mn-play-toggle')
+        const events = notes(calls[0]!.events)
+        const first = (t: number) => events.find((e) => e.time >= t && e.time < t + 0.5)!.midi
+        // 4/4 at 60: C at 4 s, D at 6 s (held through the empty bar), Em at 12 s for two bars.
+        expect(first(4)).toBe(strumVoicing('C')[0]!)
+        expect(first(6)).toBe(strumVoicing('D')[0]!)
+        expect(first(12)).toBe(strumVoicing('Em')[0]!)
+        expect(first(20)).toBe(strumVoicing('A')[0]!)
+    })
+
+    it('reads beat slashes in a bar: each slash a beat more for the chord before it (#75)', () => {
+        const h = host()
+        renderBlock('chords', '{time: 3/4}\n| [G] / [C] | [D] / / |', h, { play: true })
+        const marks = [...h.querySelectorAll('.mn-chart .mn-chord[data-mn-bar]')]
+        expect(marks.map((m) => m.getAttribute('data-mn-beats'))).toEqual(['2', '1', '3'])
+    })
+
+    it('keeps one chord a bar on lines without bar lines, and draws them as before', () => {
+        const h = host()
+        renderBlock('chords', '[G]Hello [C]world', h, { play: true })
+        const marks = [...h.querySelectorAll('.mn-chart .mn-chord[data-mn-bar]')]
+        expect(marks.map((m) => m.hasAttribute('data-mn-beats'))).toEqual([false, false])
+        // The bar lines stay in the lyrics as written.
+        const ruled = host()
+        renderBlock('chords', '[G] | [C] |', ruled)
+        expect(ruled.querySelector('.mn-line')!.textContent).toBe('G | C |')
+    })
+
     it('has no bar without playback', () => {
         const h = host()
         renderBlock('chords', '[G]Hello', h)
