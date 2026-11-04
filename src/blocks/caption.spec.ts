@@ -40,7 +40,7 @@ describe('caption: fingering (#53)', () => {
         )
         expect(
             render('symbol: Dsus2\nfrets: x00230\ntuning: DADGAD\ncaption: fingering').captions[0]
-        ).toEndWith('The low A string, the 4th string (D) and the 1st string (D) ring open.')
+        ).toEndWith('The 5th string (A), the 4th string (D) and the 1st string (D) ring open.')
     })
 
     it('works out the fingers of a looked-up voicing', () => {
@@ -68,7 +68,7 @@ describe('caption: fingering (#53)', () => {
                 'symbol: C\ninstrument: piano\ninversion: first\nhands: left+right\nfingering: auto\ncaption: fingering'
             ).captions
         ).toEqual([
-            'Left hand: little finger on E3. Right hand: thumb on C, middle finger on E4, little finger on G.'
+            'Left hand: little finger on E3. Right hand: thumb on C4, middle finger on E4, little finger on G4.'
         ])
         expect(render('symbol: C\ninstrument: piano\ncaption: fingering').captions).toEqual([
             'Play C, E and G.'

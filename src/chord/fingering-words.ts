@@ -60,19 +60,23 @@ const andList = (items: string[]) =>
 const letter = (midi: number) => noteOf(midi).replace(/-?\d+$/, '')
 
 /**
- * What players call each string: "the A string"; with two of a name, the lower one "low" and the
- * highest string "high" (low E and high E; in drop D the low D and the D string); with three or
- * more, its number ("the 4th string (D)"). Without a tuning, numbers only.
+ * What players call each string. When every name is different, or only the two outer strings share
+ * one (low E and high E), by name: "the A string", "the low E string". Otherwise (drop D, DADGAD,
+ * open tunings) two strings could read alike, so every string is named by its number and note:
+ * "the 4th string (D)". Without a tuning, numbers only.
  */
 function stringNames(tuning: readonly number[] | null, count: number): string[] {
+    const letters = tuning?.map(letter) ?? []
+    const repeated = letters.filter((name, i) => letters.indexOf(name) !== i)
+    const byName =
+        tuning !== null &&
+        (repeated.length === 0 ||
+            (repeated.length === 1 && letters[0] === letters[count - 1] && count > 2))
     return Array.from({ length: count }, (_, s) => {
-        const number = ordinal(count - s)
-        if (!tuning) return `the ${number} string`
-        const name = letter(tuning[s]!)
-        const same = tuning.flatMap((p, i) => (letter(p) === name ? [i] : []))
-        if (same.length > 2) return `the ${number} string (${name})`
-        if (same.length === 2 && s === same[0]) return `the low ${name} string`
-        if (same.length === 2 && s === count - 1) return `the high ${name} string`
+        if (!byName) return numbered(tuning, count, s)
+        const name = letters[s]!
+        if (repeated.length && s === 0) return `the low ${name} string`
+        if (repeated.length && s === count - 1) return `the high ${name} string`
         return `the ${name} string`
     })
 }
@@ -178,14 +182,11 @@ function guitarWords(input: GuitarFingering): string[] {
 function pianoWords(input: PianoFingering): string[] {
     const keys = [...input.keys].sort((a, b) => a - b)
     if (!keys.length) return []
-    // A name that comes twice (C3 and C4) needs its octave.
+    // When a name comes twice (C3 and C4), every key gets its octave, so the keys read alike.
     const plain = (midi: number) => input.names?.get(midi % 12) ?? letter(midi)
-    const counts = new Map<string, number>()
-    for (const k of keys) counts.set(plain(k), (counts.get(plain(k)) ?? 0) + 1)
+    const octaves = new Set(keys.map(plain)).size < keys.length
     const keyName = (midi: number) =>
-        (counts.get(plain(midi)) ?? 0) > 1
-            ? `${plain(midi)}${Math.floor(midi / 12) - 1}`
-            : plain(midi)
+        octaves ? `${plain(midi)}${Math.floor(midi / 12) - 1}` : plain(midi)
     const part = (group: number[]) => {
         const fingered = group.map((k) => {
             const finger = input.fingers?.get(k)

@@ -65,16 +65,20 @@ describe('fingeringInWords: guitar (#53)', () => {
     })
 
     it('names the strings of other tunings by their notes', () => {
-        // DADGAD: three D strings go by number; of the two A strings the lower is the low A.
+        // DADGAD: two strings share a name, so every string goes by its number and note.
         expect(guitar('x00230', 'x00120', { tuning: parseTuning('DADGAD')! })).toEqual([
             'Strum from the 5th string (A).',
-            'Index on the G string, 2nd fret.',
-            'Middle on the A string, 3rd fret.',
-            'The low A string, the 4th string (D) and the 1st string (D) ring open.'
+            'Index on the 3rd string (G), 2nd fret.',
+            'Middle on the 2nd string (A), 3rd fret.',
+            'The 5th string (A), the 4th string (D) and the 1st string (D) ring open.'
         ])
-        // Drop D: the low D, and the D string.
+        // Drop D: the 6th and 4th strings are both D, so numbers too.
         expect(guitar('000232', undefined, { tuning: parseTuning('Drop D')! })).toContain(
-            'The low D, A and D strings ring open.'
+            'The 6th string (D), the 5th string (A) and the 4th string (D) ring open.'
+        )
+        // Standard tuning keeps the names: only the outer strings share one (low E, high E).
+        expect(guitar('022000', '023000')).toContain(
+            'The low E, G, B and high E strings ring open.'
         )
     })
 
@@ -121,7 +125,7 @@ describe('fingeringInWords: piano (#53)', () => {
         ).toEqual(['Thumb on C, middle finger on E, little finger on G.'])
     })
 
-    it('says each hand, left first, with octaves when a name comes twice', () => {
+    it('says each hand, left first, with every octave when a name comes twice', () => {
         expect(
             fingeringInWords({
                 keys: [52, 60, 64, 67],
@@ -140,7 +144,7 @@ describe('fingeringInWords: piano (#53)', () => {
             })
         ).toEqual([
             'Left hand: little finger on E3.',
-            'Right hand: thumb on C, middle finger on E4, little finger on G.'
+            'Right hand: thumb on C4, middle finger on E4, little finger on G4.'
         ])
     })
 

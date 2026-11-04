@@ -100,9 +100,9 @@ A guitar chord says, in this order:
 5. Strings muted inside the strummed ones: "Mute the D string: let a fretting finger touch it lightly."
 6. The open strings: "The A and high E strings ring open." With a capo, they ring at the capo.
 
-Strings go by the names players use: the low E and the high E in standard tuning, the low D and the D string in drop D. In a tuning with three strings of one name, such as DADGAD, those strings go by number: "the 4th string (D)". Without a known tuning, every string goes by number. Frets written without fingers get the fingers the library works out, as for the barre it draws. A left-handed diagram has the same words.
+In standard tuning, strings go by the names players use: the A string, the low E and the high E. In a tuning where two strings share a name, such as drop D, DADGAD or an open tuning, every string goes by its number and note, so no two read alike: "the 4th string (D)". Without a known tuning, every string goes by number. Frets written without fingers get the fingers the library works out, as for the barre it draws. A left-handed diagram has the same words.
 
-A piano chord says each finger on its key, the left hand first when the chord has two hands. A note name that comes twice gets its octave (E3, E4). Without a fingering, the caption lists the keys.
+A piano chord says each finger on its key, the left hand first when the chord has two hands. When a note name comes twice, every key gets its octave (E3, C4, E4, G4). Without a fingering, the caption lists the keys.
 
 ````markdown
 ```chord
