@@ -10,6 +10,7 @@ import {
 } from './progression.js'
 
 const G = [43, 47, 50, 55, 59, 67]
+const C = strumVoicing('C')
 const bars: ProgressionBar[] = [
     { chord: 'G', pitches: G },
     { chord: 'C', pitches: strumVoicing('C') }
@@ -130,7 +131,145 @@ describe('progressionEvents', () => {
     })
 })
 
+describe('progressionEvents, chords that last more or less than a bar (#75)', () => {
+    const D = strumVoicing('D')
+    const timed: ProgressionBar[] = [
+        { chord: 'G', pitches: G, beats: 8 },
+        { chord: 'C', pitches: C, beats: 2 },
+        { chord: 'D', pitches: D, beats: 2 }
+    ]
+
+    it('holds a chord for its beats, and puts two chords in one bar', () => {
+        const {
+            events,
+            length,
+            strums,
+            bars: barTimes
+        } = progressionEvents(timed, {
+            bpm: 60,
+            tail: 0
+        })
+        // G two bars, C and D half a bar each: three bars of 4/4 at 60.
+        expect(length).toBe(12)
+        expect(strums).toEqual([
+            { slot: 0, time: 0, duration: 8 },
+            { slot: 1, time: 8, duration: 2 },
+            { slot: 2, time: 10, duration: 2 }
+        ])
+        expect(barTimes!.map((b) => [b.slot, b.time])).toEqual([
+            [0, 0],
+            [1, 4],
+            [2, 8]
+        ])
+        const at = (t: number) =>
+            notes(events)
+                .filter((e) => e.time >= t && e.time < t + 0.5)
+                .map((e) => e.midi)
+        expect(at(4)).toEqual(G)
+        expect(at(8)).toEqual(C)
+        expect(at(10)).toEqual(D)
+        expect(clicks(events)).toHaveLength(12)
+    })
+
+    it('strums once a bar and at each chord change', () => {
+        const once = notes(
+            progressionEvents(
+                [
+                    { chord: 'G', pitches: G, beats: 2 },
+                    { chord: 'C', pitches: C, beats: 2 }
+                ],
+                { bpm: 60, strum: 'bar', tail: 0 }
+            ).events
+        )
+        expect([...new Set(once.map((e) => e.time.toFixed(0)))]).toEqual(['0', '2'])
+        expect(once[0]!.duration).toBeCloseTo(2)
+    })
+
+    it('starts the arpeggio again on a new chord', () => {
+        const picked = notes(
+            progressionEvents(
+                [
+                    { chord: 'G', pitches: G, beats: 2 },
+                    { chord: 'C', pitches: C, beats: 2 }
+                ],
+                { bpm: 60, strum: 'arpeggio', tail: 0 }
+            ).events
+        )
+        expect(picked.find((e) => e.time === 2)!.midi).toBe(C[0]!)
+        expect(picked.find((e) => e.time === 0.5)!.duration).toBeCloseTo(1.5)
+    })
+
+    it('plays the chord of each slot of a pattern', () => {
+        const pattern = parseStrum('D - D U - U D U')
+        const { events } = progressionEvents(
+            [
+                { chord: 'G', pitches: G, beats: 2 },
+                { chord: 'C', pitches: C, beats: 2 }
+            ],
+            { bpm: 60, pattern, click: false, tail: 0 }
+        )
+        const third = notes(events).filter((e) => e.time >= 2.5 && e.time < 2.6)
+        expect(third.map((e) => e.midi).sort()).toEqual([...C].slice(-4).sort())
+    })
+
+    it('fills the last bar with the last chord', () => {
+        const { length, strums } = progressionEvents([{ chord: 'G', pitches: G, beats: 3 }], {
+            bpm: 60,
+            tail: 0
+        })
+        expect(length).toBe(4)
+        expect(strums[0]!.duration).toBe(4)
+    })
+
+    it('counts beats as written in 6/8 (eighths)', () => {
+        const { length, strums } = progressionEvents(
+            [
+                { chord: 'G', pitches: G, beats: 3 },
+                { chord: 'C', pitches: C, beats: 3 }
+            ],
+            { bpm: 60, beatsPerBar: 6, beatUnit: 8, tail: 0 }
+        )
+        // One bar of 6/8 at 60 dotted quarters: 2 s, C from 1 s.
+        expect(length).toBe(2)
+        expect(strums.map((s) => s.time)).toEqual([0, 1])
+    })
+})
+
 describe('playProgression', () => {
+    it('takes how long each chord lasts, and calls back on each bar and each chord (#75)', () => {
+        const { player, pending, timers, calls } = setup()
+        const barsHeard: [number, string | null][] = []
+        const chordsHeard: [number, string | null][] = []
+        playProgression(
+            [
+                { chord: 'G', beats: 8 },
+                { chord: 'C', beats: 2 },
+                { chord: 'D', beats: 2 }
+            ],
+            {
+                player,
+                window: timers,
+                bpm: 60,
+                click: false,
+                onBar: (bar, chord) => barsHeard.push([bar, chord]),
+                onChord: (index, chord) => chordsHeard.push([index, chord])
+            }
+        )
+        expect(notes(calls[0]!.events).find((e) => e.time >= 8)!.midi).toBe(C[0]!)
+        calls[0]!.onStart?.()
+        for (const p of [...pending].sort((a, b) => a.ms - b.ms)) p.fn()
+        expect(barsHeard).toEqual([
+            [0, 'G'],
+            [1, 'G'],
+            [2, 'C']
+        ])
+        expect(chordsHeard).toEqual([
+            [0, 'G'],
+            [1, 'C'],
+            [2, 'D']
+        ])
+    })
+
     it('plays chord symbols or given notes, and calls back on each bar as it sounds', () => {
         const { calls, player, pending, timers } = setup()
         const heard: [number, string | null, number][] = []

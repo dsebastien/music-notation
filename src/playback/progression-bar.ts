@@ -47,7 +47,13 @@ export function barsFromDrawing(drawing: Element): { bars: ProgressionBar[]; mar
         const els = byBar.get(index)!
         const pitches = pitchesOf(els[0]!.getAttribute('data-mn-voicing'))
         if (!pitches.length) continue
-        bars.push({ chord: els[0]!.getAttribute('data-mn-chord'), pitches })
+        // How long it lasts (#75): beats as written, a bar when not said.
+        const beats = Number(els[0]!.getAttribute('data-mn-beats'))
+        bars.push({
+            chord: els[0]!.getAttribute('data-mn-chord'),
+            pitches,
+            ...(els[0]!.hasAttribute('data-mn-beats') && beats > 0 ? { beats } : {})
+        })
         marks.push(els)
     }
     return { bars, marks }
