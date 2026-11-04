@@ -134,6 +134,21 @@ describe('ChordPro chart play bar (#46)', () => {
         expect(notes(calls[0]!.events)[0]!.midi).toBe(strumVoicing('G')[0]! + 2)
     })
 
+    it('plays a bar of N.C. as a bar of silence, the N.C. lit (#75)', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        renderBlock('chords', '{tempo: 60}\n| [G] | [N.C.] | [Em] |', h, { play: { player } })
+        const marks = [...h.querySelectorAll('.mn-chart .mn-chord[data-mn-bar]')]
+        expect(marks.map((m) => m.textContent)).toEqual(['G', 'N.C.', 'Em'])
+        expect(marks[1]!.hasAttribute('data-mn-rest')).toBe(true)
+        expect(marks[1]!.getAttribute('data-mn-beats')).toBe('4')
+        click(h, 'mn-play-toggle')
+        const events = notes(calls[0]!.events)
+        // 4/4 at 60: G from 0 s, silence from 4 s, Em at 8 s.
+        expect(events.some((e) => e.time >= 4.5 && e.time < 8)).toBe(false)
+        expect(events.find((e) => e.time >= 8 && e.time < 8.5)!.midi).toBe(strumVoicing('Em')[0]!)
+    })
+
     it('reads bar lines: chords between two share the bar, an empty bar holds the chord (#75)', () => {
         const { player, calls } = recorder()
         const h = host()

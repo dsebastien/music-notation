@@ -46,11 +46,13 @@ export function barsFromDrawing(drawing: Element): { bars: ProgressionBar[]; mar
     for (const index of order) {
         const els = byBar.get(index)!
         const pitches = pitchesOf(els[0]!.getAttribute('data-mn-voicing'))
-        if (!pitches.length) continue
+        // A bar of silence (#75: a chart's bar of N.C.) plays nothing for its beats.
+        const rest = els[0]!.hasAttribute('data-mn-rest')
+        if (!pitches.length && !rest) continue
         // How long it lasts (#75): beats as written, a bar when not said.
         const beats = Number(els[0]!.getAttribute('data-mn-beats'))
         bars.push({
-            chord: els[0]!.getAttribute('data-mn-chord'),
+            chord: rest ? null : els[0]!.getAttribute('data-mn-chord'),
             pitches,
             ...(els[0]!.hasAttribute('data-mn-beats') && beats > 0 ? { beats } : {})
         })

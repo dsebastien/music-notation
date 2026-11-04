@@ -41,27 +41,33 @@ export interface ChartOptions {
 
 const PLACEMENTS = new Set(['top', 'bottom', 'off'])
 
+/** A step of a measured line (#75): a chord and its beats, a held bar, or a bar of silence. */
+export type LineStep =
+    { segment: number; beats: number } | { hold: number } | { rest: number; segment: number }
+
 /**
  * How long each chord of a lyrics line lasts (#75), in beats as written, or nothing: a line
  * without a bar line `|` plays each chord a bar. On a line with bar lines, the chords between two
  * share the bar: by its beat marks when they add up to the bar's counted beats (a `.` after a chord
  * is one of its beats, `[C]. . . [G].`; a `/` one beat more, `[C] / / [G]`), else evenly (in
  * counted beats when they go round, else in written beats), and
- * a bar with no chord holds the chord before it. A chord that doesn't play (N.C.) takes no time.
- * Linear in the line's length. `steps` lists, in order, each chord's beats and each held bar.
+ * a bar with no chord holds the chord before it. A bar whose only chord doesn't play (N.C.) is a
+ * bar of silence (a `rest` step, its N.C. segment); in a bar with chords that play, N.C. takes no
+ * time. Linear in the line's length. `steps` lists, in order, each chord's beats, each held bar
+ * and each silent bar.
  */
 export function lineBeats(
     segments: readonly Segment[],
     playable: (chord: string) => boolean,
     beatsPerBar: number,
     perPulse: number
-): { measured: boolean; steps: ({ segment: number; beats: number } | { hold: number })[] } {
+): { measured: boolean; steps: LineStep[] } {
     if (!segments.some((s) => s.text.includes('|'))) return { measured: false, steps: [] }
-    const steps: ({ segment: number; beats: number } | { hold: number })[] = []
+    const steps: LineStep[] = []
     const counted = Math.max(1, Math.round(beatsPerBar / perPulse))
     let bar: { segment: number; slashes: number; dots: number }[] = []
-    // A bar with a chord that doesn't play (N.C.): silent, it holds nothing.
-    let silent = false
+    // A bar with a chord that doesn't play (N.C.): its segment; with no other chord, a silent bar.
+    let silent: number | null = null
     let opened = false
     const close = (ended: boolean) => {
         if (bar.length) {
@@ -80,15 +86,16 @@ export function lineBeats(
                 lengths = bar.map((_, i) => Math.max(1, (base + (i < extra ? 1 : 0)) * unit))
             }
             bar.forEach((c, i) => steps.push({ segment: c.segment, beats: lengths[i]! }))
-        } else if (ended && opened && !silent) steps.push({ hold: beatsPerBar })
+        } else if (silent !== null) steps.push({ rest: beatsPerBar, segment: silent })
+        else if (ended && opened) steps.push({ hold: beatsPerBar })
         bar = []
-        silent = false
+        silent = null
         opened = ended || opened
     }
     segments.forEach((segment, i) => {
         if (segment.chord !== null) {
             if (playable(segment.chord)) bar.push({ segment: i, slashes: 0, dots: 0 })
-            else silent = true
+            else silent ??= i
         }
         for (const ch of segment.text) {
             if (ch === '|') close(true)
@@ -96,7 +103,7 @@ export function lineBeats(
             else if (ch === '.' && bar.length) bar[bar.length - 1]!.dots++
         }
     })
-    if (bar.length) close(false)
+    if (bar.length || silent !== null) close(false)
     return { measured: true, steps }
 }
 
@@ -155,8 +162,11 @@ function meterOf(song: Song): { beatsPerBar: number; beatUnit: number; perPulse:
 
 /** What a chart plays in time (#75): its chords as shown, a chord's beats when not a bar. */
 export interface ChartChords {
-    /** Each chord above the lyrics, in order, with its beats as written when they aren't a bar. */
-    chords: { chord: string; beats?: number }[]
+    /**
+     * Each chord above the lyrics, in order, with its beats as written when they aren't a bar; a
+     * bar of N.C. on a line with bar lines is a bar of silence: `{ chord: null, pitches: [], beats }`.
+     */
+    chords: { chord: string | null; beats?: number; pitches?: number[] }[]
     beatsPerBar: number
     beatUnit: number
     /** The song's `{tempo}` (20 to 240), else null. */
@@ -196,6 +206,7 @@ export function chartChords(song: Song, options: { transpose?: number } = {}): C
             }
             for (const step of steps) {
                 if ('hold' in step) hold(step.hold)
+                else if ('rest' in step) chords.push({ chord: null, pitches: [], beats: step.rest })
                 else
                     chords.push({
                         chord: chord(line.segments[step.segment]!.chord!),
@@ -353,6 +364,10 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                     meter.perPulse
                 )
                 const marks = new Map<number, Element>()
+                // A bar of N.C. on a measured line is a bar of silence: its mark is a bar too.
+                const rests = new Map<number, number>()
+                for (const step of timing.steps)
+                    if ('rest' in step) rests.set(step.segment, step.rest)
                 line.segments.forEach((segment, index) => {
                     const seg = html(doc, 'span', 'mn-seg')
                     const mark = html(
@@ -370,6 +385,10 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                             mark.setAttribute('data-mn-voicing', voicing)
                             marks.set(index, mark)
                             if (!timing.measured) last = { mark, beats: null }
+                        } else if (rests.has(index)) {
+                            mark.setAttribute('data-mn-bar', String(bars++))
+                            mark.setAttribute('data-mn-rest', '')
+                            marks.set(index, mark)
                         }
                     }
                     seg.appendChild(mark)
@@ -382,6 +401,9 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                     const held = last as { mark: Element; beats: number | null } | null
                     if ('hold' in step) {
                         if (held) setBeats(held.mark, (held.beats ?? meter.beatsPerBar) + step.hold)
+                    } else if ('rest' in step) {
+                        const mark = marks.get(step.segment)
+                        if (mark) setBeats(mark, step.rest)
                     } else {
                         const mark = marks.get(step.segment)
                         if (mark) setBeats(mark, step.beats)

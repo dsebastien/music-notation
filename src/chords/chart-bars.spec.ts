@@ -15,13 +15,32 @@ describe('chartChords (#75)', () => {
                 { chord: 'G' },
                 { chord: 'C' },
                 { chord: 'D', beats: 3 },
-                // Held through the empty bar; N.C. plays nothing.
-                { chord: 'Em', beats: 9 }
+                // Held through the empty bar; a bar of N.C. is a bar of silence.
+                { chord: 'Em', beats: 9 },
+                { chord: null, pitches: [], beats: 6 }
             ],
             beatsPerBar: 6,
             beatUnit: 8,
             tempo: 90
         })
+    })
+
+    it('keeps a bar of N.C. as a bar of silence, in time', () => {
+        const song = parseChordPro('| [G] | [N.C.] | [Em] |')
+        expect(chartChords(song).chords).toEqual([
+            { chord: 'G', beats: 4 },
+            { chord: null, pitches: [], beats: 4 },
+            { chord: 'Em', beats: 4 }
+        ])
+        // A bar that also holds a chord that plays: N.C. takes no time in it.
+        expect(chartChords(parseChordPro('| [G] [N.C.] |')).chords).toEqual([
+            { chord: 'G', beats: 4 }
+        ])
+        // Lines without bar lines keep 0.11's reading: N.C. is left out.
+        expect(chartChords(parseChordPro('[G]a [N.C.]b [Em]c')).chords).toEqual([
+            { chord: 'G' },
+            { chord: 'Em' }
+        ])
     })
 
     it('transposes as the chart does, and plays with playProgression', () => {
