@@ -55,6 +55,7 @@ title: A (open)</code></pre></div>
 | `capo`              | Guitar: a capo on that fret; frets count from it. See [capo](#capo).                                                                                                                                                                                                                                                                                               |
 | `frets-from`        | `nut`: the frets you write count from the nut. See [capo](#capo).                                                                                                                                                                                                                                                                                                  |
 | `sounds`            | `yes`, or the chord: the chord the shape sounds with the capo, in the caption.                                                                                                                                                                                                                                                                                     |
+| `caption`           | `fingering` writes the fingering in words under the diagram, for guitar and piano. See [fingering in words](#fingering-in-words).                                                                                                                                                                                                                                  |
 
 Roots and basses can have double sharps and flats: `F##dim` (or `Fxdim`), `Ebb`.
 
@@ -75,6 +76,55 @@ fingering: 5 1 3 5
 instrument: piano
 hands: left+right
 fingering: 5 1 3 5</code></pre></div>
+
+### Fingering in words
+
+`caption: fingering` writes the fingering in plain words under the diagram, for players who don't read diagrams yet. The text is a paragraph of the page, not part of the drawing, so it wraps on narrow screens and screen readers and search can read it.
+
+````markdown
+```chord
+A x02220 x01230
+caption: fingering
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A x02220 x01230
+caption: fingering</code></pre></div>
+
+A guitar chord says, in this order:
+
+1. The capo, when there is one. Frets count from the capo, as the diagram draws them (from the nut with `frets-from: nut`).
+2. The strings to strum: "Strum all six strings.", "Strum from the 5th string (A).", or "Strum from the 5th string (A) to the 2nd string (B)." when the top strings don't sound.
+3. Each barre once: "Index bars the 1st fret, strings 1 to 6."
+4. Each finger, from the low string up: "Ring on the A string, 3rd fret." The thumb is "Thumb".
+5. Strings muted inside the strummed ones: "Mute the D string: let a fretting finger touch it lightly."
+6. The open strings: "The A and high E strings ring open." With a capo, they ring at the capo.
+
+Strings go by the names players use: the low E and the high E in standard tuning, the low D and the D string in drop D. In a tuning with three strings of one name, such as DADGAD, those strings go by number: "the 4th string (D)". Without a known tuning, every string goes by number. Frets written without fingers get the fingers the library works out, as for the barre it draws. A left-handed diagram has the same words.
+
+A piano chord says each finger on its key, the left hand first when the chord has two hands. A note name that comes twice gets its octave (E3, E4). Without a fingering, the caption lists the keys.
+
+````markdown
+```chord
+symbol: C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto
+caption: fingering
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">symbol: C
+instrument: piano
+inversion: first
+hands: left+right
+fingering: auto
+caption: fingering</code></pre></div>
+
+"Left hand: little finger on E3. Right hand: thumb on C, middle finger on E4, little finger on G."
+
+`caption` can be a shared key in a [row of diagrams](#several-diagrams), and works in [voicing lists](#all-the-ways-to-play-a-chord), [triads](#triads-on-string-sets) and [chord transitions](#chord-transitions). `caption: none` writes nothing. Apps get the same sentences from `fingeringInWords` (see the [API](api.md)).
 
 ## Piano voicings
 

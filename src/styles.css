@@ -516,6 +516,24 @@
     stroke: var(--mn-fg);
 }
 
+/* Fingering in words (#53): a short paragraph under the diagram, at most a little wider than a
+   chord diagram, so a row of captioned chords stays a row. */
+.mn-block .mn-captioned {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35em;
+    margin: 0;
+}
+
+.mn-block .mn-fingering {
+    max-width: 16em;
+    margin: 0;
+    font-size: 0.85em;
+    line-height: 1.4;
+    color: var(--mn-muted);
+}
+
 /* Several diagrams in one block: a row that wraps, or a grid of at most `columns` columns that
    also wraps on narrow screens rather than shrinking diagrams to nothing. */
 .mn-block .mn-row {

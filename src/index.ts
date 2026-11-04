@@ -86,6 +86,11 @@ export {
     type ProgressionOptions
 } from './chord/transitions.js'
 export {
+    fingeringInWords,
+    type GuitarFingering,
+    type PianoFingering
+} from './chord/fingering-words.js'
+export {
     triadVoicings,
     keyTriads,
     parseKey,
