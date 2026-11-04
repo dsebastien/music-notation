@@ -95,10 +95,9 @@ A guitar chord says, in this order:
 
 1. The capo, when there is one. Frets count from the capo, as the diagram draws them (from the nut with `frets-from: nut`).
 2. The strings to strum: "Strum all six strings.", "Strum from the 5th string (A).", or "Strum from the 5th string (A) to the 2nd string (B)." when the top strings don't sound.
-3. Each barre once: "Index bars the 1st fret, strings 1 to 6."
-4. Each finger, from the low string up: "Ring on the A string, 3rd fret." The thumb is "Thumb".
-5. Strings muted inside the strummed ones: "Mute the D string: let a fretting finger touch it lightly."
-6. The open strings: "The A and high E strings ring open." With a capo, they ring at the capo.
+3. Each finger, from the low string up: "Ring on the A string, 3rd fret." The thumb is "Thumb". A barre is said once, where it starts on the low side: "Index bars the 1st fret, strings 1 to 6." When an open string lies between the strings one finger holds, it isn't a barre, and the strings are listed: "Index on the A and G strings, 2nd fret."
+4. Strings muted inside the strummed ones: "Mute the D string: let a fretting finger touch it lightly."
+5. The open strings: "The A and high E strings ring open." With a capo, they ring at the capo.
 
 In standard tuning, strings go by the names players use: the A string, the low E and the high E. In a tuning where two strings share a name, such as drop D, DADGAD or an open tuning, every string goes by its number and note, so no two read alike: "the 4th string (D)". Without a known tuning, every string goes by number. Names are spelled as the tuning is written: in `half step down`, the A string is the Ab string. Frets written without fingers get the fingers the library works out, as for the barre it draws. A left-handed diagram has the same words.
 
@@ -122,7 +121,7 @@ hands: left+right
 fingering: auto
 caption: fingering</code></pre></div>
 
-"Left hand: little finger on E3. Right hand: thumb on C, middle finger on E4, little finger on G."
+"Left hand: little finger on E3. Right hand: thumb on C4, middle finger on E4, little finger on G4."
 
 `caption` can be a shared key in a [row of diagrams](#several-diagrams), and works in [voicing lists](#all-the-ways-to-play-a-chord), [triads](#triads-on-string-sets) and [chord transitions](#chord-transitions). `caption: none` writes nothing. Apps get the same sentences from `fingeringInWords` (see the [API](api.md)).
 
