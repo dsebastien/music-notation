@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.11.0 (2026-11-03)
+## 0.11.0 (2026-11-04)
 
 - **Play a progression in time**: with playback on, a `progression` block has a bar above its chords. It plays the progression one chord a bar, with a metronome click, a count-in and a loop, so you can practice the changes at tempo or solo over them. Each chord is strummed on the beats by default. The bar can also strum it once a bar, play it as an arpeggio, or play it to the block's strumming pattern. The chord that plays lights up. New keys: `time:`, `tempo:` (or `bpm:`) and `strum:` (#46).
 - **Play a ChordPro chart in time**: a `chords` chart has the same bar. Each chord above the lyrics plays for one bar, at the song's `{tempo}` and `{time}`, with its `{define}` shape and the capo. A chord the chart can't read (N.C.) is skipped (#46).
