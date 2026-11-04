@@ -20,7 +20,7 @@ import { attachPlayback } from '../playback/controls.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
-import { resolveScalesFor } from '../blocks/scales-for.js'
+import { resolveScalesFor, scalesForBlock } from '../blocks/scales-for.js'
 import { chordField, noteSetOf } from '../blocks/note-set-field.js'
 import {
     AUTO_FINGERING_NEEDS_SCALE,
@@ -374,6 +374,8 @@ function handParts(language: DiagramLanguage, source: string): string[] | null {
     }
     const fingering = block.fields.get('fingering')
     if (fingering === undefined || !isBothHandsFingering(fingering)) return null
+    // scales-for first: both hands play the scale it finds.
+    block = scalesForBlock(block)
     const set = noteSetOf(block)
     if (set.root === null || set.list || set.pitches || !set.scaleType) {
         throw new Error(AUTO_FINGERING_NEEDS_SCALE)

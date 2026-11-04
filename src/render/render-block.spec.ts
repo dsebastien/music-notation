@@ -869,6 +869,21 @@ describe("both hands' scale fingering (#49)", () => {
         expect(side.h.querySelector('.mn-grid.mn-cols-2')).not.toBeNull()
     })
 
+    it('finds the scale of scales-for first', () => {
+        const both = hands('scales-for: C F G\nfingering: auto both')
+        expect(both.result.error).toBeNull()
+        expect(both.diagrams.map((d) => d.title)).toEqual([
+            'C major for C F G, right hand',
+            'C major for C F G, left hand'
+        ])
+        const alone = (fingering: string) =>
+            hands(`scales-for: C F G\nfingering: ${fingering}`).diagrams.at(0)!
+        expect(both.diagrams.map((d) => [d.keys, d.fingers])).toEqual([
+            [alone('auto').keys, alone('auto').fingers],
+            [alone('auto left').keys, alone('auto left').fingers]
+        ])
+    })
+
     it('refuses what it cannot finger, once', () => {
         const pentatonic = hands('A minor pentatonic\nfingering: auto both')
         expect(pentatonic.result.ok).toBe(false)
