@@ -87,7 +87,15 @@ describe('harmonize', () => {
     })
 
     it('reads every numeral back to its chord in the key it names', () => {
-        for (const scale of ['A harmonic minor', 'A melodic minor', 'D dorian', 'Bb lydian']) {
+        for (const scale of [
+            'A harmonic minor',
+            'A melodic minor',
+            'D dorian',
+            'Bb lydian',
+            // A doubly flat 7th: bbVII.
+            'C ultralocrian',
+            'C# ultralocrian'
+        ]) {
             for (const kind of ['triads', 'sevenths', 'sus', 'power'] as const) {
                 const h = harmonize(scale, { kind })!
                 for (const chord of h.chords) {

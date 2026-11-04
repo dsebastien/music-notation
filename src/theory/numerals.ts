@@ -74,14 +74,24 @@ function noteOn(key: MusicalKey, degree: number, accidental: string, diminished:
     // (D dorian: bIII, IV, vi°, bVII), as numeralOf writes them.
     const minor = key.mode === 'minor' || key.mode === 'aeolian'
     let interval = MAJOR[degree - 1]!
-    let shift = accidental === '#' ? 1 : accidental === 'b' ? -1 : 0
+    // bb and ## (a doubly altered degree: an ultralocrian's bbVII) move two half steps.
+    const steps: Record<string, number> = { '##': 2, '#': 1, 'b': -1, 'bb': -2 }
+    let shift = steps[accidental] ?? 0
     if (minor && [3, 6, 7].includes(degree)) {
         interval = NATURAL_MINOR[degree - 1]!
-        // b is the natural note already; # raises it to the major scale's.
-        shift = accidental === '#' || (!accidental && degree === 7 && diminished) ? 1 : 0
+        // b is the natural note already (bb one below it); # raises it to the major scale's.
+        shift =
+            accidental === 'bb'
+                ? -1
+                : accidental === '#' || (!accidental && degree === 7 && diminished)
+                  ? 1
+                  : accidental === '##'
+                    ? 2
+                    : 0
     }
-    const note = Note.transpose(key.tonic, interval)
-    return shift === 0 ? note : Note.transpose(note, shift > 0 ? '1A' : '-1A')
+    let note = Note.transpose(key.tonic, interval)
+    for (let i = 0; i < Math.abs(shift); i++) note = Note.transpose(note, shift > 0 ? '1A' : '-1A')
+    return note
 }
 
 /** The chord suffix a numeral's quality mark asks for; null when it isn't one. */
@@ -111,14 +121,14 @@ function chordFrom(root: string, suffix: string): string | null {
 
 /** The bass of "I/3", "5/b7": a degree of the key. */
 function bassOf(key: MusicalKey, text: string): string | null {
-    const m = /^([b#♭♯]?)([1-7])$/.exec(text)
+    const m = /^(bb|##|[b#♭♯]?)([1-7])$/.exec(text)
     if (!m) return null
     const accidental = m[1]!.replace('♭', 'b').replace('♯', '#')
     return noteOn(key, Number(m[2]), accidental, false)
 }
 
-const ROMAN = /^([b#♭♯]?)(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)(.*)$/
-const NASHVILLE = /^([b#♭♯]?)([1-7])(.*)$/
+const ROMAN = /^(bb|##|[b#♭♯]?)(VII|VI|V|IV|III|II|I|vii|vi|v|iv|iii|ii|i)(.*)$/
+const NASHVILLE = /^(bb|##|[b#♭♯]?)([1-7])(.*)$/
 
 /** One numeral without a "/": its root, suffix and whether it was roman. */
 function readOne(
