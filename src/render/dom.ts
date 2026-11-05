@@ -88,6 +88,9 @@ export function html<K extends keyof HTMLElementTagNameMap>(
 const NAME_PREFIX = `mn-name-${Math.random().toString(36).slice(2, 8)}-`
 let names = 0
 
+/** An id unique on the page (a counter behind this copy's random prefix). */
+export const uniqueId = (): string => `${NAME_PREFIX}${++names}`
+
 /**
  * A root <svg> sized by its viewBox, scaling with the container up to its natural width.
  *

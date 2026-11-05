@@ -4,7 +4,7 @@
  * selected diagram, play all in turn, the selected diagram's name, loop, the speed and the sound
  * (choosing the other instrument redraws every diagram for it). No volume: the app's setting.
  */
-import { accessibleName, html } from '../render/dom.js'
+import { accessibleName, html, uniqueId } from '../render/dom.js'
 import {
     DEFAULT_SEQUENCE,
     sequenceOf,
@@ -58,17 +58,25 @@ interface Item {
 export interface DiagramGroup {
     /** Stops what plays. */
     stop(): void
-    /** Plays the diagrams on another sound (and redraws them for it, when the group redraws). */
+    /** Plays the diagrams on another sound (and redraws them for it, when a block bar plays it). */
     setSound(sound: Sound): void
     /** Called each time something starts playing (so another bar of the block stops). */
     onPlay: (() => void) | null
+    /**
+     * Stops what another bar of the block plays (Escape on a diagram); true when something
+     * played. A progression's bar sets it.
+     */
+    stopOthers: (() => boolean) | null
     /** Frees the group: stops, and no timer stays. */
     destroy(): void
 }
 
 export interface GroupOptions {
-    /** Redraws the diagrams for the other instrument when the sound changes (block bars). */
-    redraws: boolean
+    /**
+     * A block bar plays the group: the sound redraws the diagrams for the other instrument, and
+     * the selected diagram (the one the bar plays) is marked. A progression's diagrams have none.
+     */
+    bar: boolean
 }
 
 /** The name the bar gives a diagram: its title, else its accessible name. */
@@ -140,7 +148,8 @@ export function diagramGroup(
     let lights: ReturnType<typeof followNotes> | null = null
     /** Playing every diagram in turn. */
     let inTurn = false
-    let pause: number | null = null
+    /** The pause between two diagrams in turn, or before a loop's next pass, and its window. */
+    let pause: { id: number; win: Window } | null = null
     let ui: GroupUi | null = null
     let alive = true
     /** Counts plays: the end of a play stopped or replaced since is ignored. */
@@ -149,6 +158,7 @@ export function diagramGroup(
         stop: () => stop(),
         setSound: (sound) => setSound(sound),
         onPlay: null,
+        stopOthers: null,
         destroy() {
             stop()
             alive = false
@@ -160,9 +170,29 @@ export function diagramGroup(
     const changed = () => ui?.changed()
 
     const clearPause = () => {
-        if (pause !== null) win.clearTimeout(pause)
+        if (pause) pause.win.clearTimeout(pause.id)
         pause = null
     }
+    /** Waits `ms` on the window the diagram is in now (a popout has its own timers). */
+    const later = (item: Item, ms: number, then: () => void) => {
+        clearPause()
+        const here = item.wrap.ownerDocument.defaultView ?? win
+        pause = {
+            win: here,
+            id: here.setTimeout(() => {
+                pause = null
+                then()
+            }, ms)
+        }
+    }
+    /**
+     * What a play does when its notes end: after the call that started it returned (a player may
+     * end inside `play()`), and only if nothing played since.
+     */
+    const ended = (mine: number, then: () => void) => () =>
+        queueMicrotask(() => {
+            if (mine === run) then()
+        })
     const stop = () => {
         clearPause()
         inTurn = false
@@ -223,7 +253,7 @@ export function diagramGroup(
 
     const select = (item: Item) => {
         selected = item
-        if (items.length > 1)
+        if (how.bar && items.length > 1)
             for (const each of items) {
                 each.wrap.classList.toggle('mn-selected', each === item)
                 if (each === item) each.wrap.setAttribute('aria-current', 'true')
@@ -266,20 +296,16 @@ export function diagramGroup(
         playing = play(
             item,
             events,
-            () => {
-                if (mine !== run) return
+            ended(mine, () => {
                 playing = null
                 playingItem = null
-                if (inTurn && turn !== null) {
-                    // One beat between diagrams, at the bar's tempo.
-                    pause = win.setTimeout(() => {
-                        pause = null
-                        next(turn + 1)
-                    }, 60000 / settings.bpm)
-                    changed()
-                } else if (settings.loop && item.wrap.isConnected && alive) start(item, null)
+                // One beat between diagrams, at the bar's tempo.
+                if (inTurn && turn !== null) later(item, 60000 / settings.bpm, () => next(turn + 1))
+                // Again, from the page's next turn (never a loop inside one call).
+                else if (settings.loop && item.wrap.isConnected && alive)
+                    later(item, 0, () => start(item, null))
                 else changed()
-            },
+            }),
             noteTargets(shown, events, item.data.kind)
         )
         changed()
@@ -306,7 +332,7 @@ export function diagramGroup(
 
     const playNote = (item: Item, target: Element) => {
         const midi = Number(target.getAttribute('data-midi'))
-        if (!Number.isFinite(midi)) return
+        if (!alive || !Number.isFinite(midi)) return
         stop()
         select(item)
         self.onPlay?.()
@@ -325,11 +351,10 @@ export function diagramGroup(
         playing = play(
             item,
             events,
-            () => {
-                if (mine !== run) return
+            ended(mine, () => {
                 playing = null
                 changed()
-            },
+            }),
             events.map(() => [target])
         )
         changed()
@@ -337,6 +362,7 @@ export function diagramGroup(
 
     /** A click or Space / Enter on a diagram: plays it, or stops it when it's the one playing. */
     const press = (item: Item) => {
+        if (!alive) return
         if (playingItem === item || (inTurn && selected === item)) return stop()
         select(item)
         start(item, null)
@@ -344,7 +370,7 @@ export function diagramGroup(
 
     /** Draws a diagram for the sound chosen: the other instrument's drawing, or its own. */
     const drawFor = (item: Item) => {
-        if (!how.redraws) return
+        if (!how.bar) return
         // A drawing that isn't an instrument (the circle of fifths) keeps itself.
         if (item.diagram.getAttribute('data-mn-redraw') === 'no') return
         const sound = soundOf(item)
@@ -371,7 +397,13 @@ export function diagramGroup(
         const { wrap } = item
         wrap.tabIndex = 0
         wrap.setAttribute('role', 'button')
-        wrap.setAttribute('aria-label', `Play ${item.spoken}`)
+        // Named by a hidden text, not aria-label: Obsidian shows a tooltip for any element with
+        // one, and this one covers the whole drawing.
+        const label = html(doc, 'span', 'mn-playable-name', `Play ${item.spoken}`)
+        label.id = uniqueId()
+        label.hidden = true
+        wrap.prepend(label)
+        wrap.setAttribute('aria-labelledby', label.id)
         // A press on a diagram is its own: an editor (Obsidian's live preview) must not open the
         // block's source for it.
         wrap.addEventListener('mousedown', (event) => event.stopPropagation())
@@ -385,9 +417,12 @@ export function diagramGroup(
             if (event.key === ' ' || event.key === 'Enter') {
                 event.preventDefault()
                 press(item)
-            } else if (event.key === 'Escape' && (playing || inTurn)) {
-                event.preventDefault()
-                stop()
+            } else if (event.key === 'Escape') {
+                // Whatever the block plays: these diagrams, or its progression in time.
+                const here = playing !== null || inTurn
+                const others = self.stopOthers?.() ?? false
+                if (here) stop()
+                if (here || others) event.preventDefault()
             }
         })
     }
@@ -400,8 +435,9 @@ export function diagramGroup(
         get selected() {
             return selected
         },
+        // Between two passes of a loop too: the toggle stops it.
         get busy() {
-            return playing !== null || inTurn
+            return playing !== null || inTurn || pause !== null
         },
         get inTurn() {
             return inTurn
@@ -490,7 +526,7 @@ export function blockBarFor(
         api: made,
         bind
     } = diagramGroup(doc, win, diagrams, options, {
-        redraws: true
+        bar: true
     })
     const several = items.length > 1
     const bar = playBar(doc, 'mn-block-bar', 'Playback')

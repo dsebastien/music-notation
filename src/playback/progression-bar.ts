@@ -143,7 +143,15 @@ export function progressionBarFor(
         show()
     }
     // One thing plays in the block: a diagram's click stops the progression, and back.
-    if (diagrams) diagrams.onPlay = stop
+    if (diagrams) {
+        diagrams.onPlay = stop
+        // Escape on one of its diagrams stops the progression too.
+        diagrams.stopOthers = () => {
+            const was = playing !== null
+            stop()
+            return was
+        }
+    }
     const start = () => {
         stop()
         if (!drawing.isConnected) return
@@ -243,7 +251,10 @@ export function progressionBarFor(
     })
     return () => {
         stop()
-        if (diagrams?.onPlay === stop) diagrams.onPlay = null
+        if (diagrams?.onPlay === stop) {
+            diagrams.onPlay = null
+            diagrams.stopOthers = null
+        }
         app.free()
     }
 }

@@ -94,17 +94,24 @@
     vertical-align: top;
     max-width: 100%;
     border-radius: 6px;
-    outline: none;
 }
 
-/* The selected diagram of a row: the one the bar plays and names. Rings drawn inside, so the
-   block's scroll box (overflow-x) never cuts them. */
+/* The selected diagram of a row (the one the bar plays and names) and the focused one: outlines
+   drawn inside the edge (the block's scroll box, overflow-x, never cuts them) and over the
+   drawing (keys and chips reach the edge), kept in forced-colors mode. */
 .mn-playable.mn-selected {
-    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--mn-accent) 45%, transparent);
+    outline: 2px solid color-mix(in srgb, var(--mn-accent) 45%, transparent);
+    outline-offset: -2px;
 }
 
 .mn-playable:focus-visible {
-    box-shadow: inset 0 0 0 2px var(--mn-accent);
+    outline: 2px solid var(--mn-accent);
+    outline-offset: -2px;
+}
+
+/* A mouse click focuses the diagram too: only the selection shows then. */
+.mn-playable:focus:not(:focus-visible):not(.mn-selected) {
+    outline: none;
 }
 
 /* The tab and score bar (#82 gives it the block bar's look): a strip at the bottom of the score,
@@ -146,9 +153,15 @@
     border-radius: 4px;
 }
 
-/* The hand on everything that plays or sets something (#81). `.mn-block` outranks host rules
-   such as Obsidian's `button { cursor: var(--cursor) }`; no !important. Without playback there
-   is no .mn-playable: diagrams and notes keep the arrow. */
+/* The hand on everything that plays or sets something (#81), with a class in every selector so it
+   outranks host element rules such as Obsidian's `button { cursor: var(--cursor) }`, and again
+   under `.mn-block` for hosts with class rules; no !important. Without playback there is no
+   .mn-playable: diagrams and notes keep the arrow. */
+.mn-playable,
+.mn-playable *,
+.mn-play button,
+.mn-play select,
+.mn-play input[type='range'],
 .mn-block .mn-playable,
 .mn-block .mn-playable *,
 .mn-block .mn-play button,

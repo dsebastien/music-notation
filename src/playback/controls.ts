@@ -333,7 +333,7 @@ export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () =
     for (const drawing of timed) {
         const diagrams = byDrawing.get(drawing)
         const group = diagrams?.length
-            ? diagramGroup(doc, win, diagrams, options, { redraws: false }).group
+            ? diagramGroup(doc, win, diagrams, options, { bar: false }).group
             : null
         const bar = progressionBarFor(doc, win, drawing, options, group)
         stops.push(() => {

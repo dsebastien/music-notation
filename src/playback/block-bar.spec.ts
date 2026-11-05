@@ -4,11 +4,13 @@
  * cursor on what plays (#81).
  */
 import { describe, expect, it } from 'bun:test'
+import { Window as HappyWindow } from 'happy-dom'
 import type { NoteEvent, NotePlayer } from './player.js'
 import type { PlayOptions } from './controls.js'
 import { renderBlock } from '../render/render-block.js'
 import { STYLES } from '../styles.js'
 import { renderAll } from '../publish/index.js'
+import { accessibleName } from '../render/dom.js'
 
 /** A player that records what it's asked to play, and lets a test end each play. */
 function recorder() {
@@ -237,7 +239,7 @@ describe('a click on a diagram plays it (#58)', () => {
         h.remove()
     })
 
-    it('plays the selected diagram from the bar (the first at the start)', () => {
+    it('plays the selected diagram from the bar (the first at the start)', async () => {
         const { player, calls } = recorder()
         const h = host()
         const { el } = renderBlock('chord', row, h, { play: { player } })
@@ -247,6 +249,8 @@ describe('a click on a diagram plays it (#58)', () => {
         toggle.click()
         click(el.querySelectorAll('.mn-playable')[1]!.querySelector('svg')!)
         calls[1]!.end()
+        // The end is handled once the player's call returned.
+        await Promise.resolve()
         toggle.click()
         expect(midis(calls[2]!.events)).toEqual([50, 57, 62, 66])
         h.remove()
@@ -273,7 +277,7 @@ describe('a click on a diagram plays it (#58)', () => {
             expect(w.getAttribute('tabindex')).toBe('0')
             expect(w.getAttribute('role')).toBe('button')
         }
-        expect(wraps[1]!.getAttribute('aria-label')).toMatch(/^Play D/)
+        expect(accessibleName(wraps[1]!)).toMatch(/^Play D/)
         key(wraps[1]!, 'Enter')
         expect(midis(calls[0]!.events)).toEqual([50, 57, 62, 66])
         key(wraps[1]!, 'Escape')
@@ -469,6 +473,8 @@ describe('the other bars sit below and have no volume', () => {
         expect(calls[0]!.sound).toBe('piano')
         // Not redrawn: a progression's cells keep the block's drawing.
         expect(el.querySelectorAll('.mn-guitar-chord')).toHaveLength(3)
+        // No selection either: no bar plays a selected diagram in a progression.
+        expect(el.querySelector('.mn-selected, [aria-current]')).toBeNull()
         h.remove()
     })
 
@@ -522,7 +528,7 @@ describe('the hand cursor (#81)', () => {
         expect(pointers.length).toBeGreaterThan(0)
         for (const [selector] of pointers)
             for (const one of selector!.split(','))
-                expect(one.trim()).toMatch(/^\.mn-block \.mn-(playable|play)\b/)
+                expect(one.trim()).toMatch(/^(\.mn-block )?\.mn-(playable|play)\b/)
     })
 
     it('covers diagrams, notes, buttons, selects and sliders', () => {
@@ -531,6 +537,8 @@ describe('the hand cursor (#81)', () => {
             .flatMap(([selector]) => selector!.split(',').map((s) => s.trim()))
         for (const wanted of [
             '.mn-block .mn-playable',
+            '.mn-playable',
+            '.mn-play button',
             '.mn-block .mn-play button',
             '.mn-block .mn-play select',
             ".mn-block .mn-play input[type='range']"
@@ -559,5 +567,122 @@ describe('Publish draws a block with its bar once', () => {
         expect(renderAll(page, { play: {} })).toBe(0)
         expect(pre.nextElementSibling).toBe(block)
         page.remove()
+    })
+})
+
+describe('review findings (#58)', () => {
+    /** The CSS declarations of the rule with exactly this selector. */
+    const ruleOf = (selector: string) => {
+        const css = STYLES.replace(/\/\*[\s\S]*?\*\//g, '')
+        for (const [, sel, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g))
+            if (sel!.split(',').some((s) => s.trim() === selector)) return body!
+        return ''
+    }
+
+    it('draws the focus ring as an outline over the drawing, kept in forced colors', () => {
+        expect(ruleOf('.mn-playable:focus-visible')).toMatch(/outline:\s*2px solid/)
+        expect(ruleOf('.mn-playable:focus-visible')).toMatch(/outline-offset:\s*-2px/)
+        expect(ruleOf('.mn-playable')).not.toMatch(/outline:\s*none/)
+        expect(ruleOf('.mn-playable.mn-selected')).toMatch(/outline:/)
+        expect(ruleOf('.mn-playable.mn-selected')).not.toMatch(/box-shadow/)
+    })
+
+    it('stops the progression on Escape on one of its diagrams', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        const { el } = renderBlock('progression', 'key: C\nI IV V', h, { play: { player } })
+        const toggle = el.querySelector('.mn-progression-play .mn-play-toggle')!
+        ;(toggle as HTMLButtonElement).click()
+        expect(toggle.getAttribute('aria-label')).toBe('Stop')
+        const handles = calls.length
+        expect(handles).toBeGreaterThan(0)
+        const wrap = el.querySelector('.mn-playable')!
+        expect(key(wrap, 'Escape')).toBe(false)
+        expect(toggle.getAttribute('aria-label')).toBe('Play in time')
+        h.remove()
+    })
+
+    it('names each diagram without aria-label (Obsidian shows a tooltip for one)', () => {
+        const { player } = recorder()
+        const h = host()
+        const { el } = renderBlock('chord', row, h, { play: { player } })
+        for (const wrap of el.querySelectorAll('.mn-playable')) {
+            expect(wrap.hasAttribute('aria-label')).toBe(false)
+            const id = wrap.getAttribute('aria-labelledby')!
+            const name = [...wrap.querySelectorAll('[id]')].find((n) => n.id === id)
+            expect(name?.textContent).toMatch(/^Play /)
+            expect((name as HTMLElement).hidden).toBe(true)
+        }
+        const ids = [...el.querySelectorAll('.mn-playable')].map((w) =>
+            w.getAttribute('aria-labelledby')
+        )
+        expect(new Set(ids).size).toBe(3)
+        h.remove()
+    })
+
+    it('plays no note once destroyed, as it plays no diagram', () => {
+        const { player, calls } = recorder()
+        const h = host()
+        const result = renderBlock('chord', 'A x02220', h, { play: { player } })
+        const el = result.el
+        result.destroy()
+        h.appendChild(el)
+        click(el.querySelector('[data-midi="57"]')!)
+        click(el.querySelector('svg')!)
+        expect(calls).toHaveLength(0)
+        h.remove()
+    })
+
+    it('keeps its state with a player that ends inside play()', async () => {
+        const calls: number[] = []
+        const sync: NotePlayer = {
+            play(events, options) {
+                calls.push(events.length)
+                options.onEnd?.()
+                return { stop() {} }
+            }
+        }
+        const h = host()
+        const { el } = renderBlock('chord', 'A x02220', h, { play: { player: sync } })
+        const toggle = el.querySelector('.mn-play-toggle') as HTMLButtonElement
+        toggle.click()
+        await wait(5)
+        // It ended: the toggle says Play again, not a stuck Stop.
+        expect(toggle.getAttribute('aria-label')).toBe('Play')
+        // With loop on, each pass waits for the page: no runaway recursion.
+        ;(el.querySelector('.mn-play-loop') as HTMLButtonElement).click()
+        toggle.click()
+        expect(calls.length).toBe(2)
+        await wait(30)
+        expect(toggle.getAttribute('aria-label')).toBe('Stop')
+        toggle.click()
+        const count = calls.length
+        await wait(30)
+        expect(calls.length).toBe(count)
+        h.remove()
+    })
+
+    it('waits between diagrams on the window the diagram is in now', async () => {
+        const { player, calls } = quick()
+        const h = host()
+        const { el } = renderBlock('chord', 'A x02220\n---\nD xx0232', h, {
+            play: { player, bpm: 240 }
+        })
+        // Another window: its own timers (a popout).
+        const other = new HappyWindow() as unknown as Window
+        const timers: number[] = []
+        const setTimeoutOf = other.setTimeout.bind(other)
+        other.setTimeout = ((fn: () => void, ms: number) => {
+            timers.push(ms)
+            return setTimeoutOf(fn, ms)
+        }) as typeof other.setTimeout
+        const moved = other.document.body.appendChild(other.document.adoptNode(el))
+        ;(moved.querySelector('.mn-play-all') as HTMLButtonElement).click()
+        await wait(20)
+        expect(timers).toContain(250)
+        await wait(350)
+        expect(calls).toHaveLength(2)
+        ;(moved.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
+        h.remove()
     })
 })
