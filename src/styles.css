@@ -84,14 +84,31 @@
     stroke-width: 2;
 }
 
-/* Playback: a compact strip at the bottom of the diagram, shown on hover, keyboard focus or a
-   tap. Host styles (Obsidian's buttons, selects and sliders) are reset inside it. */
+/* Playback (#58): a playable diagram is a button (a click plays it); one bar below the block
+   plays its diagrams. Host styles (Obsidian's buttons, selects and sliders) are reset inside the
+   bars. */
 .mn-playable {
     position: relative;
     display: inline-block;
+    /* No line-box gap under the drawing, before the bar. */
+    vertical-align: top;
     max-width: 100%;
+    border-radius: 6px;
+    outline: none;
 }
 
+/* The selected diagram of a row: the one the bar plays and names. Rings drawn inside, so the
+   block's scroll box (overflow-x) never cuts them. */
+.mn-playable.mn-selected {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--mn-accent) 45%, transparent);
+}
+
+.mn-playable:focus-visible {
+    box-shadow: inset 0 0 0 2px var(--mn-accent);
+}
+
+/* The tab and score bar (#82 gives it the block bar's look): a strip at the bottom of the score,
+   shown on hover, keyboard focus or a tap. */
 .mn-play {
     position: absolute;
     left: 2px;
@@ -114,13 +131,6 @@
     transition: opacity 120ms ease;
 }
 
-.mn-playable:hover .mn-play,
-.mn-playable:focus-within .mn-play,
-.mn-playable.mn-play-open .mn-play {
-    opacity: 1;
-    pointer-events: auto;
-}
-
 .mn-play button,
 .mn-play select {
     all: unset;
@@ -134,6 +144,16 @@
     font-size: 10px;
     color: inherit;
     border-radius: 4px;
+}
+
+/* The hand on everything that plays or sets something (#81). `.mn-block` outranks host rules
+   such as Obsidian's `button { cursor: var(--cursor) }`; no !important. Without playback there
+   is no .mn-playable: diagrams and notes keep the arrow. */
+.mn-block .mn-playable,
+.mn-block .mn-playable *,
+.mn-block .mn-play button,
+.mn-block .mn-play select,
+.mn-block .mn-play input[type='range'] {
     cursor: pointer;
 }
 
@@ -162,7 +182,7 @@
 }
 
 .mn-play-icon-loop,
-.mn-play-icon-volume {
+.mn-play-icon-line {
     fill: none;
     stroke: currentColor;
     stroke-width: 1.6;
@@ -176,9 +196,32 @@
     gap: 2px;
 }
 
+.mn-play-field[hidden] {
+    display: none;
+}
+
+/* The tab bar's glyph before a slider. */
 .mn-play-label {
     display: inline-flex;
     opacity: 0.8;
+}
+
+/* A slider's value after it ("90 BPM", "12 ms"), in digits of one width so the bar doesn't move
+   while it changes. */
+.mn-play-value {
+    min-width: 7ch;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    opacity: 0.85;
+}
+
+/* The selected diagram's name on the bar of a row. */
+.mn-play-name {
+    max-width: 16ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
 }
 
 .mn-play input[type='range'] {
@@ -190,7 +233,6 @@
     height: 9px;
     margin: 0;
     background: linear-gradient(var(--mn-faint), var(--mn-faint)) center / 100% 3px no-repeat;
-    cursor: pointer;
 }
 
 .mn-play input[type='range']::-webkit-slider-runnable-track {
@@ -233,11 +275,6 @@
     background: var(--mn-accent);
 }
 
-.mn-playable [data-midi],
-.mn-playable .mn-hit {
-    cursor: pointer;
-}
-
 /* A playable mark's hit area: invisible, but it takes clicks and taps (an open string's circle is
    only a ring), centered on the mark. */
 .mn-svg .mn-hit {
@@ -249,30 +286,6 @@
 /* A finger number or note name over a dot or key lets the click reach it. */
 .mn-playable .mn-svg text {
     pointer-events: none;
-}
-
-/* The bar's empty space lets clicks through to the dots under it; its controls take them. */
-.mn-playable:hover .mn-play,
-.mn-playable:focus-within .mn-play,
-.mn-playable.mn-play-open .mn-play {
-    pointer-events: none;
-}
-
-.mn-playable:hover .mn-play > *,
-.mn-playable:focus-within .mn-play > *,
-.mn-playable.mn-play-open .mn-play > * {
-    pointer-events: auto;
-}
-
-/* Touch screens: hover sticks after a tap, so only a tap opens the bar. */
-@media (hover: none) {
-    .mn-playable:hover:not(.mn-play-open) .mn-play {
-        opacity: 0;
-    }
-
-    .mn-playable:hover:not(.mn-play-open) .mn-play > * {
-        pointer-events: none;
-    }
 }
 
 /* Tabs and scores: the player bar stays at the bottom of the screen while the score scrolls. */
@@ -818,12 +831,12 @@
 
 /* Following a strumming pattern: the slot that plays gets a band and its strum the playing
    color (the band keeps it visible for a muted strum and in any theme). */
-.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-cell {
+.mn-timed .mn-svg .mn-strum-slot.mn-playing .mn-strum-cell {
     fill: color-mix(in srgb, var(--mn-playing) 35%, transparent);
 }
 
-.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-arrow,
-.mn-playable .mn-svg .mn-strum-slot.mn-playing .mn-strum-mute {
+.mn-timed .mn-svg .mn-strum-slot.mn-playing .mn-strum-arrow,
+.mn-timed .mn-svg .mn-strum-slot.mn-playing .mn-strum-mute {
     stroke: var(--mn-fg);
     stroke-width: 3;
 }
@@ -1017,14 +1030,31 @@
     white-space: pre-wrap;
 }
 
-/* Progressions and charts in time (#46): the bar sits above the chords, always shown. */
+/* Every bar but the tab bar (#58): below what it plays, in the flow, always shown, at the left
+   of the block even when a wide row scrolls. */
 .mn-play.mn-play-static {
-    position: static;
-    display: inline-flex;
+    position: sticky;
+    left: 0;
+    right: auto;
+    bottom: auto;
+    display: flex;
+    width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
     justify-content: flex-start;
-    margin: 0 0 6px;
+    gap: 4px 8px;
+    margin: 6px 0 0;
+    padding: 3px 6px;
+    font-size: 11px;
     opacity: 1;
     pointer-events: auto;
+}
+
+.mn-timed {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 100%;
 }
 
 .mn-progression-chord.mn-playing {
@@ -1075,15 +1105,15 @@
     stroke: none;
 }
 
-.mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-cell {
+.mn-timed .mn-svg .mn-picking-slot.mn-playing .mn-picking-cell {
     fill: color-mix(in srgb, var(--mn-playing) 35%, transparent);
 }
 
-.mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-gap {
+.mn-timed .mn-svg .mn-picking-slot.mn-playing .mn-picking-gap {
     fill: var(--mn-playing);
 }
 
-.mn-playable .mn-svg .mn-picking-slot.mn-playing .mn-picking-fret {
+.mn-timed .mn-svg .mn-picking-slot.mn-playing .mn-picking-fret {
     fill: var(--mn-on-playing);
 }
 

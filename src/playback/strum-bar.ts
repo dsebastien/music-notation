@@ -1,9 +1,10 @@
 /**
- * The playback bar of a strumming pattern (#22), like the diagrams' bar: play / stop, loop,
- * count-in, tempo (BPM), volume and sound. What plays is read from the drawing (each slot's
- * `data-mn-beat` element, each chord's notes), so any page that drew the pattern can play it.
+ * The playback bar of a strumming pattern (#22), below it and always shown (#58): play / stop,
+ * loop, count-in, tempo (BPM) and sound; the volume is the app's. What plays is read from the
+ * drawing (each slot's `data-mn-beat` element, each chord's notes), so any page that drew the
+ * pattern can play it.
  */
-import { html, svg } from '../render/dom.js'
+import { html } from '../render/dom.js'
 import {
     countedTempoOf,
     runPasses,
@@ -15,7 +16,8 @@ import {
 import type { ProgressionSettings } from './progression.js'
 import { strumVoicing } from '../strum/voicing.js'
 import { isCompound, type Stroke } from '../strum/pattern.js'
-import { clamp, icon, lightFor, playerFor, type PlayOptions } from './controls.js'
+import { lightFor, playerFor, type PlayOptions } from './controls.js'
+import { choice, icon, playBar, pressedButton, valueSlider, volumeOf } from './bar-parts.js'
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
 import { handToApp } from './app-bar.js'
@@ -107,9 +109,6 @@ export function barPlayer(wrap: Element, win: Window, options: PlayOptions): Not
     }
 }
 
-/** A metronome, for the count-in. */
-const COUNT_IN = 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7'
-
 export function strumBarFor(
     doc: Document,
     win: Window,
@@ -137,11 +136,11 @@ export function strumBarFor(
 export interface TimedPiece {
     /** What it plays, for the app (#77). */
     kind: 'strum' | 'picking'
-    /** The wrapper's own class, beside `mn-playable`. */
+    /** The wrapper's own class, beside `mn-timed`. */
     cls: string
     /** The bar's name for screen readers. */
     label: string
-    /** Counted in dotted beats (6/8): the tempo slider shows ♩. */
+    /** Counted in dotted beats (6/8): the tempo counts dotted quarters. */
     compound: boolean
     make: PassMaker
     /** Shows a click (metronome) button, on or off at the start; none when absent. */
@@ -149,8 +148,8 @@ export interface TimedPiece {
 }
 
 /**
- * The bar of a piece played in time over a drawing whose slots are `[data-mn-beat]` elements:
- * play / stop, loop, count-in, click when asked, tempo, volume, sound. Each pass's slots light
+ * The bar of a piece played in time over a drawing whose slots are `[data-mn-beat]` elements,
+ * below it: play / stop, loop, count-in, click when asked, tempo, sound. Each pass's slots light
  * as they sound.
  */
 export function timedBarFor(
@@ -160,15 +159,11 @@ export function timedBarFor(
     options: PlayOptions,
     piece: TimedPiece
 ): () => void {
-    const wrap = html(doc, 'div', `mn-playable ${piece.cls}`)
+    const wrap = html(doc, 'div', `mn-timed ${piece.cls}`)
     drawing.parentNode?.insertBefore(wrap, drawing)
     wrap.appendChild(drawing)
-    const bar = html(doc, 'div', 'mn-play')
-    // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
-    // click on the block, which opens its source.
-    bar.addEventListener('mousedown', (event) => event.stopPropagation())
-    bar.setAttribute('role', 'group')
-    bar.setAttribute('aria-label', piece.label)
+    // Below the pattern, always shown (#58).
+    const bar = playBar(doc, 'mn-timed-bar', piece.label)
     wrap.appendChild(bar)
 
     const tempo = Number(drawing.getAttribute('data-mn-tempo'))
@@ -185,7 +180,7 @@ export function timedBarFor(
         loop: false,
         click: piece.click ?? false,
         sound: options.sound ?? 'guitar',
-        volume: clamp(options.volume, 0, 1, 0.8)
+        volume: volumeOf(options.volume)
     }
     let playing: PlayHandle | null = null
 
@@ -210,8 +205,12 @@ export function timedBarFor(
         playing = runPasses(
             piece.make,
             player,
-            // A loop stops once the drawing leaves the page.
-            () => ({ ...settings, loop: settings.loop && wrap.isConnected }),
+            // A loop stops once the drawing leaves the page; the app's volume at each pass.
+            () => ({
+                ...settings,
+                volume: volumeOf(options.volume),
+                loop: settings.loop && wrap.isConnected
+            }),
             here,
             () => {
                 playing = null
@@ -244,117 +243,46 @@ export function timedBarFor(
     show()
     bar.appendChild(toggle)
 
-    const pressed = (
-        cls: string,
-        label: string,
-        mark: SVGElement,
-        set: (on: boolean) => void,
-        start = false
-    ) => {
-        const button = html(doc, 'button', cls)
-        button.type = 'button'
-        button.appendChild(mark)
-        button.title = label
-        button.setAttribute('aria-label', label)
-        button.setAttribute('aria-pressed', String(start))
-        button.classList.toggle('mn-on', start)
-        let on = start
-        button.addEventListener('click', () => {
-            on = !on
-            set(on)
-            button.setAttribute('aria-pressed', String(on))
-            button.classList.toggle('mn-on', on)
+    bar.append(
+        pressedButton(doc, 'mn-play-loop', 'Loop', 'loop', false, (on) => (settings.loop = on)),
+        pressedButton(doc, 'mn-play-count', 'Count-in', 'count', false, (on) => {
+            settings.countIn = on
         })
-        bar.appendChild(button)
-    }
-    pressed('mn-play-loop', 'Loop', icon(doc, 'loop'), (on) => (settings.loop = on))
-    const metronome = svg(doc, 'svg', {
-        'class': 'mn-play-icon mn-play-icon-loop',
-        'viewBox': '0 0 16 16',
-        'width': 12,
-        'height': 12,
-        'aria-hidden': 'true'
-    })
-    metronome.appendChild(svg(doc, 'path', { d: COUNT_IN }))
-    pressed('mn-play-count', 'Count-in', metronome, (on) => (settings.countIn = on))
-    if (piece.click !== undefined) {
-        const beats = svg(doc, 'svg', {
-            'class': 'mn-play-icon mn-play-icon-loop',
-            'viewBox': '0 0 16 16',
-            'width': 12,
-            'height': 12,
-            'aria-hidden': 'true'
-        })
-        beats.appendChild(svg(doc, 'path', { d: 'M3 5v6M8 5v6M13 5v6' }))
-        pressed('mn-play-click', 'Click', beats, (on) => (settings.click = on), piece.click)
-    }
-
-    const slider = (
-        label: string,
-        min: number,
-        max: number,
-        value: number,
-        set: (n: number) => void,
-        mark: string | SVGElement
-    ) => {
-        const field = html(doc, 'label', 'mn-play-field')
-        field.title = `${label}: ${value}`
-        const tag = html(doc, 'span', 'mn-play-label')
-        tag.setAttribute('aria-hidden', 'true')
-        tag.append(mark)
-        const input = html(doc, 'input')
-        input.type = 'range'
-        input.min = String(min)
-        input.max = String(max)
-        input.value = String(value)
-        input.setAttribute('aria-label', label)
-        input.addEventListener('input', () => {
-            set(Number(input.value))
-            field.title = `${label}: ${input.value}`
-        })
-        field.append(tag, input)
-        bar.appendChild(field)
-    }
-    // Changes apply from the next pass of a loop.
-    // The tempo counts dotted quarters in compound time.
-    slider(
-        'Tempo (BPM)',
-        20,
-        240,
-        settings.bpm,
-        (n) => {
-            settings.bpm = tempoOf(n)
-            app.tempoChanged(settings.bpm)
-        },
-        compound ? '♩.' : '♩'
     )
-    slider(
-        'Volume',
-        0,
-        100,
-        Math.round(settings.volume * 100),
-        (n) => (settings.volume = n / 100),
-        icon(doc, 'volume')
+    if (piece.click !== undefined)
+        bar.appendChild(
+            pressedButton(doc, 'mn-play-click', 'Click', 'click', piece.click, (on) => {
+                settings.click = on
+            })
+        )
+    // Changes apply from the next pass of a loop. The tempo counts dotted quarters in compound
+    // time.
+    bar.appendChild(
+        valueSlider(
+            doc,
+            'Tempo (BPM)',
+            'BPM',
+            20,
+            240,
+            settings.bpm,
+            (n) => {
+                settings.bpm = tempoOf(n)
+                app.tempoChanged(settings.bpm)
+            },
+            compound ? 'counts dotted quarters' : undefined
+        ).field
     )
-
-    const sound = html(doc, 'select', 'mn-play-sound')
-    sound.setAttribute('aria-label', 'Sound')
-    for (const value of ['guitar', 'piano'] as const) {
-        const option = html(doc, 'option', undefined, value === 'guitar' ? 'Guitar' : 'Piano')
-        option.value = value
-        option.selected = value === settings.sound
-        sound.appendChild(option)
-    }
-    sound.addEventListener('change', () => {
-        settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
-    })
-    bar.appendChild(sound)
-
-    // Touch screens have no hover: a tap on the pattern shows the bar.
-    wrap.addEventListener('pointerdown', (event) => {
-        if (event.pointerType !== 'touch' || bar.contains(event.target as Node)) return
-        wrap.classList.toggle('mn-play-open')
-    })
+    bar.appendChild(
+        choice(
+            doc,
+            'mn-play-sound',
+            'Sound',
+            ['guitar', 'piano'] as const,
+            settings.sound,
+            { guitar: 'Guitar', piano: 'Piano' },
+            (value) => (settings.sound = value === 'piano' ? 'piano' : 'guitar')
+        )
+    )
     // Last, so the app's controls come after the bar's own (#77).
     const app = handToApp(options, bar, {
         kind: piece.kind,

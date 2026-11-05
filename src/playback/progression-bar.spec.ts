@@ -23,21 +23,21 @@ const click = (h: HTMLElement, cls: string) =>
     (h.querySelector(`.mn-progression-play .${cls}`) as HTMLButtonElement).click()
 
 describe('progression play bar (#46)', () => {
-    it('has play, loop, count-in, click, tempo, volume, strum and sound, above the chords', () => {
+    it('has play, loop, count-in, click, tempo, strum and sound, below the chords (#58)', () => {
         const h = host()
         renderBlock('progression', 'key: G\nI V vi IV\ntempo: 100', h, {
             play: { player: recorder().player }
         })
         const block = h.querySelector('.mn-progression')!
         const bar = block.querySelector('.mn-progression-play')!
-        expect(block.firstElementChild).toBe(bar)
+        expect(block.lastElementChild).toBe(bar)
         expect(bar.querySelector('.mn-play-toggle')?.getAttribute('aria-label')).toBe(
             'Play in time'
         )
         expect(bar.querySelector('.mn-play-click')?.getAttribute('aria-pressed')).toBe('true')
         expect(bar.querySelector('.mn-play-count')?.getAttribute('aria-pressed')).toBe('false')
         const sliders = [...bar.querySelectorAll('input[type="range"]')] as HTMLInputElement[]
-        expect(sliders.map((s) => s.value)).toEqual(['100', '80'])
+        expect(sliders.map((s) => s.value)).toEqual(['100'])
         const strum = bar.querySelector('.mn-play-strum') as HTMLSelectElement
         expect([...strum.options].map((o) => o.value)).toEqual(['beats', 'bar', 'arpeggio'])
     })

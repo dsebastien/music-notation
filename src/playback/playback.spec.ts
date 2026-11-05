@@ -137,7 +137,7 @@ describe('playback bar', () => {
     // On the page: a diagram that isn't stops playing.
     const host = () => document.body.appendChild(document.createElement('div'))
 
-    it('wraps each diagram with a bar: play, loop, speed when several notes, volume, sound', () => {
+    it('gives the block one bar: play, loop, speed when several notes, sound; no volume', () => {
         const { player } = recorder()
         const h = host()
         renderBlock('chord', 'A x02220\n---\nD xx0232', h, { play: { player } })
@@ -149,7 +149,7 @@ describe('playback bar', () => {
             [...bar.querySelectorAll('input[type="range"]')].map((l) =>
                 l.getAttribute('aria-label')
             )
-        ).toEqual(['Strum (ms between strings)', 'Volume'])
+        ).toEqual(['Strum (ms between strings)'])
         expect((bar.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('guitar')
     })
 
@@ -228,8 +228,9 @@ describe('playback bar', () => {
         expect([run[0], Math.max(...run), Math.min(...run), run.at(-1)]).toEqual([66, 90, 66, 66])
         const m = host()
         renderBlock('keyboard', 'modes: C major\nrange: C4-B4', m, { play: { player } })
-        const firsts = [...m.querySelectorAll('.mn-play-toggle')].map((button) => {
-            ;(button as HTMLButtonElement).click()
+        // One bar for the block (#58): a click on each mode's keyboard plays it.
+        const firsts = [...m.querySelectorAll('.mn-playable')].map((wrap) => {
+            wrap.querySelector('svg')!.dispatchEvent(new Event('click', { bubbles: true }))
             const events = calls.at(-1)!.events
             return [events[0]!.midi, events.at(-1)!.midi, events.length]
         })
@@ -483,15 +484,16 @@ describe('playback bar', () => {
 })
 
 describe('the bar keeps its presses', () => {
-    it("doesn't let a press in the bar reach the page (an editor would open the block)", () => {
+    it("doesn't let a press in the bar or on a diagram reach the page (an editor would open it)", () => {
         const h = document.body.appendChild(document.createElement('div'))
         let reached = 0
         h.addEventListener('mousedown', () => reached++)
         renderBlock('chord', 'A x02220', h, { play: {} })
         h.querySelector('.mn-play-toggle')!.dispatchEvent(new Event('mousedown', { bubbles: true }))
         expect(reached).toBe(0)
+        // A click on a diagram plays it (#58): the press is the diagram's too.
         h.querySelector('svg')!.dispatchEvent(new Event('mousedown', { bubbles: true }))
-        expect(reached).toBe(1)
+        expect(reached).toBe(0)
         h.remove()
     })
 })

@@ -26,7 +26,8 @@ describe('strum playback bar', () => {
         expect(bar.querySelector('.mn-play-loop')).not.toBeNull()
         expect(bar.querySelector('.mn-play-count')?.getAttribute('aria-label')).toBe('Count-in')
         const sliders = [...bar.querySelectorAll('input[type="range"]')] as HTMLInputElement[]
-        expect(sliders.map((s) => s.getAttribute('aria-label'))).toEqual(['Tempo (BPM)', 'Volume'])
+        // No volume (#58): the app's setting.
+        expect(sliders.map((s) => s.getAttribute('aria-label'))).toEqual(['Tempo (BPM)'])
         expect(sliders[0]!.value).toBe('100')
         expect(bar.querySelector('.mn-play-sound')).not.toBeNull()
     })
@@ -93,7 +94,9 @@ describe('strum playback bar', () => {
         renderBlock('strum', 'D D U D D U\ntime: 6/8', h, { play: { player } })
         const tempo = h.querySelector('input[aria-label="Tempo (BPM)"]') as HTMLInputElement
         expect(tempo.value).toBe('60')
-        expect(tempo.previousElementSibling?.textContent).toBe('♩.')
+        // The value, not a ♩. glyph (#58); the tooltip says what it counts.
+        expect(tempo.nextElementSibling?.textContent).toBe('60 BPM')
+        expect(tempo.getAttribute('aria-description')).toBe('counts dotted quarters')
         ;(h.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         // 8ths at 180 a minute: beat 4 at one second.
         const starts = [...new Set(calls[0]!.events.map((e) => Math.round(e.time * 100) / 100))]

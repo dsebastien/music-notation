@@ -1,9 +1,9 @@
 /**
- * The playback bar of a diagram: play / stop, loop, speed (when several notes play), volume and
- * sound, at the bottom of the diagram, shown on hover (on tap on touch screens). A click on a dot
- * or a key plays that note.
+ * Hearing the diagrams (#58): the play options, what a diagram plays (read from its drawing), its
+ * redrawing for the other instrument, and `attachPlayback`, which gives each block its one bar
+ * below it (`block-bar.ts`) and each pattern, progression and chart its bar in time.
  */
-import { accessibleName, html, setAccessibleName, svg } from '../render/dom.js'
+import { accessibleName, setAccessibleName } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
 import type { Hand } from '../render/layout.js'
@@ -18,28 +18,11 @@ import {
     type NoteSet
 } from '../theory/note-set.js'
 import { midiOf, nameOf } from '../theory/pitch.js'
-import {
-    DEFAULT_SEQUENCE,
-    DEFAULT_STRUM,
-    lightPlayer,
-    sequenceOf,
-    type NoteEvent,
-    type NotePlayer,
-    type PlayHandle,
-    type PlayKind,
-    type Sound
-} from './player.js'
+import { DEFAULT_STRUM, lightPlayer, type NotePlayer, type PlayKind, type Sound } from './player.js'
 import { strumBarFor } from './strum-bar.js'
 import { progressionBarFor } from './progression-bar.js'
 import { pickingBarFor } from './picking-bar.js'
-import {
-    followNotes,
-    noteTargets,
-    sawStart,
-    startsReported,
-    START_WAIT,
-    type Follower
-} from './follow.js'
+import { blockBarFor, diagramGroup } from './block-bar.js'
 
 export interface PlayOptions {
     /**
@@ -50,8 +33,12 @@ export interface PlayOptions {
     player?: NotePlayer | ((win: Window) => NotePlayer | null | undefined)
     /** Guitar or piano; by default the diagram's (piano for keyboards and piano chords). */
     sound?: Sound
-    /** 0 to 1, 0.8 by default. */
-    volume?: number
+    /**
+     * 0 to 1, 0.8 by default. The bars have no volume (#58): it is the app's setting. A function
+     * is read at each play (and each pass of a loop), so a setting changed in the app applies at
+     * once.
+     */
+    volume?: number | (() => number)
     /** Scales: notes per minute, 90 by default; also strum patterns' tempo when they have none. */
     bpm?: number
     /**
@@ -110,25 +97,7 @@ export function strumsOf(strum: PlayOptions['strum']): Record<Sound, number> {
     }
 }
 
-/** Small icons, drawn so they look the same in every font. */
-const ICONS: Record<'play' | 'stop' | 'loop' | 'volume', string> = {
-    play: 'M4 2.5v11l9-5.5z',
-    stop: 'M4 4h8v8H4z',
-    loop: 'M3 8a5 5 0 0 1 8.5-3.5L13 6V2.5M13 8a5 5 0 0 1-8.5 3.5L3 10v3.5',
-    volume: 'M2 6h3l4-3v10l-4-3H2zM11 5.5a3.5 3.5 0 0 1 0 5'
-}
-
-export function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
-    const root = svg(doc, 'svg', {
-        'class': `mn-play-icon mn-play-icon-${name}`,
-        'viewBox': '0 0 16 16',
-        'width': 12,
-        'height': 12,
-        'aria-hidden': 'true'
-    })
-    root.appendChild(svg(doc, 'path', { d: ICONS[name] }))
-    return root
-}
+export { icon } from './bar-parts.js'
 
 /** One light synthesizer per window. */
 const players = new WeakMap<Window, NotePlayer>()
@@ -148,7 +117,7 @@ export function playerFor(win: Window, options: PlayOptions): NotePlayer {
 }
 
 /** The diagram's own playback data, set by its renderer. */
-interface DiagramData {
+export interface DiagramData {
     kind: PlayKind
     pitches: number[]
     sound: Sound
@@ -157,7 +126,7 @@ interface DiagramData {
 }
 
 /** The pitch classes of a chord drawn over a scale (its tones), or undefined. */
-function tonesOf(drawing: Element): number[] | undefined {
+export function tonesOf(drawing: Element): number[] | undefined {
     const tones = [...drawing.querySelectorAll('.mn-tone[data-midi]')]
         .map((el) => Number(el.getAttribute('data-midi')))
         .filter((midi) => Number.isFinite(midi))
@@ -166,13 +135,13 @@ function tonesOf(drawing: Element): number[] | undefined {
 }
 
 /** The pitch class of a drawing's root mark (a root dot or key), or null. */
-function rootOf(drawing: Element): number | null {
+export function rootOf(drawing: Element): number | null {
     const mark = drawing.querySelector('.mn-root[data-midi]')
     const midi = Number(mark?.getAttribute('data-midi'))
     return mark && Number.isFinite(midi) ? ((midi % 12) + 12) % 12 : null
 }
 
-function dataOf(diagram: Element): DiagramData | null {
+export function dataOf(diagram: Element): DiagramData | null {
     const pitches = (diagram.getAttribute('data-mn-pitches') ?? '')
         .split(' ')
         .filter(Boolean)
@@ -204,7 +173,7 @@ function spelledNote(name: string, midi: number): string {
  * and root otherwise. With the title, the labels and the orientation (between fretboards and
  * keyboards); null when nothing can be drawn (no note within a guitar's range).
  */
-function redrawFor(
+export function redrawFor(
     doc: Document,
     diagram: Element,
     data: DiagramData,
@@ -330,310 +299,47 @@ function redrawFor(
 }
 
 /**
- * Wraps each playable diagram in `el` (an SVG with notes to play) with its playback bar. Returns
- * a function that stops whatever plays.
+ * Makes what `el` draws playable: each block's diagrams (an SVG with notes to play) get one bar
+ * below them, strumming and picking patterns, progressions and ChordPro charts their bar in time.
+ * Returns a function that stops whatever plays.
  */
 export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () => void {
     const doc = el.ownerDocument
     const win = doc.defaultView
     if (!win) return () => {}
     const stops: (() => void)[] = []
-    for (const diagram of [...el.querySelectorAll('svg[data-mn-pitches]')]) {
-        const data = dataOf(diagram)
-        if (!data) continue
-        stops.push(barFor(doc, win, diagram, data, options))
-    }
     // Strumming patterns (#22): their own bar, with tempo and count-in.
     for (const pattern of [...el.querySelectorAll('svg[data-mn-strum]')])
         stops.push(strumBarFor(doc, win, pattern, options))
     // Picking patterns (#51): the same bar, with a click.
     for (const pattern of [...el.querySelectorAll('svg[data-mn-picking]')])
         stops.push(pickingBarFor(doc, win, pattern, options))
+    // The diagrams, by block: those of a progression or a chart play on a click, its bar in time
+    // being the block's one bar; the others get a bar of their own block.
+    const timed = [...el.querySelectorAll('[data-mn-progression-play]')]
+    const byBlock = new Map<Element, { diagram: Element; data: DiagramData }[]>()
+    const byDrawing = new Map<Element, { diagram: Element; data: DiagramData }[]>()
+    for (const diagram of [...el.querySelectorAll('svg[data-mn-pitches]')]) {
+        const data = dataOf(diagram)
+        if (!data) continue
+        const drawing = timed.find((t) => t.contains(diagram))
+        const key = drawing ?? diagram.closest('.mn-block') ?? el
+        const map = drawing ? byDrawing : byBlock
+        map.set(key, [...(map.get(key) ?? []), { diagram, data }])
+    }
+    for (const [block, diagrams] of byBlock)
+        stops.push(blockBarFor(doc, win, block, diagrams, options))
     // Progressions and ChordPro charts (#46): one chord a bar, in time.
-    for (const drawing of [...el.querySelectorAll('[data-mn-progression-play]')])
-        stops.push(progressionBarFor(doc, win, drawing, options))
+    for (const drawing of timed) {
+        const diagrams = byDrawing.get(drawing)
+        const group = diagrams?.length
+            ? diagramGroup(doc, win, diagrams, options, { redraws: false }).group
+            : null
+        const bar = progressionBarFor(doc, win, drawing, options, group)
+        stops.push(() => {
+            bar()
+            group?.destroy()
+        })
+    }
     return () => stops.forEach((stop) => stop())
-}
-
-function barFor(
-    doc: Document,
-    win: Window,
-    diagram: Element,
-    data: DiagramData,
-    options: PlayOptions
-): () => void {
-    const wrap = html(doc, 'div', 'mn-playable')
-    diagram.parentNode?.insertBefore(wrap, diagram)
-    wrap.appendChild(diagram)
-    const bar = html(doc, 'div', 'mn-play')
-    // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
-    // click on the block, which opens its source.
-    bar.addEventListener('mousedown', (event) => event.stopPropagation())
-    bar.setAttribute('role', 'group')
-    // Named after the diagram, so a page with many bars reads clearly.
-    const name = accessibleName(diagram)
-    bar.setAttribute('aria-label', name ? `Play ${name}` : 'Playback')
-    wrap.appendChild(bar)
-
-    const firstSound = options.sound ?? data.sound
-    // Each instrument keeps its own strum (a guitar strum, a piano block chord by default); the
-    // slider sets the one of the sound chosen.
-    const strums = strumsOf(options.strum)
-    const settings = {
-        sound: firstSound,
-        volume: clamp(options.volume, 0, 1, 0.8),
-        bpm: clamp(options.bpm, 20, 240, DEFAULT_SEQUENCE.bpm),
-        strum: strums[firstSound],
-        loop: false
-    }
-    let playing: PlayHandle | null = null
-    // The notes lit on the drawing as they sound.
-    let lights: Follower | null = null
-    // The drawing on the page: the diagram, or its redrawing for the other instrument.
-    let shown: Element = diagram
-    // What the drawing on the page shows: a redrawn fretboard leaves out notes a guitar can't play.
-    const pitchesShown = () =>
-        shown === diagram ? data.pitches : (dataOf(shown)?.pitches ?? data.pitches)
-    // Its tonic: a scale's run starts on it.
-    const rootShown = () => (shown === diagram ? data.root : rootOf(shown))
-
-    const toggle = html(doc, 'button', 'mn-play-toggle')
-    toggle.type = 'button'
-    const show = () => {
-        toggle.replaceChildren(icon(doc, playing ? 'stop' : 'play'))
-        toggle.setAttribute('aria-label', playing ? 'Stop' : 'Play')
-        toggle.title = playing ? 'Stop' : 'Play'
-    }
-    const stop = () => {
-        playing?.stop()
-        playing = null
-        lights?.stop()
-        lights = null
-        show()
-    }
-    /**
-     * Plays notes with the app's player, or the light synthesizer when that one fails, in the
-     * window the diagram is in now: a host may move a drawn diagram to another window (Obsidian
-     * popouts), and its sound then belongs to that window.
-     */
-    const play = (
-        events: NoteEvent[],
-        onEnd: () => void,
-        targets: readonly (readonly Element[])[]
-    ): PlayHandle => {
-        const here = wrap.ownerDocument.defaultView ?? win
-        // Each note lights when it really sounds: a soundfont may take seconds on the first play.
-        const run = (player: NotePlayer) => {
-            lights?.stop()
-            const follower = followNotes(
-                here,
-                shown,
-                targets,
-                events,
-                startsReported(player) ? Infinity : START_WAIT
-            )
-            lights = follower
-            const onStart = () => {
-                sawStart(player)
-                follower.heard()
-            }
-            try {
-                return player.play(events, {
-                    sound: settings.sound,
-                    volume: settings.volume,
-                    onEnd,
-                    onStart
-                })
-            } catch (error) {
-                follower.stop()
-                throw error
-            }
-        }
-        try {
-            return run(playerFor(here, options))
-        } catch {
-            return run(lightFor(here))
-        }
-    }
-    const start = () => {
-        stop()
-        // A diagram no longer on the page (the block was redrawn or left) stops looping.
-        if (!wrap.isConnected) return
-        const tones = tonesOf(shown)
-        const events = sequenceOf(data.kind, pitchesShown(), {
-            ...settings,
-            root: rootShown(),
-            ...(tones ? { tones } : {}),
-            // A list of notes plays as written (keyboard data-mn-order), then back.
-            ...(shown.getAttribute('data-mn-order') === 'written' ? { ordered: true } : {})
-        })
-        playing = play(
-            events,
-            () => {
-                playing = null
-                if (settings.loop && wrap.isConnected) start()
-                else show()
-            },
-            noteTargets(shown, events, data.kind)
-        )
-        show()
-    }
-    toggle.addEventListener('click', () => (playing ? stop() : start()))
-    show()
-    bar.appendChild(toggle)
-
-    const loop = html(doc, 'button', 'mn-play-loop')
-    loop.type = 'button'
-    loop.appendChild(icon(doc, 'loop'))
-    loop.title = 'Loop'
-    loop.setAttribute('aria-label', 'Loop')
-    loop.setAttribute('aria-pressed', 'false')
-    loop.addEventListener('click', () => {
-        settings.loop = !settings.loop
-        loop.setAttribute('aria-pressed', String(settings.loop))
-        loop.classList.toggle('mn-on', settings.loop)
-    })
-    bar.appendChild(loop)
-
-    const slider = (
-        label: string,
-        min: number,
-        max: number,
-        value: number,
-        set: (n: number) => void,
-        mark: string | SVGElement
-    ) => {
-        const field = html(doc, 'label', 'mn-play-field')
-        field.title = `${label}: ${value}`
-        const tag = html(doc, 'span', 'mn-play-label')
-        tag.setAttribute('aria-hidden', 'true')
-        tag.append(mark)
-        const input = html(doc, 'input')
-        input.type = 'range'
-        input.min = String(min)
-        input.max = String(max)
-        input.value = String(value)
-        input.setAttribute('aria-label', label)
-        input.addEventListener('input', () => {
-            set(Number(input.value))
-            field.title = `${label}: ${input.value}`
-        })
-        field.append(tag, input)
-        bar.appendChild(field)
-        return (n: number) => {
-            input.value = String(n)
-            field.title = `${label}: ${n}`
-        }
-    }
-    let showStrum: ((n: number) => void) | null = null
-    // Speed only when several notes play: BPM for scales, the strum's spread for chords.
-    if (data.pitches.length > 1) {
-        if (data.kind === 'scale')
-            slider('Tempo (BPM)', 20, 240, settings.bpm, (n) => (settings.bpm = n), '♩')
-        else
-            showStrum = slider(
-                'Strum (ms between strings)',
-                0,
-                200,
-                settings.strum,
-                (n) => {
-                    settings.strum = n
-                    strums[settings.sound] = n
-                },
-                '≋'
-            )
-    }
-    slider(
-        'Volume',
-        0,
-        100,
-        Math.round(settings.volume * 100),
-        (n) => (settings.volume = n / 100),
-        icon(doc, 'volume')
-    )
-
-    const sound = html(doc, 'select', 'mn-play-sound')
-    sound.setAttribute('aria-label', 'Sound')
-    for (const value of ['guitar', 'piano'] as const) {
-        const option = html(doc, 'option', undefined, value === 'guitar' ? 'Guitar' : 'Piano')
-        option.value = value
-        option.selected = value === settings.sound
-        sound.appendChild(option)
-    }
-    // Choosing the other instrument draws the same notes for it (a fretboard on piano becomes a
-    // keyboard); choosing the diagram's own brings its drawing back.
-    let other: Element | null | undefined
-    // A drawing that isn't an instrument (the circle of fifths) keeps itself: only the sound changes.
-    const redraws = diagram.getAttribute('data-mn-redraw') !== 'no'
-    // A caption in words under the diagram (caption: fingering) speaks of the diagram's own
-    // instrument: hidden while the other instrument's drawing shows.
-    const figure = wrap.parentElement
-    const caption = figure?.classList.contains('mn-captioned')
-        ? ([...figure.children].find((c) => c.classList.contains('mn-fingering')) as
-              HTMLElement | undefined)
-        : undefined
-    const drawFor = () => {
-        if (!redraws) return
-        if (settings.sound !== data.sound) other ??= redrawFor(doc, diagram, data, options.hand)
-        const next = settings.sound === data.sound ? diagram : (other ?? diagram)
-        // Only while the host leaves the drawing in its wrapper.
-        if (next !== shown && shown.parentNode === wrap) {
-            wrap.replaceChild(next, shown)
-            shown = next
-        }
-        if (caption) caption.hidden = shown !== diagram
-    }
-    sound.addEventListener('change', () => {
-        // What plays stops first: its notes belong to the drawing that goes away.
-        stop()
-        settings.sound = sound.value === 'piano' ? 'piano' : 'guitar'
-        // Each instrument its own strum.
-        settings.strum = strums[settings.sound]
-        showStrum?.(settings.strum)
-        drawFor()
-    })
-    // An app or a page that starts on the other sound (play: { sound }) shows its drawing.
-    drawFor()
-    bar.appendChild(sound)
-
-    // A dot or a key plays its note, on either drawing (the bar has no notes).
-    wrap.addEventListener('click', (event) => {
-        // Not `instanceof Element`: nodes of a popout window have that window's Element.
-        const node = event.target as Partial<Element> | null
-        // A mark's hit area (#69) plays the mark it surrounds.
-        const target =
-            typeof node?.closest === 'function'
-                ? (node.closest('[data-midi]') ??
-                  node.closest('.mn-mark')?.querySelector('[data-midi]') ??
-                  null)
-                : null
-        const midi = Number(target?.getAttribute('data-midi'))
-        if (!target || !Number.isFinite(midi)) return
-        stop()
-        // A chord on the element (a key on the circle of fifths) is strummed; else its one note.
-        // Only the clicked element lights, not the pitch's other places.
-        const strum = (target.getAttribute('data-mn-strum') ?? '')
-            .split(' ')
-            .filter(Boolean)
-            .map(Number)
-            .filter((n) => Number.isFinite(n))
-        const events = strum.length
-            ? sequenceOf('chord', strum, settings)
-            : [{ midi, time: 0, duration: 1.5 }]
-        playing = play(
-            events,
-            () => {
-                playing = null
-                show()
-            },
-            events.map(() => [target])
-        )
-        show()
-    })
-    // Touch screens have no hover: a tap on the diagram shows the bar.
-    wrap.addEventListener('pointerdown', (event) => {
-        if (event.pointerType !== 'touch' || bar.contains(event.target as Node)) return
-        wrap.classList.toggle('mn-play-open')
-    })
-    return stop
 }

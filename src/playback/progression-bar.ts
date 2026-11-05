@@ -1,13 +1,16 @@
 /**
- * The play bar of a progression or a ChordPro chart (#46): play / stop, loop, count-in, click
- * (the metronome), tempo, strum (on the beats, once a bar, arpeggio, or the block's pattern),
- * volume and sound. One chord a bar, read from the drawing (each `data-mn-bar` element's notes),
- * the chord playing lit while it sounds.
+ * The play bar of a progression or a ChordPro chart (#46), below its chords (#58): play / stop,
+ * loop, count-in, click (the metronome), tempo, strum (on the beats, once a bar, arpeggio, or the
+ * block's pattern) and sound; the volume is the app's. One chord a bar, read from the drawing
+ * (each `data-mn-bar` element's notes), the chord playing lit while it sounds. It is the block's
+ * one bar: its diagrams play on a click, on the sound it chose.
  */
-import { html, svg } from '../render/dom.js'
+import { html } from '../render/dom.js'
 import { isCompound, parseStrum, parseTime, type StrumPattern } from '../strum/pattern.js'
 import { countedTempoOf, tempoOf } from '../strum/play.js'
-import { clamp, icon, type PlayOptions } from './controls.js'
+import type { PlayOptions } from './controls.js'
+import type { DiagramGroup } from './block-bar.js'
+import { choice, icon, playBar, pressedButton, valueSlider, volumeOf } from './bar-parts.js'
 import { followNotes, START_WAIT } from './follow.js'
 import type { PlayHandle } from './player.js'
 import {
@@ -19,11 +22,6 @@ import {
 } from './progression.js'
 import { barPlayer } from './strum-bar.js'
 import { handToApp } from './app-bar.js'
-
-/** A metronome, for the count-in. */
-const COUNT_IN = 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7'
-/** Beats, for the click. */
-const CLICK = 'M3 5v6M8 5v6M13 5v6'
 
 const pitchesOf = (text: string | null): number[] =>
     (text ?? '')
@@ -91,7 +89,8 @@ export function progressionBarFor(
     doc: Document,
     win: Window,
     drawing: Element,
-    options: PlayOptions
+    options: PlayOptions,
+    diagrams: DiagramGroup | null = null
 ): () => void {
     const { bars, marks } = barsFromDrawing(drawing)
     if (!bars.length) return () => {}
@@ -122,18 +121,14 @@ export function progressionBarFor(
         loop: false,
         click: true,
         sound: options.sound ?? (piano ? 'piano' : 'guitar'),
-        volume: clamp(options.volume, 0, 1, 0.8)
+        volume: volumeOf(options.volume)
     }
     let strum: ProgressionStrum | 'pattern' = pattern ? 'pattern' : written.strum
     let playing: PlayHandle | null = null
 
-    const bar = html(doc, 'div', 'mn-play mn-play-static mn-progression-play')
-    // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
-    // click on the block, which opens its source.
-    bar.addEventListener('mousedown', (event) => event.stopPropagation())
-    bar.setAttribute('role', 'group')
-    bar.setAttribute('aria-label', 'Play the chords in time')
-    drawing.insertBefore(bar, drawing.firstChild)
+    const bar = playBar(doc, 'mn-progression-play', 'Play the chords in time')
+    // Below the chords (#58).
+    drawing.appendChild(bar)
 
     const toggle = html(doc, 'button', 'mn-play-toggle')
     toggle.type = 'button'
@@ -147,9 +142,12 @@ export function progressionBarFor(
         playing = null
         show()
     }
+    // One thing plays in the block: a diagram's click stops the progression, and back.
+    if (diagrams) diagrams.onPlay = stop
     const start = () => {
         stop()
         if (!drawing.isConnected) return
+        diagrams?.stop()
         const here = drawing.ownerDocument.defaultView ?? win
         playing = runProgression(
             bars,
@@ -160,8 +158,12 @@ export function progressionBarFor(
                 pattern: strum === 'pattern' ? pattern : null
             },
             () => barPlayer(drawing, win, options),
-            // A loop stops once the drawing leaves the page.
-            () => ({ ...settings, loop: settings.loop && drawing.isConnected }),
+            // A loop stops once the drawing leaves the page; the app's volume at each pass.
+            () => ({
+                ...settings,
+                volume: volumeOf(options.volume),
+                loop: settings.loop && drawing.isConnected
+            }),
             here,
             () => {
                 playing = null
@@ -183,128 +185,54 @@ export function progressionBarFor(
     show()
     bar.appendChild(toggle)
 
-    const mark = (path: string) => {
-        const el = svg(doc, 'svg', {
-            'class': 'mn-play-icon mn-play-icon-loop',
-            'viewBox': '0 0 16 16',
-            'width': 12,
-            'height': 12,
-            'aria-hidden': 'true'
-        })
-        el.appendChild(svg(doc, 'path', { d: path }))
-        return el
-    }
-    const pressed = (
-        cls: string,
-        label: string,
-        glyph: SVGElement,
-        on: boolean,
-        set: (on: boolean) => void
-    ) => {
-        const button = html(doc, 'button', cls)
-        button.type = 'button'
-        button.appendChild(glyph)
-        button.title = label
-        button.setAttribute('aria-label', label)
-        const show = () => {
-            button.setAttribute('aria-pressed', String(on))
-            button.classList.toggle('mn-on', on)
-        }
-        button.addEventListener('click', () => {
-            on = !on
-            set(on)
-            show()
-        })
-        show()
-        bar.appendChild(button)
-    }
     // Changes apply from the next pass of a loop.
-    pressed('mn-play-loop', 'Loop', icon(doc, 'loop'), false, (on) => (settings.loop = on))
-    pressed('mn-play-count', 'Count-in', mark(COUNT_IN), false, (on) => (settings.countIn = on))
-    pressed('mn-play-click', 'Click', mark(CLICK), true, (on) => (settings.click = on))
-
-    const slider = (
-        label: string,
-        min: number,
-        max: number,
-        value: number,
-        set: (n: number) => void,
-        glyph: string | SVGElement
-    ) => {
-        const field = html(doc, 'label', 'mn-play-field')
-        field.title = `${label}: ${value}`
-        const tag = html(doc, 'span', 'mn-play-label')
-        tag.setAttribute('aria-hidden', 'true')
-        tag.append(glyph)
-        const input = html(doc, 'input')
-        input.type = 'range'
-        input.min = String(min)
-        input.max = String(max)
-        input.value = String(value)
-        input.setAttribute('aria-label', label)
-        input.addEventListener('input', () => {
-            set(Number(input.value))
-            field.title = `${label}: ${input.value}`
-        })
-        field.append(tag, input)
-        bar.appendChild(field)
-    }
-    slider(
-        'Tempo (BPM)',
-        20,
-        240,
-        settings.bpm,
-        (n) => {
-            settings.bpm = tempoOf(n)
-            app.tempoChanged(settings.bpm)
-        },
-        compound ? '♩.' : '♩'
+    bar.append(
+        pressedButton(doc, 'mn-play-loop', 'Loop', 'loop', false, (on) => (settings.loop = on)),
+        pressedButton(doc, 'mn-play-count', 'Count-in', 'count', false, (on) => {
+            settings.countIn = on
+        }),
+        pressedButton(doc, 'mn-play-click', 'Click', 'click', true, (on) => (settings.click = on))
     )
-    slider(
-        'Volume',
-        0,
-        100,
-        Math.round(settings.volume * 100),
-        (n) => (settings.volume = n / 100),
-        icon(doc, 'volume')
+    bar.appendChild(
+        valueSlider(
+            doc,
+            'Tempo (BPM)',
+            'BPM',
+            20,
+            240,
+            settings.bpm,
+            (n) => {
+                settings.bpm = tempoOf(n)
+                app.tempoChanged(settings.bpm)
+            },
+            compound ? 'counts dotted quarters' : undefined
+        ).field
     )
-
-    const select = <T extends string>(
-        cls: string,
-        label: string,
-        values: readonly T[],
-        chosen: T,
-        names: Record<T, string>,
-        set: (value: T) => void
-    ) => {
-        const el = html(doc, 'select', cls)
-        el.setAttribute('aria-label', label)
-        el.title = label
-        for (const value of values) {
-            const option = html(doc, 'option', undefined, names[value])
-            option.value = value
-            option.selected = value === chosen
-            el.appendChild(option)
-        }
-        el.addEventListener('change', () => set(el.value as T))
-        bar.appendChild(el)
-    }
     const strums: (ProgressionStrum | 'pattern')[] = [
         ...(pattern ? (['pattern'] as const) : []),
         ...PROGRESSION_STRUMS
     ]
     // A new strum starts again from the first bar.
-    select('mn-play-strum', 'Strum', strums, strum, STRUM_LABELS, (value) => {
-        strum = value
-        if (playing) start()
-    })
-    select(
-        'mn-play-sound',
-        'Sound',
-        ['guitar', 'piano'] as const,
-        settings.sound,
-        { guitar: 'Guitar', piano: 'Piano' },
-        (value) => (settings.sound = value === 'piano' ? 'piano' : 'guitar')
+    bar.appendChild(
+        choice(doc, 'mn-play-strum', 'Strum', strums, strum, STRUM_LABELS, (value) => {
+            strum = value
+            if (playing) start()
+        })
+    )
+    bar.appendChild(
+        choice(
+            doc,
+            'mn-play-sound',
+            'Sound',
+            ['guitar', 'piano'] as const,
+            settings.sound,
+            { guitar: 'Guitar', piano: 'Piano' },
+            (value) => {
+                settings.sound = value === 'piano' ? 'piano' : 'guitar'
+                // The diagrams play on it too (not redrawn: the block chose their drawing).
+                diagrams?.setSound(settings.sound)
+            }
+        )
     )
     // Last, so the app's controls come after the bar's own (#77).
     const app = handToApp(options, bar, {
@@ -315,6 +243,7 @@ export function progressionBarFor(
     })
     return () => {
         stop()
+        if (diagrams?.onPlay === stop) diagrams.onPlay = null
         app.free()
     }
 }
