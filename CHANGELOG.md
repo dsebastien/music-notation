@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.14.0 (2026-11-05)
+
+- **One play bar per block, under it**: the bar no longer floats over each diagram on hover. Every block with diagrams that play has one bar under it, a block with one diagram too, so nothing covers the dots and keys. It plays the selected diagram: in a row (`---`, `voicings:`, `positions: all`, modes, both hands), the one you clicked last, outlined and named on the bar, the first one at the start. The bar has play / stop, **play all in turn** (each diagram once, with a beat of silence between two; with loop on, it starts again after the last), loop, the speed and the sound. Choosing the other instrument redraws every diagram of the block for it (#58).
+- **Click a diagram to hear it**: a click on a chord, keyboard or fretboard diagram plays it, and a second click stops it. A click on a dot or a key still plays only that note. With the keyboard, Tab moves to each diagram: Space or Enter plays it, Escape stops it (#58).
+- **No volume on the bars**: the volume is the app's setting (Music Practice: Settings → Playback; Obsidian Publish: `play: { volume }` in `window.musicNotationOptions`). This changes every bar except the tab and score bar, which keeps its look for now (#82) (#58).
+- **The other bars move under what they play**: the bars of strumming and picking patterns are under the pattern and always shown (they floated over it on hover). The bars of progressions and ChordPro charts are under the chords (they were above). A progression's bar is the only bar of its block: a click on one of its chord diagrams plays that chord, on the sound the bar chose (#58).
+- **Readable speeds**: the sliders show their value, "90 BPM" or "12 ms", instead of the small ♩ and ≋ signs, which sat low and off-center in the bars (#58).
+- **The hand cursor on everything you can click**: diagrams, dots, keys and every bar's buttons, lists and sliders, also in Obsidian, whose buttons showed the arrow. Without playback, diagrams keep the arrow (#81).
+- For pages and apps that style or script the bars: the diagram bar is `.mn-play.mn-play-static.mn-block-bar`, one per `.mn-block`, under its diagrams and not inside `.mn-playable`; `.mn-playable` now means a playable diagram, a button (`role="button"`, `tabindex="0"`, named by `aria-labelledby`), and the strum and picking wrapper is `.mn-timed`; the slider value is in `.mn-play-value` (also its `aria-valuetext`); `.mn-play-all` and `.mn-play-name` are new; `mn-play-open` (tap to show the bar) is gone, except on the tab bar; no bar but the tab bar has a Volume slider. `PlayOptions.volume` may be a function, read at each play and each pass of a loop. `TimedBar` and the `timedBar` hook work as before.
+
 ## 0.13.0 (2026-11-04)
 
 - **Both hands' scale fingering**: `fingering: auto both` on a keyboard scale draws two keyboards, one above the other: the right hand's standard fingering, then the left hand's an octave lower, each titled with its hand and playable on its own. It works for major, natural minor, harmonic minor and melodic minor scales, with `range`, `labels` and `scales-for` (#49).
