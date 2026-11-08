@@ -8,6 +8,7 @@ import * as api from '../index.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
 import { injectStyles } from '../styles.js'
 import { layoutDefaults } from '../render/layout.js'
+import { namingOf } from '../theory/naming.js'
 import { autoRender } from './index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import type { NotePlayer } from '../playback/player.js'
@@ -89,6 +90,11 @@ if (!window.musicNotationLoaded) {
         injectStyles(document)
         const stop = autoRender(document, {
             ...layoutDefaults(window.musicNotationOptions),
+            // Note names (#12): letters, solfege or german; anything else is letters.
+            naming:
+                namingOf(
+                    (window.musicNotationOptions as { naming?: unknown } | undefined)?.naming
+                ) ?? undefined,
             properties: pageProperties(window.musicNotationOptions),
             voicings: lookupGuitarVoicing,
             play: pagePlay(window.musicNotationOptions)

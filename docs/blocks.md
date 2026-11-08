@@ -929,6 +929,44 @@ E 022100 023100</code></pre></div>
 
 Text always stays upright. Apps using the library can set the default orientation per block and the hand (Music Practice has settings for them); on Obsidian Publish, see [Publish](publish.md).
 
+## Note names: solfège and German
+
+`naming: solfege` shows the notes as Do Ré Mi Fa Sol La Si, with ♯ and ♭: the dot labels, the key labels, the string names, the titles and the chord symbols. A solfège chord has a space before its quality: `Ré m7`, `Sol 7`, `Do/Sol`.
+
+````markdown
+```fretboard
+A minor pentatonic
+frets: 5-8
+naming: solfege
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">A minor pentatonic
+frets: 5-8
+naming: solfege</code></pre></div>
+
+`naming: german` writes H for B natural and B for B♭, as German-speaking musicians do: `H7`, `B` for B♭ major. The other notes keep their letters.
+
+````markdown
+```progression
+key: F
+I IV V
+naming: german
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">key: F
+I IV V
+naming: german</code></pre></div>
+
+You can write the notes in any of the three systems, whatever the naming: `chord: Rém`, `Sol7`, `scale: La mineur`, `notes: Do Mi Sol`, `key: Sol`, `range: Do3-Si4`, `H7`. Accents are optional (`Re` is Ré), and `Fa dièse` and `Si bémol` read as F♯ and B♭. Scale and mode words stay in English (`La minor pentatonic`), except `majeur` and `mineur`.
+
+- `H` is always B natural.
+- A bare `B` (no ♯ or ♭) is B♭ only in a block whose naming is `german`. Everywhere else it is B natural, as before. In a German block, write `H` for B natural.
+- A word that only starts with a syllable stays a word: `[Solo]` in a chart is not a chord.
+
+The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). Tabs and scores, a diagram redrawn by the play bar for the other instrument and `caption: fingering` sentences stay in letters.
+
 ## Hear the diagrams
 
 Apps that turn playback on (Music Practice does, and Obsidian Publish pages through `publish.js`) make chord, keyboard and fretboard diagrams playable:

@@ -22,8 +22,8 @@ beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'mn-check-'))
     await mkdir(join(dir, 'notes', 'deep'), { recursive: true })
     await writeFile(join(dir, 'notes', 'good.md'), '```chord\nAm\n```\n')
-    await writeFile(join(dir, 'notes', 'deep', 'bad.md'), 'Text\n\n```keyboard\nH major\n```\n')
-    await writeFile(join(dir, 'notes', 'deep', 'other.txt'), '```chord\nHm7\n```\n')
+    await writeFile(join(dir, 'notes', 'deep', 'bad.md'), 'Text\n\n```keyboard\nJ major\n```\n')
+    await writeFile(join(dir, 'notes', 'deep', 'other.txt'), '```chord\nJm7\n```\n')
     await writeFile(join(dir, 'crlf.md'), fixture.replace(/\n/g, '\r\n'))
     await writeFile(join(dir, 'Song {live}.md'), '```chord\nAm\n```\n')
     await writeFile(join(dir, 'Draft [1].md'), '```chord\nAm\n```\n')
@@ -35,7 +35,7 @@ const statuses = (reports: BlockReport[]) =>
 
 const EXPECTED = [
     [11, 'chord', 'ok', null],
-    [17, 'chord', 'error', `Didn't recognize "Hm7": try A, Am, A7 or A Major`],
+    [17, 'chord', 'error', `Didn't recognize "Jm7": try A, Am, A7 or A Major`],
     [23, 'fretboard', 'ok', null],
     [32, 'keyboard', 'ok', null],
     [39, 'chord', 'error', 'diagram 2: "x" has 1 fingers for 6 strings'],
@@ -89,7 +89,7 @@ describe('checkNote', () => {
     })
 
     test('other languages are not checked', () => {
-        expect(checkNote('a.md', '```js\nx\n```\n```Chord\nHm7\n```', document)).toEqual([])
+        expect(checkNote('a.md', '```js\nx\n```\n```Chord\nJm7\n```', document)).toEqual([])
     })
 })
 
@@ -329,7 +329,7 @@ describe('run', () => {
         const { code, out, err } = await cli(['check', 'notes'])
         expect(code).toBe(1)
         expect(out).toBe(
-            'notes/deep/bad.md:3: keyboard: "H major" is not a scale, chord or list of notes'
+            'notes/deep/bad.md:3: keyboard: "J major" is not a scale, chord or list of notes'
         )
         expect(err).toBe('2 files, 2 blocks: 1 ok, 1 with errors, 0 skipped, 0 empty')
     })

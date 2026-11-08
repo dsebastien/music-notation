@@ -2,6 +2,7 @@
  * Fretboards with the notes of a scale, chord or list, as SVG. Horizontal by default, high string
  * on top like tabs; vertical has the nut on top, like a chord diagram.
  */
+import { shown } from '../theory/naming.js'
 import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import {
     drawTitle,
@@ -217,7 +218,7 @@ export function renderFretboard(
             svgLine(doc, frame.at(across(s), 0), frame.at(across(s), wire(to)), 'mn-string')
         )
         // Before the neck: above it when vertical, ending next to it when horizontal.
-        const name = nameOf(names[s]!, set.preferFlats)
+        const name = shown(nameOf(names[s]!, set.preferFlats))
         root.appendChild(
             vertical
                 ? svgLabel(doc, name, frame.at(across(s), -10), 'mn-string-name')

@@ -1,4 +1,5 @@
 /** Piano keyboards with highlighted notes, as SVG. */
+import { shown } from '../theory/naming.js'
 import { svg, svgLabel, svgRoot, svgText } from '../render/dom.js'
 import { titleWidth, type Orientation } from '../render/layout.js'
 import {
@@ -180,7 +181,7 @@ export function renderKeyboard(
     )
     if (options.title) {
         root.appendChild(
-            svgText(doc, options.title, {
+            svgText(doc, shown(options.title), {
                 'class': 'mn-title',
                 'x': width / 2,
                 'y': 15,
@@ -210,7 +211,12 @@ export function renderKeyboard(
         const text = labelOf(member, label, options.fingers?.get(midi))
         if (!text) return
         root.appendChild(
-            svgLabel(doc, text, point, black ? 'mn-key-label mn-key-label-black' : 'mn-key-label')
+            svgLabel(
+                doc,
+                shown(text),
+                point,
+                black ? 'mn-key-label mn-key-label-black' : 'mn-key-label'
+            )
         )
     }
 

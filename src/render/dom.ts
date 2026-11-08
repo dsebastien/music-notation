@@ -1,4 +1,5 @@
 /** DOM and SVG helpers. Everything is created in the host's document (popout windows, Publish). */
+import { shown } from '../theory/naming.js'
 
 export const SVG_NS = 'http://www.w3.org/2000/svg'
 
@@ -51,8 +52,8 @@ export function dotLabel(
     point: [number, number],
     r: number
 ): SVGElement {
-    const label = svgLabel(doc, text, point, 'mn-dot-text')
-    if ([...text].length >= 3) {
+    const label = svgLabel(doc, shown(text), point, 'mn-dot-text')
+    if ([...shown(text)].length >= 3) {
         label.classList.add('mn-dot-text-long')
         label.setAttribute('textLength', String(2 * r - 2))
         label.setAttribute('lengthAdjust', 'spacingAndGlyphs')
@@ -109,7 +110,8 @@ export function svgRoot(
 ): SVGElement {
     const id = `${NAME_PREFIX}${++names}`
     const title = svg(doc, 'title', { class: 'mn-name', id })
-    title.textContent = label
+    // Names follow the drawing's naming (#12).
+    title.textContent = shown(label)
     return svg(
         doc,
         'svg',

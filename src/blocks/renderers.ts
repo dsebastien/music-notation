@@ -3,6 +3,7 @@
  * show, or throws an Error whose message is meant for the user.
  */
 import type { PickOptions } from '../render/pick.js'
+import type { Naming } from '../theory/naming.js'
 import {
     baseFretOf,
     chartNoteName,
@@ -137,6 +138,11 @@ export interface RenderOptions extends LayoutDefaults {
      * diagrams are not playable. Off by default.
      */
     pick?: boolean | PickOptions
+    /**
+     * How note names show (#12): `letters` (default), `solfege` (Do Ré Mi) or `german` (H for B).
+     * A block's `naming:` line wins. Input reads all three.
+     */
+    naming?: Naming
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element

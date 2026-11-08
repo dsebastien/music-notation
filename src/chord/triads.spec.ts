@@ -105,7 +105,7 @@ describe('triads blocks', () => {
         const error = (source: string) => renderBlock('chord', source, host()).error
         expect(error('G\ntriads: 1 2 4')).toContain('three strings next to each other')
         expect(error('G7\ntriads: 1-3')).toContain("isn't a triad")
-        expect(error('key: H major\ntriads: 1-3')).toContain('Unknown key')
+        expect(error('key: J major\ntriads: 1-3')).toContain('Unknown key')
         expect(error('key: G major\ntriads: 1-3\ninversion: any')).toContain('pick one inversion')
         expect(error('G\ntriads: 1-3\ninversion: 3')).toContain('inversion:')
         expect(error('G\ntriads: 1-3\nfrets: x02220')).toContain('remove "frets"')

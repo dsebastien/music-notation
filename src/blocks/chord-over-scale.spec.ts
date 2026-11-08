@@ -113,8 +113,8 @@ describe('a chord over a scale', () => {
     })
 
     it('says when the chord does not read', () => {
-        expect(renderBlock('keyboard', 'scale: C major\nchord: Hm', host()).error).toBe(
-            'Unknown chord "Hm": use e.g. chord: Am7'
+        expect(renderBlock('keyboard', 'scale: C major\nchord: Jm', host()).error).toBe(
+            'Unknown chord "Jm": use e.g. chord: Am7'
         )
     })
 

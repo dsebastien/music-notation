@@ -40,6 +40,7 @@ Options:
 - `tab`: draws the tab of a fretboard's `exercise:` (its alphaTex, as a `tab` block holds it) in a holder, for example with `renderTab` from `/tab`. Return a function that frees it: `destroy()` calls it. Without `tab`, the alphaTex shows under the diagram in a `pre > code.language-tab`, which the tab bundle draws on web pages.
 - `play.timedBar(bar)`: called with each bar that plays in time (strumming and picking patterns, progressions, ChordPro charts), once the bar is built, so the app can add its own controls and read the tempo. `bar` has `kind` (`'strum'`, `'picking'`, `'progression'` or `'chart'`), `element` (the `.mn-play` bar), `drawing` (the pattern's SVG, the `.mn-progression` or the `.mn-chart`), `compound` (true when the tempo counts dotted quarters), `tempo()` (the tempo set on the bar, 20 to 240, in the beat it counts: what the next pass plays), `onTempo(listener)` (calls `listener` with each new tempo set on the bar, and returns a function that stops it) and `add(control)`. `add` puts your control at the end of the bar, in a `.mn-play-app` slot, after the bar's own controls in the focus order and with their button styles. It shows and hides with the bar. Return a function that frees what you set up: `destroy()` calls it. A hook or a listener that throws leaves the bar as it is. The type is `TimedBar`.
 
+- `naming`: how note names show, `'letters'` (default), `'solfege'` (Do Ré Mi, `Ré m7`) or `'german'` (H for B natural, B for B♭). A block's `naming:` line wins. See [Note names](blocks.md#note-names-solfège-and-german).
 - `pick`: a pick layer on `fretboard` and `keyboard` blocks, `{ onPick(pick, layer) }` (see [Pick layer](#pick-layer)). Those diagrams are not playable: the layer owns their clicks and keys. Off by default.
 
 `layoutDefaults(value)` keeps only valid `orientation` and `hand` values from untrusted input (a page's settings). `MAX_DIAGRAMS` is the most diagrams one block may hold (32).
@@ -81,6 +82,16 @@ const layer = attachPick(svg, {
 - The layer: `mark(at, 'right' | 'wrong')` draws a disc with a check or a cross above the target (a second mark replaces the first); `at` is `{ string, fret }`, `{ pitch }` (every target of that pitch), or a pick as `onPick` gave it (its own target: the place wins over the pitch). `unmark(at)`, `clear()`, `focus(at?)`, `targets()` (every target, as picks) and `destroy()`.
 - Each target is a `rect.mn-pick` in `g.mn-picks` with `data-mn-pitch`, `data-mn-note`, and on fretboards `data-mn-string` and `data-mn-fret`, never `data-midi`, so playback ignores the layer. Keyboards have two `g.mn-picks`: the white keys' under the black keys (so a white key's hover and focus look never covers a black key), the black keys' last. `note` is the drawing's spelling: compare `pitch` (or `pitch % 12`) to check an answer. Marks are `g.mn-pick-mark.mn-pick-right` or `.mn-pick-wrong` in `g.mn-pick-marks`, next to the last `g.mn-picks`. Their colors are `--mn-right` and `--mn-wrong`.
 - `emptyNoteSet(title?)` gives a note set with no notes, for a neck or a keyboard drawn without dots.
+
+## Note names
+
+Blocks read note names in letters, solfège and German, and show them in the block's naming (`naming:` line, else the `naming` option). For your own code:
+
+- `toLetters(text, naming?, { chord? })`: names read into letters: `toLetters('Rém Sol7 La mineur')` is `Dm G7 A minor`; `H` is B; a bare `B` is B♭ only with `'german'`. With `chord: true` the text is one chord and may have a space before its quality (`Ré m7`).
+- `noteInNaming(name, naming)`, `chordInNaming(symbol, naming)`: a letter name or a chord symbol shown in a naming (`Fa♯`, `Ré m7`, `Do/Sol`, German `H7`). `shownText(text, naming)` does it for the chords and notes in a text, leaving the English article "A" alone.
+- `withNaming(naming, draw)`: renderers called inside `draw` (`renderFretboard`, `renderKeyboard`, `renderGuitarDiagram`…) show their names in that naming. `renderBlock` does this for you.
+- `NAMINGS`, `parseNaming(text)` (throws what to write), `namingOf(value)` (null for anything else), `lettersInBlock(language, source, naming)` (a block's source read into letters, and its naming), type `Naming`.
+- Data attributes (`data-mn-set`, `data-mn-note`, `data-mn-chord`, the pick layer's `data-mn-note`) stay in letters whatever the naming.
 
 ## Renderers and theory
 

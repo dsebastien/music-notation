@@ -29,7 +29,7 @@ describe('parseMarkdown', () => {
         const text = [
             '````markdown',
             '```chord',
-            'Hm7',
+            'Jm7',
             '```',
             '~~~~',
             '````',
@@ -38,7 +38,7 @@ describe('parseMarkdown', () => {
             '```'
         ].join('\n')
         expect(blocks(text)).toEqual([
-            ['markdown', 1, '```chord\nHm7\n```\n~~~~'],
+            ['markdown', 1, '```chord\nJm7\n```\n~~~~'],
             ['chord', 7, 'C']
         ])
     })
@@ -122,7 +122,7 @@ describe('parseMarkdown', () => {
             '',
             '%%',
             '```chord',
-            'Hm',
+            'Jm',
             '```',
             '%%',
             '<!--',

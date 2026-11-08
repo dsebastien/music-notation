@@ -18,6 +18,7 @@ import {
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
 import { attachPick, type PickLayer, type PickOptions } from './pick.js'
+import { lettersInBlock, namingOf, withNaming, type Naming } from '../theory/naming.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
@@ -113,102 +114,115 @@ export function renderBlock(
             el.classList.add('mn-from-properties')
         }
     }
-    let parts: string[] | null = null
+    // Names in solfège or German are read into letters first (#12); the drawing shows them in
+    // the block's naming.
+    let naming: Naming = namingOf(options.naming) ?? 'letters'
     try {
-        // scales-for first: the keys that split a block into a row need its scale.
-        if ((language === 'fretboard' || language === 'keyboard') && !splitParts(text))
-            text = resolveScalesFor(text)
-        parts = isDiagramLanguage(language)
-            ? (splitParts(text) ??
-              modeParts(language, text) ??
-              positionParts(language, text) ??
-              handParts(language, text) ??
-              transitionParts(language, text, options.voicings) ??
-              triadParts(language, text) ??
-              voicingParts(language, text))
-            : null
+        const read = lettersInBlock(language, text, naming)
+        text = read.text
+        naming = read.naming
     } catch (e) {
         return failed(el, host, language, messageOf(e))
     }
-    // An empty block (a template's placeholder, or only separators) draws nothing, not an error.
-    if (!text.trim() || parts?.length === 0) {
-        el.classList.add('mn-empty')
+    const draw = (): RenderResult => {
+        let parts: string[] | null = null
+        try {
+            // scales-for first: the keys that split a block into a row need its scale.
+            if ((language === 'fretboard' || language === 'keyboard') && !splitParts(text))
+                text = resolveScalesFor(text)
+            parts = isDiagramLanguage(language)
+                ? (splitParts(text) ??
+                  modeParts(language, text) ??
+                  positionParts(language, text) ??
+                  handParts(language, text) ??
+                  transitionParts(language, text, options.voicings) ??
+                  triadParts(language, text) ??
+                  voicingParts(language, text))
+                : null
+        } catch (e) {
+            return failed(el, host, language, messageOf(e))
+        }
+        // An empty block (a template's placeholder, or only separators) draws nothing, not an error.
+        if (!text.trim() || parts?.length === 0) {
+            el.classList.add('mn-empty')
+            host.appendChild(el)
+            return { ok: true, el, error: null, picks: [], destroy: () => el.remove() }
+        }
+        try {
+            if (parts && isDiagramLanguage(language)) {
+                error = renderRow(doc, language, parts, el, options)
+            } else {
+                el.appendChild(RENDERERS[language](doc, text, options))
+                // A chart still draws around directives it couldn't read, and {chord} diagrams it
+                // couldn't draw; they make the block not ok.
+                const warnings = [
+                    ...el.querySelectorAll(
+                        '.mn-chart > .mn-error-message, .mn-chart-chord > .mn-error-message'
+                    )
+                ]
+                if (warnings.length) error = warnings.map((w) => w.textContent ?? '').join('; ')
+            }
+        } catch (e) {
+            return failed(el, host, language, messageOf(e))
+        }
+        // Titles wrap instead of widening a diagram (#74): every diagram of the block gets the room
+        // of its longest title, so the necks of a row line up.
+        alignTitleLines(el.querySelectorAll('svg.mn-guitar-chord, svg.mn-fretboard'))
         host.appendChild(el)
-        return { ok: true, el, error: null, picks: [], destroy: () => el.remove() }
-    }
-    try {
-        if (parts && isDiagramLanguage(language)) {
-            error = renderRow(doc, language, parts, el, options)
-        } else {
-            el.appendChild(RENDERERS[language](doc, text, options))
-            // A chart still draws around directives it couldn't read, and {chord} diagrams it
-            // couldn't draw; they make the block not ok.
-            const warnings = [
-                ...el.querySelectorAll(
-                    '.mn-chart > .mn-error-message, .mn-chart-chord > .mn-error-message'
-                )
-            ]
-            if (warnings.length) error = warnings.map((w) => w.textContent ?? '').join('; ')
-        }
-    } catch (e) {
-        return failed(el, host, language, messageOf(e))
-    }
-    // Titles wrap instead of widening a diagram (#74): every diagram of the block gets the room
-    // of its longest title, so the necks of a row line up.
-    alignTitleLines(el.querySelectorAll('svg.mn-guitar-chord, svg.mn-fretboard'))
-    host.appendChild(el)
-    // A fretboard exercise's tab (#47): the app draws it, once the block is on the page (its
-    // colors come from the page); else its source stays for the tab bundle of web pages.
-    const freeTabs: (() => void)[] = []
-    if (options.tab) {
-        for (const pre of el.querySelectorAll<HTMLElement>('pre.mn-exercise')) {
-            const holder = html(doc, 'div', 'mn-exercise-tab')
-            for (const { name, value } of [...pre.attributes]) {
-                if (name.startsWith('data-mn-')) holder.setAttribute(name, value)
-            }
-            pre.replaceWith(holder)
-            try {
-                const free = options.tab(pre.textContent ?? '', holder)
-                if (typeof free === 'function') freeTabs.push(free)
-            } catch {
-                // The app couldn't draw it: the source shows instead.
-                holder.replaceWith(pre)
+        // A fretboard exercise's tab (#47): the app draws it, once the block is on the page (its
+        // colors come from the page); else its source stays for the tab bundle of web pages.
+        const freeTabs: (() => void)[] = []
+        if (options.tab) {
+            for (const pre of el.querySelectorAll<HTMLElement>('pre.mn-exercise')) {
+                const holder = html(doc, 'div', 'mn-exercise-tab')
+                for (const { name, value } of [...pre.attributes]) {
+                    if (name.startsWith('data-mn-')) holder.setAttribute(name, value)
+                }
+                pre.replaceWith(holder)
+                try {
+                    const free = options.tab(pre.textContent ?? '', holder)
+                    if (typeof free === 'function') freeTabs.push(free)
+                } catch {
+                    // The app couldn't draw it: the source shows instead.
+                    holder.replaceWith(pre)
+                }
             }
         }
-    }
-    // The pick layer (Music Practice #73): live on each diagram that drew one.
-    const picks = options.pick
-        ? [...el.querySelectorAll('svg[data-mn-pick]')].map((svg) =>
-              attachPick(svg, pickOptions(options))
-          )
-        : []
-    // Hear the diagrams: a playback bar on each one that has notes to play.
-    const stopPlayback = options.play
-        ? attachPlayback(el, {
-              // Redraws for guitar follow the page's hand unless the app says (#60).
-              hand: options.hand,
-              ...(typeof options.play === 'object' ? options.play : {})
-          })
-        : null
-    return {
-        ok: error === null,
-        el,
-        error,
-        picks,
-        destroy: () => {
-            stopPlayback?.()
-            for (const layer of picks) layer.destroy()
-            for (const free of freeTabs) free()
-            el.remove()
+        // The pick layer (Music Practice #73): live on each diagram that drew one.
+        const picks = options.pick
+            ? [...el.querySelectorAll('svg[data-mn-pick]')].map((svg) =>
+                  attachPick(svg, pickOptions(options))
+              )
+            : []
+        // Hear the diagrams: a playback bar on each one that has notes to play.
+        const stopPlayback = options.play
+            ? attachPlayback(el, {
+                  // Redraws for guitar follow the page's hand unless the app says (#60).
+                  hand: options.hand,
+                  ...(typeof options.play === 'object' ? options.play : {})
+              })
+            : null
+        return {
+            ok: error === null,
+            el,
+            error,
+            picks,
+            destroy: () => {
+                stopPlayback?.()
+                for (const layer of picks) layer.destroy()
+                for (const free of freeTabs) free()
+                el.remove()
+            }
         }
     }
-}
 
-/** The pick options: `play: true` plays picks on the block's `play` options (its player, volume). */
-function pickOptions(options: RenderOptions): PickOptions {
-    const pick = typeof options.pick === 'object' ? options.pick : {}
-    if (pick.play !== true) return pick
-    return { ...pick, play: typeof options.play === 'object' ? options.play : true }
+    /** The pick options: `play: true` plays picks on the block's `play` options (its player, volume). */
+    function pickOptions(options: RenderOptions): PickOptions {
+        const pick = typeof options.pick === 'object' ? options.pick : {}
+        if (pick.play !== true) return pick
+        return { ...pick, play: typeof options.play === 'object' ? options.play : true }
+    }
+    return withNaming(naming, draw)
 }
 
 /** The block as an inline error that says what's wrong. */

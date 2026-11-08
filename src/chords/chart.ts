@@ -1,4 +1,5 @@
 /** ChordPro songs rendered as HTML charts: chords above the lyrics, transposable. */
+import { shown } from '../theory/naming.js'
 import { html } from '../render/dom.js'
 import { keyMove, keyPrefersFlats, transposeChord, transposeKey } from '../theory/transpose.js'
 import type { Segment, Song } from './chordpro.js'
@@ -374,7 +375,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                         doc,
                         'span',
                         'mn-chord',
-                        segment.chord === null ? '' : chord(segment.chord)
+                        segment.chord === null ? '' : shown(chord(segment.chord))
                     )
                     if (segment.chord !== null) {
                         const shown = chord(segment.chord)

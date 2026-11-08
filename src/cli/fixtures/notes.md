@@ -15,7 +15,7 @@ Am x02210 x02310
 A chord the library doesn't read:
 
 ```chord
-Hm7
+Jm7
 ```
 
 A fretboard in a tilde fence:
@@ -65,7 +65,7 @@ A Markdown example, not a block:
 
 ````markdown
 ```chord
-Hm7
+Jm7
 ```
 ````
 

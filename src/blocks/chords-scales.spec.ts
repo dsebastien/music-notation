@@ -776,8 +776,8 @@ describe('a root for lists of notes (#33)', () => {
         )
         expect(error('keyboard', 'A minor\nroot: C')).toContain('a scale has its own root')
         expect(error('keyboard', 'Cmaj7\nroot: C')).toContain('a chord has its own root')
-        expect(error('fretboard', 'notes: C E G\nroot: H')).toBe(
-            'Invalid root "H": use a note name, e.g. root: C'
+        expect(error('fretboard', 'notes: C E G\nroot: J')).toBe(
+            'Invalid root "J": use a note name, e.g. root: C'
         )
         expect(error('fretboard', 'root: C')).toBe('Add the notes for the root: e.g. notes: C Eb G')
         expect(error('fretboard', 'notes: C E G\nroot: C\nposition: 1')).toBe(

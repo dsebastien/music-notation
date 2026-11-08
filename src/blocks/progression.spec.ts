@@ -417,7 +417,7 @@ describe('progression block', () => {
         const error = (source: string) => renderBlock('progression', source, host()).error
         expect(error('I VIII\nkey: C')).toContain('Didn\'t read "VIII"')
         expect(error('I IV V')).toBe('Add the key: e.g. key: G or key: E minor')
-        expect(error('I IV\nkey: H')).toContain('Unknown key "H"')
+        expect(error('I IV\nkey: J')).toContain('Unknown key "J"')
         expect(error('i iv\nkey: Gbm')).toBe('Gb minor needs 9 flats: write F# minor')
         expect(error('I IV\nkey: Fb')).toBe('Fb major needs 8 flats: write E major')
         expect(error('I IV\nkey: D dorian')).toBe(

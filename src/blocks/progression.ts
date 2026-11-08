@@ -3,6 +3,7 @@
  * chord names ("G D Em C") in a key, drawn as the chords with their numerals, optionally their
  * function, and a guitar or piano diagram for each. `---` starts a section in another key.
  */
+import { shown } from '../theory/naming.js'
 import { html } from '../render/dom.js'
 import { splitParts, type BlockSource } from './block-source.js'
 import type { DiagramRenderer, RenderOptions } from './renderers.js'
@@ -463,7 +464,7 @@ function renderSection(
             doc,
             'div',
             'mn-progression-key',
-            `Key: ${section.name ?? section.key.name}${blues}${others}`
+            shown(`Key: ${section.name ?? section.key.name}${blues}${others}`)
         )
     )
     if (section.note) el.appendChild(html(doc, 'div', 'mn-progression-note', section.note))
@@ -604,12 +605,12 @@ function renderSection(
                 }
                 cell.appendChild(renderChord(doc, diagramBlock(block, lines), options))
             } catch (e) {
-                cell.appendChild(html(doc, 'div', 'mn-progression-name', chord.symbol))
+                cell.appendChild(html(doc, 'div', 'mn-progression-name', shown(chord.symbol)))
                 cell.appendChild(
                     html(doc, 'div', 'mn-error-message', e instanceof Error ? e.message : String(e))
                 )
             }
-        } else cell.appendChild(html(doc, 'div', 'mn-progression-name', chord.symbol))
+        } else cell.appendChild(html(doc, 'div', 'mn-progression-name', shown(chord.symbol)))
         if (functions) {
             cell.appendChild(html(doc, 'div', 'mn-progression-function', chord.function))
         }

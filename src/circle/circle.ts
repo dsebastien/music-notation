@@ -6,6 +6,7 @@
  * and `data-mn-strum`, the chord) so playback can play them on a click; the key's chords also
  * carry their root's pitch class (`data-mn-chroma`) so they light while the scale plays.
  */
+import { shown } from '../theory/naming.js'
 import { Key } from 'tonal'
 import { svg, svgRoot, svgText } from '../render/dom.js'
 import { titleWidth } from '../render/layout.js'
@@ -159,7 +160,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
     const g = svg(doc, 'g', shift ? { transform: `translate(${shift} 0)` } : {})
     if (options.title) {
         root.appendChild(
-            svgText(doc, options.title, {
+            svgText(doc, shown(options.title), {
                 'class': 'mn-title',
                 'x': width / 2,
                 'y': 16,
@@ -215,7 +216,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
                 // A chord of the key lights while the scale plays its root.
                 'data-mn-chroma': chord && pitches.length ? pitches[0]! % 12 : undefined
             })
-            const name = chord ? pretty(chord.symbol) : pretty(defaults[ring][position]!)
+            const name = shown(chord ? pretty(chord.symbol) : pretty(defaults[ring][position]!))
             const title = svg(doc, 'title')
             title.textContent = chord ? `${chord.numeral}: ${name}` : name.replace('/', ' or ')
             cell.appendChild(title)
@@ -262,11 +263,14 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
     // The center: the key, its signature and the notes it alters.
     const centerY = top + CENTER
     const centerLines: [string, string][] = [
-        [pretty(key.tonic) + ` ${key.mode}`, 'mn-circle-key'],
+        [shown(pretty(key.tonic) + ` ${key.mode}`), 'mn-circle-key'],
         [signatureText(signature.count), 'mn-circle-key-sig']
     ]
     if (signature.accidentals.length && signature.accidentals.length <= 7) {
-        centerLines.push([signature.accidentals.map(pretty).join(' '), 'mn-circle-key-notes'])
+        centerLines.push([
+            shown(signature.accidentals.map(pretty).join(' ')),
+            'mn-circle-key-notes'
+        ])
     }
     centerLines.forEach(([text, cls], i) => {
         g.appendChild(
@@ -297,7 +301,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
             'data-mn-chroma': pitches.length ? pitches[0]! % 12 : undefined
         })
         const tip = svg(doc, 'title')
-        tip.textContent = `${chord.numeral}: ${pretty(chord.symbol)}`
+        tip.textContent = `${chord.numeral}: ${shown(pretty(chord.symbol))}`
         chip.appendChild(tip)
         g.appendChild(chip)
         const solid =
@@ -312,7 +316,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
             })
         )
         g.appendChild(
-            svgText(doc, pretty(chord.symbol), {
+            svgText(doc, shown(pretty(chord.symbol)), {
                 'class': `mn-circle-label${on}`,
                 'x': x + chipW / 2,
                 'y': chipsTop + 31,

@@ -119,6 +119,18 @@ export {
 export { standardScaleFingering, scaleFingers, type ScaleHand } from './keyboard/scale-fingering.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
 export {
+    NAMINGS,
+    parseNaming,
+    namingOf,
+    toLetters,
+    lettersInBlock,
+    noteInNaming,
+    chordInNaming,
+    shownText,
+    withNaming,
+    type Naming
+} from './theory/naming.js'
+export {
     attachPick,
     type Pick,
     type PickAt,

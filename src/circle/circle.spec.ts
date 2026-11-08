@@ -173,7 +173,7 @@ describe('circle block', () => {
 
     it('says what to write instead', () => {
         const error = (source: string) => renderBlock('circle', source, host()).error
-        expect(error('key: H')).toContain('Unknown key "H"')
+        expect(error('key: J')).toContain('Unknown key "J"')
         expect(error('key: Gbm')).toBe('Gb minor needs 9 flats: write F# minor')
         expect(error('key: G#')).toBe('G# major needs 8 sharps: write Ab major')
         expect(error('A# dorian')).toBe('A# dorian needs 8 sharps: write Bb dorian')
