@@ -50,7 +50,8 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 window.musicNotationOptions = {
     hand: 'left',
     orientation: { chord: 'vertical', fretboard: 'vertical', keyboard: 'horizontal' },
-    // Note names on the whole site: 'letters' (default), 'solfege' (Do Ré Mi) or 'german' (H for B).
+    // How note names show on the whole site: 'letters' (default), 'solfege' (Do Ré Mi) or
+    // 'german' (H for B). It never changes how your notes are read.
     naming: 'solfege'
 }
 ```

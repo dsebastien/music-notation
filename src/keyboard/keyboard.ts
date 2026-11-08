@@ -139,7 +139,7 @@ export function renderKeyboard(
         : 0
     const depth = WHITE_H + fingerRow + handRow
     const content = (vertical ? depth : length) + 2
-    const width = Math.max(content, titleWidth(options.title))
+    const width = Math.max(content, titleWidth(options.title && shown(options.title)))
     const shift = (width - content) / 2
     const height = top + (vertical ? length : depth) + 2
     // Key coordinates: `along` the keyboard from its low end, `depth` from the far edge, where

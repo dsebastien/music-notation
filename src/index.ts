@@ -124,11 +124,13 @@ export {
     namingOf,
     toLetters,
     lettersInBlock,
+    quoteAsWritten,
     noteInNaming,
     chordInNaming,
     shownText,
     withNaming,
-    type Naming
+    type Naming,
+    type BlockReading
 } from './theory/naming.js'
 export {
     attachPick,

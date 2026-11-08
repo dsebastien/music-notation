@@ -198,7 +198,7 @@ describe('transition blocks', () => {
         const error = (source: string) => renderBlock('chord', source, host()).error
         expect(error('from: A')).toBe('Add the next chord: to: D')
         expect(error('progression: G')).toContain('two chords or more')
-        expect(error('from: A\nto: Hm')).toContain("Didn't recognize")
+        expect(error('from: A\nto: Jm')).toContain("Didn't recognize")
         expect(error('from: A\nto: D\ncount: 0')).toContain('count:')
         expect(error('from: A\nto: D\nprogression: G C')).toContain('not both')
         expect(error('from: A\nto: D\nvoicings: all')).toContain("can't be used")

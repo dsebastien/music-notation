@@ -92,6 +92,9 @@ let names = 0
 /** An id unique on the page (a counter behind this copy's random prefix). */
 export const uniqueId = (): string => `${NAME_PREFIX}${++names}`
 
+/** Diagrams whose names hold note and chord names (#12). */
+const SHOWN_NAMES = /\bmn-(guitar-chord|fretboard|keyboard|circle)\b/
+
 /**
  * A root <svg> sized by its viewBox, scaling with the container up to its natural width.
  *
@@ -110,8 +113,8 @@ export function svgRoot(
 ): SVGElement {
     const id = `${NAME_PREFIX}${++names}`
     const title = svg(doc, 'title', { class: 'mn-name', id })
-    // Names follow the drawing's naming (#12).
-    title.textContent = shown(label)
+    // A diagram's name follows the drawing's naming (#12); a pattern's (strokes D U) never does.
+    title.textContent = SHOWN_NAMES.test(cls) ? shown(label) : label
     return svg(
         doc,
         'svg',

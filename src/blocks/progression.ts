@@ -467,7 +467,7 @@ function renderSection(
             shown(`Key: ${section.name ?? section.key.name}${blues}${others}`)
         )
     )
-    if (section.note) el.appendChild(html(doc, 'div', 'mn-progression-note', section.note))
+    if (section.note) el.appendChild(html(doc, 'div', 'mn-progression-note', shown(section.note)))
     const instrument = (field(block, 'instrument') ?? options.instrument ?? 'guitar').toLowerCase()
     if (!['guitar', 'piano', 'keyboard'].includes(instrument)) {
         throw new Error(`Unknown instrument "${instrument}": use guitar or piano`)

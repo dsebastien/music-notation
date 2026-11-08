@@ -18,7 +18,14 @@ import {
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
 import { attachPick, type PickLayer, type PickOptions } from './pick.js'
-import { lettersInBlock, namingOf, withNaming, type Naming } from '../theory/naming.js'
+import {
+    lettersInBlock,
+    namingOf,
+    quoteAsWritten,
+    withNaming,
+    type BlockReading,
+    type Naming
+} from '../theory/naming.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
@@ -116,14 +123,19 @@ export function renderBlock(
     }
     // Names in solfège or German are read into letters first (#12); the drawing shows them in
     // the block's naming.
-    let naming: Naming = namingOf(options.naming) ?? 'letters'
+    // The block's own `naming:` line reads and shows; the app's option only shows (#12), so an
+    // app's default never reads an existing note's B as B flat.
+    let reading: BlockReading
     try {
-        const read = lettersInBlock(language, text, naming)
-        text = read.text
-        naming = read.naming
+        reading = lettersInBlock(language, text)
     } catch (e) {
         return failed(el, host, language, messageOf(e))
     }
+    text = reading.text
+    const naming: Naming = reading.naming ?? namingOf(options.naming) ?? 'letters'
+    if (naming !== 'letters') el.setAttribute('data-mn-naming', naming)
+    // Messages quote what the user wrote ("H dorian"), not what it was read as.
+    const quoted = (e: unknown) => quoteAsWritten(messageOf(e), reading.changes)
     const draw = (): RenderResult => {
         let parts: string[] | null = null
         try {
@@ -140,7 +152,7 @@ export function renderBlock(
                   voicingParts(language, text))
                 : null
         } catch (e) {
-            return failed(el, host, language, messageOf(e))
+            return failed(el, host, language, quoted(e))
         }
         // An empty block (a template's placeholder, or only separators) draws nothing, not an error.
         if (!text.trim() || parts?.length === 0) {
@@ -151,6 +163,12 @@ export function renderBlock(
         try {
             if (parts && isDiagramLanguage(language)) {
                 error = renderRow(doc, language, parts, el, options)
+                // Each diagram's message quotes what the user wrote (#12).
+                if (error !== null && reading.changes.length) {
+                    error = quoteAsWritten(error, reading.changes)
+                    for (const m of el.querySelectorAll('.mn-error-message'))
+                        m.textContent = quoteAsWritten(m.textContent ?? '', reading.changes)
+                }
             } else {
                 el.appendChild(RENDERERS[language](doc, text, options))
                 // A chart still draws around directives it couldn't read, and {chord} diagrams it
@@ -160,10 +178,19 @@ export function renderBlock(
                         '.mn-chart > .mn-error-message, .mn-chart-chord > .mn-error-message'
                     )
                 ]
+                // A wrong {naming: …} directive is one of them (#12).
+                if (reading.warning) {
+                    const chart = el.querySelector('.mn-chart')
+                    chart?.insertBefore(
+                        html(doc, 'div', 'mn-error-message', reading.warning),
+                        chart.firstChild
+                    )
+                    if (chart) warnings.unshift(chart.firstElementChild!)
+                }
                 if (warnings.length) error = warnings.map((w) => w.textContent ?? '').join('; ')
             }
         } catch (e) {
-            return failed(el, host, language, messageOf(e))
+            return failed(el, host, language, quoted(e))
         }
         // Titles wrap instead of widening a diagram (#74): every diagram of the block gets the room
         // of its longest title, so the necks of a row line up.
@@ -222,7 +249,7 @@ export function renderBlock(
         if (pick.play !== true) return pick
         return { ...pick, play: typeof options.play === 'object' ? options.play : true }
     }
-    return withNaming(naming, draw)
+    return withNaming(naming, draw, reading.titles)
 }
 
 /** The block as an inline error that says what's wrong. */

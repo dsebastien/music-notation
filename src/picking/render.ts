@@ -5,6 +5,7 @@
  * bar lines. Each slot is a `g[data-mn-beat]` with its notes (`data-mn-notes`: string:fret:midi),
  * so a page can play it and light the slot that sounds.
  */
+import { shown } from '../theory/naming.js'
 import { svg, svgLabel, svgLine, svgRoot } from '../render/dom.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { parseTuning } from '../fretboard/tuning.js'
@@ -171,7 +172,13 @@ export function renderPicking(
                 i % slotsPerBar === 0 && chord && (bar === 0 || score.chords[bar - 1] !== chord)
             if (starts) {
                 g.appendChild(
-                    svgLabel(doc, chord, [x - width / 2 + 3, chordY], 'mn-strum-chord', 'start')
+                    svgLabel(
+                        doc,
+                        shown(chord),
+                        [x - width / 2 + 3, chordY],
+                        'mn-strum-chord',
+                        'start'
+                    )
                 )
                 g.setAttribute('data-mn-chord', chord)
             }

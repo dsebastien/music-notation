@@ -115,7 +115,7 @@ export function renderFretboard(
         minWidth: titleWidth(caption)
     }
     // The title never widens the diagram (#74): it wraps onto more lines instead.
-    const lines = options.title ? titleLines(options.title, neckFrame(layout).width) : []
+    const lines = options.title ? titleLines(shown(options.title), neckFrame(layout).width) : []
     const frame = neckFrame({
         ...layout,
         top: lines.length ? TITLE + (lines.length - 1) * TITLE_LINE : 0

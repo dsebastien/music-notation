@@ -8,7 +8,7 @@ import * as api from '../index.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
 import { injectStyles } from '../styles.js'
 import { layoutDefaults } from '../render/layout.js'
-import { namingOf } from '../theory/naming.js'
+import { namingOf, type Naming } from '../theory/naming.js'
 import { autoRender } from './index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import type { NotePlayer } from '../playback/player.js'
@@ -83,6 +83,12 @@ function pagePlay(options: unknown): false | PlayOptions {
     return out
 }
 
+/** The site's note names (#12): `naming` of the page options when valid, else letters (undefined). */
+export function pageNaming(options: unknown): Naming | undefined {
+    if (!options || typeof options !== 'object') return undefined
+    return namingOf((options as Record<string, unknown>)['naming']) ?? undefined
+}
+
 // Loaded twice (two scripts, a cached copy): only the first one starts.
 if (!window.musicNotationLoaded) {
     window.musicNotationLoaded = true
@@ -91,10 +97,7 @@ if (!window.musicNotationLoaded) {
         const stop = autoRender(document, {
             ...layoutDefaults(window.musicNotationOptions),
             // Note names (#12): letters, solfege or german; anything else is letters.
-            naming:
-                namingOf(
-                    (window.musicNotationOptions as { naming?: unknown } | undefined)?.naming
-                ) ?? undefined,
+            naming: pageNaming(window.musicNotationOptions),
             properties: pageProperties(window.musicNotationOptions),
             voicings: lookupGuitarVoicing,
             play: pagePlay(window.musicNotationOptions)

@@ -1,4 +1,5 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
+import { shown } from '../theory/naming.js'
 import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
 import {
     drawTitle,
@@ -197,8 +198,9 @@ export function renderGuitarDiagram(
     // From the nut, the capo sits on its own fret; from the capo, where the nut is drawn.
     const fromNut = capo > 0 && options.fretsFrom === 'nut'
     const capoFret = fromNut ? capo : null
+    // The caption's chord in the drawing's naming (#12).
     const caption =
-        capo && options.caption !== false ? capoCaption(capo, options.sounds) : undefined
+        capo && options.caption !== false ? shown(capoCaption(capo, options.sounds)) : undefined
     const layout: NeckLayout = {
         orientation,
         hand: options.hand ?? 'right',
@@ -212,7 +214,7 @@ export function renderGuitarDiagram(
         minWidth: titleWidth(caption)
     }
     // The title never widens the diagram (#74): it wraps onto more lines instead.
-    const lines = options.title ? titleLines(options.title, neckFrame(layout).width) : []
+    const lines = options.title ? titleLines(shown(options.title), neckFrame(layout).width) : []
     const frame = neckFrame({
         ...layout,
         top: lines.length ? TITLE + (lines.length - 1) * TITLE_LINE : 4

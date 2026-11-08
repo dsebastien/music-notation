@@ -959,13 +959,19 @@ naming: german
 I IV V
 naming: german</code></pre></div>
 
-You can write the notes in any of the three systems, whatever the naming: `chord: Rém`, `Sol7`, `scale: La mineur`, `notes: Do Mi Sol`, `key: Sol`, `range: Do3-Si4`, `H7`. Accents are optional (`Re` is Ré), and `Fa dièse` and `Si bémol` read as F♯ and B♭. Scale and mode words stay in English (`La minor pentatonic`), except `majeur` and `mineur`.
+You can write the notes in any of the three systems: `chord: Rém`, `Sol7`, `scale: La mineur`, `notes: Do Mi Sol`, `key: Sol`, `range: Do3-Si4`, `H7`. Solfège names start with a capital (`la` and `do` stay words). Accents are optional (`Re` is Ré), and `Fa dièse` and `Si bémol` read as F♯ and B♭. The forms the library shows read back too: `Ré m7`, `Sol 7/Si`. Scale and mode words stay in English (`La minor pentatonic`), except `majeur` and `mineur`.
 
-- `H` is always B natural.
-- A bare `B` (no ♯ or ♭) is B♭ only in a block whose naming is `german`. Everywhere else it is B natural, as before. In a German block, write `H` for B natural.
-- A word that only starts with a syllable stays a word: `[Solo]` in a chart is not a chord.
+Letter names come first, so notes you already wrote never change:
 
-The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). Tabs and scores, a diagram redrawn by the play bar for the other instrument and `caption: fingering` sentences stay in letters.
+- `Do` alone is D diminished (`Do7` is D°7), as before. It is C in a block with `naming: solfege`, and on a line with other solfège names (`Sol Rém Do`). In a solfège block, write `Ddim` or `D°` for D diminished.
+- `H` is B natural in the values of keys (`chord: H7`, `key: H dorian`), where it was a mistake before. On a block's first line, in a progression line or a chart, `H` stays as written unless the block has a `naming:` line.
+- A bare `B` (no ♯ or ♭) is B♭ only in a block that has its own `naming: german` line. Everywhere else it is B natural, as before; an app's default naming never changes it. In a German block, write `H` for B natural: `tuning: E A D G H E` (or `EADGHE`).
+- A chart's brackets hold any text: a chart is read only when it has a `{naming: …}` directive.
+- A word that only starts with a syllable stays a word: `[Solo]`, `Six`, `Lamentation`.
+
+What you write by hand stays as you wrote it: titles (`title:`, `{title}`) and lyrics are never rewritten. CAGED shapes keep their letters (`E shape`). German note words (Fis, Es, Dur, Moll) and lowercase minor keys are not read.
+
+The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default for showing (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). Tabs and scores and `caption: fingering` sentences stay in letters.
 
 ## Hear the diagrams
 

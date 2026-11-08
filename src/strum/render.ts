@@ -5,6 +5,7 @@
  * colors, like the other diagrams. Each slot is a `g[data-mn-beat]` (its index from 0), so a page
  * can light the strum that plays.
  */
+import { shown } from '../theory/naming.js'
 import { html, svg, svgLabel, svgLine, svgRoot } from '../render/dom.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import type { RenderOptions } from '../blocks/renderers.js'
@@ -225,7 +226,7 @@ export function renderStrum(
             if (chord) {
                 const label = svgLabel(
                     doc,
-                    chord,
+                    shown(chord),
                     [x - width / 2 + 3, chordY],
                     'mn-strum-chord',
                     'start'

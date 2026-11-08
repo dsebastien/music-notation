@@ -85,12 +85,13 @@ const layer = attachPick(svg, {
 
 ## Note names
 
-Blocks read note names in letters, solfège and German, and show them in the block's naming (`naming:` line, else the `naming` option). For your own code:
+Blocks read note names in letters, solfège and German, and show them in the block's naming (its `naming:` line, else the `naming` option, which only changes how names show). For your own code:
 
-- `toLetters(text, naming?, { chord? })`: names read into letters: `toLetters('Rém Sol7 La mineur')` is `Dm G7 A minor`; `H` is B; a bare `B` is B♭ only with `'german'`. With `chord: true` the text is one chord and may have a space before its quality (`Ré m7`).
-- `noteInNaming(name, naming)`, `chordInNaming(symbol, naming)`: a letter name or a chord symbol shown in a naming (`Fa♯`, `Ré m7`, `Do/Sol`, German `H7`). `shownText(text, naming)` does it for the chords and notes in a text, leaving the English article "A" alone.
-- `withNaming(naming, draw)`: renderers called inside `draw` (`renderFretboard`, `renderKeyboard`, `renderGuitarDiagram`…) show their names in that naming. `renderBlock` does this for you.
-- `NAMINGS`, `parseNaming(text)` (throws what to write), `namingOf(value)` (null for anything else), `lettersInBlock(language, source, naming)` (a block's source read into letters, and its naming), type `Naming`.
+- `toLetters(text, naming?, { chord?, h? })`: names read into letters, letters first: `toLetters('Rém Sol7 La mineur')` is `Dm G7 A minor`, `toLetters('Do7')` stays `Do7` (D°7) unless the naming is `'solfege'` or the text has other solfège names. `H` is B (`h: false` keeps it); a bare `B` is B♭ only with `'german'`. With `chord: true` the text is one chord and may have a space before its quality (`Ré m7`).
+- `lettersInBlock(language, source)`: a block's source in letters, with its own `naming` (null without a line), what was read (`changes`, for messages), the hand-written `titles` and a chart's `warning`. `quoteAsWritten(message, changes)` puts what the user wrote back into a message.
+- `noteInNaming(name, naming)`, `chordInNaming(symbol, naming)`: a letter name or a chord symbol shown in a naming (`Fa♯`, `Ré m7`, `Do/Sol`, German `H7`, signs as written). `shownText(text, naming)` does it for the chords and notes of a generated text (`E shape` and the English article "A" stay).
+- `withNaming(naming, draw, titles?)`: renderers called inside `draw` (`renderFretboard`, `renderKeyboard`, `renderGuitarDiagram`…) show their names in that naming; `titles` written by hand are never rewritten. `renderBlock` does this for you.
+- `NAMINGS`, `parseNaming(text)` (throws what to write), `namingOf(value)` (null for anything else), types `Naming`, `BlockReading`.
 - Data attributes (`data-mn-set`, `data-mn-note`, `data-mn-chord`, the pick layer's `data-mn-note`) stay in letters whatever the naming.
 
 ## Renderers and theory

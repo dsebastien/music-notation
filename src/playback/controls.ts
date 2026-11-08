@@ -3,6 +3,7 @@
  * redrawing for the other instrument, and `attachPlayback`, which gives each block its one bar
  * below it (`block-bar.ts`) and each pattern, progression and chart its bar in time.
  */
+import { namingOf, withNaming } from '../theory/naming.js'
 import { accessibleName, setAccessibleName } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
@@ -178,6 +179,24 @@ export function redrawFor(
     diagram: Element,
     data: DiagramData,
     pageHand: Hand = 'right'
+): Element | null {
+    // Redrawn in the block's naming (#12), its title as it is shown already (never shown twice).
+    const naming = namingOf(diagram.closest('[data-mn-naming]')?.getAttribute('data-mn-naming'))
+    if (!naming) return redrawLetters(doc, diagram, data, pageHand)
+    const title = diagram.querySelector('.mn-title')?.textContent ?? ''
+    const name = accessibleName(diagram) ?? ''
+    return withNaming(naming, () => redrawLetters(doc, diagram, data, pageHand), [
+        title,
+        title.replace(/,\s*(left|right) hand$/, ''),
+        name
+    ])
+}
+
+function redrawLetters(
+    doc: Document,
+    diagram: Element,
+    data: DiagramData,
+    pageHand: Hand
 ): Element | null {
     // A guitar drawing keeps the diagram's own hand, else the page's (a keyboard has none).
     const own = diagram.getAttribute('data-mn-hand')

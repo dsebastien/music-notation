@@ -146,7 +146,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
     const chords = placed(key, options.sevenths ?? false, minor && options.dominant !== 'minor')
     const neighbours = options.neighbours ?? true
     const top = options.title ? TITLE : 0
-    const width = Math.max(SIZE, titleWidth(options.title))
+    const width = Math.max(SIZE, titleWidth(options.title && shown(options.title)))
     const chipsTop = top + SIZE + 8
     const height = chipsTop + CHIP_H + 2
     const signature = keySignature(key)

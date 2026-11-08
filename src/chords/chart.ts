@@ -300,7 +300,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         root.appendChild(header)
     }
     const meta = [
-        key ? `Key ${key}` : null,
+        key ? shown(`Key ${key}`) : null,
         song.capo ? `Capo ${song.capo}` : null,
         song.tempo ? `${song.tempo} BPM` : null,
         song.time ? song.time : null,

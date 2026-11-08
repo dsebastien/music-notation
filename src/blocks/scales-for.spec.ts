@@ -80,7 +80,7 @@ describe('scales-for', () => {
     it('says what to write instead', () => {
         const error = (source: string) => renderBlock('fretboard', source, host()).error
         expect(error('scales-for: G Xyz')).toContain('scales-for: G D Em C')
-        expect(error('scales-for-notes: C H')).toContain('scales-for-notes: C D E G A')
+        expect(error('scales-for-notes: C J')).toContain('scales-for-notes: C D E G A')
         expect(error('scales-for: G C\nscale: C major')).toBe(
             'scales-for finds the scale itself: remove "scale"'
         )

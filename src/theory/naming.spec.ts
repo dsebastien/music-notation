@@ -14,40 +14,48 @@ import {
 /** #12: note names in solfège (Do Ré Mi) and German (H for B). */
 describe('naming: reading names into letters', () => {
     it('reads solfège notes, accents and signs optional', () => {
-        expect(toLetters('Do Ré Re Mi Fa Sol La Si')).toBe('C D D E F G A B')
+        expect(toLetters('Do Ré Re Mi Fa Sol La Si', 'solfege')).toBe('C D D E F G A B')
         expect(toLetters('Fa# Sib Lab Do♯ Mi♭')).toBe('F# Bb Ab C♯ E♭')
-        expect(toLetters('Fa dièse, Si bémol, sol diese, la bemol')).toBe('F#, Bb, G#, Ab')
-        expect(toLetters('do4 Sol3')).toBe('C4 G3')
+        expect(toLetters('Fa dièse, Si bémol, Sol diese, La bemol')).toBe('F#, Bb, G#, Ab')
+        expect(toLetters('Do4 Sol3')).toBe('C4 G3')
+        // NFD accents (a decomposed é) read too.
+        expect(toLetters('Rém')).toBe('Dm')
     })
 
-    it('reads solfège chords, with or without a space before the quality, and a bass', () => {
-        expect(toLetters('Rém Sol7 Domaj7 Lam7b5 Fa#m Sibdim7')).toBe(
-            'Dm G7 Cmaj7 Am7b5 F#m Bbdim7'
-        )
-        expect(toLetters('Do/Sol Lam/Mi')).toBe('C/G Am/E')
-        expect(toLetters('Ré m7', 'letters', { chord: true })).toBe('Dm7')
+    it('reads solfège chords, a bass, and the spaced forms the library shows', () => {
+        expect(toLetters('Rém Sol7 Lam7b5 Fa#m Sibdim7')).toBe('Dm G7 Am7b5 F#m Bbdim7')
+        expect(toLetters('Do/Sol Lam/Mi', 'solfege')).toBe('C/G Am/E')
+        expect(toLetters('Ré m7 Sol 7 Do 7/Mi', 'solfege')).toBe('Dm7 G7 C7/E')
+        expect(toLetters('Sol 7/Si')).toBe('G7/B')
+        expect(toLetters('La/Do dièse')).toBe('A/C#')
+        expect(toLetters('Sol,Ré,Mim,Do')).toBe('G,D,Em,C')
+        expect(toLetters('|Sol|Ré|')).toBe('|G|D|')
     })
 
-    it('leaves words that only start with a syllable alone', () => {
+    it('reads letters first: what already reads as letters stays (Do is D diminished)', () => {
+        expect(toLetters('Do Do7 Do/F')).toBe('Do Do7 Do/F')
+        expect(toLetters('Do Do7', 'german')).toBe('Do Do7')
+        expect(toLetters('Do Do7 Do/F', 'solfege')).toBe('C C7 C/F')
+    })
+
+    it('leaves words alone: lowercase syllables and words that start with one', () => {
         expect(toLetters('Solo Doigts Laisse Fais Lamentation')).toBe(
             'Solo Doigts Laisse Fais Lamentation'
         )
+        expect(toLetters('sim. la do re Six Mix')).toBe('sim. la do re Six Mix')
     })
 
-    it('reads H as B natural in every naming, and a bare B as B flat only in german', () => {
+    it('reads H as B natural, and a bare B as B flat only in german', () => {
         expect(toLetters('H H7 Hm C/H H3')).toBe('B B7 Bm C/B B3')
+        expect(toLetters('H7', 'letters', { h: false })).toBe('H7')
         expect(toLetters('B B7 Bm C/B B3')).toBe('B B7 Bm C/B B3')
         expect(toLetters('B B7 Bm C/B B3 Bb H', 'german')).toBe('Bb Bb7 Bbm C/Bb Bb3 Bb B')
-        expect(toLetters('E A D G H E', 'german')).toBe('E A D G B E')
     })
 
-    it('reads majeur and mineur as major and minor', () => {
+    it('reads majeur and mineur as major and minor, and a range of keys', () => {
         expect(toLetters('La mineur')).toBe('A minor')
         expect(toLetters('Sol majeur')).toBe('G major')
-    })
-
-    it('reads a range of keys', () => {
-        expect(toLetters('Do3-Si4')).toBe('C3-B4')
+        expect(toLetters('Do3-Si4', 'solfege')).toBe('C3-B4')
     })
 })
 
@@ -66,6 +74,7 @@ describe('naming: showing names', () => {
         expect(noteInNaming('E♭', 'solfege')).toBe('Mi♭')
         expect(noteInNaming('B', 'german')).toBe('H')
         expect(noteInNaming('Bb', 'german')).toBe('B')
+        expect(noteInNaming('B♭', 'german')).toBe('B')
         expect(noteInNaming('B#', 'german')).toBe('H#')
         expect(noteInNaming('F#', 'german')).toBe('F#')
         expect(noteInNaming('F#', 'letters')).toBe('F#')
@@ -79,26 +88,45 @@ describe('naming: showing names', () => {
         expect(chordInNaming('B7', 'german')).toBe('H7')
         expect(chordInNaming('Bbmaj7/D', 'german')).toBe('Bmaj7/D')
         expect(chordInNaming('C/B', 'german')).toBe('C/H')
+        // Signs as written: German keeps ♯ and ♭.
+        expect(chordInNaming('F♯m', 'german')).toBe('F♯m')
+        expect(chordInNaming('E♭m', 'german')).toBe('E♭m')
     })
 
-    it('rewrites the chords and notes in a text, and leaves the rest', () => {
+    it('rewrites the chords and notes in a generated text, and leaves the rest', () => {
         expect(shownText('Fretboard: A minor pentatonic', 'solfege')).toBe(
             'Fretboard: La minor pentatonic'
         )
         expect(shownText('Keyboard: Cmaj7, left hand: C3, right hand: E4 G4', 'solfege')).toBe(
             'Keyboard: Do maj7, left hand: Do3, right hand: Mi4 Sol4'
         )
-        expect(shownText('G major, E shape', 'german')).toBe('G major, E shape')
         expect(shownText('B major scale, capo 2', 'german')).toBe('H major scale, capo 2')
-        // The English article stays.
-        expect(shownText('A long title for Am', 'solfege')).toBe('A long title for La m')
         expect(shownText('Capo 3', 'solfege')).toBe('Capo 3')
-        // 5, 6, 7 and 9 after a letter make a chord; other digits an octave.
-        expect(shownText('G7 chord diagram', 'solfege')).toBe('Sol 7 chord diagram')
-        expect(shownText('C6, A9, E5', 'solfege')).toBe('Do 6, La 9, Mi 5')
-        expect(shownText('C3 B4 D8', 'german')).toBe('C3 H4 D8')
         expect(shownText('3 2 1', 'solfege')).toBe('3 2 1')
         expect(shownText('Fretboard: A minor', 'letters')).toBe('Fretboard: A minor')
+        // 5, 6, 7 and 9 after a letter make a chord, other digits an octave; a run of notes
+        // with octaves keeps its octaves.
+        expect(shownText('G7 chord diagram', 'solfege')).toBe('Sol 7 chord diagram')
+        expect(shownText('C6, A9, E5', 'solfege')).toBe('Do 6, La 9, Mi 5')
+        expect(shownText('Keyboard: C5 E5 G5', 'solfege')).toBe('Keyboard: Do5 Mi5 Sol5')
+        expect(shownText('C3 B4 D8', 'german')).toBe('C3 H4 D8')
+        // CAGED shapes keep their letters.
+        expect(shownText('G major, E shape', 'solfege')).toBe('Sol major, E shape')
+        // Two chords of one cell, and the signs as written.
+        expect(shownText('D♯m/E♭m', 'solfege')).toBe('Ré♯ m/Mi♭ m')
+        expect(shownText('F♯ or G♭', 'german')).toBe('F♯ or G♭')
+    })
+
+    it('never rewrites a title written by hand, even inside a longer name', () => {
+        withNaming(
+            'solfege',
+            () => {
+                expect(shown('A Day in the Life')).toBe('A Day in the Life')
+                expect(shown('Gamme de Do majeur, left hand')).toBe('Gamme de Do majeur, left hand')
+                expect(shown('Fretboard: A minor')).toBe('Fretboard: La minor')
+            },
+            ['A Day in the Life', 'Gamme de Do majeur']
+        )
     })
 
     it('shows through the naming a drawing is made under, letters outside', () => {
@@ -115,64 +143,88 @@ describe('naming: showing names', () => {
 })
 
 describe('naming: a block read into letters', () => {
-    it('takes the naming line out and reads the notes of the keys that hold them', () => {
-        expect(
-            lettersInBlock(
-                'fretboard',
-                'La mineur pentatonique\nnaming: solfege\ntitle: La belle\nroot: Do',
-                'letters'
-            )
-        ).toEqual({
-            text: 'A minor pentatonique\ntitle: La belle\nroot: C',
-            naming: 'solfege'
-        })
-        expect(lettersInBlock('chord', 'naming: german\nH7', 'letters')).toEqual({
-            text: 'B7',
-            naming: 'german'
-        })
-        expect(lettersInBlock('chord', 'B7', 'german').text).toBe('Bb7')
-        expect(lettersInBlock('chord', 'B7', 'letters')).toEqual({ text: 'B7', naming: 'letters' })
-        expect(
-            lettersInBlock('keyboard', 'notes: Do4 Mi4 Sol4\nrange: Do4-Si4', 'letters').text
-        ).toBe('notes: C4 E4 G4\nrange: C4-B4')
-        expect(lettersInBlock('fretboard', 'C major\ntuning: E A D G H E', 'german').text).toBe(
-            'C major\ntuning: E A D G B E'
+    it("takes the block's naming line out and reads the keys that hold notes", () => {
+        const read = lettersInBlock(
+            'fretboard',
+            'La mineur pentatonic\nnaming: solfege\ntitle: La belle\nroot: Do'
+        )
+        expect(read.text).toBe('A minor pentatonic\ntitle: La belle\nroot: C')
+        expect(read.naming).toBe('solfege')
+        expect(read.titles).toEqual(['La belle'])
+        expect(lettersInBlock('chord', 'naming: german\nH7').text).toBe('B7')
+        expect(lettersInBlock('chord', 'naming: german\nB7').text).toBe('Bb7')
+        expect(lettersInBlock('chord', 'B7')).toMatchObject({ text: 'B7', naming: null })
+        expect(lettersInBlock('keyboard', 'notes: Do4 Mi4 Sol4\nrange: Do4-Si4').text).toBe(
+            'notes: C4 E4 G4\nrange: C4-B4'
         )
     })
 
-    it('reads only B and H in the titles of german blocks', () => {
-        expect(lettersInBlock('fretboard', 'title: B and H, La', 'german').text).toBe(
-            'title: Bb and B, La'
-        )
-        expect(lettersInBlock('fretboard', 'title: B and H, La', 'solfege').text).toBe(
-            'title: B and H, La'
+    it('reads every key that holds notes', () => {
+        for (const key of ['symbol', 'name', 'from', 'to', 'modes', 'scales-for-notes', 'sounds'])
+            expect(lettersInBlock('chord', `naming: german\n${key}: B`).text).toBe(`${key}: Bb`)
+        expect(lettersInBlock('chord', 'from: Do x32010\nto: Lam').text).toBe(
+            'from: Do x32010\nto: Am'
         )
     })
 
-    it('reads progression lines and keys, never strum or picking patterns', () => {
-        expect(lettersInBlock('progression', 'key: Sol\nSol Rém Do', 'letters').text).toBe(
-            'key: G\nG Dm C'
+    it('reads H only where it was an error before, unless the block names its naming', () => {
+        // A key value: H was an error.
+        expect(lettersInBlock('keyboard', 'chord: H7').text).toBe('chord: B7')
+        // A shorthand line or a progression keeps H as written, as before.
+        expect(lettersInBlock('chord', 'H x24442').text).toBe('H x24442')
+        expect(lettersInBlock('progression', 'H E').text).toBe('H E')
+        expect(lettersInBlock('progression', 'naming: german\nH E').text).toBe('B E')
+    })
+
+    it('reads tunings, compact ones too', () => {
+        expect(lettersInBlock('fretboard', 'naming: german\ntuning: E A D G H E').text).toBe(
+            'tuning: E A D G B E'
         )
-        expect(lettersInBlock('strum', 'chord: Rém\nD DU UDU', 'letters').text).toBe(
-            'chord: Dm\nD DU UDU'
+        expect(lettersInBlock('fretboard', 'naming: german\ntuning: EADGHE').text).toBe(
+            'tuning: E A D G B E'
         )
-        expect(lettersInBlock('picking', 'chords: Do Sol\np i m a', 'letters').text).toBe(
+        expect(lettersInBlock('fretboard', 'naming: german\ntuning: EADGBE').text).toBe(
+            'tuning: E A D G Bb E'
+        )
+        expect(lettersInBlock('fretboard', 'tuning: EADGBE').text).toBe('tuning: EADGBE')
+    })
+
+    it('reads progression lines, circle keys, strum chord changes; never patterns', () => {
+        expect(lettersInBlock('progression', 'key: Sol\nSol Rém Do').text).toBe('key: G\nG Dm C')
+        expect(lettersInBlock('circle', 'Sol').text).toBe('G')
+        expect(lettersInBlock('strum', 'chord: Rém\nD DU UDU').text).toBe('chord: Dm\nD DU UDU')
+        expect(lettersInBlock('strum', '[Sol]D D U [Rém]D').text).toBe('[G]D D U [Dm]D')
+        // Among other solfège names, Do is C.
+        expect(lettersInBlock('picking', 'chords: Do Sol\np i m a').text).toBe(
             'chords: C G\np i m a'
         )
     })
 
-    it('reads chart chords and directives, never lyrics', () => {
-        const { text, naming } = lettersInBlock(
-            'chords',
-            '{naming: solfege}\n{key: Sol}\n[Sol]La vie [Rém]est belle [Solo]',
-            'letters'
+    it('reads a chart only when it names its naming, never its lyrics', () => {
+        const chart = '[Sol]La vie [Rém]est belle [Solo] [sim.] [Do7] [H7]'
+        expect(lettersInBlock('chords', chart)).toMatchObject({ text: chart, naming: null })
+        const read = lettersInBlock('chords', `{naming: solfege}\n{key: La mineur}\n${chart}`)
+        expect(read.naming).toBe('solfege')
+        expect(read.text).toBe('{key: A minor}\n[G]La vie [Dm]est belle [Solo] [sim.] [C7] [B7]')
+    })
+
+    it('keeps a wrong chart naming as a warning, and the chart as it is', () => {
+        const read = lettersInBlock('chords', '{naming: french}\n[Sol]x')
+        expect(read.naming).toBeNull()
+        expect(read.text).toBe('[Sol]x')
+        expect(read.warning).toBe(
+            'naming: write {naming: letters}, {naming: solfege} or {naming: german}'
         )
-        expect(naming).toBe('solfege')
-        expect(text).toBe('{key: G}\n[G]La vie [Dm]est belle [Solo]')
+    })
+
+    it('records what it read, to quote the user in messages', () => {
+        const read = lettersInBlock('keyboard', 'naming: german\nkey: H dorian\nchord: Rém')
+        expect(read.changes).toContainEqual(['H dorian', 'B dorian'])
+        expect(read.changes).toContainEqual(['Rém', 'Dm'])
     })
 
     it('says what to write for a wrong naming', () => {
-        expect(() => lettersInBlock('chord', 'naming: french\nC', 'letters')).toThrow(
+        expect(() => lettersInBlock('chord', 'naming: french\nC')).toThrow(
             'naming: write letters, solfege or german'
         )
     })

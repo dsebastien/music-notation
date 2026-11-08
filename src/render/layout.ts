@@ -3,7 +3,6 @@
  * to x/y. Renderers place things along the neck and across the strings, never in x/y directly,
  * so text stays upright in every orientation (nothing is rotated or mirrored).
  */
-import { shown } from '../theory/naming.js'
 
 export type Orientation = 'vertical' | 'horizontal'
 export type Hand = 'left' | 'right'
@@ -51,10 +50,8 @@ export function layoutDefaults(value: unknown): LayoutDefaults {
 }
 
 /** Width a title needs (14px semi-bold), so a narrow diagram doesn't clip it. Errs on the wide side. */
-export function titleWidth(given?: string): number {
-    if (!given) return 0
-    // As the drawing shows it (#12): solfège names are longer.
-    const title = shown(given)
+export function titleWidth(title?: string): number {
+    if (!title) return 0
     let width = 8
     for (const ch of title) {
         // Wide scripts (CJK, emoji), capitals and digits, then narrow letters and punctuation.
@@ -106,9 +103,7 @@ export function titleLineWidth(text: string): number {
  * wider than the diagram, or the rest of a title that needs more lines, is squeezed (`textLength`,
  * the padding left out).
  */
-export function titleLines(given: string, width: number): TitleLine[] {
-    // The title as the drawing shows it (#12), wrapped by its shown width.
-    const title = shown(given)
+export function titleLines(title: string, width: number): TitleLine[] {
     const fits = (text: string) => titleLineWidth(text) <= width
     const squeeze = (text: string): TitleLine => ({
         text,
