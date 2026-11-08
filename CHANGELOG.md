@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.15.0 (2026-11-08)
+
+- **Answer on the drawing (pick layer)**: an app can turn a fretboard or a keyboard into something you answer on, for drills and quizzes such as "find every G on string 5". Every string at every fret, the open strings too, and every piano key becomes a target. A click picks it, and so does the keyboard: Tab goes to the drawing, the arrows move (on a fretboard they follow the drawing in every orientation and hand; on a keyboard they go up and down in pitch), Home and End go to the ends, and Space or Enter picks. The app gets the string, the fret, the note and the pitch, and marks the pick right (a check) or wrong (a cross) on the drawing. Screen readers hear each target by its place ("String 5, fret 3", "White key 5"), never by its note, so a drill does not give the answer away. It is off by default: blocks in your notes do not change.
+- **Hear what you pick**: with sound on, each pick plays its note for 1.5 s on the app's player and volume, on guitar for a fretboard and on piano for a keyboard. A drawing you answer on has no play bar: a click answers, and you hear what you answered.
+- For apps: `renderFretboard` and `renderKeyboard` take `pick: true`; `attachPick(svg, { onPick, play })` makes the layer live and returns it (`mark`, `unmark`, `clear`, `focus`, `targets`, `destroy`); `renderBlock` takes `pick: { onPick, play }` on `fretboard` and `keyboard` blocks and returns the live layers in `picks`. `emptyNoteSet()` draws a neck or a keyboard without dots. New types: `Pick`, `PickAt`, `PickLayer`, `PickOptions`, `PickResult`. New colors: `--mn-right`, `--mn-wrong`.
+
 ## 0.14.0 (2026-11-05)
 
 - **One play bar per block, under it**: the bar no longer floats over each diagram on hover. Every block with diagrams that play has one bar under it, a block with one diagram too, so nothing covers the dots and keys. It plays the selected diagram: in a row (`---`, `voicings:`, `positions: all`, modes, both hands), the one you clicked last, outlined and named on the bar, the first one at the start. The bar has play / stop, **play all in turn** (each diagram once, with a beat of silence between two; with loop on, it starts again after the last), loop, the speed and the sound. Choosing the other instrument redraws every diagram of the block for it (#58).
