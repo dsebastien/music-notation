@@ -713,3 +713,119 @@ describe('pick layer: review findings', () => {
         for (const selector of selectors) expect(selector).toContain(".mn-pick[role='button']")
     })
 })
+
+describe('pick layer: hearing the picks', () => {
+    interface Played {
+        events: { midi: number; time: number; duration: number }[]
+        sound: string
+        volume: number
+        stopped: boolean
+    }
+    const fakePlayer = () => {
+        const played: Played[] = []
+        const player = {
+            play(
+                events: { midi: number; time: number; duration: number }[],
+                options: { sound: 'guitar' | 'piano'; volume: number }
+            ) {
+                const entry: Played = { events, ...options, stopped: false }
+                played.push(entry)
+                return {
+                    stop: () => {
+                        entry.stopped = true
+                    }
+                }
+            }
+        }
+        return { played, player }
+    }
+    const click = (el: Element) => el.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    const fretboard = () => mounted(renderFretboard(document, empty, { pick: true, frets: [0, 5] }))
+
+    it('is silent by default', () => {
+        const root = fretboard()
+        const picks: Pick[] = []
+        attachPick(root, { onPick: (p) => picks.push(p) })
+        click(at(root, 5, 3))
+        expect(picks).toHaveLength(1)
+    })
+
+    it('plays the picked note for 1.5 s on guitar from a fretboard, with the volume given', () => {
+        const root = fretboard()
+        const { played, player } = fakePlayer()
+        attachPick(root, { play: { player, volume: 0.5 } })
+        click(at(root, 5, 3))
+        expect(played).toHaveLength(1)
+        expect(played[0]!.events).toEqual([{ midi: 48, time: 0, duration: 1.5 }])
+        expect(played[0]!.sound).toBe('guitar')
+        expect(played[0]!.volume).toBe(0.5)
+    })
+
+    it('plays on piano from a keyboard, and on a pick by the keyboard too', () => {
+        const root = mounted(renderKeyboard(document, empty, { pick: true, range: [60, 71] }))
+        const { played, player } = fakePlayer()
+        attachPick(root, { play: { player } })
+        const key62 = root.querySelector('.mn-pick[data-mn-pitch="62"]') as SVGElement
+        key62.focus()
+        key(key62, 'Enter')
+        expect(played.map((p) => [p.events[0]!.midi, p.sound])).toEqual([[62, 'piano']])
+    })
+
+    it("plays on the sound the app chose, and reads the app's volume and player at each pick", () => {
+        const root = fretboard()
+        const { played, player } = fakePlayer()
+        let volume = 0.2
+        attachPick(root, { play: { player: () => player, sound: 'piano', volume: () => volume } })
+        click(at(root, 1, 0))
+        volume = 0.9
+        click(at(root, 1, 1))
+        expect(played.map((p) => [p.sound, p.volume])).toEqual([
+            ['piano', 0.2],
+            ['piano', 0.9]
+        ])
+    })
+
+    it('stops the note before when a new pick plays, and when the layer is destroyed', () => {
+        const root = fretboard()
+        const { played, player } = fakePlayer()
+        const layer = attachPick(root, { play: { player } })
+        click(at(root, 5, 3))
+        click(at(root, 5, 2))
+        expect(played.map((p) => p.stopped)).toEqual([true, false])
+        layer.destroy()
+        expect(played[1]!.stopped).toBe(true)
+    })
+
+    it('still picks when the player fails', () => {
+        const root = fretboard()
+        const picks: Pick[] = []
+        attachPick(root, {
+            onPick: (p) => picks.push(p),
+            play: {
+                player: {
+                    play: () => {
+                        throw new Error('no audio')
+                    }
+                }
+            }
+        })
+        click(at(root, 5, 3))
+        expect(picks).toHaveLength(1)
+    })
+
+    it("renderBlock's pick with play: true plays on the block's play options", () => {
+        const { played, player } = fakePlayer()
+        const host = document.createElement('div')
+        document.body.appendChild(host)
+        const result = renderBlock('keyboard', 'C major', host, {
+            play: { player, volume: 0.3 },
+            pick: { play: true }
+        })
+        click(result.el.querySelector('.mn-pick[data-mn-pitch="64"]')!)
+        expect(played.map((p) => [p.events[0]!.midi, p.sound, p.volume])).toEqual([
+            [64, 'piano', 0.3]
+        ])
+        // Still no bar: the layer owns the clicks.
+        expect(result.el.querySelector('.mn-block-bar')).toBeNull()
+    })
+})

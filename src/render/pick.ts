@@ -4,6 +4,9 @@
  * Renderers draw it with the `pick` option (`pickTarget`); `attachPick` makes it live.
  */
 import { svg, uniqueId } from './dom.js'
+import { playerFor, type PlayOptions } from '../playback/controls.js'
+import { volumeOf } from '../playback/bar-parts.js'
+import type { PlayHandle, Sound } from '../playback/player.js'
 
 /** A target as the app sees it: where it is and what it sounds. */
 export interface Pick {
@@ -33,7 +36,16 @@ export type PickResult = 'right' | 'wrong'
 export interface PickOptions {
     /** Called with each pick and the layer (to mark it). A handler that throws is ignored. */
     onPick?: (pick: Pick, layer: PickLayer) => void
+    /**
+     * Plays each pick's note for 1.5 s (off by default): the play options' player, volume
+     * (read at each pick) and sound (guitar on fretboards, piano on keyboards by default). A new
+     * pick stops the note before. Through `renderBlock`, `true` uses the block's `play` options.
+     */
+    play?: boolean | PlayOptions
 }
+
+/** How long a picked note sounds, in seconds (as a click on a note of a playable diagram). */
+export const PICK_NOTE = 1.5
 
 export interface PickLayer {
     /** The diagram. */
@@ -181,8 +193,38 @@ export function attachPick(diagram: Element, options: PickOptions = {}): PickLay
         const el = asElement(event.target)?.closest('.mn-pick') ?? null
         return el && targets.includes(el as SVGElement) ? (el as SVGElement) : null
     }
+    let sounding: PlayHandle | null = null
+    const silence = () => {
+        try {
+            sounding?.stop()
+        } catch {
+            // The player failed to stop: nothing more to do.
+        }
+        sounding = null
+    }
+    const hear = (el: SVGElement) => {
+        if (!options.play) return
+        const play = options.play === true ? {} : options.play
+        // The window the diagram is in now (a popout has its own audio).
+        const win = diagram.ownerDocument.defaultView
+        if (!win) return
+        silence()
+        try {
+            const sound: Sound =
+                play.sound ??
+                (diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar')
+            sounding = playerFor(win, play).play(
+                [{ midi: num(el, 'data-mn-pitch'), time: 0, duration: PICK_NOTE }],
+                { sound, volume: volumeOf(play.volume) }
+            )
+        } catch {
+            // No audio: the pick still counts.
+            sounding = null
+        }
+    }
     const pick = (el: SVGElement, via: Pick['via']) => {
         setStop(el)
+        hear(el)
         try {
             options.onPick?.(pickOf(el, via), layer)
         } catch {
@@ -385,6 +427,7 @@ export function attachPick(diagram: Element, options: PickOptions = {}): PickLay
         destroy() {
             if (!alive) return
             layer.clear()
+            silence()
             alive = false
             marks?.remove()
             marks = null

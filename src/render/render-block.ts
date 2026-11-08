@@ -17,7 +17,7 @@ import {
 } from '../blocks/block-source.js'
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
-import { attachPick, type PickLayer } from './pick.js'
+import { attachPick, type PickLayer, type PickOptions } from './pick.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
@@ -179,7 +179,7 @@ export function renderBlock(
     // The pick layer (Music Practice #73): live on each diagram that drew one.
     const picks = options.pick
         ? [...el.querySelectorAll('svg[data-mn-pick]')].map((svg) =>
-              attachPick(svg, typeof options.pick === 'object' ? options.pick : {})
+              attachPick(svg, pickOptions(options))
           )
         : []
     // Hear the diagrams: a playback bar on each one that has notes to play.
@@ -202,6 +202,13 @@ export function renderBlock(
             el.remove()
         }
     }
+}
+
+/** The pick options: `play: true` plays picks on the block's `play` options (its player, volume). */
+function pickOptions(options: RenderOptions): PickOptions {
+    const pick = typeof options.pick === 'object' ? options.pick : {}
+    if (pick.play !== true) return pick
+    return { ...pick, play: typeof options.play === 'object' ? options.play : true }
 }
 
 /** The block as an inline error that says what's wrong. */
