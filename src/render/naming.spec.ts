@@ -164,4 +164,15 @@ describe('naming in blocks', () => {
         const r = block('chord', 'Rém x00231\n---\nSol7 320001\nnaming: solfege', { play: true })
         expect(r.el.querySelector('.mn-play-name')?.textContent).toContain('Ré m')
     })
+
+    it('squeezes key labels of three characters or more to the key', () => {
+        const r = block('keyboard', 'F# major\nnaming: solfege')
+        const label = [...r.el.querySelectorAll('.mn-key-label-black')].find(
+            (e) => e.textContent === 'Fa♯'
+        )!
+        expect(label.getAttribute('textLength')).toBe('12')
+        expect(label.getAttribute('lengthAdjust')).toBe('spacingAndGlyphs')
+        const plain = block('keyboard', 'F# major')
+        expect(plain.el.querySelector('.mn-key-label[textLength]')).toBeNull()
+    })
 })

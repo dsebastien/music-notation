@@ -210,14 +210,20 @@ export function renderKeyboard(
         if (!member) return
         const text = labelOf(member, label, options.fingers?.get(midi))
         if (!text) return
-        root.appendChild(
-            svgLabel(
-                doc,
-                shown(text),
-                point,
-                black ? 'mn-key-label mn-key-label-black' : 'mn-key-label'
-            )
+        const words = shown(text)
+        const el = svgLabel(
+            doc,
+            words,
+            point,
+            black ? 'mn-key-label mn-key-label-black' : 'mn-key-label'
         )
+        // A label the naming made three characters or more (Fa♯, Si♭, #12) is squeezed to the key;
+        // letter labels draw as before.
+        if (words !== text && [...words].length >= 3) {
+            el.setAttribute('textLength', String((black ? BLACK_W : WHITE_W) - 2))
+            el.setAttribute('lengthAdjust', 'spacingAndGlyphs')
+        }
+        root.appendChild(el)
     }
 
     whites.forEach((midi, i) => {
