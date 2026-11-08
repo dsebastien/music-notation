@@ -92,6 +92,11 @@ describe('naming in blocks', () => {
         expect(texts(r.el, '.mn-title').join('')).toBe('A long way')
     })
 
+    it("keeps a German title's B as B flat and its H as B natural", () => {
+        const r = block('fretboard', 'Bb major\ntitle: B major, H major\nnaming: german')
+        expect(texts(r.el, '.mn-title').join('')).toBe('B major, H major')
+    })
+
     it('says what to write for a wrong naming', () => {
         const r = block('chord', 'C\nnaming: french')
         expect(r.ok).toBe(false)

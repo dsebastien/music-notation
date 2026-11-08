@@ -193,6 +193,9 @@ export function lettersInBlock(
         if (/^\s*-{3,}\s*$/.test(line) || !line.trim()) return line
         const kv = KEY_LINE.exec(line)
         if (kv && (language !== 'progression' || !/^\s*[A-G]/.test(line) || kv[2]!.length > 1)) {
+            // A German title's B is B flat, its H B natural: read so they show back as written.
+            if (naming === 'german' && kv[2]!.toLowerCase() === 'title')
+                return `${kv[1]}${kv[2]}${kv[3]}${kv[4]!.replace(/\S+/g, (w) => (/^[BH]/.test(w) ? letterWord(w, naming) : w))}`
             return NOTE_KEYS.has(kv[2]!.toLowerCase())
                 ? `${kv[1]}${kv[2]}${kv[3]}${toLetters(kv[4]!, naming, { chord: kv[2]!.toLowerCase() === 'chord' })}`
                 : line

@@ -136,6 +136,15 @@ describe('naming: a block read into letters', () => {
         )
     })
 
+    it('reads only B and H in the titles of german blocks', () => {
+        expect(lettersInBlock('fretboard', 'title: B and H, La', 'german').text).toBe(
+            'title: Bb and B, La'
+        )
+        expect(lettersInBlock('fretboard', 'title: B and H, La', 'solfege').text).toBe(
+            'title: B and H, La'
+        )
+    })
+
     it('reads progression lines and keys, never strum or picking patterns', () => {
         expect(lettersInBlock('progression', 'key: Sol\nSol Rém Do', 'letters').text).toBe(
             'key: G\nG Dm C'
