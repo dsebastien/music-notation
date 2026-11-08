@@ -292,8 +292,10 @@ export function shownText(text: string, naming: Naming): string {
     return parts
         .map((part, i) => {
             if (!/^[A-G]/.test(part)) return part
+            // A letter and 5, 6, 7 or 9 is a chord (G7); other digits are an octave (C3).
             const octave = /^([A-G](?:##|bb|#|b|♯|♭|x)?)(-?\d)$/.exec(part)
-            if (octave) return `${noteInNaming(octave[1]!, naming)}${octave[2]}`
+            if (octave && !/^[5679]$/.test(octave[2]!))
+                return `${noteInNaming(octave[1]!, naming)}${octave[2]}`
             if (part === 'A') {
                 const next = parts.slice(i + 1).find((p) => p.trim() && !/^[,;:()]$/.test(p))
                 if (next && /^[a-z]/.test(next) && !AFTER_A_NOTE.has(next)) return part

@@ -93,6 +93,10 @@ describe('naming: showing names', () => {
         // The English article stays.
         expect(shownText('A long title for Am', 'solfege')).toBe('A long title for La m')
         expect(shownText('Capo 3', 'solfege')).toBe('Capo 3')
+        // 5, 6, 7 and 9 after a letter make a chord; other digits an octave.
+        expect(shownText('G7 chord diagram', 'solfege')).toBe('Sol 7 chord diagram')
+        expect(shownText('C6, A9, E5', 'solfege')).toBe('Do 6, La 9, Mi 5')
+        expect(shownText('C3 B4 D8', 'german')).toBe('C3 H4 D8')
         expect(shownText('3 2 1', 'solfege')).toBe('3 2 1')
         expect(shownText('Fretboard: A minor', 'letters')).toBe('Fretboard: A minor')
     })
