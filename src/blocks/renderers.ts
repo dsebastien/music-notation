@@ -2,6 +2,7 @@
  * One renderer per block language. Each takes the block's source and returns the element to
  * show, or throws an Error whose message is meant for the user.
  */
+import type { PickOptions } from '../render/pick.js'
 import {
     baseFretOf,
     chartNoteName,
@@ -130,6 +131,12 @@ export interface RenderOptions extends LayoutDefaults {
      * `pre > code.language-tab`, which the tab bundle draws on web pages.
      */
     tab?: (source: string, holder: HTMLElement) => (() => void) | void
+    /**
+     * The pick layer on `fretboard` and `keyboard` blocks (Music Practice #73): every string ×
+     * fret and every key is a target that a click or the keyboard picks (`onPick`); those
+     * diagrams are not playable. Off by default.
+     */
+    pick?: boolean | PickOptions
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element
@@ -757,6 +764,8 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         set.pitches = scaleKeysFrom(set, tonicNearMiddleC(set.root))
     }
     return renderKeyboard(doc, set, {
+        // The pick layer (Music Practice #73): every key a target.
+        pick: Boolean(options.pick),
         // A chord plays together; scales, lists and arpeggios one note at a time.
         playAs:
             !set.scaleType && !set.list && set.root !== null && !block.fields.has('arpeggio')
@@ -858,6 +867,8 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     // "A minor pentatonic, box 2", "G7 arpeggio, A shape") (#73).
     const shapeTitle = at ? positionTitle(set, at, arpeggio, field(block, 'numbering')) : undefined
     const diagram = renderFretboard(doc, set, {
+        // The pick layer (Music Practice #73): every string × fret a target.
+        pick: Boolean(options.pick),
         title: field(block, 'title') ?? shapeTitle,
         ...(strings ? { strings } : {}),
         // Arpeggios (`arpeggio:`, or a chord's position) show intervals unless told otherwise.

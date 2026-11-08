@@ -40,11 +40,46 @@ Options:
 - `tab`: draws the tab of a fretboard's `exercise:` (its alphaTex, as a `tab` block holds it) in a holder, for example with `renderTab` from `/tab`. Return a function that frees it: `destroy()` calls it. Without `tab`, the alphaTex shows under the diagram in a `pre > code.language-tab`, which the tab bundle draws on web pages.
 - `play.timedBar(bar)`: called with each bar that plays in time (strumming and picking patterns, progressions, ChordPro charts), once the bar is built, so the app can add its own controls and read the tempo. `bar` has `kind` (`'strum'`, `'picking'`, `'progression'` or `'chart'`), `element` (the `.mn-play` bar), `drawing` (the pattern's SVG, the `.mn-progression` or the `.mn-chart`), `compound` (true when the tempo counts dotted quarters), `tempo()` (the tempo set on the bar, 20 to 240, in the beat it counts: what the next pass plays), `onTempo(listener)` (calls `listener` with each new tempo set on the bar, and returns a function that stops it) and `add(control)`. `add` puts your control at the end of the bar, in a `.mn-play-app` slot, after the bar's own controls in the focus order and with their button styles. It shows and hides with the bar. Return a function that frees what you set up: `destroy()` calls it. A hook or a listener that throws leaves the bar as it is. The type is `TimedBar`.
 
+- `pick`: a pick layer on `fretboard` and `keyboard` blocks, `{ onPick(pick, layer) }` (see [Pick layer](#pick-layer)). Those diagrams are not playable: the layer owns their clicks and keys. Off by default.
+
 `layoutDefaults(value)` keeps only valid `orientation` and `hand` values from untrusted input (a page's settings). `MAX_DIAGRAMS` is the most diagrams one block may hold (32).
 
 The title of a chord diagram or a fretboard never makes it wider: it wraps onto at most `MAX_TITLE_LINES` (3) lines, `TITLE_LINE` (17) units apart, and the diagram carries `data-mn-title-lines`. `renderBlock` gives every diagram of a block the room of its longest title, so the necks of a row line up. When you draw diagrams one by one (`renderGuitarDiagram`, `renderFretboard`), call `alignTitleLines(diagrams)` on their SVG elements to do the same: a diagram with fewer lines gets room above its content, and its height grows. `titleLines(title, width)` gives the lines a title takes on a diagram that wide (`TitleLine`: `text`, and `textLength` when the line is squeezed to fit), and `titleLineWidth(text)` the width it estimates for one line.
 
 Everything is created in `host.ownerDocument`, so popout windows work.
+
+## Pick layer
+
+The pick layer makes every string × fret of a fretboard and every key of a keyboard a target that a click or the keyboard picks, for drills and quizzes ("find every G on string 5"). The app gets each pick with its place and its note, and marks it right or wrong on the drawing. It is off by default.
+
+```ts
+import { attachPick, emptyNoteSet, renderFretboard } from '@dsebastien/music-notation'
+
+const svg = renderFretboard(document, emptyNoteSet(), {
+    pick: true,
+    frets: [0, 12],
+    title: 'Find every G on string 5'
+})
+container.appendChild(svg)
+const layer = attachPick(svg, {
+    onPick: (pick, layer) => {
+        // Compare pitches, not names: a drawing spells notes its own way (G, F##).
+        const right = pick.string === 5 && pick.pitch % 12 === 7
+        layer.mark(pick, right ? 'right' : 'wrong')
+    }
+})
+// Later: layer.clear() for the next question, layer.destroy() when the drill closes.
+```
+
+- Draw it with `pick: true` on `renderFretboard` or `renderKeyboard`, then call `attachPick(svg, { onPick })`. Through `renderBlock`, the `pick` option does both: the result's `picks` holds the live layers, one per diagram, in page order, and `destroy()` frees them. Calling `attachPick` again on a diagram whose layer is live returns that layer (with its first options), so nothing doubles.
+- Fretboard targets: every string at every fret shown, the open strings too. Each target has the cell of a dot's hit area: its string's lane across, its fret along. Frets behind a capo drawn from the nut have no target. Keyboard targets: every key, black keys on top.
+- A pick is `{ string, fret, note, pitch, element, via }`. `string` is 1 for the highest string, as on the dots; `string` and `fret` are null on keyboards. `note` is the pitch class as the drawing spells it. `pitch` is MIDI. `via` is `'pointer'` or `'keyboard'`. A handler that throws leaves the layer working.
+- A press anywhere on a live diagram never reaches the host, so an editor does not open the block's source.
+- Keyboard: one target is in the tab order (the last one focused or picked; at the start, the highest string's lowest fret or the lowest key). On fretboards, the arrows move to the next target on the screen in their direction, so every orientation and hand works the same way. On keyboards, Right and Up go one key up in pitch, Left and Down one key down. Home and End go to the ends of the string, or to the lowest and highest key. Space or Enter picks, once per press (a held key repeats nothing). Keys with Ctrl, Alt or Meta are left to the host.
+- Screen readers: with a layer the diagram is a `group` (not an `img`), and each target is a button named by its place, never by its note, so a drill does not give the answer away: "String 5, fret 3", "String 1, open", "White key 5", "Black key 2". A mark adds ", right" or ", wrong" to the name. While the layer is live, the drawing's texts (title, fret numbers, string names, labels) are hidden from screen readers (`aria-hidden`), so only the targets are read.
+- The layer: `mark(at, 'right' | 'wrong')` draws a disc with a check or a cross above the target (a second mark replaces the first); `at` is `{ string, fret }`, `{ pitch }` (every target of that pitch), or a pick as `onPick` gave it (its own target: the place wins over the pitch). `unmark(at)`, `clear()`, `focus(at?)`, `targets()` (every target, as picks) and `destroy()`.
+- Each target is a `rect.mn-pick` in `g.mn-picks` with `data-mn-pitch`, `data-mn-note`, and on fretboards `data-mn-string` and `data-mn-fret`, never `data-midi`, so playback ignores the layer. Keyboards have two `g.mn-picks`: the white keys' under the black keys (so a white key's hover and focus look never covers a black key), the black keys' last. `note` is the drawing's spelling: compare `pitch` (or `pitch % 12`) to check an answer. Marks are `g.mn-pick-mark.mn-pick-right` or `.mn-pick-wrong` in `g.mn-pick-marks`, next to the last `g.mn-picks`. Their colors are `--mn-right` and `--mn-wrong`.
+- `emptyNoteSet(title?)` gives a note set with no notes, for a neck or a keyboard drawn without dots.
 
 ## Renderers and theory
 

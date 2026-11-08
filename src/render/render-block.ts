@@ -17,6 +17,7 @@ import {
 } from '../blocks/block-source.js'
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
+import { attachPick, type PickLayer } from './pick.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
@@ -73,6 +74,8 @@ export interface RenderResult {
     error: string | null
     /** Removes what was rendered. */
     destroy(): void
+    /** The live pick layers (the `pick` option), one per diagram that has one, in page order. */
+    picks: PickLayer[]
 }
 
 const messageOf = (e: unknown) => (e instanceof Error ? e.message : String(e))
@@ -131,7 +134,7 @@ export function renderBlock(
     if (!text.trim() || parts?.length === 0) {
         el.classList.add('mn-empty')
         host.appendChild(el)
-        return { ok: true, el, error: null, destroy: () => el.remove() }
+        return { ok: true, el, error: null, picks: [], destroy: () => el.remove() }
     }
     try {
         if (parts && isDiagramLanguage(language)) {
@@ -173,6 +176,12 @@ export function renderBlock(
             }
         }
     }
+    // The pick layer (Music Practice #73): live on each diagram that drew one.
+    const picks = options.pick
+        ? [...el.querySelectorAll('svg[data-mn-pick]')].map((svg) =>
+              attachPick(svg, typeof options.pick === 'object' ? options.pick : {})
+          )
+        : []
     // Hear the diagrams: a playback bar on each one that has notes to play.
     const stopPlayback = options.play
         ? attachPlayback(el, {
@@ -185,8 +194,10 @@ export function renderBlock(
         ok: error === null,
         el,
         error,
+        picks,
         destroy: () => {
             stopPlayback?.()
+            for (const layer of picks) layer.destroy()
             for (const free of freeTabs) free()
             el.remove()
         }
@@ -199,7 +210,7 @@ function failed(el: HTMLElement, host: HTMLElement, language: string, error: str
     el.classList.add('mn-error')
     el.appendChild(html(el.ownerDocument, 'div', 'mn-error-message', `${language}: ${error}`))
     host.appendChild(el)
-    return { ok: false, el, error, destroy: () => el.remove() }
+    return { ok: false, el, error, picks: [], destroy: () => el.remove() }
 }
 
 /** Properties as given, or what a function of the block's element returns; null when it fails. */

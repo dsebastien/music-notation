@@ -25,6 +25,7 @@ import {
 import type { Cell } from './positions.js'
 import { nameOf } from '../theory/pitch.js'
 import { STANDARD_TUNING, chartNoteName } from '../chord/guitar.js'
+import { pickGroup, pickTarget } from '../render/pick.js'
 
 export interface FretboardOptions {
     /** Open-string pitches (MIDI), lowest string first. */
@@ -53,6 +54,11 @@ export interface FretboardOptions {
      * and nothing behind it is shown.
      */
     fretsFrom?: 'capo' | 'nut'
+    /**
+     * The pick layer (Music Practice #73): every string × fret shown is a target with its string,
+     * fret, note and pitch, drawn above the dots; `attachPick` makes it live. Off by default.
+     */
+    pick?: boolean
 }
 
 const STRING_GAP = 20
@@ -279,6 +285,41 @@ export function renderFretboard(
             )
             sounding.add(open + fret)
         }
+    }
+    if (options.pick) {
+        // Above everything: the highest string's frets first, so the first tab stop is top left.
+        const layer = pickGroup(doc)
+        for (let s = strings - 1; s >= 0; s--) {
+            for (let fret = from; fret <= to; fret++) {
+                // Nothing sounds behind the capo.
+                if (fromNut && fret < capo) continue
+                const pitch = tuning[s]! + fret
+                const [start, end] = fret === 0 ? [0, OPEN_W] : [wire(fret) - FRET_W, wire(fret)]
+                const string = strings - s
+                layer.appendChild(
+                    pickTarget(
+                        doc,
+                        frame.box(
+                            across(s) - STRING_GAP / 2,
+                            start,
+                            across(s) + STRING_GAP / 2,
+                            end
+                        ),
+                        {
+                            pitch,
+                            note: memberOf(set, pitch)?.name ?? nameOf(pitch % 12, set.preferFlats),
+                            string,
+                            fret,
+                            name: `String ${string}, ${fret === 0 ? 'open' : `fret ${fret}`}`,
+                            mark: frame.at(across(s), center(fret)),
+                            radius: DOT_R
+                        }
+                    )
+                )
+            }
+        }
+        root.appendChild(layer)
+        root.setAttribute('data-mn-pick', '')
     }
     root.setAttribute('data-mn-pitches', [...sounding].sort((a, b) => a - b).join(' '))
     root.setAttribute('data-mn-play', 'scale')

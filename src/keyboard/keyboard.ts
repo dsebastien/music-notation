@@ -12,6 +12,7 @@ import {
 } from '../theory/note-set.js'
 import { midiOf, nameOf } from '../theory/pitch.js'
 import { chordVoicingIn } from './play-voicing.js'
+import { pickGroup, pickTarget } from '../render/pick.js'
 
 export interface KeyboardOptions {
     /** Lowest and highest MIDI pitch shown; computed from the notes when absent. */
@@ -27,6 +28,11 @@ export interface KeyboardOptions {
     playAs?: 'chord' | 'scale'
     /** Which hand plays each key (MIDI → left or right): a bracket and LH or RH under each hand's keys. */
     hands?: Map<number, 'left' | 'right'>
+    /**
+     * The pick layer (Music Practice #73): every key is a target with its note and pitch, drawn
+     * above the keys and labels; `attachPick` makes it live. Off by default.
+     */
+    pick?: boolean
 }
 
 const BLACK = new Set([1, 3, 6, 8, 10])
@@ -313,6 +319,46 @@ export function renderKeyboard(
             mark.setAttribute('data-mn-keys', keys.join(' '))
             root.appendChild(mark)
         }
+    }
+    if (options.pick) {
+        // Named by their place from the low end, never by their note (a drill must not give the
+        // answer away).
+        const whiteLayer = pickGroup(doc)
+        const spelled = (midi: number) =>
+            memberOf(set, midi)?.name ?? nameOf(((midi % 12) + 12) % 12, set.preferFlats)
+        whites.forEach((midi, i) => {
+            const along = i * WHITE_W
+            whiteLayer.appendChild(
+                pickTarget(doc, key(along, WHITE_W, WHITE_H), {
+                    pitch: midi,
+                    note: spelled(midi),
+                    name: `White key ${i + 1}`,
+                    mark: at(along + WHITE_W / 2, WHITE_H - 14),
+                    radius: 8
+                })
+            )
+        })
+        // White-key targets go under the black keys: their hover and focus look never covers a
+        // black key. Black-key targets go last, on top.
+        root.insertBefore(whiteLayer, root.querySelector(':scope > .mn-key-black'))
+        const layer = pickGroup(doc)
+        let blacks = 0
+        whites.forEach((midi, i) => {
+            const black = midi + 1
+            if (black > to || !isBlack(black)) return
+            const along = (i + 1) * WHITE_W - BLACK_W / 2
+            layer.appendChild(
+                pickTarget(doc, key(along, BLACK_W, BLACK_H), {
+                    pitch: black,
+                    note: spelled(black),
+                    name: `Black key ${++blacks}`,
+                    mark: at(along + BLACK_W / 2, BLACK_H - 12),
+                    radius: 6
+                })
+            )
+        })
+        if (layer.childElementCount) root.appendChild(layer)
+        root.setAttribute('data-mn-pick', '')
     }
     // What playback plays: the highlighted keys, low to high (a chord: the voicing lit above).
     let played: number[] = []

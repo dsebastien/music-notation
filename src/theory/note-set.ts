@@ -208,6 +208,11 @@ export function intervalFrom(root: string, name: string): string | null {
  * note gets its interval from it (degrees are the interval numbers, 1 3 5) and the root its color;
  * the root doesn't have to be in the list. Null when a note or the root isn't a note name.
  */
+/** A note set with no notes: a fretboard or keyboard drawn without dots (a drill's empty neck). */
+export function emptyNoteSet(title = 'no notes'): NoteSet {
+    return { title, members: [], root: null, pitches: null, preferFlats: false, list: true }
+}
+
 export function listNoteSet(text: string, root?: string): NoteSet | null {
     const tokens = text.split(/[\s,]+/).filter(Boolean)
     if (!tokens.length) return null

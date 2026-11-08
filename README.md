@@ -166,6 +166,7 @@ if (!result.ok) console.warn(result.error)
 - **Tabs and scores**: `@dsebastien/music-notation/tab` draws `tab` and `score` blocks (alphaTex, or Guitar Pro and MusicXML files) with [alphaTab](https://alphatab.net), and adds a player. It also converts score files, text tabs and chord sheets, and exports Guitar Pro 7 and MIDI.
 - `generateVoicings(symbol, options)` finds every playable voicing of a chord on any tuning, easiest first, with fingers and shape names; `fingerVoicing(frets)` fingers any voicing. `fingeringInWords(chord)` writes a guitar or piano chord's fingering in plain sentences, as `caption: fingering` shows it under a diagram.
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`, `renderStrum`, `renderPicking`, `renderCircle`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
+- A pick layer for drills: with `pick`, every string × fret of a fretboard and every key of a keyboard is a target that a click or the keyboard picks; the app marks picks right or wrong (`attachPick`).
 - Styles: `injectStyles(document)`, or ship `@dsebastien/music-notation/music-notation.css`. Colors follow Obsidian's theme variables, with fallbacks for any page.
 
 ## Check your notes

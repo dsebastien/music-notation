@@ -320,6 +320,8 @@ export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () =
     const byBlock = new Map<Element, { diagram: Element; data: DiagramData }[]>()
     const byDrawing = new Map<Element, { diagram: Element; data: DiagramData }[]>()
     for (const diagram of [...el.querySelectorAll('svg[data-mn-pitches]')]) {
+        // A diagram with a pick layer (Music Practice #73): the layer owns its clicks and keys.
+        if (diagram.hasAttribute('data-mn-pick')) continue
         const data = dataOf(diagram)
         if (!data) continue
         const drawing = timed.find((t) => t.contains(diagram))

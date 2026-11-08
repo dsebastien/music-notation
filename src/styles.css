@@ -22,6 +22,10 @@
        mid-grey black key, in every theme. */
     --mn-key-white-faint: #d4d4d8;
     --mn-key-black-faint: #8c8c8c;
+    /* Marks of the pick layer (Music Practice #73): right and wrong, dark enough for a white check
+       or cross in light and dark themes; the shape tells them apart too. */
+    --mn-right: #15803d;
+    --mn-wrong: #b91c1c;
     font-family: var(--font-interface, system-ui, sans-serif);
 }
 
@@ -162,12 +166,67 @@
 .mn-play button,
 .mn-play select,
 .mn-play input[type='range'],
+.mn-svg .mn-pick[role='button'],
+.mn-block .mn-pick[role='button'],
 .mn-block .mn-playable,
 .mn-block .mn-playable *,
 .mn-block .mn-play button,
 .mn-block .mn-play select,
 .mn-block .mn-play input[type='range'] {
     cursor: pointer;
+}
+
+/* The pick layer (Music Practice #73): a live target (role button, set by attachPick) shows only
+   when hovered (a faint fill) or focused by the keyboard (a ring inside its cell); white-key
+   targets sit under the black keys, so neither covers a black key. Marks are a disc with a check
+   or a cross. */
+.mn-svg .mn-pick[role='button'] {
+    outline: none;
+}
+
+.mn-svg .mn-pick[role='button']:hover {
+    fill: color-mix(in srgb, var(--mn-accent) 16%, transparent);
+}
+
+.mn-svg .mn-pick[role='button']:focus-visible {
+    fill: color-mix(in srgb, var(--mn-accent) 20%, transparent);
+    outline: 2px solid var(--mn-accent);
+    outline-offset: -2px;
+}
+
+.mn-svg .mn-pick-disc {
+    stroke: var(--mn-bg);
+    stroke-width: 1.5;
+}
+
+.mn-svg .mn-pick-right .mn-pick-disc {
+    fill: var(--mn-right);
+}
+
+.mn-svg .mn-pick-wrong .mn-pick-disc {
+    fill: var(--mn-wrong);
+}
+
+.mn-svg .mn-pick-check,
+.mn-svg .mn-pick-cross {
+    stroke: #fff;
+}
+
+@media (forced-colors: active) {
+    .mn-svg .mn-pick[role='button']:focus-visible {
+        outline-color: Highlight;
+    }
+
+    .mn-svg .mn-pick-right .mn-pick-disc,
+    .mn-svg .mn-pick-wrong .mn-pick-disc {
+        fill: Canvas;
+        stroke: CanvasText;
+    }
+
+    .mn-svg .mn-pick-check,
+    .mn-svg .mn-pick-cross {
+        stroke: CanvasText;
+    }
 }
 
 /* The opened list is a native popup on the page's background, not the bar's: its options take

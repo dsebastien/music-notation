@@ -118,6 +118,14 @@ export {
 } from './keyboard/piano-chord.js'
 export { standardScaleFingering, scaleFingers, type ScaleHand } from './keyboard/scale-fingering.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
+export {
+    attachPick,
+    type Pick,
+    type PickAt,
+    type PickLayer,
+    type PickOptions,
+    type PickResult
+} from './render/pick.js'
 export { parseTuning } from './fretboard/tuning.js'
 export {
     parseChordPro,
@@ -147,6 +155,7 @@ export {
     chordNoteSet,
     scaleNoteSet,
     listNoteSet,
+    emptyNoteSet,
     memberOf,
     labelOf,
     intervalLabel,

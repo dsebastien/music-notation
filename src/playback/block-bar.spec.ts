@@ -528,7 +528,9 @@ describe('the hand cursor (#81)', () => {
         expect(pointers.length).toBeGreaterThan(0)
         for (const [selector] of pointers)
             for (const one of selector!.split(','))
-                expect(one.trim()).toMatch(/^(\.mn-block )?\.mn-(playable|play)\b/)
+                expect(one.trim()).toMatch(
+                    /^(\.mn-block )?\.mn-(playable|play)\b|^\.mn-(svg|block) \.mn-pick\[role='button'\]$/
+                )
     })
 
     it('covers diagrams, notes, buttons, selects and sliders', () => {
