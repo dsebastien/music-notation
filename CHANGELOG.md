@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0 (2026-11-09)
+
+- **Note names in solfège and German** (#12): write `naming: solfege` or `naming: german` in a block, or `{naming: solfege}` in a ChordPro chart. Solfège shows Do Ré Mi Fa Sol La Si with ♯ and ♭; a chord shows a space before its quality (`Ré m7`, `Sol 7`, `Do/Sol`). German shows H for B and B for B♭. It covers the labels on dots and keys, the string names, the titles the library makes, chart chords and their key line, progressions, the circle of fifths, capo captions and the names screen readers hear. Titles you write are never changed.
+- **Write notes in any of the three**: `chord: Rém`, `scale: La mineur`, `notes: Do Mi Sol`, `range: Do3-Si4`, `Fa dièse`, `Re` without the accent, and `H7`. Letters are read first: what reads in letters stays as before (`Do7` is still D diminished). A solfège name is read as one in a block with `naming: solfege`, or on a line with other solfège names. `H` is B in a key or a chord value. A bare `B` is B♭ only in a block that says `naming: german` itself; there, write H for B natural. Errors quote what you wrote.
+- Apps and Publish set a default with the `naming` render option (Publish: `window.musicNotationOptions.naming`). The default changes how names show, never how a block is read, so existing notes keep their meaning. Letters stay the default.
+- Not in this version: tabs and scores (alphaTab draws its own text), `caption: fingering` sentences and the `check` command's output stay in letters; German note words (Fis, Es, Dur, Moll) and lowercase minor keys aren't read.
+- For apps: `toLetters`, `noteInNaming`, `chordInNaming`, `shownText`, `withNaming`, `parseNaming`, `namingOf`, `lettersInBlock`, `NAMINGS` and the type `Naming`.
+
 ## 0.15.0 (2026-11-08)
 
 - **Answer on the drawing (pick layer)**: an app can turn a fretboard or a keyboard into something you answer on, for drills and quizzes such as "find every G on string 5". Every string at every fret, the open strings too, and every piano key becomes a target. A click picks it, and so does the keyboard: Tab goes to the drawing, the arrows move (on a fretboard they follow the drawing in every orientation and hand; on a keyboard they go up and down in pitch), Home and End go to the ends, and Space or Enter picks. The app gets the string, the fret, the note and the pitch, and marks the pick right (a check) or wrong (a cross) on the drawing. Screen readers hear each target by its place ("String 5, fret 3", "White key 5"), never by its note, so a drill does not give the answer away. It is off by default: blocks in your notes do not change.
