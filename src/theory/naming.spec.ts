@@ -57,6 +57,20 @@ describe('naming: reading names into letters', () => {
         expect(toLetters('Sol majeur')).toBe('G major')
         expect(toLetters('Do3-Si4', 'solfege')).toBe('C3-B4')
     })
+
+    it('keeps the English major and minor apart from a solfège root (not "Cmajor")', () => {
+        // "Cmajor" and "Dminor" parse as chords: joined, a fretboard drew an arpeggio for a scale.
+        expect(toLetters('Do major', 'solfege')).toBe('C major')
+        expect(toLetters('Ré minor', 'solfege')).toBe('D minor')
+        expect(toLetters('Sol Major', 'solfege')).toBe('G Major')
+        expect(toLetters('Ré minor pentatonic', 'solfege')).toBe('D minor pentatonic')
+        expect(toLetters('Fa# major', 'solfege')).toBe('F# major')
+        expect(toLetters('Do major', 'solfege', { chord: true })).toBe('C major')
+        expect(toLetters('Ré minor', 'solfege', { chord: true })).toBe('D minor')
+        // Chord qualities still join.
+        expect(toLetters('Ré m7 Sol 7 Do maj7 La min7', 'solfege')).toBe('Dm7 G7 Cmaj7 Amin7')
+        expect(toLetters('Ré m', 'solfege', { chord: true })).toBe('Dm')
+    })
 })
 
 describe('naming: showing names', () => {
@@ -156,6 +170,19 @@ describe('naming: a block read into letters', () => {
         expect(lettersInBlock('chord', 'B7')).toMatchObject({ text: 'B7', naming: null })
         expect(lettersInBlock('keyboard', 'notes: Do4 Mi4 Sol4\nrange: Do4-Si4').text).toBe(
             'notes: C4 E4 G4\nrange: C4-B4'
+        )
+    })
+
+    it('reads a solfège scale with major or minor as a scale (#12 review, 0.16.0 defect)', () => {
+        expect(lettersInBlock('fretboard', 'naming: solfege\nDo major').text).toBe('C major')
+        expect(lettersInBlock('fretboard', 'naming: solfege\nscale: Ré minor').text).toBe(
+            'scale: D minor'
+        )
+        expect(lettersInBlock('keyboard', 'naming: solfege\nscale: Do major pentatonic').text).toBe(
+            'scale: C major pentatonic'
+        )
+        expect(lettersInBlock('chord', 'naming: solfege\nchord: Do major').text).toBe(
+            'chord: C major'
         )
     })
 

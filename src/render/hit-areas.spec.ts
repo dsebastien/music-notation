@@ -111,4 +111,17 @@ describe('touch screens (#73)', () => {
         expect(18 * zoomOf('mn-guitar-chord')).toBeGreaterThanOrEqual(24)
         expect(20 * zoomOf('mn-fretboard')).toBeGreaterThanOrEqual(24)
     })
+
+    it('draw keyboards with a pick layer larger, so a black key is at least 24 px wide', async () => {
+        const { STYLES } = await import('../styles.js')
+        const media = /@media \(pointer: coarse\)\s*{([\s\S]*?)\n}/.exec(STYLES)
+        const body = media![1]!
+        // A black key is 14 units wide (a white key 22): the narrowest target of a keyboard.
+        const rule = /[^{}]*\.mn-svg\.mn-keyboard\[data-mn-pick\][^{}]*{([^}]*)}/.exec(body)
+        const zoom = rule && /zoom:\s*([\d.]+)/.exec(rule[1]!)
+        expect(zoom).not.toBeNull()
+        expect(14 * Number(zoom![1])).toBeGreaterThanOrEqual(24)
+        // Keyboards without a pick layer keep their size: their keys only play.
+        expect(/\.mn-svg\.mn-keyboard\s*[,{]/.test(body)).toBe(false)
+    })
 })

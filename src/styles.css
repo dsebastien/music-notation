@@ -49,6 +49,13 @@
     .mn-svg.mn-fretboard {
         zoom: 1.34;
     }
+
+    /* A keyboard with a pick layer (Music Practice drills, click input): a black key (14 units)
+       becomes 24 px wide. Keyboards that only play keep their size. On a narrow screen max-width
+       still fits a wide range to the page: fewer keys, larger targets. */
+    .mn-svg.mn-keyboard[data-mn-pick] {
+        zoom: 1.72;
+    }
 }
 
 .mn-svg text {

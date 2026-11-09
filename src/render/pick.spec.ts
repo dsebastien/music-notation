@@ -243,12 +243,15 @@ describe('pick layer: attachPick', () => {
         document.body.appendChild(host)
         attachPick(root)
         const reached: string[] = []
-        for (const type of ['pointerdown', 'mousedown', 'click'])
+        for (const type of ['pointerdown', 'mousedown', 'click', 'touchstart', 'touchend'])
             host.addEventListener(type, () => reached.push(type))
         const target = at(root, 4, 2)
         target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
         target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
         target.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        // Touch screens: a tap must not move the host's caret or start its swipe gestures.
+        target.dispatchEvent(new Event('touchstart', { bubbles: true }))
+        target.dispatchEvent(new Event('touchend', { bubbles: true }))
         expect(reached).toEqual([])
     })
 
@@ -658,16 +661,20 @@ describe('pick layer: review findings', () => {
         document.body.appendChild(host)
         const layer = attachPick(root)
         const reached: string[] = []
-        for (const type of ['pointerdown', 'mousedown', 'click'])
+        for (const type of ['pointerdown', 'mousedown', 'click', 'touchstart', 'touchend'])
             host.addEventListener(type, () => reached.push(type))
         const title = root.querySelector('.mn-title')!
         title.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
         title.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
         title.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        title.dispatchEvent(new Event('touchstart', { bubbles: true }))
+        title.dispatchEvent(new Event('touchend', { bubbles: true }))
         expect(reached).toEqual([])
         layer.destroy()
         title.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
-        expect(reached).toEqual(['mousedown'])
+        title.dispatchEvent(new Event('touchstart', { bubbles: true }))
+        title.dispatchEvent(new Event('touchend', { bubbles: true }))
+        expect(reached).toEqual(['mousedown', 'touchstart', 'touchend'])
     })
 
     it('moves with the arrows on a vertical left-handed fretboard', () => {

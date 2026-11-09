@@ -56,6 +56,12 @@ const syllableLetter = (syllable: string) => SYLLABLE_LETTER[plain(syllable)]!
 const AFTER_ROOT = /^(?:$|[0-9/(+°øΔ^-]|m|M|a(?:dd|ug|lt)|sus|dim)/
 /** A quality that may follow a solfège root after a space ("Ré m7", "Sol 7/Si"). */
 const QUALITY_WORD = /^(?:[0-9(+°øΔ^]|m|M|a(?:dd|ug|lt)|sus|dim)/
+/**
+ * The English major and minor stay a word: "Do major" is C major (a scale or a chord in words),
+ * never "Cmajor", which parses as a chord and made a fretboard draw an arpeggio (0.16.0).
+ */
+const WORD_QUALITY = /^(?:major|minor)$/i
+const joinsAsQuality = (word: string) => QUALITY_WORD.test(word) && !WORD_QUALITY.test(word)
 
 /** Whether letters read as a note with an octave, or a chord the library knows. */
 const reads = (letters: string): boolean =>
@@ -164,7 +170,7 @@ function read(
         )
     if (options.chord) {
         const joined = new RegExp(`^\\s*${SYLLABLE}${SIGN}\\s+(\\S+)\\s*$`).exec(out)
-        if (joined && QUALITY_WORD.test(joined[3]!)) {
+        if (joined && joinsAsQuality(joined[3]!)) {
             const word = `${joined[1]!}${joined[2] ?? ''}${joined[3]!}`
             const letters = rootToken(word, naming, h) ?? letterPiece(word, naming, h)
             if (letters !== word) {
@@ -178,7 +184,7 @@ function read(
     for (let i = 0; i + 2 < words.length; i += 2) {
         const head = words[i]!
         const next = words[i + 2]!
-        if (!syllableOnly(head) || !QUALITY_WORD.test(next)) continue
+        if (!syllableOnly(head) || !joinsAsQuality(next)) continue
         if (naming !== 'solfege' && reads(head)) continue
         const joined = `${head}${next}`
         const letters = letterPiece(joined, naming, h)

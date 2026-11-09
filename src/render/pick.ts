@@ -123,6 +123,10 @@ const DIRECTIONS: Record<string, [number, number]> = {
     ArrowUp: [0, -1],
     ArrowDown: [0, 1]
 }
+
+/** Touch events a live diagram keeps from the host (a tap, not the scroll it may start). */
+const TOUCH = ['touchstart', 'touchend'] as const
+
 const RESULT_CLASS = { right: 'mn-pick-right', wrong: 'mn-pick-wrong' } as const
 
 const num = (el: Element, name: string) => Number(el.getAttribute(name))
@@ -316,6 +320,9 @@ export function attachPick(diagram: Element, options: PickOptions = {}): PickLay
             el.addEventListener('focus', onFocus)
         }
         for (const type of ['pointerdown', 'mousedown']) diagram.addEventListener(type, onPress)
+        // Touch screens: a tap must not move the host's caret or start its swipe gestures.
+        // Passive: stopping propagation never needs to cancel scrolling.
+        for (const type of TOUCH) diagram.addEventListener(type, onPress, { passive: true })
         diagram.addEventListener('click', onClick)
         diagram.addEventListener('keydown', onKey as EventListener)
         // Screen readers get the targets, not the drawing's texts (title, fret numbers, string
@@ -433,6 +440,7 @@ export function attachPick(diagram: Element, options: PickOptions = {}): PickLay
             marks = null
             for (const type of ['pointerdown', 'mousedown'])
                 diagram.removeEventListener(type, onPress)
+            for (const type of TOUCH) diagram.removeEventListener(type, onPress)
             diagram.removeEventListener('click', onClick)
             diagram.removeEventListener('keydown', onKey as EventListener)
             for (const el of targets) {
