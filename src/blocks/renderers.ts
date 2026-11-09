@@ -502,6 +502,10 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     }
     const sounding = symbol && capo ? soundingChord(symbol, capo) : symbol
     const sounds = soundsField(field(block, 'sounds'), symbol, capo)
+    // `sounds: title`: the chord heard titles the diagram, the shape played after it ("Gm (Em
+    // shape)"); a title written by hand stays.
+    if (capo && sounding && soundsInTitle(field(block, 'sounds')) && !field(block, 'title'))
+        title = `${sounding} (${title ?? symbol} shape)`
     // A symbol the theory doesn't know still titles the diagram; only its root marks are lost.
     // Root marks follow the sounding notes (B's with an A shape and a capo on 2).
     const root = sounding ? (chordNoteSet(sounding)?.root ?? rootOf(sounding)) : null
@@ -576,10 +580,13 @@ function captioned(doc: Document, diagram: SVGElement, sentences: string[]): HTM
     return figure
 }
 
+/** `sounds: title` (any case): the chord the shape sounds titles the diagram. */
+const soundsInTitle = (text: string | undefined): boolean => /^title$/i.test(text?.trim() ?? '')
+
 /**
  * `sounds:` with a capo: `yes` (or `auto`) captions the chord the shape sounds, a chord name
- * captions that chord when it is the one the shape sounds, `no` (default) captions nothing.
- * Undefined for no caption.
+ * captions that chord when it is the one the shape sounds, `title` titles the diagram with it
+ * (no caption), `no` (default) captions nothing. Undefined for no caption.
  */
 function soundsField(
     text: string | undefined,
@@ -588,6 +595,15 @@ function soundsField(
 ): string | undefined {
     const value = text?.trim()
     if (!value || /^(no|false|off)$/i.test(value)) return undefined
+    if (soundsInTitle(value)) {
+        // In the title, not the caption; a title the library can't read as a chord can't move up.
+        if (capo && (!shape || !chordNoteSet(shape))) {
+            throw new Error(
+                'sounds: title needs a chord the library knows: add its symbol (e.g. symbol: A)'
+            )
+        }
+        return undefined
+    }
     const auto = /^(yes|true|on|auto)$/i.test(value)
     if (!capo) {
         if (auto) return undefined

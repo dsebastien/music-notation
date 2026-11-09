@@ -144,6 +144,57 @@ describe('capo in blocks', () => {
         expect(renderBlock('chord', 'G 320003\ncapo: 0\nsounds: yes', host()).ok).toBe(true)
     })
 
+    it('titles the chord that sounds with sounds: title, the shape after it', () => {
+        // A player's question: an Em shape with a capo on 3 is Gm; say so in the title.
+        const h = host()
+        const result = renderBlock('chord', 'Em 022000\ncapo: 3\nsounds: title', h)
+        expect(result.error).toBeNull()
+        const svg = h.querySelector('svg')!
+        expect(svg.querySelector('.mn-title')?.textContent).toBe('Gm (Em shape)')
+        // The caption says the capo only: the title already names the sound.
+        expect(svg.querySelector('.mn-caption')?.textContent).toBe('Capo 3')
+        expect(svg.getAttribute('data-mn-chord')).toBe('Em')
+        expect(svg.getAttribute('data-mn-sounds')).toBe('Gm')
+        expect(accessibleName(svg)).toContain('Gm (Em shape)')
+        // Any case; with frets from the nut too.
+        const nut = host()
+        renderBlock('chord', 'A x24442\ncapo: 2\nfrets-from: nut\nsounds: Title', nut)
+        expect(nut.querySelector('.mn-title')?.textContent).toBe('B (A shape)')
+    })
+
+    it('keeps a hand-written title, names the shape by its name, and adds nothing without a capo', () => {
+        const titled = host()
+        renderBlock('chord', 'Em 022000\ncapo: 3\nsounds: title\ntitle: Intro', titled)
+        expect(titled.querySelector('.mn-title')?.textContent).toBe('Intro')
+        const named = host()
+        renderBlock('chord', 'frets: 022000\nname: E minor\ncapo: 3\nsounds: title', named)
+        expect(named.querySelector('.mn-title')?.textContent).toBe('Gm (E minor shape)')
+        const none = host()
+        expect(renderBlock('chord', 'Em 022000\ncapo: 0\nsounds: title', none).ok).toBe(true)
+        expect(none.querySelector('.mn-title')?.textContent).toBe('Em')
+        expect(renderBlock('chord', 'Mystery x02220\ncapo: 2\nsounds: title', host()).error).toBe(
+            'sounds: title needs a chord the library knows: add its symbol (e.g. symbol: A)'
+        )
+    })
+
+    it('titles every diagram of a row by its sound with a shared sounds: title', () => {
+        const h = host()
+        renderBlock('chord', 'capo: 2\nsounds: title\n---\nG 320003\n---\nEm 022000', h)
+        expect([...h.querySelectorAll('svg .mn-title')].map((t) => t.textContent)).toEqual([
+            'A (G shape)',
+            'F#m (Em shape)'
+        ])
+    })
+
+    it('shows the sound in the naming, the shape by its name in letters (as CAGED shapes)', () => {
+        const h = host()
+        renderBlock('chord', 'naming: solfege\nEm 022000\ncapo: 3\nsounds: title', h)
+        expect(h.querySelector('.mn-title')?.textContent).toBe('Sol m (Em shape)')
+        const g = host()
+        renderBlock('chord', 'G 320003\ncapo: 2\nsounds: title', g, { naming: 'solfege' })
+        expect(g.querySelector('.mn-title')?.textContent).toBe('La (G shape)')
+    })
+
     it('reads frets from the nut', () => {
         const h = host()
         const result = renderBlock('chord', 'frets: x24442\ncapo: 2\nfrets-from: nut', h)
