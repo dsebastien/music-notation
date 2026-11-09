@@ -8,7 +8,7 @@
 import type * as AT from '@coderline/alphatab'
 import { html, svg } from '../render/dom.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
-import type { NoteEvent, NotePlayer, Sound } from '../playback/player.js'
+import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/player.js'
 
 export type AlphaTabModule = typeof AT
 
@@ -880,6 +880,11 @@ export function soundfontPlayer(
                     stopped = true
                     clearTimeout(timer)
                     player.stop()
+                },
+                setVolume(next) {
+                    // A stopped play leaves the synthesizer to whatever plays now.
+                    if (stopped || !Number.isFinite(next)) return
+                    current.masterVolume = Math.min(1, Math.max(0, next))
                 }
             }
         }
@@ -961,20 +966,22 @@ export function createSoundfontPlayer(
         // Its notes start once the soundfont is in: `onStart` says when (the fallback's too).
         reportsStart: true,
         play(events, options) {
-            let handle: { stop(): void } | null = null
+            let handle: PlayHandle | null = null
             let stopped = false
+            // A volume changed while the soundfont loads is the one the notes start with (#85).
+            let volume = options.volume
             void start().then((ok) => {
                 if (stopped) return
                 try {
                     if (ok) {
-                        handle = inner.play(events, options)
+                        handle = inner.play(events, { ...options, volume })
                         return
                     }
                 } catch {
                     // Falls through to the fallback.
                 }
                 if (!fallback) return
-                handle = fallback.play(events, options)
+                handle = fallback.play(events, { ...options, volume })
                 // A fallback that doesn't say when it starts starts now.
                 if (!fallback.reportsStart) options.onStart?.()
             })
@@ -982,6 +989,10 @@ export function createSoundfontPlayer(
                 stop() {
                     stopped = true
                     handle?.stop()
+                },
+                setVolume(next) {
+                    volume = next
+                    handle?.setVolume?.(next)
                 }
             }
         },

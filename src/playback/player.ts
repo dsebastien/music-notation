@@ -24,6 +24,8 @@ export interface NoteEvent {
 
 export interface PlayHandle {
     stop(): void
+    /** The notes that sound take this volume (0 to 1) at once (#85); a stopped play ignores it. */
+    setVolume?(volume: number): void
 }
 
 export interface NotePlayer {
@@ -514,6 +516,15 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                         }
                     }
                     cleanup = win.setTimeout(finish, 80)
+                },
+                setVolume(next) {
+                    if (stopped || !Number.isFinite(next)) return
+                    // A short glide (no click), from now, for the notes that sound and those to come.
+                    gain.gain.setTargetAtTime(
+                        Math.min(1, Math.max(0, next)),
+                        ctx.currentTime,
+                        0.015
+                    )
                 }
             }
         }

@@ -18,6 +18,7 @@ import {
     type Sound
 } from '../playback/player.js'
 import { sawStart, startsReported } from '../playback/follow.js'
+import { followVolume } from '../playback/live-volume.js'
 import {
     DEFAULT_COMPOUND_TEMPO,
     DEFAULT_TEMPO,
@@ -325,14 +326,21 @@ export function runPasses(
     let stopped = false
     let timer: number | undefined
     let pass = 0
+    const handles: PlayHandle[] = []
+    // The passes that may still sound follow the app's volume (#85).
+    const unfollow = followVolume(
+        () => settings().volume,
+        () => handles,
+        settings().volume
+    )
     // When the first pass would have been asked for without any wait; then the passes' lengths.
     let anchor: number | null = null
     let elapsed = 0
-    const handles: PlayHandle[] = []
     const followers: StrumFollower[] = []
     const finish = () => {
         if (stopped) return
         stopped = true
+        unfollow()
         onEnd?.()
     }
     const schedule = (looping: boolean) => {
@@ -404,6 +412,7 @@ export function runPasses(
     return {
         stop() {
             stopped = true
+            unfollow()
             timers.clearTimeout(timer)
             for (const h of handles) h.stop()
             for (const f of followers) f.stop()

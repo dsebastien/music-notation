@@ -14,6 +14,7 @@ import {
     type Sound
 } from './player.js'
 import { followNotes, noteTargets, sawStart, startsReported, START_WAIT } from './follow.js'
+import { followVolume } from './live-volume.js'
 import {
     clamp,
     dataOf,
@@ -232,16 +233,36 @@ export function diagramGroup(
                 sawStart(player)
                 follower.heard()
             }
+            // The play follows the app's volume while it sounds (#85).
+            const volume = volumeOf(options.volume)
+            let handle: PlayHandle | null = null
+            const unfollow = followVolume(
+                () => volumeOf(options.volume),
+                () => (handle ? [handle] : []),
+                volume
+            )
             try {
-                return player.play(events, {
+                handle = player.play(events, {
                     sound: soundOf(item),
-                    volume: volumeOf(options.volume),
-                    onEnd,
+                    volume,
+                    onEnd: () => {
+                        unfollow()
+                        onEnd()
+                    },
                     onStart
                 })
             } catch (error) {
+                unfollow()
                 follower.stop()
                 throw error
+            }
+            const played = handle
+            return {
+                stop() {
+                    unfollow()
+                    played.stop()
+                },
+                setVolume: (next: number) => played.setVolume?.(next)
             }
         }
         try {

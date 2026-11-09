@@ -70,6 +70,7 @@ export {
     type SequenceOptions
 } from './playback/player.js'
 export { attachPlayback, type PlayOptions, type TimedBar } from './playback/controls.js'
+export { volumeChanged } from './playback/live-volume.js'
 export {
     followNotes,
     noteTargets,
