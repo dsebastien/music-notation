@@ -15,13 +15,25 @@ import {
 import { alphaTabLoader } from './load.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
+import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
 
 declare global {
     interface Window {
         alphaTab?: AlphaTabModule
         musicNotationTabLoaded?: boolean
         musicNotationSoundfontPlayer?: NotePlayer
+        musicNotationOptions?: unknown
     }
+}
+
+/** The page's `play: { volume }` (0 to 1), read at each Play: the tab bar has no volume (#82). */
+const pageVolume = (): number | undefined => {
+    const options: unknown = window.musicNotationOptions
+    if (!options || typeof options !== 'object' || !('play' in options)) return undefined
+    const play: unknown = options.play
+    if (!play || typeof play !== 'object' || !('volume' in play)) return undefined
+    const volume: unknown = play.volume
+    return typeof volume === 'number' && Number.isFinite(volume) ? volume : undefined
 }
 
 const SELECTOR = 'pre > code.language-tab, pre > code.language-score'
@@ -75,7 +87,11 @@ function renderAllTabs(doc: Document): void {
                 const holder = doc.createElement('div')
                 holder.className = 'mn-tab-holder'
                 pre.insertAdjacentElement('afterend', holder)
-                const result = renderTab(language, source, holder, { alphaTab, assets })
+                const result = renderTab(language, source, holder, {
+                    alphaTab,
+                    assets,
+                    volume: () => pageVolume() ?? DEFAULT_VOLUME
+                })
                 drawn.set(pre, { result, source, holder })
                 void result.ready.then(({ ok }) => {
                     pre.dataset['mpRendered'] = ok ? 'done' : 'error'

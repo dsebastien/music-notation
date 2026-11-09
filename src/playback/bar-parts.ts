@@ -8,6 +8,7 @@ import { html, svg } from '../render/dom.js'
 /** Small icons, drawn on a 16 × 16 grid so they look the same in every font. */
 export const ICONS = {
     play: 'M4 2.5v11l9-5.5z',
+    pause: 'M4 3h3v10H4zM9 3h3v10H9z',
     stop: 'M4 4h8v8H4z',
     /** Two triangles: every diagram of the block, one after the other. */
     all: 'M1.5 2.5v11l6.5-5.5zM8 2.5v11l6.5-5.5z',

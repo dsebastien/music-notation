@@ -6,9 +6,18 @@
  * exporters behind imports (#25), and a soundfont player for the diagrams' playback (#23).
  */
 import type * as AT from '@coderline/alphatab'
-import { html, svg } from '../render/dom.js'
+import { html } from '../render/dom.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
 import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/player.js'
+import {
+    icon,
+    iconButton,
+    playBar,
+    pressedButton,
+    valueSlider,
+    volumeOf
+} from '../playback/bar-parts.js'
+import { followVolume } from '../playback/live-volume.js'
 
 export type AlphaTabModule = typeof AT
 
@@ -56,6 +65,11 @@ export interface TabOptions {
     onKeepView?: (staves: Staves) => void
     /** The view of a block with no `staves:` line (default: the block's language). */
     defaultStaves?: Staves
+    /**
+     * The app's volume, 0 to 1 (a number, or a function read at each Play and on `volumeChanged`,
+     * #85); 0.8 by default. The bar has no volume of its own (#82).
+     */
+    volume?: number | (() => number)
 }
 
 export type Staves = 'tab' | 'score' | 'both'
@@ -345,52 +359,33 @@ export interface TabResult {
     destroy(): void
 }
 
-const ICONS = {
-    play: 'M4 2.5v11l9-5.5z',
-    pause: 'M4 3h3v10H4zM9 3h3v10H9z',
-    stop: 'M4 4h8v8H4z',
-    loop: 'M3 8a5 5 0 0 1 8.5-3.5L13 6V2.5M13 8a5 5 0 0 1-8.5 3.5L3 10v3.5',
-    metronome: 'M6 2h4l3 12H3zM8 11l3-7',
-    countIn: 'M3 13h10M5 13V9M8 13V6M11 13V3',
-    volume: 'M2 6h3l4-3v10l-4-3H2zM11 5.5a3.5 3.5 0 0 1 0 5'
-} as const
-
-function icon(doc: Document, name: keyof typeof ICONS): SVGElement {
-    const filled = name === 'play' || name === 'pause' || name === 'stop'
-    const root = svg(doc, 'svg', {
-        'class': `mn-play-icon${filled ? '' : ' mn-play-icon-loop'}`,
-        'viewBox': '0 0 16 16',
-        'width': 12,
-        'height': 12,
-        'aria-hidden': 'true'
-    })
-    root.appendChild(svg(doc, 'path', { d: ICONS[name] }))
-    return root
-}
-
 const time = (ms: number) => {
     const s = Math.max(0, Math.round(ms / 1000))
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 /**
- * The player bar under a score: play / pause, stop, loop, metronome, count-in, speed, volume.
- * The player (an audio context, the synthesizer, the soundfont) starts at the first Play, so a
- * note full of tabs costs nothing until one plays.
+ * The player bar under a score (#82: like every bar, #58): play / pause, stop, loop, metronome,
+ * count-in and speed, from the shared bar parts; always shown, below the score. No volume on the
+ * bar: the app's (`volume`), heard at once when it changes (`volumeChanged`, #85). The player (an
+ * audio context, the synthesizer, the soundfont) starts at the first Play, so a note full of tabs
+ * costs nothing until one plays.
  */
 function playerBar(
     doc: Document,
     api: AT.AlphaTabApi,
     alphaTab: AlphaTabModule,
-    assets: TabAssets
-): { bar: HTMLElement; failed: (message: string) => void; speed: () => number } {
-    const bar = html(doc, 'div', 'mn-play mn-tab-bar')
-    // A press in the bar is the bar's: an editor (Obsidian's live preview) must not take it as a
-    // click on the block, which opens its source.
-    bar.addEventListener('mousedown', (event) => event.stopPropagation())
-    bar.setAttribute('role', 'group')
-    bar.setAttribute('aria-label', 'Playback')
-    const state = { loop: false, metronome: false, countIn: false, speed: 1, volume: 1 }
+    assets: TabAssets,
+    volume: TabOptions['volume']
+): {
+    bar: HTMLElement
+    failed: (message: string) => void
+    speed: () => number
+    destroy: () => void
+} {
+    const bar = playBar(doc, 'mn-tab-bar', 'Playback')
+    const state = { loop: false, metronome: false, countIn: false, speed: 1 }
+    const level = () => volumeOf(volume)
     let started: Promise<boolean> | null = null
     /** Settles the start when playback can't happen (alphaTab reports it as an error). */
     let cantStart: (() => void) | null = null
@@ -412,97 +407,54 @@ function playerBar(
                 api.metronomeVolume = state.metronome ? 1 : 0
                 api.countInVolume = state.countIn ? 1 : 0
                 api.playbackSpeed = state.speed
-                api.masterVolume = state.volume
+                api.masterVolume = level()
             }
             return ok
         })
         return started
     }
-    const button = (name: keyof typeof ICONS, label: string, run: () => void) => {
-        const b = html(doc, 'button')
-        b.type = 'button'
-        b.title = label
-        b.setAttribute('aria-label', label)
-        b.appendChild(icon(doc, name))
-        b.addEventListener('click', run)
-        bar.appendChild(b)
-        return b
-    }
     /** Applies a setting to the player when it runs; it's applied at start otherwise. */
     const live = (apply: () => void) => {
         if (api.player) apply()
     }
-    const toggle = (
-        name: keyof typeof ICONS,
-        label: string,
-        key: 'loop' | 'metronome' | 'countIn'
-    ) => {
-        const b = button(name, label, () => {
-            state[key] = !state[key]
-            live(() => {
-                api.isLooping = state.loop
-                api.metronomeVolume = state.metronome ? 1 : 0
-                api.countInVolume = state.countIn ? 1 : 0
-            })
-            b.classList.toggle('mn-on', state[key])
-            b.setAttribute('aria-pressed', String(state[key]))
-        })
-        b.setAttribute('aria-pressed', 'false')
-    }
-    const play = button('play', 'Play', () => {
+    const play = iconButton(doc, 'mn-play-toggle', 'Play', 'play')
+    play.addEventListener('click', () => {
         void start().then((ok) => {
             if (ok) api.playPause()
         })
     })
-    button('stop', 'Stop', () => live(() => api.stop()))
-    toggle('loop', 'Loop', 'loop')
-    toggle('metronome', 'Metronome', 'metronome')
-    toggle('countIn', 'Count-in', 'countIn')
-    const slider = (
-        label: string,
-        mark: string | SVGElement,
-        min: number,
-        max: number,
-        value: number,
-        set: (n: number) => void,
-        unit = ''
-    ) => {
-        const field = html(doc, 'label', 'mn-play-field')
-        const tag = html(doc, 'span', 'mn-play-label')
-        tag.setAttribute('aria-hidden', 'true')
-        tag.append(mark)
-        const input = html(doc, 'input')
-        input.type = 'range'
-        input.min = String(min)
-        input.max = String(max)
-        input.value = String(value)
-        input.setAttribute('aria-label', label)
-        field.title = `${label}: ${value}${unit}`
-        input.addEventListener('input', () => {
-            set(Number(input.value))
-            field.title = `${label}: ${input.value}${unit}`
+    const stop = iconButton(doc, 'mn-tab-stop', 'Stop', 'stop')
+    stop.addEventListener('click', () => live(() => api.stop()))
+    const toggles = () =>
+        live(() => {
+            api.isLooping = state.loop
+            api.metronomeVolume = state.metronome ? 1 : 0
+            api.countInVolume = state.countIn ? 1 : 0
         })
-        field.append(tag, input)
-        bar.appendChild(field)
-    }
-    slider(
-        'Speed',
-        '%',
-        25,
-        150,
-        100,
-        (n) => {
-            state.speed = n / 100
-            live(() => (api.playbackSpeed = state.speed))
-        },
-        '%'
-    )
-    slider('Volume', icon(doc, 'volume'), 0, 100, 100, (n) => {
-        state.volume = n / 100
-        live(() => (api.masterVolume = state.volume))
+    const loop = pressedButton(doc, 'mn-tab-loop', 'Loop', 'loop', false, (on) => {
+        state.loop = on
+        toggles()
+    })
+    const metronome = pressedButton(doc, 'mn-tab-click', 'Metronome', 'click', false, (on) => {
+        state.metronome = on
+        toggles()
+    })
+    const countIn = pressedButton(doc, 'mn-tab-count', 'Count-in', 'count', false, (on) => {
+        state.countIn = on
+        toggles()
+    })
+    const speed = valueSlider(doc, 'Speed', '%', 25, 150, 100, (n) => {
+        state.speed = n / 100
+        live(() => (api.playbackSpeed = state.speed))
     })
     const position = html(doc, 'span', 'mn-tab-time', '')
-    bar.appendChild(position)
+    bar.append(play, stop, loop, metronome, countIn, speed.field, position)
+    // The app's volume while this score plays (#85); the bar no longer has one (#82).
+    const unfollow = followVolume(
+        level,
+        () => [{ stop() {}, setVolume: (v: number) => live(() => (api.masterVolume = v)) }],
+        level()
+    )
     api.playerStateChanged.on((e) => {
         // PlayerState.Playing (the module's enum, compared by value).
         const playing = Number(e.state) === Number(alphaTab.synth.PlayerState.Playing)
@@ -516,6 +468,7 @@ function playerBar(
     return {
         bar,
         speed: () => state.speed,
+        destroy: unfollow,
         // The score stays; only playback is off (no soundfont, no audio).
         failed: (message) => {
             cantStart?.()
@@ -615,6 +568,7 @@ export function renderTab(
     let api: AT.AlphaTabApi | null = null
     /** The player bar's speed, once the bar exists. */
     let speedOf = (): number => 1
+    let unbar = (): void => {}
     let gone = false
     let settled = false
     let settle: (result: { ok: boolean; error: string | null }) => void = () => {}
@@ -703,7 +657,8 @@ export function renderTab(
             current.renderFinished.on(() => {
                 if (settled || gone) return
                 if (options.player !== false) {
-                    bar = playerBar(doc, current, at, assets)
+                    bar = playerBar(doc, current, at, assets, options.volume)
+                    unbar = bar.destroy
                     speedOf = bar.speed
                     el.appendChild(bar.bar)
                     // Drums and piano have one view only: no control then.
@@ -780,6 +735,7 @@ export function renderTab(
         speed: () => speedOf(),
         destroy() {
             gone = true
+            unbar()
             try {
                 api?.destroy()
             } catch {

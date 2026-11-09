@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import * as alphaTab from '@coderline/alphatab'
+import { volumeChanged } from '../playback/live-volume.js'
 import {
     alphaTabCdn,
     ALPHATAB_VERSION,
@@ -126,6 +127,11 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
         playerReady = emitter()
         scoreLoaded = emitter()
         renderer = { partialRenderFinished: emitter() }
+        settings = { player: {} as Record<string, unknown> }
+        masterVolume = 1
+        player: unknown = null
+        updateSettings() {}
+        playPause() {}
         loaded: unknown = null
         /** The score alphaTab would draw, after the scoreLoaded handlers ran. */
         score: alphaTab.model.Score | null = null
@@ -727,5 +733,67 @@ describe('renderTab, the view control (Music Practice #83)', () => {
         // A staves: line wins over the app default.
         const written = await draw('score', 'staves: score\n:4 3.3', { defaultStaves: 'tab' })
         expect(written.buttons()).toEqual(['Tab', 'Score*', 'Both'])
+    })
+})
+
+describe('the tab and score bar looks and works like the other bars (#82)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    const host = () => document.createElement('div')
+
+    it('is a play bar below the score, always shown, with the shared icons and parts', async () => {
+        const h = host()
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: fakeAlphaTab(), assets })
+        await result.ready
+        const bar = h.querySelector('.mn-tab-bar')!
+        expect(bar.classList.contains('mn-play')).toBe(true)
+        expect(bar.classList.contains('mn-play-static')).toBe(true)
+        expect(bar.getAttribute('aria-label')).toBe('Playback')
+        const iconOf = (label: string) =>
+            bar.querySelector(`button[aria-label="${label}"] svg`)!.getAttribute('class')
+        expect(iconOf('Count-in')).toContain('mn-play-icon-count')
+        expect(iconOf('Metronome')).toContain('mn-play-icon-click')
+        expect(iconOf('Loop')).toContain('mn-play-icon-loop')
+        // The speed shows its value, as the other bars' sliders do.
+        expect(bar.querySelector('.mn-play-value')?.textContent).toBe('100 %')
+        // No volume on the bar: it is the app's.
+        expect(bar.querySelector('input[aria-label="Volume"]')).toBeNull()
+        result.destroy()
+    })
+
+    it("plays at the app's volume, and follows it while it plays", async () => {
+        const mod = fakeAlphaTab()
+        const made: { masterVolume: number; player: unknown; playerReady: { fire(): void } }[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => (typeof made)[0]
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(this)
+            }
+        }
+        let volume = 0.3
+        const h = host()
+        const result = renderTab('tab', ':4 3.3', h, {
+            alphaTab: mod,
+            assets,
+            volume: () => volume
+        })
+        await result.ready
+        h.querySelector<HTMLButtonElement>('.mn-tab-bar button[aria-label="Play"]')!.click()
+        // alphaTab has its player once it is ready.
+        made[0]!.player = {}
+        made[0]!.playerReady.fire()
+        await new Promise((r) => setTimeout(r, 0))
+        expect(made[0]!.masterVolume).toBe(0.3)
+        volume = 0.6
+        volumeChanged()
+        expect(made[0]!.masterVolume).toBe(0.6)
+        result.destroy()
+        volume = 0.1
+        volumeChanged()
+        expect(made[0]!.masterVolume).toBe(0.6)
     })
 })
