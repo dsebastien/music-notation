@@ -672,8 +672,14 @@ export function renderTab(
                     staveProfile: 'Default',
                     resources: colorsOf(el)
                 },
-                // The player starts at the first Play (playerBar).
-                player: { playerMode: at.PlayerMode.Disabled, enableUserInteraction: true }
+                // The player starts at the first Play (playerBar). It never scrolls the page: the
+                // default (Continuous) jumped it at each Play, OffScreen to the page's end. A block
+                // is a few systems, in view while it plays.
+                player: {
+                    playerMode: at.PlayerMode.Disabled,
+                    enableUserInteraction: true,
+                    scrollMode: at.ScrollMode.Off
+                }
             }
             const current = new at.AlphaTabApi(surface, settings)
             api = current

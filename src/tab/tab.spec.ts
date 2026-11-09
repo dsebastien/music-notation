@@ -170,7 +170,8 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
         AlphaTabApi: Api,
         FontFileFormat: { Woff2: 3 },
         LogLevel: { Warning: 2 },
-        PlayerMode: { Disabled: 0, EnabledSynthesizer: 2 }
+        PlayerMode: { Disabled: 0, EnabledSynthesizer: 2 },
+        ScrollMode: { Off: 0, Continuous: 1, OffScreen: 2 }
     } as unknown as AlphaTabModule
 }
 
@@ -321,6 +322,24 @@ describe('renderTab', () => {
             'Both'
         ])
         expect(h.querySelector('.mn-tab-time')?.textContent).toBe('')
+    })
+
+    it('never scrolls the page while it plays', async () => {
+        // alphaTab's default (Continuous) scrolled the docs page by 200-500 px at each Play;
+        // OffScreen jumped tens of thousands of pixels.
+        const mod = fakeAlphaTab()
+        const made: unknown[][] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => object
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                made.push(args)
+            }
+        }
+        const result = renderTab('tab', ':4 3.3', host(), { alphaTab: mod, assets })
+        await result.ready
+        const settings = made[0]![1] as { player: { scrollMode?: number } }
+        expect(settings.player.scrollMode).toBe(0)
     })
 
     it('tells the speed set on its bar, before the player starts too (Music Practice #70)', async () => {
