@@ -1,4 +1,4 @@
-<!-- The live examples on these pages are drawn by the published library (latest 0.12.x): the
+<!-- The live examples on these pages are drawn by the published library (the pinned minor): the
      main bundle for diagrams and charts, the tab bundle for tabs and scores (it loads alphaTab). -->
 <script
     defer
@@ -23,6 +23,41 @@
         letter-spacing: 0.05em;
         color: #959396;
         margin-bottom: 0.25rem;
+    }
+    .mn-playground-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: center;
+        margin: 0.5rem 0;
+    }
+    .mn-playground-controls label {
+        display: inline-flex;
+        gap: 0.4rem;
+        align-items: center;
+    }
+    .mn-playground button {
+        cursor: pointer;
+        padding: 0.3rem 0.8rem;
+        border: 1px solid #c9c2cf;
+        border-radius: 6px;
+        background: #f5f2f7;
+    }
+    .mn-playground button:hover {
+        background: #ebe4f0;
+    }
+    #mn-source {
+        width: 100%;
+        font-family: monospace;
+        font-size: 0.9rem;
+        margin: 0.25rem 0;
+    }
+    #mn-said {
+        color: #5c5962;
+        font-size: 0.85rem;
+    }
+    .mn-playground #mn-output {
+        margin-top: 0.75rem;
     }
     .mn-gallery {
         display: flex;
