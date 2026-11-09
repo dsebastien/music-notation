@@ -145,10 +145,11 @@ const STACKED: Record<string, string> = {
     '3M 5P 7M': 'maj7',
     '3M 5P 7m': '7',
     '3m 5P 7m': 'm7',
-    '3m 5P 7M': 'mMaj7',
+    // The usual names in method books (#78): Am(maj7), C+maj7.
+    '3m 5P 7M': 'm(maj7)',
     '3m 5d 7m': 'm7b5',
     '3m 5d 7d': 'dim7',
-    '3M 5A 7M': 'maj7#5',
+    '3M 5A 7M': '+maj7',
     '3M 5A 7m': '7#5',
     '3M 5d 7m': '7b5'
 }
@@ -182,7 +183,11 @@ function numeralQuality(suffix: string): { lower: boolean; mark: string } {
         case 'aug':
             return { lower: false, mark: '+' }
         case 'mMaj7':
-            return { lower: true, mark: 'maj7' }
+        case 'm(maj7)':
+            return { lower: true, mark: '(maj7)' }
+        case 'maj7#5':
+        case '+maj7':
+            return { lower: false, mark: '+maj7' }
     }
     if (/^m(?!aj)/.test(suffix)) return { lower: true, mark: suffix.slice(1) }
     return { lower: false, mark: suffix }
@@ -192,7 +197,7 @@ function numeralQuality(suffix: string): { lower: boolean; mark: string } {
 function nashvilleQuality(suffix: string): string {
     return (
         { dim: '°', dim7: '°7', m7b5: 'ø7', aug: '+' }[suffix] ??
-        (suffix === 'mMaj7' ? 'mmaj7' : suffix)
+        (suffix === 'mMaj7' ? 'm(maj7)' : suffix === 'maj7#5' ? '+maj7' : suffix)
     )
 }
 

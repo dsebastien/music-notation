@@ -43,7 +43,18 @@ describe('readNumeral', () => {
             'Cmaj7',
             'Bm7b5',
             'Bdim7',
-            'DmMaj7'
+            'Dm(maj7)'
+        ])
+    })
+
+    it('reads the minor-major and augmented-major sevenths in every spelling (#78)', () => {
+        // Written as method books do (i(maj7), III+maj7), and as before (imaj7, IIImaj7#5).
+        expect(symbols('i(maj7) imaj7 imMaj7 bIII+maj7 bIIImaj7#5', 'A minor')).toEqual([
+            'Am(maj7)',
+            'Am(maj7)',
+            'Am(maj7)',
+            'C+maj7',
+            'C+maj7'
         ])
         expect(symbols('I+ Iadd9 IVsus4 V9 viio', 'C')).toEqual([
             'Caug',

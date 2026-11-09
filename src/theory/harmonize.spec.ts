@@ -39,18 +39,18 @@ describe('harmonize', () => {
     it('harmonizes harmonic and melodic minor, numerals marked as a minor key writes them', () => {
         const kind = { kind: 'sevenths' } as const
         expect(symbols('A harmonic minor', kind)).toEqual([
-            'AmMaj7',
+            'Am(maj7)',
             'Bm7b5',
-            'Cmaj7#5',
+            'C+maj7',
             'Dm7',
             'E7',
             'Fmaj7',
             'G#dim7'
         ])
         expect(numerals('A harmonic minor', kind)).toEqual([
-            'imaj7',
+            'i(maj7)',
             'iiø7',
-            'bIIImaj7#5',
+            'bIII+maj7',
             'iv7',
             'V7',
             'bVImaj7',
@@ -58,18 +58,18 @@ describe('harmonize', () => {
         ])
         // Stacked from the scale, not tonal's melodic minor chords (Am6 on the tonic).
         expect(symbols('A melodic minor', kind)).toEqual([
-            'AmMaj7',
+            'Am(maj7)',
             'Bm7',
-            'Cmaj7#5',
+            'C+maj7',
             'D7',
             'E7',
             'F#m7b5',
             'G#m7b5'
         ])
         expect(numerals('A melodic minor', kind)).toEqual([
-            'imaj7',
+            'i(maj7)',
             'ii7',
-            'bIIImaj7#5',
+            'bIII+maj7',
             'IV7',
             'V7',
             '#viø7',

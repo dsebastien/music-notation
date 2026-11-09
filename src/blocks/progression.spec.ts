@@ -467,9 +467,9 @@ describe('progression block: harmonize (#43)', () => {
         expect(error).toBeNull()
         expect(texts(h, 'mn-progression-key')).toEqual(['Key: A harmonic minor'])
         expect(texts(h, 'mn-progression-numeral')).toEqual([
-            'imaj7',
+            'i(maj7)',
             'iiø7',
-            'bIIImaj7#5',
+            'bIII+maj7',
             'iv7',
             'V7',
             'bVImaj7',
@@ -477,9 +477,9 @@ describe('progression block: harmonize (#43)', () => {
         ])
         const cells = [...h.querySelectorAll('.mn-progression-chord')]
         expect(cells.map((c) => c.getAttribute('data-mn-chord'))).toEqual([
-            'AmMaj7',
+            'Am(maj7)',
             'Bm7b5',
-            'Cmaj7#5',
+            'C+maj7',
             'Dm7',
             'E7',
             'Fmaj7',

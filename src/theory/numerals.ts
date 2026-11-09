@@ -98,6 +98,12 @@ function noteOn(key: MusicalKey, degree: number, accidental: string, diminished:
 function suffixOf(mark: string, lower: boolean): string | null {
     let s = mark.replace(/♭/g, 'b').replace(/♯/g, '#')
     s = s.replace(/^o/, '°').replace(/^Δ7?$/, 'maj7').replace(/^M7$/, 'maj7')
+    // i(maj7) and imMaj7 are imaj7 (#78).
+    if (lower)
+        s = s
+            .replace(/^\((maj\d*)\)$/, '$1')
+            .replace(/^m(?=[Mm]aj)/, '')
+            .replace(/^Maj/, 'maj')
     if (s === '°' || s === 'dim') return 'dim'
     if (s === '°7' || s === 'dim7') return 'dim7'
     if (s === 'ø' || s === 'ø7' || s === 'm7b5') return 'm7b5'
@@ -113,9 +119,13 @@ function suffixOf(mark: string, lower: boolean): string | null {
 
 const isDiminished = (suffix: string) => /^(dim|m7b5)/.test(suffix)
 
+/** The usual names of these chords (#78), whatever the numeral wrote: i(maj7), III+maj7. */
+const USUAL: Record<string, string> = { 'mMaj7': 'm(maj7)', 'maj7#5': '+maj7' }
+
 /** A suffix the chord parser and tonal know: "m7" → "m7", "mmaj7" → "mMaj7"; null otherwise. */
 function chordFrom(root: string, suffix: string): string | null {
-    const symbol = `${root}${canonicalSuffix(suffix)}`
+    const canonical = canonicalSuffix(suffix)
+    const symbol = `${root}${USUAL[canonical] ?? canonical}`
     return parseChord(symbol) && chordNoteSet(symbol) ? symbol : null
 }
 
