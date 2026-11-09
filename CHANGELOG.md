@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.0 (2026-11-09)
+
+- **Name a capo chord by its sound** (#88): `sounds: title` titles the diagram with the chord you hear and the shape you play after it. An Em shape with `capo: 3` is titled "Gm (Em shape)", and the caption says "Capo 3". A `title:` you write stays. It works in a row of diagrams too.
+- **Volume changes are heard at once** (#85): when an app changes its volume, what plays takes it right away: diagrams, Play all in turn, strumming and picking patterns, progressions and chord charts. Before, a new volume was heard from the next play or loop pass. For apps: call `volumeChanged()` when your volume changes; a `PlayHandle` has `setVolume`.
+- **Touch screens** (#86): a tap on a clickable fretboard or keyboard (the pick layer) no longer reaches the page around it, and keyboards with a pick layer are drawn larger, so a black key is at least 24 px wide. On a narrow phone a wide range still fits the page: use a smaller range there.
+- **Fixed: solfège "Do major"** (#87): with `naming: solfege`, "Do major" and "Ré minor" were read as the chords Cmajor and Dminor, so a fretboard drew an arpeggio instead of the scale, and `scale: Ré minor` was an error. They read as C major and D minor now. Chord qualities such as `Ré m7` are read as before.
+- **Fixed: tabs and scores scrolled the page** (#89): Play on a tab or score bar moved the page by hundreds of pixels. The player no longer scrolls the page.
+- **Playground** (#90): examples for every block (tabs and scores too) and Surprise me, play bars on every diagram, note names, Copy link to share a block, and Copy as Markdown.
+
 ## 0.16.0 (2026-11-09)
 
 - **Note names in solfège and German** (#12): write `naming: solfege` or `naming: german` in a block, or `{naming: solfege}` in a ChordPro chart. Solfège shows Do Ré Mi Fa Sol La Si with ♯ and ♭; a chord shows a space before its quality (`Ré m7`, `Sol 7`, `Do/Sol`). German shows H for B and B for B♭. It covers the labels on dots and keys, the string names, the titles the library makes, chart chords and their key line, progressions, the circle of fifths, capo captions and the names screen readers hear. Titles you write are never changed.
