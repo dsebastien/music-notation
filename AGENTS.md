@@ -35,5 +35,6 @@
 1. Write the version's section in `CHANGELOG.md` (`## X.Y.Z (yyyy-mm-dd)`, plain language for users), commit, push, wait for CI to be green.
 2. `gh workflow run release.yml -f version=X.Y.Z`: bumps `package.json`, commits `chore(release): X.Y.Z` and tags locally, publishes to npm with provenance (trusted publishing, no token), then pushes the commit and tag and creates the GitHub release with the browser bundle. A failed publish leaves nothing on GitHub: fix and re-run.
 3. Publish sites pin the version in their `publish.js`: bump it there to roll out.
+4. Bump this repo's own pins once npm has the version: the docs site (`docs/_includes/head_custom.html`, `@X.Y`) and the loader examples (`VERSION` in `docs/publish.md` and `README.md`). The site stayed on 0.14 through 0.15 and 0.16.
 
 0.1.0 was published by hand (`npm publish --access public`): trusted publishing needs the package to exist. The npmjs.com trusted publisher is GitHub Actions, repo `dsebastien/music-notation`, workflow `release.yml`, with "npm publish" allowed (not dist-tag). `prepublishOnly` validates and builds.
