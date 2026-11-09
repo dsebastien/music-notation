@@ -72,7 +72,8 @@ const SHARED = [
     'tempo',
     'bpm',
     'strum',
-    'harmonize'
+    'harmonize',
+    'caption'
 ]
 
 /** Words `harmonize:` takes for each kind (#43). */
@@ -376,7 +377,8 @@ const fretsText = (list: readonly (number | null)[]) =>
 /** A diagram's block: its chord, frets or pitches, and the block's layout keys. */
 function diagramBlock(block: BlockSource, lines: [string, string][]): BlockSource {
     const fields = new Map<string, string>(lines)
-    for (const key of ['orientation', 'hand', 'labels', 'tuning']) {
+    // `caption: fingering` (#80): each diagram's fingering in words, in the voicing drawn.
+    for (const key of ['orientation', 'hand', 'labels', 'tuning', 'caption']) {
         const value = field(block, key)
         if (value !== undefined) fields.set(key, value)
     }
@@ -474,6 +476,11 @@ function renderSection(
     }
     const piano = instrument !== 'guitar'
     const diagrams = yes(field(block, 'diagrams'), 'diagrams', true)
+    // Checked once for the block (each diagram would say it again).
+    const caption = field(block, 'caption')?.trim()
+    if (caption && !['fingering', 'none', 'no', 'off', 'false'].includes(caption.toLowerCase())) {
+        throw new Error(`caption: use fingering (the fingering in words) or none, got "${caption}"`)
+    }
     const functions = yes(field(block, 'functions'), 'functions', false)
     const leading = field(block, 'voice-leading')
     const led = yes(leading, 'voice-leading', false)

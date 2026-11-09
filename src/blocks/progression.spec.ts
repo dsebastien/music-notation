@@ -610,3 +610,54 @@ describe('progression block: harmonize (#43)', () => {
         )
     })
 })
+
+describe('progression block: fingering in words (#80)', () => {
+    const draw = (source: string) => {
+        const h = host()
+        const result = renderBlock('progression', source, h, { voicings: lookupGuitarVoicing })
+        return { h, error: result.error }
+    }
+    const captions = (h: HTMLElement) =>
+        [...h.querySelectorAll('.mn-progression-chord')].map(
+            (cell) => cell.querySelector('figcaption.mn-fingering')?.textContent ?? null
+        )
+
+    it("writes each chord's fingering under its diagram, in the voicing drawn", () => {
+        const { h, error } = draw('I V vi IV\nkey: G\ncaption: fingering')
+        expect(error).toBeNull()
+        const words = captions(h)
+        expect(words).toHaveLength(4)
+        expect(words.every((w) => w !== null && w.length > 10)).toBe(true)
+        // Em 022000: the middle and ring fingers on the A and D strings.
+        expect(words[2]).toContain('the A string')
+        // The play bar still finds each diagram's notes.
+        expect(h.querySelectorAll('.mn-progression-chord[data-mn-voicing]')).toHaveLength(4)
+    })
+
+    it('captions piano chords in the voicing the progression picked', () => {
+        const { h, error } = draw(
+            'ii7 V7 Imaj7\nkey: C\ninstrument: piano\nvoicing: rootless A\nhands: left+right\ncaption: fingering'
+        )
+        expect(error).toBeNull()
+        const words = captions(h)
+        expect(words).toHaveLength(3)
+        expect(words.every((w) => w !== null && /hand/i.test(w))).toBe(true)
+    })
+
+    it('shares the key from a first part, and says nothing without diagrams', () => {
+        const shared = draw('caption: fingering\n---\nI IV\nkey: C\n---\nI V\nkey: D')
+        expect(shared.error).toBeNull()
+        expect(captions(shared.h).every((w) => w !== null)).toBe(true)
+        expect(captions(shared.h)).toHaveLength(4)
+        const none = draw('I V\nkey: C\ndiagrams: no\ncaption: fingering')
+        expect(none.error).toBeNull()
+        expect(none.h.querySelector('.mn-fingering')).toBeNull()
+        const off = draw('I V\nkey: C\ncaption: none')
+        expect(off.h.querySelector('.mn-fingering')).toBeNull()
+    })
+
+    it('says what to write for a wrong value, once for the block', () => {
+        const { error } = draw('I V\nkey: C\ncaption: chords')
+        expect(error).toBe('caption: use fingering (the fingering in words) or none, got "chords"')
+    })
+})
