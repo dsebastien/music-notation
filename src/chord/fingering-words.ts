@@ -68,7 +68,7 @@ const letter = (midi: number) => noteOf(midi).replace(/-?\d+$/, '')
  * open tunings) two strings could read alike, so every string is named by its number and note:
  * "the 4th string (D)". Without a tuning, numbers only.
  */
-function stringNames(
+export function stringNames(
     tuning: readonly number[] | null,
     count: number,
     spelled?: readonly string[]

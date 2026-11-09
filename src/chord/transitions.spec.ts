@@ -40,6 +40,35 @@ describe('transition', () => {
         expect(g.tips.some((t) => t.includes('high E string'))).toBe(true)
     })
 
+    it('names strings as the fingering captions do (#79)', () => {
+        // Drop D: two D strings. By number and note, never "the high D string".
+        const dropD = [38, 45, 50, 55, 59, 64]
+        const tips = transition(frets('002232'), 'A', { tuning: dropD }).flatMap((s) => s.tips)
+        expect(tips).toContain("Keep your index finger on the 4th string (D)'s 2nd fret.")
+        expect(tips.some((t) => /high D string|low D string/.test(t))).toBe(false)
+        // Half step down written with flats: spelled as written.
+        const halfDown = [39, 44, 49, 54, 58, 63]
+        const names = ['Eb', 'Ab', 'Db', 'Gb', 'Bb', 'Eb']
+        const flat = transition(frets('x02220'), 'A7', {
+            tuning: halfDown,
+            tuningNames: names
+        }).flatMap((s) => s.tips)
+        expect(flat).toContain('Slide your middle finger along the Gb string from fret 2 to 1.')
+        expect(flat.some((t) => /G#|C#|F#|A#/.test(t))).toBe(false)
+        // Standard tuning reads as before.
+        const am = transition(frets('x32010'), 'Am')[0]!
+        expect(am.tips).toContain("Keep your middle finger on the D string's 2nd fret.")
+    })
+
+    it('names strings the same way along a progression (#79)', () => {
+        const steps = smoothProgression(['C', 'Am'], {
+            tuning: [39, 44, 49, 54, 58, 63],
+            tuningNames: ['Eb', 'Ab', 'Db', 'Gb', 'Bb', 'Eb']
+        })
+        const tips = steps.flatMap((s) => s.tips ?? [])
+        expect(tips.some((t) => /G#|C#|F#|A#/.test(t))).toBe(false)
+    })
+
     it('returns nothing for an unknown chord or a mismatched tuning', () => {
         expect(transition(frets('x32010'), 'Hm')).toEqual([])
         expect(transition(frets('0003'), 'C')).toEqual([])

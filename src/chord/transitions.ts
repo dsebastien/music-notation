@@ -5,7 +5,7 @@
  */
 import { fingerVoicing, generateVoicings, type GeneratedVoicing } from './generate.js'
 import { STANDARD_TUNING } from './guitar.js'
-import { noteOf } from '../theory/pitch.js'
+import { stringNames } from './fingering-words.js'
 import type { VoicingLookup } from '../voicings/index.js'
 
 export interface TransitionStep {
@@ -29,6 +29,9 @@ export interface TransitionOptions {
     fromFingers?: (string | null)[]
     /** How many of the next chord's easiest voicings to consider (30 by default). */
     candidates?: number
+    /** The open strings' names as the tuning is written (Eb Ab Db…, see `tuningNames`): tips
+     * spell them so; else from the pitches, with sharps. */
+    tuningNames?: readonly string[]
 }
 
 const FINGER_NAMES: Record<string, string> = {
@@ -45,15 +48,9 @@ const ordinal = (n: number) =>
 /** A slide longer than this many frets is a finger lifted and placed again. */
 const MAX_SLIDE = 3
 
-/** "the B string", "the low E string", "the high E string"; by number when three share a name. */
-function stringName(tuning: readonly number[], s: number): string {
-    const name = noteOf(tuning[s]!).replace(/-?\d+$/, '')
-    const same = tuning.filter((p) => noteOf(p).replace(/-?\d+$/, '') === name).length
-    if (same < 2) return `the ${name} string`
-    if (same > 2) return `the ${ordinal(tuning.length - s)} string (${name})`
-    const lowest = tuning.findIndex((p) => noteOf(p).replace(/-?\d+$/, '') === name)
-    return `the ${s === lowest ? 'low' : 'high'} ${name} string`
-}
+/** Each string's name in tips, as the fingering captions write it (#79). */
+const namesOf = (tuning: readonly number[], spelled?: readonly string[]) =>
+    stringNames(tuning, tuning.length, spelled?.length === tuning.length ? spelled : undefined)
 
 const lowestFret = (frets: readonly (number | null)[]) => {
     const fretted = frets.filter((f): f is number => f !== null && f > 0)
@@ -65,7 +62,8 @@ function move(
     from: readonly (number | null)[],
     fromFingers: readonly (string | null)[],
     to: GeneratedVoicing,
-    tuning: readonly number[]
+    /** What players call each string, as the fingering captions name them (#79). */
+    names: readonly string[]
 ): Omit<TransitionStep, 'voicing'> {
     const anchors: number[] = []
     const guides: number[] = []
@@ -113,16 +111,14 @@ function move(
         const f = to.fingers[s]!
         if (seen.has(f)) continue
         seen.add(f)
-        tips.push(
-            `Keep your ${fingerName(f)} on ${stringName(tuning, s)}'s ${ordinal(to.frets[s]!)} fret.`
-        )
+        tips.push(`Keep your ${fingerName(f)} on ${names[s]}'s ${ordinal(to.frets[s]!)} fret.`)
     }
     for (const s of guides) {
         const f = to.fingers[s]!
         if (seen.has(f)) continue
         seen.add(f)
         tips.push(
-            `Slide your ${fingerName(f)} along ${stringName(tuning, s)} from fret ${from[s]} to ${to.frets[s]}.`
+            `Slide your ${fingerName(f)} along ${names[s]} from fret ${from[s]} to ${to.frets[s]}.`
         )
     }
     if (shift >= 2) {
@@ -152,9 +148,10 @@ export function transition(
     const tuning = options.tuning ?? STANDARD_TUNING
     if (from.length !== tuning.length) return []
     const fromFingers = options.fromFingers ?? fingerVoicing(from) ?? from.map(() => null)
+    const names = namesOf(tuning, options.tuningNames)
     const candidates = generateVoicings(toChord, { tuning }).slice(0, options.candidates ?? 30)
     return candidates
-        .map((voicing) => ({ voicing, ...move(from, fromFingers, voicing, tuning) }))
+        .map((voicing) => ({ voicing, ...move(from, fromFingers, voicing, names) }))
         .sort((a, b) => score(a, a.voicing) - score(b, b.voicing))
 }
 
@@ -168,6 +165,8 @@ export interface ProgressionOptions {
     tuning?: number[]
     /** How many of each chord's easiest voicings to weigh (12 by default). */
     candidates?: number
+    /** The open strings' names as the tuning is written (see `TransitionOptions`). */
+    tuningNames?: readonly string[]
     /** The voicing database (see `/voicings`): its voicings of each chord are weighed too, and
      * preferred. Only used in standard tuning. */
     voicings?: VoicingLookup
@@ -257,6 +256,7 @@ export function smoothProgression(
     options: ProgressionOptions = {}
 ): ProgressionStep[] {
     const tuning = options.tuning ?? STANDARD_TUNING
+    const names = namesOf(tuning, options.tuningNames)
     const count = options.candidates ?? 12
     const cache = new Map<string, Candidate[]>()
     const lists = chords.map((c) => {
@@ -277,7 +277,7 @@ export function smoothProgression(
             let best = Infinity
             let from = 0
             prev.forEach((p, j) => {
-                const step = move(p.voicing.frets, p.voicing.fingers, voicing, tuning)
+                const step = move(p.voicing.frets, p.voicing.fingers, voicing, names)
                 const total = costs[j]! + step.movement + SHAPE_WEIGHT * cost
                 if (total < best) {
                     best = total
@@ -298,7 +298,7 @@ export function smoothProgression(
         return {
             chord: chords[i]!,
             voicing,
-            ...move(previous.frets, previous.fingers, voicing, tuning)
+            ...move(previous.frets, previous.fingers, voicing, names)
         }
     })
 }
