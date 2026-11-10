@@ -1,0 +1,72 @@
+# Dependency updates.
+#
+# Declaring `bun` explicitly stops Dependabot from guessing the ecosystem
+# (for a Bun repo it guesses npm and looks for a package-lock.json).
+version: 2
+
+updates:
+    - package-ecosystem: bun
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+      open-pull-requests-limit: 5
+      # Mirrors `minimumReleaseAge = 259200` in bunfig.toml: without it,
+      # Dependabot proposes day-0 releases that `bun install` refuses.
+      cooldown:
+          default-days: 3
+      commit-message:
+          # Yields `chore(deps): ...`, which satisfies the scope-enum in
+          # commitlint.config.ts.
+          prefix: chore
+          include: scope
+      # Grouped so exact pins (`exact = true` in bunfig.toml) do not turn into
+      # one pull request per patch. alphaTab stays out of the groups: it draws
+      # tabs and scores, Music Practice embeds the same release (a test there
+      # checks it), so it moves on its own PR, checked on the docs site.
+      # Security updates stay ungrouped.
+      groups:
+          production-minor-and-patch:
+              dependency-type: production
+              update-types:
+                  - minor
+                  - patch
+          development-minor-and-patch:
+              dependency-type: development
+              update-types:
+                  - minor
+                  - patch
+              exclude-patterns:
+                  - '@coderline/alphatab'
+      # One list only: a second `ignore:` key in this block would replace the
+      # first one.
+      ignore:
+          # typescript-eslint supports TypeScript below 6.1 only (2026-11-10).
+          # Remove this once it supports TypeScript 7; TypeScript 7 also refuses
+          # `baseUrl` in tsconfig.json (still there).
+          - dependency-name: typescript
+            update-types:
+                - version-update:semver-major
+          # commitlint.config.ts imports @commitlint/types, which is not a
+          # direct dependency: a major bump swaps the hoisted copy under tsc.
+          # Upgrade by hand, after declaring @commitlint/types.
+          - dependency-name: '@commitlint/*'
+            update-types:
+                - version-update:semver-major
+
+    # Keeps the action pins in .github/workflows current: they are outside
+    # every package manifest in the repo.
+    - package-ecosystem: github-actions
+      directory: /
+      schedule:
+          interval: weekly
+          day: monday
+      cooldown:
+          default-days: 3
+      commit-message:
+          prefix: chore
+          include: scope
+      groups:
+          github-actions:
+              patterns:
+                  - '*'
