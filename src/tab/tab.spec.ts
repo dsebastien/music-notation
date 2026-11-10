@@ -208,6 +208,29 @@ describe('createSoundfontPlayer', () => {
             0, 25, 28
         ])
     })
+    // Its cursor follows what plays, and alphaTab scrolls the page to its cursor unless told not
+    // to: the hidden host sits at the end of the page, so a click on a diagram scrolled the docs
+    // page to the bottom (tens of thousands of pixels).
+    it('never scrolls the page: its hidden instance has scrolling and the cursor off', () => {
+        const mod = fakeAlphaTab()
+        const settings: unknown[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => object
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            constructor(...args: unknown[]) {
+                super(...args)
+                settings.push(args[1])
+            }
+        }
+        const assets = { scriptFile: null, font: 'data:font/woff2;base64,', soundFont: 'sf.sf2' }
+        createSoundfontPlayer(mod, assets, document).play([{ midi: 60, time: 0, duration: 1 }], {
+            sound: 'guitar',
+            volume: 1
+        })
+        const player = (settings[0] as { player: { scrollMode?: unknown; enableCursor?: unknown } })
+            .player
+        expect(player.scrollMode).toBe(mod.ScrollMode.Off)
+        expect(player.enableCursor).toBe(false)
+    })
 })
 
 describe('createSoundfontPlayer readiness (review)', () => {

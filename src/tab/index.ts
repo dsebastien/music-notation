@@ -884,6 +884,10 @@ export function createSoundfontPlayer(
             },
             player: {
                 playerMode: alphaTab.PlayerMode.EnabledSynthesizer,
+                // Nothing to follow on a hidden instance: with its cursor on, alphaTab scrolled the
+                // page to it (the host is at the end of the page) at every diagram played.
+                enableCursor: false,
+                scrollMode: alphaTab.ScrollMode.Off,
                 ...(typeof assets.soundFont === 'string' ? { soundFont: assets.soundFont } : {})
             }
         })
