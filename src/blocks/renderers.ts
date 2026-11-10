@@ -4,6 +4,7 @@
  */
 import type { PickOptions } from '../render/pick.js'
 import type { Naming } from '../theory/naming.js'
+import type { RootMark } from '../render/root-mark.js'
 import {
     baseFretOf,
     chartNoteName,
@@ -62,6 +63,8 @@ import { readChord, suggestChords } from '../theory/chord-name.js'
 import { detectChordFromFrets, detectChordFromPitches } from '../theory/detect.js'
 import { fingerVoicing } from '../chord/generate.js'
 import { fingeringInWords } from '../chord/fingering-words.js'
+import { chordFormula, scaleFormula } from '../theory/formula.js'
+import { captionsOf } from './captions.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import {
@@ -143,6 +146,11 @@ export interface RenderOptions extends LayoutDefaults {
      * A block's `naming:` line wins. Input reads all three.
      */
     naming?: Naming
+    /**
+     * How diagrams mark their root (#14): `color` (default) or `shape` (also a square, so the root
+     * doesn't rest on color alone). A block's `root-mark:` line wins.
+     */
+    rootMark?: RootMark
 }
 
 export type Renderer = (doc: Document, source: string, options: RenderOptions) => Element
@@ -174,7 +182,7 @@ export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
         // Fingering in words under each diagram (#53).
         'caption'
     ],
-    keyboard: ['orientation', 'hand', 'labels', 'range', 'highlight', 'compare'],
+    keyboard: ['orientation', 'hand', 'labels', 'range', 'highlight', 'compare', 'caption'],
     fretboard: [
         'orientation',
         'hand',
@@ -188,7 +196,9 @@ export const SHARED_KEYS: Record<DiagramLanguage, readonly string[]> = {
         'numbering',
         'strings',
         'capo',
-        'frets-from'
+        'frets-from',
+        // The formula under each diagram (#52).
+        'caption'
     ]
 }
 
@@ -393,7 +403,9 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         const range = field(block, 'range')
         // Checked even though keyboards ignore it, so a typo doesn't go unnoticed.
         handOf(block, options)
-        const caption = captionOf(block)
+        const captions = captionsOf(block)
+        // Checked before drawing, so an unknown chord says what to add.
+        const formula = captions.includes('formula') ? chordCaption(symbol) : null
         const keyboard = named(
             renderKeyboard(doc, set, {
                 // A piano chord plays together.
@@ -408,17 +420,20 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
             }),
             symbol
         )
-        if (!caption) return keyboard
+        if (!captions.length) return keyboard
         const names = new Map(set.members.map((m) => [m.chroma, m.name]))
         return captioned(
             doc,
             keyboard,
-            fingeringInWords({
-                keys: set.pitches!,
-                fingers,
-                ...(hands ? { hands } : captionHands ? { hands: captionHands } : {}),
-                names
-            })
+            captions.includes('fingering')
+                ? fingeringInWords({
+                      keys: set.pitches!,
+                      fingers,
+                      ...(hands ? { hands } : captionHands ? { hands: captionHands } : {}),
+                      names
+                  })
+                : null,
+            formula
         )
     }
 
@@ -547,36 +562,71 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     )
     // What the shape sounds, for playback's redrawing and tools that read diagrams.
     if (capo && sounding && sounding !== symbol) diagram.setAttribute('data-mn-sounds', sounding)
-    if (!captionOf(block)) return diagram
+    const captions = captionsOf(block)
+    if (!captions.length) return diagram
     return captioned(
         doc,
         diagram,
-        fingeringInWords({
-            frets: voicing.frets,
-            fingers: voicing.fingers,
-            ...(strings ? { tuning: strings } : {}),
-            ...(tuningText && tuning ? { tuningNames: tuningNames(tuningText) ?? [] } : {}),
-            ...(capo ? { capo, fretsFrom: fromNut ? 'nut' : 'capo' } : {})
-        })
+        captions.includes('fingering')
+            ? fingeringInWords({
+                  frets: voicing.frets,
+                  fingers: voicing.fingers,
+                  ...(strings ? { tuning: strings } : {}),
+                  ...(tuningText && tuning ? { tuningNames: tuningNames(tuningText) ?? [] } : {}),
+                  ...(capo ? { capo, fretsFrom: fromNut ? 'nut' : 'capo' } : {})
+              })
+            : null,
+        // The chord heard (with a capo, the one the shape sounds).
+        captions.includes('formula') ? chordCaption(sounding) : null
     )
 }
 
-/** `caption: fingering` (#53) writes the fingering in words under the diagram; `none` writes nothing. */
-function captionOf(block: BlockSource): 'fingering' | null {
-    const written = field(block, 'caption')?.trim()
-    const text = written?.toLowerCase()
-    if (!text || ['none', 'no', 'off', 'false'].includes(text)) return null
-    if (text === 'fingering') return 'fingering'
-    throw new Error(`caption: use fingering (the fingering in words) or none, got "${written}"`)
+/** A chord's formula caption, or what to add when the library doesn't know the chord. */
+function chordCaption(symbol: string | undefined): string[] {
+    return orFail(
+        symbol ? chordFormula(symbol) : null,
+        'caption: formula needs a chord the library knows: add its symbol (e.g. symbol: A)'
+    )
+}
+
+/** A keyboard's or fretboard's formula caption: its scale's, else its chord's. */
+function setCaption(set: NoteSet): string[] {
+    const formula = set.scaleType
+        ? scaleFormula(set.title)
+        : set.root !== null && !set.list && !set.pitches
+          ? chordFormula(set.title)
+          : null
+    return orFail(
+        formula,
+        'caption: formula needs a chord or a scale the library knows: add chord: or scale:'
+    )
 }
 
 /**
- * A diagram with its caption under it, in HTML so it wraps, and screen readers and search read it
- * (the diagram's accessible name stays its title).
+ * A diagram with its captions under it, in HTML so they wrap, and screen readers and search read
+ * them (the diagram's accessible name stays its title). One caption is the figure's
+ * `figcaption.mn-fingering` or `figcaption.mn-formula`; both are spans of one
+ * `figcaption.mn-captions`, the fingering first.
  */
-function captioned(doc: Document, diagram: SVGElement, sentences: string[]): HTMLElement {
+function captioned(
+    doc: Document,
+    diagram: Element,
+    fingering: string[] | null,
+    formula: string[] | null = null
+): HTMLElement {
     const figure = html(doc, 'figure', 'mn-captioned')
-    figure.append(diagram, html(doc, 'figcaption', 'mn-fingering', sentences.join(' ')))
+    if (fingering && formula) {
+        const both = html(doc, 'figcaption', 'mn-captions')
+        both.append(
+            html(doc, 'span', 'mn-fingering', fingering.join(' ')),
+            html(doc, 'span', 'mn-formula', formula.join(' '))
+        )
+        figure.append(diagram, both)
+    } else if (fingering) {
+        figure.append(diagram, html(doc, 'figcaption', 'mn-fingering', fingering.join(' ')))
+    } else {
+        figure.append(diagram, html(doc, 'figcaption', 'mn-formula', (formula ?? []).join(' ')))
+    }
     return figure
 }
 
@@ -785,7 +835,8 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         // root from G3 up to F#4: Am7 A3-A5, C C4-C6).
         set.pitches = scaleKeysFrom(set, tonicNearMiddleC(set.root))
     }
-    return renderKeyboard(doc, set, {
+    const formula = captionsOf(block, false).length ? setCaption(set) : null
+    const keyboard = renderKeyboard(doc, set, {
         // The pick layer (Music Practice #73): every key a target.
         pick: Boolean(options.pick),
         // A chord plays together; scales, lists and arpeggios one note at a time.
@@ -808,6 +859,7 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         orientation: orientationOf(block, options.orientation?.keyboard),
         marks: marksOf(block, set)
     })
+    return formula ? captioned(doc, keyboard, null, formula) : keyboard
 }
 
 const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
@@ -888,7 +940,8 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     // A single position is titled like the diagrams of `positions:` ("G major, E shape",
     // "A minor pentatonic, box 2", "G7 arpeggio, A shape") (#73).
     const shapeTitle = at ? positionTitle(set, at, arpeggio, field(block, 'numbering')) : undefined
-    const diagram = renderFretboard(doc, set, {
+    const formula = captionsOf(block, false).length ? setCaption(set) : null
+    const drawn = renderFretboard(doc, set, {
         // The pick layer (Music Practice #73): every string × fret a target.
         pick: Boolean(options.pick),
         title: field(block, 'title') ?? shapeTitle,
@@ -903,6 +956,7 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
         orientation: orientationOf(block, options.orientation?.fretboard),
         hand: handOf(block, options)
     })
+    const diagram = formula ? captioned(doc, drawn, null, formula) : drawn
     if (!exercise) return diagram
     // The tab under the diagram, as a `tab` block's source: the app (or the tab bundle) draws it.
     const wrap = html(doc, 'div', 'mn-exercise-block')

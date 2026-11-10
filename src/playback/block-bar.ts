@@ -111,9 +111,11 @@ export function diagramGroup(
         diagram.parentNode?.insertBefore(wrap, diagram)
         wrap.appendChild(diagram)
         const figure = wrap.parentElement
+        // The fingering in words: the figure's caption, or a span of its captions (#52).
         const caption = figure?.classList.contains('mn-captioned')
-            ? ([...figure.children].find((c) => c.classList.contains('mn-fingering')) as
-                  HTMLElement | undefined)
+            ? ([...figure.children, ...[...figure.children].flatMap((c) => [...c.children])].find(
+                  (c) => c.classList.contains('mn-fingering')
+              ) as HTMLElement | undefined)
             : undefined
         return {
             diagram,

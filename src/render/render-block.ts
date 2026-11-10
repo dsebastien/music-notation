@@ -26,6 +26,7 @@ import {
     type BlockReading,
     type Naming
 } from '../theory/naming.js'
+import { rootMarkInBlock, rootMarkOf, withRootMark, type RootMark } from './root-mark.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
 import { modesOf } from '../theory/scales.js'
@@ -134,6 +135,16 @@ export function renderBlock(
     text = reading.text
     const naming: Naming = reading.naming ?? namingOf(options.naming) ?? 'letters'
     if (naming !== 'letters') el.setAttribute('data-mn-naming', naming)
+    // The root as a shape too (#14): the block's own `root-mark:` line, else the app's option.
+    let rootMark: RootMark
+    try {
+        const marking = rootMarkInBlock(language, text)
+        text = marking.text
+        rootMark = marking.mark ?? rootMarkOf(options.rootMark) ?? 'color'
+    } catch (e) {
+        return failed(el, host, language, messageOf(e))
+    }
+    if (rootMark !== 'color') el.setAttribute('data-mn-root-mark', rootMark)
     // Messages quote what the user wrote ("H dorian"), not what it was read as.
     const quoted = (e: unknown) => quoteAsWritten(messageOf(e), reading.changes)
     const draw = (): RenderResult => {
@@ -249,7 +260,7 @@ export function renderBlock(
         if (pick.play !== true) return pick
         return { ...pick, play: typeof options.play === 'object' ? options.play : true }
     }
-    return withNaming(naming, draw, reading.titles)
+    return withNaming(naming, () => withRootMark(rootMark, draw), reading.titles)
 }
 
 /** The block as an inline error that says what's wrong. */

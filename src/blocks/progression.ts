@@ -3,6 +3,7 @@
  * chord names ("G D Em C") in a key, drawn as the chords with their numerals, optionally their
  * function, and a guitar or piano diagram for each. `---` starts a section in another key.
  */
+import { captionsOf } from './captions.js'
 import { shown } from '../theory/naming.js'
 import { html } from '../render/dom.js'
 import { splitParts, type BlockSource } from './block-source.js'
@@ -477,10 +478,7 @@ function renderSection(
     const piano = instrument !== 'guitar'
     const diagrams = yes(field(block, 'diagrams'), 'diagrams', true)
     // Checked once for the block (each diagram would say it again).
-    const caption = field(block, 'caption')?.trim()
-    if (caption && !['fingering', 'none', 'no', 'off', 'false'].includes(caption.toLowerCase())) {
-        throw new Error(`caption: use fingering (the fingering in words) or none, got "${caption}"`)
-    }
+    captionsOf(block)
     const functions = yes(field(block, 'functions'), 'functions', false)
     const leading = field(block, 'voice-leading')
     const led = yes(leading, 'voice-leading', false)

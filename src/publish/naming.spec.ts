@@ -14,6 +14,14 @@ describe('Publish: note names', () => {
         expect(pageNaming('german')).toBeUndefined()
     })
 
+    it('reads the root mark of the page options, color for anything else (#14)', async () => {
+        ;(window as { musicNotationLoaded?: boolean }).musicNotationLoaded = true
+        const { pageRootMark } = await import('./auto.js')
+        expect(pageRootMark({ rootMark: 'Shape' })).toBe('shape')
+        expect(pageRootMark({ rootMark: 'round' })).toBeUndefined()
+        expect(pageRootMark(undefined)).toBeUndefined()
+    })
+
     it('draws the page blocks in that naming', () => {
         document.body.innerHTML = ''
         const pre = document.createElement('pre')

@@ -4,6 +4,7 @@
  * below it (`block-bar.ts`) and each pattern, progression and chart its bar in time.
  */
 import { namingOf, withNaming } from '../theory/naming.js'
+import { rootMarkOf, withRootMark } from '../render/root-mark.js'
 import { accessibleName, setAccessibleName } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
 import { renderFretboard } from '../fretboard/fretboard.js'
@@ -179,6 +180,20 @@ export function redrawFor(
     diagram: Element,
     data: DiagramData,
     pageHand: Hand = 'right'
+): Element | null {
+    // The block's root mark (#14) too.
+    const mark = rootMarkOf(
+        diagram.closest('[data-mn-root-mark]')?.getAttribute('data-mn-root-mark')
+    )
+    if (mark) return withRootMark(mark, () => redrawNamed(doc, diagram, data, pageHand))
+    return redrawNamed(doc, diagram, data, pageHand)
+}
+
+function redrawNamed(
+    doc: Document,
+    diagram: Element,
+    data: DiagramData,
+    pageHand: Hand
 ): Element | null {
     // Redrawn in the block's naming (#12), its title as it is shown already (never shown twice).
     const naming = namingOf(diagram.closest('[data-mn-naming]')?.getAttribute('data-mn-naming'))

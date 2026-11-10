@@ -130,6 +130,32 @@ export function svgRoot(
     )
 }
 
+/**
+ * Adds a description to a diagram made by `svgRoot` (#14): a `<desc>` in its `<defs>`, pointed at
+ * by `aria-describedby`, that says what the drawing shows (screen readers read it after the name).
+ * Nothing for an empty text.
+ */
+export function describeDiagram(diagram: SVGElement, text: string): void {
+    if (!text) return
+    const defs = [...diagram.children].find((c) => c.tagName.toLowerCase() === 'defs')
+    if (!defs) return
+    const id = `${NAME_PREFIX}${++names}`
+    const desc = svg(diagram.ownerDocument, 'desc', { class: 'mn-desc', id })
+    desc.textContent = text
+    defs.appendChild(desc)
+    diagram.setAttribute('aria-describedby', id)
+}
+
+/** A diagram's description (#14), when it has one. */
+export function descriptionOf(diagram: Element): string | null {
+    const id = diagram.getAttribute('aria-describedby')
+    if (!id) return null
+    for (const candidate of diagram.querySelectorAll('desc')) {
+        if (candidate.getAttribute('id') === id) return candidate.textContent
+    }
+    return null
+}
+
 // The element holding a diagram's name: looked up inside the diagram, so it works before the
 // diagram is on the page.
 const nameElement = (el: Element): Element | null => {

@@ -261,7 +261,7 @@ function fretboard(svg: Element): FretboardDiagram {
     const range = (svg.getAttribute('data-mn-frets') ?? '0-0').split('-').map(Number)
     // String names are drawn highest string first.
     const tuning = [...svg.querySelectorAll('.mn-string-name')].map((el) => text(el) ?? '?')
-    const dots = [...svg.querySelectorAll('circle[data-mn-string]')]
+    const dots = [...svg.querySelectorAll('.mn-dot[data-mn-string]')]
         .map((el): FretboardDot => ({
             string: Number(el.getAttribute('data-mn-string')),
             fret: Number(el.getAttribute('data-mn-fret')),
@@ -450,9 +450,7 @@ export function describeBlock(el: Element): Diagram[] {
 
 /** A chord's fingering in words (`caption: fingering`, #53), when its figure has one. */
 function withWords<D extends GuitarChordDiagram | KeyboardDiagram>(svg: Element, diagram: D): D {
-    const words = text(
-        svg.closest('figure.mn-captioned')?.querySelector('figcaption.mn-fingering') ?? null
-    )
+    const words = text(svg.closest('figure.mn-captioned')?.querySelector('.mn-fingering') ?? null)
     return words ? { ...diagram, words } : diagram
 }
 

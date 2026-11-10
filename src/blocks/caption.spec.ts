@@ -116,7 +116,7 @@ describe('caption: fingering (#53)', () => {
         const { result } = render('A x02220\ncaption: Diagram')
         expect(result.ok).toBe(false)
         expect(result.error).toBe(
-            'caption: use fingering (the fingering in words) or none, got "Diagram"'
+            'caption: use fingering (the fingering in words), formula (notes and intervals), fingering, formula (both) or none, got "Diagram"'
         )
     })
 

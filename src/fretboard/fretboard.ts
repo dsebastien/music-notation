@@ -3,7 +3,17 @@
  * on top like tabs; vertical has the nut on top, like a chord diagram.
  */
 import { shown } from '../theory/naming.js'
-import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { noteMark } from '../render/root-mark.js'
+import {
+    describeDiagram,
+    dotLabel,
+    playableMark,
+    svg,
+    svgLabel,
+    svgLine,
+    svgRoot,
+    svgText
+} from '../render/dom.js'
 import {
     drawTitle,
     neckFrame,
@@ -68,6 +78,9 @@ const OPEN_W = 30
 /** Room beyond the low string, for the fret numbers. */
 const NUMBERS = 30
 const TITLE = 22
+
+/** A note name as the drawing shows it (`shown` is also a local name below). */
+const nameShown = (name: string): string => shown(name)
 /** Room under the neck for the caption (the capo). */
 const CAPTION = 18
 const SINGLE_INLAYS = new Set([3, 5, 7, 9, 15, 17, 19, 21])
@@ -212,6 +225,8 @@ export function renderFretboard(
     // Highest string first, so the document reads top to bottom in the default orientation.
     // What playback plays: every highlighted note, low to high.
     const sounding = new Set<number>()
+    // Each string's notes, for the description (#14): "String 6 (E): G at fret 3 (root)".
+    const described: string[] = []
     for (let s = strings - 1; s >= 0; s--) {
         const open = tuning[s]!
         root.appendChild(
@@ -219,6 +234,7 @@ export function renderFretboard(
         )
         // Before the neck: above it when vertical, ending next to it when horizontal.
         const name = shown(nameOf(names[s]!, set.preferFlats))
+        const notesHere: string[] = []
         root.appendChild(
             vertical
                 ? svgLabel(doc, name, frame.at(across(s), -10), 'mn-string-name')
@@ -271,7 +287,7 @@ export function renderFretboard(
                 playableMark(
                     doc,
                     area,
-                    svg(doc, 'circle', {
+                    noteMark(doc, set.root === member.chroma, {
                         'class': cls,
                         cx,
                         cy,
@@ -285,8 +301,15 @@ export function renderFretboard(
                 )
             )
             sounding.add(open + fret)
+            notesHere.push(
+                `${nameShown(member.name)} ${fret === 0 ? 'open' : `at fret ${fret}`}${set.root === member.chroma ? ' (root)' : ''}`
+            )
         }
+        if (notesHere.length)
+            described.push(`String ${strings - s} (${name}): ${notesHere.join(', ')}.`)
     }
+    // Low string first, as players read a neck.
+    describeDiagram(root, described.reverse().join(' '))
     if (options.pick) {
         // Above everything: the highest string's frets first, so the first tab stop is top left.
         const layer = pickGroup(doc)

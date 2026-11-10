@@ -658,6 +658,8 @@ describe('progression block: fingering in words (#80)', () => {
 
     it('says what to write for a wrong value, once for the block', () => {
         const { error } = draw('I V\nkey: C\ncaption: chords')
-        expect(error).toBe('caption: use fingering (the fingering in words) or none, got "chords"')
+        expect(error).toBe(
+            'caption: use fingering (the fingering in words), formula (notes and intervals), fingering, formula (both) or none, got "chords"'
+        )
     })
 })

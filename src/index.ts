@@ -134,6 +134,15 @@ export {
     type BlockReading
 } from './theory/naming.js'
 export {
+    ROOT_MARKS,
+    rootMarkOf,
+    parseRootMark,
+    withRootMark,
+    type RootMark
+} from './render/root-mark.js'
+export { chordFormula, scaleFormula } from './theory/formula.js'
+export { descriptionOf } from './render/dom.js'
+export {
     attachPick,
     type Pick,
     type PickAt,

@@ -5,7 +5,9 @@
     --mn-fg: var(--text-normal, currentColor);
     --mn-muted: var(--text-muted, #8a8a8a);
     --mn-faint: var(--background-modifier-border, #d0d0d0);
-    --mn-accent: var(--interactive-accent, #7c3aed);
+    /* The fallbacks (pages without Obsidian's variables) pass WCAG on white and on a dark page
+       (#14): 3:1 for marks against the page, 4.5:1 for the white labels on them. */
+    --mn-accent: var(--interactive-accent, #8250df);
     --mn-bg: var(--background-primary, #fff);
     --mn-on-accent: var(--text-on-accent, #fff);
     /* Dark enough for white labels in light and dark themes. */
@@ -25,7 +27,7 @@
     /* Marks of the pick layer (Music Practice #73): right and wrong, dark enough for a white check
        or cross in light and dark themes; the shape tells them apart too. */
     --mn-right: #15803d;
-    --mn-wrong: #b91c1c;
+    --mn-wrong: #dc2626;
     font-family: var(--font-interface, system-ui, sans-serif);
 }
 
@@ -611,6 +613,28 @@
     display: none;
 }
 
+/* The formula (#52): under the diagram, as the fingering; both are lines of one caption. A scale's
+   formula may be as wide as its fretboard. */
+.mn-block .mn-formula,
+.mn-block .mn-captions {
+    max-width: 24em;
+    margin: 0;
+    font-size: 0.85em;
+    line-height: 1.4;
+    color: var(--text-muted, currentColor);
+}
+
+.mn-block .mn-captions > .mn-fingering,
+.mn-block .mn-captions > .mn-formula {
+    display: block;
+    max-width: none;
+    font-size: 1em;
+}
+
+.mn-block .mn-captions > .mn-formula {
+    margin-top: 0.25em;
+}
+
 .mn-block .mn-fingering {
     max-width: 16em;
     margin: 0;
@@ -1076,6 +1100,22 @@
 
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-dot-text,
 .mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label {
+    fill: var(--mn-on-playing);
+}
+
+/* The root as a shape (#14, `root-mark: shape`): a small square on a root key, in the key label's
+   color; dark on a pale (passing) white root key and while the key plays. */
+.mn-svg .mn-root-mark {
+    fill: var(--mn-on-accent);
+}
+
+.mn-svg .mn-key-white.mn-passing.mn-root + .mn-key-label + .mn-root-mark,
+.mn-svg .mn-key-white.mn-passing.mn-root + .mn-root-mark {
+    fill: var(--mn-key-black);
+}
+
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-key-label + .mn-root-mark,
+.mn-playable .mn-svg [data-midi].mn-playing + .mn-root-mark {
     fill: var(--mn-on-playing);
 }
 

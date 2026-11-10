@@ -1,6 +1,17 @@
 /** Guitar (and any fretted instrument) chord diagrams, as SVG. */
 import { shown } from '../theory/naming.js'
-import { dotLabel, playableMark, svg, svgLabel, svgLine, svgRoot, svgText } from '../render/dom.js'
+import { noteMark } from '../render/root-mark.js'
+import {
+    describeDiagram,
+    dotLabel,
+    playableMark,
+    svg,
+    svgLabel,
+    svgLine,
+    svgRoot,
+    svgText
+} from '../render/dom.js'
+import { fingeringInWords } from './fingering-words.js'
 import {
     drawTitle,
     neckFrame,
@@ -331,6 +342,8 @@ export function renderGuitarDiagram(
     }
 
     const tuning = options.tuning ?? (strings === 6 ? STANDARD_TUNING : undefined)
+    // The strings the root is on, as guitarists count them, for the description (#14).
+    const roots: number[] = []
     voicing.frets.forEach((fret, s) => {
         // Open and muted marks sit just before the nut.
         const markAlong = -8
@@ -358,6 +371,7 @@ export function renderGuitarDiagram(
             options.root !== null &&
             open !== undefined &&
             (open + fret) % 12 === options.root
+        if (isRoot) roots.push(string)
         const midi = {
             'data-mn-string': string,
             'data-mn-fret': fret,
@@ -381,7 +395,7 @@ export function renderGuitarDiagram(
             const [cx, cy] = mark
             place(
                 markAlong,
-                svg(doc, 'circle', {
+                noteMark(doc, isRoot, {
                     class: `mn-open${isRoot ? ' mn-root' : ''}`,
                     cx,
                     cy,
@@ -398,7 +412,7 @@ export function renderGuitarDiagram(
             // A string the capo plays: a ring on the capo.
             place(
                 row,
-                svg(doc, 'circle', {
+                noteMark(doc, isRoot, {
                     class: `mn-capo-open${isRoot ? ' mn-root' : ''}`,
                     cx,
                     cy,
@@ -411,7 +425,7 @@ export function renderGuitarDiagram(
         const text = quiet.has(s) ? null : textOf(s)
         place(
             row,
-            svg(doc, 'circle', {
+            noteMark(doc, isRoot, {
                 class: `mn-dot${isRoot ? ' mn-root' : ''}${options.marks?.[s] ? ` mn-${options.marks[s]}` : ''}`,
                 cx,
                 cy,
@@ -421,6 +435,7 @@ export function renderGuitarDiagram(
             ...(text ? [dotLabel(doc, text, center, 7)] : [])
         )
     })
+    describeDiagram(root, chordWords(voicing, tuning, capo, fromNut, roots))
     // What playback plays: the sounding strings, low to high (when the tuning is known).
     if (tuning) {
         const shift = fromNut ? 0 : capo
@@ -432,4 +447,36 @@ export function renderGuitarDiagram(
         root.setAttribute('data-mn-sound', 'guitar')
     }
     return root
+}
+
+/**
+ * What a chord diagram shows, for screen readers (#14): the fingering in words (as `caption:
+ * fingering` writes it), then the strings the root is on.
+ */
+function chordWords(
+    voicing: FrettedVoicing,
+    tuning: number[] | undefined,
+    capo: number,
+    fromNut: boolean,
+    roots: number[]
+): string {
+    let words: string[]
+    try {
+        words = fingeringInWords({
+            frets: voicing.frets,
+            fingers: voicing.fingers,
+            ...(tuning ? { tuning } : {}),
+            ...(capo ? { capo, fretsFrom: fromNut ? 'nut' : 'capo' } : {})
+        })
+    } catch {
+        words = []
+    }
+    if (roots.length) {
+        const list =
+            roots.length === 1
+                ? `string ${roots[0]}`
+                : `strings ${roots.slice(0, -1).join(', ')} and ${roots[roots.length - 1]}`
+        words.push(`The root is on ${list}.`)
+    }
+    return words.join(' ')
 }

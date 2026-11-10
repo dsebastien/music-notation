@@ -9,6 +9,7 @@ import { lookupGuitarVoicing } from '../voicings/index.js'
 import { injectStyles } from '../styles.js'
 import { layoutDefaults } from '../render/layout.js'
 import { namingOf, type Naming } from '../theory/naming.js'
+import { rootMarkOf, type RootMark } from '../render/root-mark.js'
 import { autoRender } from './index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import type { NotePlayer } from '../playback/player.js'
@@ -89,6 +90,12 @@ export function pageNaming(options: unknown): Naming | undefined {
     return namingOf((options as Record<string, unknown>)['naming']) ?? undefined
 }
 
+/** The site's root mark (#14): `rootMark` of the page options when valid, else color (undefined). */
+export function pageRootMark(options: unknown): RootMark | undefined {
+    if (!options || typeof options !== 'object') return undefined
+    return rootMarkOf((options as Record<string, unknown>)['rootMark']) ?? undefined
+}
+
 // Loaded twice (two scripts, a cached copy): only the first one starts.
 if (!window.musicNotationLoaded) {
     window.musicNotationLoaded = true
@@ -98,6 +105,8 @@ if (!window.musicNotationLoaded) {
             ...layoutDefaults(window.musicNotationOptions),
             // Note names (#12): letters, solfege or german; anything else is letters.
             naming: pageNaming(window.musicNotationOptions),
+            // The root as a shape too (#14): color or shape; anything else is color.
+            rootMark: pageRootMark(window.musicNotationOptions),
             properties: pageProperties(window.musicNotationOptions),
             voicings: lookupGuitarVoicing,
             play: pagePlay(window.musicNotationOptions)

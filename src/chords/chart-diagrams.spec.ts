@@ -20,6 +20,10 @@ const fretsOf = (svg: Element | null | undefined) => {
     return diagram?.type === 'guitar-chord' ? diagram.frets : null
 }
 
+/** A diagram's drawn text, without its <defs> (its name and description). */
+const drawnText = (svg: Element) =>
+    [...svg.querySelectorAll('text')].map((t) => t.textContent ?? '').join(' ')
+
 describe('chordsUsed', () => {
     it('lists chords in order of first appearance, without repeats or non-chords', () => {
         const song = parseChordPro(
@@ -157,7 +161,8 @@ describe('the chords used row', () => {
         const pitches = (svg: Element) =>
             svg.getAttribute('data-mn-pitches')!.split(' ').map(Number)
         expect(pitches(g)).toEqual(pitches(gPlain).map((p) => p + 2))
-        expect(g.textContent).not.toContain('Capo')
+        // Drawn text only: the name and the description (#14) are not drawn.
+        expect(drawnText(g)).not.toContain('Capo')
         const piano = renderChart(document, parseChordPro(`{diagrams}\n{capo: 2}\n${SONG}`), {
             instrument: 'piano'
         })
@@ -250,7 +255,7 @@ describe('{chord} in place with a capo', () => {
         expect(inline.getAttribute('data-mn-capo')).toBe('2')
         expect(inline.getAttribute('data-mn-pitches')).toBe(row.getAttribute('data-mn-pitches'))
         expect(inline.querySelector('.mn-capo')).not.toBeNull()
-        expect(inline.textContent).not.toContain('Capo')
+        expect(drawnText(inline)).not.toContain('Capo')
     })
 })
 

@@ -1,6 +1,7 @@
 /** Piano keyboards with highlighted notes, as SVG. */
 import { shown } from '../theory/naming.js'
-import { svg, svgLabel, svgRoot, svgText } from '../render/dom.js'
+import { rootAsShape } from '../render/root-mark.js'
+import { describeDiagram, svg, svgLabel, svgRoot, svgText } from '../render/dom.js'
 import { titleWidth, type Orientation } from '../render/layout.js'
 import {
     labelOf,
@@ -41,6 +42,8 @@ const WHITE_W = 22
 const WHITE_H = 104
 const BLACK_W = 14
 const BLACK_H = 64
+/** The side of a root key's square (#14). */
+const ROOT_MARK = 7
 const TITLE = 22
 /** The row of finger numbers past the keys' near end, when the keys show other labels. */
 const FINGER_ROW = 16
@@ -226,6 +229,25 @@ export function renderKeyboard(
         root.appendChild(el)
     }
 
+    // The root as a shape too (#14): a small square on the key, above its label, after it (the
+    // label's sibling selectors stay), never taking a click from the key.
+    const rootMark = (midi: number, along: number, depth: number) => {
+        if (!rootAsShape() || set.root === null || memberOf(set, midi)?.chroma !== set.root) return
+        const [x, y] = at(along, depth)
+        root.appendChild(
+            svg(doc, 'rect', {
+                'class': 'mn-root-mark',
+                'x': x - ROOT_MARK / 2,
+                'y': y - ROOT_MARK / 2,
+                'width': ROOT_MARK,
+                'height': ROOT_MARK,
+                'rx': 1.5,
+                'data-mn-key': midi,
+                'pointer-events': 'none'
+            })
+        )
+    }
+
     whites.forEach((midi, i) => {
         const along = i * WHITE_W
         root.appendChild(
@@ -243,6 +265,7 @@ export function renderKeyboard(
             })
         )
         caption(midi, at(along + WHITE_W / 2, WHITE_H - 13), false)
+        rootMark(midi, along + WHITE_W / 2, WHITE_H - 28)
     })
     whites.forEach((midi, i) => {
         const black = midi + 1
@@ -263,6 +286,7 @@ export function renderKeyboard(
             })
         )
         caption(black, at(along + BLACK_W / 2, BLACK_H - 13), true)
+        rootMark(black, along + BLACK_W / 2, BLACK_H - 28)
     })
     if (fingerRow) {
         for (const [midi, finger] of options.fingers!) {
@@ -390,5 +414,20 @@ export function renderKeyboard(
     root.setAttribute('data-mn-set', set.title)
     root.setAttribute('data-mn-labels', label)
     root.setAttribute('data-mn-orientation', vertical ? 'vertical' : 'horizontal')
+    // The lit keys low to high, for screen readers (#14): "Keys: C4 (root, finger 1), E4, G4."
+    const keysLit: string[] = []
+    for (let midi = from; midi <= to; midi++) {
+        const member = memberOf(set, midi)
+        if (!member) continue
+        const finger = options.fingers?.get(midi)
+        const notes = [
+            ...(set.root === member.chroma ? ['root'] : []),
+            ...(finger ? [`finger ${finger}`] : [])
+        ]
+        keysLit.push(
+            `${shown(member.name)}${Math.floor(midi / 12) - 1}${notes.length ? ` (${notes.join(', ')})` : ''}`
+        )
+    }
+    describeDiagram(root, keysLit.length ? `Keys: ${keysLit.join(', ')}.` : '')
     return root
 }
