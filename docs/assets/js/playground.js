@@ -149,6 +149,8 @@
         const copyLink = $('mn-copy-link')
         const copyMarkdown = $('mn-copy-markdown')
         const said = $('mn-said')
+        const downloadSvg = $('mn-download-svg')
+        const downloadPng = $('mn-download-png')
         if (!language || !example || !source || !output || !orientation || !left || !naming) return
 
         // The examples, grouped by block.
@@ -179,6 +181,10 @@
                 return
             }
             clear()
+            // Images of the drawing (#11): not for tabs and scores (alphaTab draws them).
+            const images = Boolean(api.toSvgString && api.toPng) && !TAB.includes(language.value)
+            if (downloadSvg) downloadSvg.hidden = !images
+            if (downloadPng) downloadPng.hidden = !images
             if (TAB.includes(language.value)) {
                 // Tabs and scores: a code block the tab bundle finds and draws, with its player.
                 const pre = document.createElement('pre')
@@ -287,6 +293,33 @@
                     'Copied: paste it in a note'
                 )
             )
+
+        // Saves the block drawn as an image file.
+        const save = (blob, extension) => {
+            const link = document.createElement('a')
+            link.href = URL.createObjectURL(blob)
+            link.download = `${language.value}.${extension}`
+            link.click()
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000)
+        }
+        const drawn = () => output.querySelector('.mn-block')
+        if (downloadSvg)
+            downloadSvg.addEventListener('click', () => {
+                const api = window.MusicNotation
+                const block = drawn()
+                if (!api || !api.toSvgString || !block) return
+                save(new Blob([api.toSvgString(block)], { type: 'image/svg+xml' }), 'svg')
+            })
+        if (downloadPng)
+            downloadPng.addEventListener('click', () => {
+                const api = window.MusicNotation
+                const block = drawn()
+                if (!api || !api.toPng || !block) return
+                api.toPng(block).then(
+                    (blob) => save(blob, 'png'),
+                    () => say('Could not make the image')
+                )
+            })
 
         if (recall()) draw()
         else use(0)

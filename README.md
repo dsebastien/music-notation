@@ -170,6 +170,7 @@ if (!result.ok) console.warn(result.error)
 - The renderers (`renderGuitarDiagram`, `renderKeyboard`, `renderFretboard`, `renderChart`, `renderStrum`, `renderPicking`, `renderCircle`), the parsers and the theory helpers (`parseChord`, `transposeChord`, `chordNoteSet`, `scaleNoteSet`…) are exported too.
 - Note names in solfège (Do Ré Mi) or German (H for B): `naming: solfege` or `naming: german` in a block, or as an option; notes may be written in any of the three systems.
 - A pick layer for drills: with `pick`, every string × fret of a fretboard and every key of a keyboard is a target that a click or the keyboard picks; the app marks picks right or wrong (`attachPick`).
+- **Export as images**: `toSvgString(el)` and `toPng(el)` give a standalone SVG or a PNG of a diagram or a whole block (titles and captions included, every style inlined), in the page's colors or a light or dark theme; with playback on, the picture button on each bar copies the selected diagram to the clipboard (Shift: the whole block).
 - Styles: `injectStyles(document)`, or ship `@dsebastien/music-notation/music-notation.css`. Colors follow Obsidian's theme variables, with fallbacks for any page.
 
 ## Check your notes

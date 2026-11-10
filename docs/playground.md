@@ -7,7 +7,7 @@ nav_order: 4
 
 Write a block and hear it. Pick an example, or press **Surprise me**, then change it: the drawing follows as you type, and the bar under it plays it. Click a diagram to hear it, or a dot or a key to hear one note.
 
-Try a capo on a chord, `voicings: all`, a strumming pattern of your own, or a progression in another key. **Copy as Markdown** gives you the block for a note (in Obsidian with the Music Practice plugin, or on an Obsidian Publish site). **Copy link** shares exactly what you see. Nothing leaves your browser.
+Try a capo on a chord, `voicings: all`, a strumming pattern of your own, or a progression in another key. **Copy as Markdown** gives you the block for a note (in Obsidian with the Music Practice plugin, or on an Obsidian Publish site). **Copy link** shares exactly what you see. **Download SVG** and **Download PNG** save the drawing as an image; the picture button on the bar copies it (Shift+click: the whole block). Nothing leaves your browser.
 
 <div markdown="0" class="mn-playground">
 <div class="mn-playground-controls">
@@ -51,6 +51,8 @@ Try a capo on a chord, `voicings: all`, a strumming pattern of your own, or a pr
 <div class="mn-playground-controls">
     <button type="button" id="mn-copy-markdown">Copy as Markdown</button>
     <button type="button" id="mn-copy-link">Copy link</button>
+    <button type="button" id="mn-download-svg" hidden>Download SVG</button>
+    <button type="button" id="mn-download-png" hidden>Download PNG</button>
     <span id="mn-said" aria-live="polite"></span>
 </div>
 <div id="mn-output" class="mn-live"></div>

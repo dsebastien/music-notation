@@ -762,7 +762,7 @@ The numerals read back to the same chords in a progression. Major keys, minor ke
 
 ### Play a progression in time
 
-With playback on, a `progression` block has a bar below its chords. It plays the progression in time, one chord a bar, so you can practice the changes or solo over them. The bar has Play, Loop, Count-in (one bar of clicks first), Click (a metronome click on each beat, on by default), the tempo, the strum (how each chord is played) and the sound. The chord that plays lights up. It is the block's only bar: click a chord diagram to hear that chord, on the sound the bar chose (the diagrams are not redrawn for the other instrument). The volume is the app's setting.
+With playback on, a `progression` block has a bar below its chords. It plays the progression in time, one chord a bar, so you can practice the changes or solo over them. The bar has Play, Loop, Count-in (one bar of clicks first), Click (a metronome click on each beat, on by default), the tempo, the strum (how each chord is played), the sound and Copy as image (the whole block as a picture). The chord that plays lights up. It is the block's only bar: click a chord diagram to hear that chord, on the sound the bar chose (the diagrams are not redrawn for the other instrument). The volume is the app's setting.
 
 - `time:` the time signature, 4/4 by default. 6/8, 9/8 and 12/8 count dotted quarters.
 - `tempo:` (or `bpm:`) the tempo, 20 to 240 beats a minute. Without it, the app's tempo.
@@ -991,6 +991,7 @@ In a block with several diagrams (`---`, `voicings:`, `positions: all`, modes, b
 - **Loop**: plays the selected diagram again and again, or the whole row with Play all in turn.
 - **Speed**, when the selected diagram plays several notes: the tempo of a scale ("90 BPM"), or the time between two strings of a strum ("12 ms"; 12 ms on guitar and 0 on piano by default; once you move it, it stays when you change the sound). The value shows next to the slider.
 - **Sound**: guitar or piano.
+- **Copy as image** (the picture button): copies the selected diagram, with its title and its caption, to the clipboard as a picture, to paste in a chat, a slide or a document. Shift+click copies the whole block. A block with one diagram copies the whole block. The picture has the colors of your theme, on the page's background, and leaves the bar out. "Copied" shows next to the button; if the browser refuses, it says what to do.
 
 The volume is not on the bar. It is a setting of the app: in Music Practice, Settings → Playback; on Obsidian Publish, `play: { volume }` in `window.musicNotationOptions` (see [Publish](publish.md)).
 
@@ -1248,11 +1249,11 @@ The tempo counts the beat you tap your foot to: a quarter in 4/4 and 3/4, a dott
 
 Swing and shuffle: `swing: yes` plays the second 8th of each beat on the third triplet, the way swing and blues are played; the pattern is still written in 8ths. A percentage from 50 (straight) to 75 sets how late it comes: `swing: 60%` is a light swing. With `subdivision: 16ths`, the 16ths swing. Swing doesn't go with 6/8 (it already has three 8ths a beat) or with triplets. `subdivision: triplets` with `D - U` on each beat is the same shuffle, written out.
 
-In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM) and sound. The volume is the app's setting. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low. Up strums are softer than down strums, the beats are stressed (beat 1 most; 1 and 4 in 6/8), and each strum varies a little, as a player's hand does. Accents are louder, ghost strums soft, muted strums a percussive chuck (dead strings). The count-in is a bar of clicks (each 8th in 6/8, 1 and 4 stronger). Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the loop's next pass.
+In apps that turn playback on, a bar under the pattern plays it: play / stop, loop, count-in (a bar of clicks), tempo (BPM), sound and Copy as image (the pattern as a picture). The volume is the app's setting. Down strums sound the chord's strings from low to high, up strums the higher strings from high to low. Up strums are softer than down strums, the beats are stressed (beat 1 most; 1 and 4 in 6/8), and each strum varies a little, as a player's hand does. Accents are louder, ghost strums soft, muted strums a percussive chuck (dead strings). The count-in is a bar of clicks (each 8th in 6/8, 1 and 4 stronger). Strums before the first chord change take `chord:`, else the chord the pattern ends on (as when it repeats). Each chord is the guitar voicing chord diagrams show (or the easiest one for the tuning). The slot that plays is lit. A tempo change applies from the loop's next pass.
 
 ## Picking patterns
 
-A `picking` block draws a fingerpicking pattern as a small tab: each note's fret on its string, the finger under each slot, and the counts. With playback on, a bar under the pattern plays it over its chord, or one chord a bar: play / stop, loop, count-in, click (a metronome click on each beat, off by default), tempo and sound. The slot that plays is lit.
+A `picking` block draws a fingerpicking pattern as a small tab: each note's fret on its string, the finger under each slot, and the counts. With playback on, a bar under the pattern plays it over its chord, or one chord a bar: play / stop, loop, count-in, click (a metronome click on each beat, off by default), tempo, sound and Copy as image. The slot that plays is lit.
 
 ````markdown
 ```picking
