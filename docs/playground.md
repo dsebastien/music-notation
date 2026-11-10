@@ -46,6 +46,7 @@ Try a capo on a chord, `voicings: all`, a strumming pattern of your own, or a pr
         </select>
     </label>
     <label><input type="checkbox" id="mn-left" /> Left-handed</label>
+    <label><input type="checkbox" id="mn-root-shape" /> Root as a shape</label>
 </div>
 <textarea id="mn-source" rows="8" aria-label="Block source" spellcheck="false"></textarea>
 <div class="mn-playground-controls">
@@ -57,4 +58,4 @@ Try a capo on a chord, `voicings: all`, a strumming pattern of your own, or a pr
 <script src="{{ '/assets/js/playground.js' | relative_url }}"></script>
 </div>
 
-The orientation, the hand and the note names are defaults: a block's own `orientation:`, `hand:` and `naming:` lines win. Every key is in [Blocks](blocks.html).
+The orientation, the hand, the note names and the root mark are defaults: a block's own `orientation:`, `hand:`, `naming:` and `root-mark:` lines win. Every key is in [Blocks](blocks.html).

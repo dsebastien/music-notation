@@ -55,7 +55,8 @@ title: A (open)</code></pre></div>
 | `capo`              | Guitar: a capo on that fret; frets count from it. See [capo](#capo).                                                                                                                                                                                                                                                                                               |
 | `frets-from`        | `nut`: the frets you write count from the nut. See [capo](#capo).                                                                                                                                                                                                                                                                                                  |
 | `sounds`            | `yes`, or the chord: the chord the shape sounds with the capo, in the caption. `title`: in the title ("Gm (Em shape)").                                                                                                                                                                                                                                            |
-| `caption`           | `fingering` writes the fingering in words under the diagram, for guitar and piano. See [fingering in words](#fingering-in-words).                                                                                                                                                                                                                                  |
+| `caption`           | `fingering` writes the fingering in words under the diagram, for guitar and piano; `formula` the chord's notes and formula; `fingering, formula` both. See [fingering in words](#fingering-in-words) and [formula](#formula).                                                                                                                                      |
+| `root-mark`         | `shape`: the root is a square too, not only a color. See [root marks](#root-marks-without-color).                                                                                                                                                                                                                                                                  |
 
 Roots and basses can have double sharps and flats: `F##dim` (or `Fxdim`), `Ebb`.
 
@@ -124,6 +125,40 @@ caption: fingering</code></pre></div>
 "Left hand: little finger on E3. Right hand: thumb on C4, middle finger on E4, little finger on G4."
 
 `caption` can be a shared key in a [row of diagrams](#several-diagrams), and works in [voicing lists](#all-the-ways-to-play-a-chord), [triads](#triads-on-string-sets) and [chord transitions](#chord-transitions). `caption: none` writes nothing. Apps get the same sentences from `fingeringInWords` (see the [API](api.md)).
+
+### Formula
+
+`caption: formula` says what the chord is made of: its notes, its formula (the intervals from the root), its quality in words and the other ways to write it. With a capo, it is the chord you hear.
+
+````markdown
+```chord
+Am7 x02010 x02010
+caption: formula
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">Am7 x02010 x02010
+caption: formula</code></pre></div>
+
+"Am7 (A minor seventh): A C E G. Formula 1 b3 5 b7. Also written Amin7, Ami7, A-7."
+
+Under a keyboard or a fretboard, a scale gets its notes, its formula and its steps (H a half step, W a whole step, W+H three half steps):
+
+````markdown
+```fretboard
+A minor pentatonic
+position: 1
+caption: formula
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">A minor pentatonic
+position: 1
+caption: formula</code></pre></div>
+
+"A minor pentatonic: A C D E G. Formula 1 b3 4 5 b7. Steps W+H W W W+H W."
+
+`caption: fingering, formula` writes both, the fingering first. The formula needs a chord or a scale the library knows: a list of notes (`notes: C E G`) has none, and the block says what to add. It follows the block's [note names](#note-names-solfège-and-german), and it stays when the bar redraws the diagram for the other instrument (the notes are the same). Apps get the sentences from `chordFormula` and `scaleFormula` (see the [API](api.md)).
 
 ## Piano voicings
 
@@ -362,6 +397,8 @@ labels: degrees</code></pre></div>
 | `title`                | The title shown above.                                                                                                                                                                                                                                                                                                                                                                                           |
 | `orientation`          | `horizontal` (default) or `vertical`: low notes at the bottom.                                                                                                                                                                                                                                                                                                                                                   |
 | `highlight`, `compare` | See [scales and modes](#scales-and-modes).                                                                                                                                                                                                                                                                                                                                                                       |
+| `caption`              | `formula`: the scale's or the chord's notes, formula and steps under the keyboard. See [formula](#formula).                                                                                                                                                                                                                                                                                                      |
+| `root-mark`            | `shape`: a small square on the root keys. See [root marks](#root-marks-without-color).                                                                                                                                                                                                                                                                                                                           |
 | `fingering`            | For a scale: one finger per note of one octave from the root, `1 2 3 1 2 3 4 5`, or `auto` (`auto left` for the left hand, `auto both` for both hands on two keyboards): the standard fingering of a major or minor (natural, harmonic, melodic) scale. Without a range, the fingers go on both octaves. For a list of notes: one finger per note, in the order written. It works with `labels` and `range` too. |
 | `modes`                | `modes: C major`: every mode of the scale, side by side.                                                                                                                                                                                                                                                                                                                                                         |     |
 | `scales-for`           | `scales-for: G D Em C`: the scale that fits these chords. See [which scale fits](#which-scale-fits).                                                                                                                                                                                                                                                                                                             |
@@ -406,6 +443,8 @@ labels: intervals</code></pre></div>
 | `hand`                                       | `left` mirrors the neck for left-handed players.                                                                                                                                                                                                            |
 | `position`, `shape`, `numbering`             | One position of a scale instead of every note. See [scales and modes](#scales-and-modes).                                                                                                                                                                   |
 | `highlight`, `compare`, `modes`, `positions` | See [scales and modes](#scales-and-modes).                                                                                                                                                                                                                  |
+| `caption`                                    | `formula`, as for keyboards.                                                                                                                                                                                                                                |
+| `root-mark`                                  | `shape`: the root's dots are squares.                                                                                                                                                                                                                       |
 | `capo`, `frets-from`                         | A capo; `frets` and positions count from it. See [capo](#capo).                                                                                                                                                                                             |
 | `arpeggio`                                   | A chord's notes, labeled with intervals; with `position` or `positions`, its CAGED shapes. See [arpeggios](#arpeggios).                                                                                                                                     |
 | `exercise`, `rhythm`, `tempo`                | With one position: the run as a tab under the diagram. See [tab exercises](#tab-exercises).                                                                                                                                                                 |
@@ -974,7 +1013,25 @@ Letter names come first, so notes you already wrote never change:
 
 What you write by hand stays as you wrote it: titles (`title:`, `{title}`) and lyrics are never rewritten. CAGED shapes keep their letters (`E shape`). German note words (Fis, Es, Dur, Moll) and lowercase minor keys are not read.
 
-The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default for showing (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). Tabs and scores and `caption: fingering` sentences stay in letters.
+The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default for showing (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). Tabs and scores and `caption: fingering` sentences stay in letters; `caption: formula` follows the naming.
+
+## Root marks without color
+
+The root is drawn in its own color. `root-mark: shape` makes it a shape too, for players who don't tell the colors apart: the root's dots are rounded squares (the finger or label still inside), an open root string is a square ring, and a root key gets a small square.
+
+````markdown
+```chord
+G 320003 210003
+root-mark: shape
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">G 320003 210003
+root-mark: shape</code></pre></div>
+
+The line names the whole block, every diagram of a row, and works in `chord`, `keyboard`, `fretboard` and `progression` blocks. `root-mark: color` is the default. Apps can make shapes the default (the `rootMark` render option, a setting in Music Practice); on Obsidian Publish, set `rootMark: 'shape'` in the page options (see [Publish](publish.md)).
+
+Every diagram also has a description for screen readers, with no key to write: a chord diagram's fingering in words and the strings its root is on, a keyboard's keys from low to high, a fretboard's notes string by string.
 
 ## Hear the diagrams
 

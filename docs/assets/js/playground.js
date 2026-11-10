@@ -32,6 +32,16 @@
         },
         {
             language: 'chord',
+            name: 'What a chord is made of: its formula',
+            source: 'Am7 x02010 x02010\ncaption: formula\nroot-mark: shape'
+        },
+        {
+            language: 'fretboard',
+            name: 'A scale’s formula and steps',
+            source: 'A minor pentatonic\nposition: 1\ncaption: formula'
+        },
+        {
+            language: 'chord',
             name: 'Piano: shell voicings',
             source: 'instrument: piano\nvoicing: shell\n---\nCmaj7\n---\nC7\n---\nCm7'
         },
@@ -145,6 +155,7 @@
         const orientation = $('mn-orientation')
         const left = $('mn-left')
         const naming = $('mn-naming')
+        const rootShape = $('mn-root-shape')
         const surprise = $('mn-surprise')
         const copyLink = $('mn-copy-link')
         const copyMarkdown = $('mn-copy-markdown')
@@ -204,6 +215,7 @@
             }
             if (left.checked) options.hand = 'left'
             if (naming.value) options.naming = naming.value
+            if (rootShape && rootShape.checked) options.rootMark = 'shape'
             current = api.renderBlock(language.value, source.value, output, options)
         }
         // While typing, the block redraws once you pause (a redraw stops what plays).
@@ -221,6 +233,7 @@
             if (orientation.value) params.set('orientation', orientation.value)
             if (left.checked) params.set('hand', 'left')
             if (naming.value) params.set('naming', naming.value)
+            if (rootShape && rootShape.checked) params.set('root', 'shape')
             history.replaceState(null, '', `#${params.toString()}`)
         }
         const recall = () => {
@@ -232,6 +245,7 @@
             orientation.value = params.get('orientation') || ''
             left.checked = params.get('hand') === 'left'
             naming.value = params.get('naming') || ''
+            if (rootShape) rootShape.checked = params.get('root') === 'shape'
             return true
         }
         const use = (i) => {
@@ -267,7 +281,7 @@
             example.value = ''
             later()
         })
-        for (const control of [orientation, left, naming])
+        for (const control of [orientation, left, naming, rootShape].filter(Boolean))
             control.addEventListener('change', () => {
                 draw()
                 remember()

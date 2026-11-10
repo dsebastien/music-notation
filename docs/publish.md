@@ -44,7 +44,7 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 - List `picking` too (0.11.0), so pages with only picking patterns load the bundle. A snippet from an older version doesn't have it.
 - A fretboard with [`exercise:`](blocks.md#tab-exercises) puts its tab under the diagram as a `tab` block's source. The snippet then loads the tab bundle, which draws it.
 - Diagrams play on a click, and each block gets one playback bar under it. They play with the light synthesizer, or with the soundfont once a page with tabs has loaded it. `play: false` turns playback off, and `play: { volume: 0.6, bpm: 80, strum: 30, sound: 'piano' }` sets the defaults. The bars have no volume control: `volume` (0 to 1, 0.8 by default) is the volume of the whole site (`strum: 30` is the guitar's; `strum: { guitar: 30, piano: 20 }` also spreads piano chords).
-- Defaults for the whole site go in `window.musicNotationOptions`, set before the bundle loads (at the top of `publish.js`). A block's own `orientation`, `hand` and `naming` still win.
+- Defaults for the whole site go in `window.musicNotationOptions`, set before the bundle loads (at the top of `publish.js`). A block's own `orientation`, `hand`, `naming` and `root-mark` still win.
 
 ```js
 window.musicNotationOptions = {
@@ -52,7 +52,9 @@ window.musicNotationOptions = {
     orientation: { chord: 'vertical', fretboard: 'vertical', keyboard: 'horizontal' },
     // How note names show on the whole site: 'letters' (default), 'solfege' (Do Ré Mi) or
     // 'german' (H for B). It never changes how your notes are read.
-    naming: 'solfege'
+    naming: 'solfege',
+    // The root as a shape too, not only a color: 'color' (default) or 'shape'.
+    rootMark: 'shape'
 }
 ```
 
