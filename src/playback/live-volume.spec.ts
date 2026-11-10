@@ -160,3 +160,19 @@ describe('players change the level of the notes that play (#85)', () => {
         expect(api.masterVolume).toBe(0.3)
     })
 })
+
+describe('one volume for every bundle (#82, #85)', () => {
+    it('reaches plays registered by another copy of the library (the /tab entry is its own bundle)', () => {
+        // Another bundle's copy keeps its listeners in the same global registry.
+        const registry = (globalThis as Record<symbol, Set<() => void> | undefined>)[
+            Symbol.for('@dsebastien/music-notation/volume')
+        ]
+        expect(registry).toBeInstanceOf(Set)
+        let heard = 0
+        const other = () => heard++
+        registry!.add(other)
+        volumeChanged()
+        registry!.delete(other)
+        expect(heard).toBe(1)
+    })
+})

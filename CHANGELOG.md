@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.18.1 (2026-11-10)
+
+- **Fixed: a volume change didn't reach a playing tab or score.** The `/tab` entry is a bundle of its own, so `volumeChanged()` called through the main entry didn't reach a score's bar. Every copy of the library on a page now shares one list of live plays.
+
 ## 0.18.0 (2026-11-10)
 
 - **The tab and score bar looks and works like the other bars** (#82): the same buttons and icons (Play, Stop, Loop, Metronome, Count-in), Speed with its value ("100 %"), always shown below the score. Its volume slider is gone: the volume is the app's, as for every bar (in Music Practice, Settings → Playback; on Publish, `play: { volume }`). For apps: `renderTab` takes `volume`, and `volumeChanged()` applies a new one at once.

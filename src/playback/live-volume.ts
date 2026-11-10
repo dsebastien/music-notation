@@ -6,7 +6,13 @@
  */
 import type { PlayHandle } from './player.js'
 
-const listeners = new Set<() => void>()
+/**
+ * The live plays, shared by every copy of the library on the page: the `/tab` entry is a bundle
+ * of its own, and a score's bar must hear `volumeChanged()` called through the main entry.
+ */
+const REGISTRY = Symbol.for('@dsebastien/music-notation/volume')
+const shared = globalThis as typeof globalThis & { [REGISTRY]?: Set<() => void> }
+const listeners: Set<() => void> = (shared[REGISTRY] ??= new Set<() => void>())
 
 /** A volume between 0 and 1; anything else is null (ignored). */
 const level = (value: unknown): number | null =>
