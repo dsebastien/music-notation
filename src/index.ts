@@ -72,6 +72,13 @@ export {
 export { attachPlayback, type PlayOptions, type TimedBar } from './playback/controls.js'
 export { volumeChanged } from './playback/live-volume.js'
 export {
+    toSvgString,
+    toPng,
+    type ExportTheme,
+    type SvgExportOptions,
+    type PngExportOptions
+} from './export/image.js'
+export {
     followNotes,
     noteTargets,
     PLAYING_CLASS,
