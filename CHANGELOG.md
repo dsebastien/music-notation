@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.0 (2026-11-10)
+
+- **Copy as image** (#11, with #83): a button on the bar under each block copies a PNG of the selected diagram, with its title and captions, to paste in a chat, a slide or a document. Shift+click, or a block with one diagram, copies the whole block (a row, a progression, a chart's diagrams, a strumming or picking pattern). It uses the page's colors at twice the size, and says "Copied". With playback off (`play: false`), each block gets a small bar with only this button, and it copies the whole block. `copy: false` leaves the button out. Not on tabs and scores yet.
+- **Export as SVG and PNG** (#11): for apps, `toSvgString(el)` gives a standalone SVG of a diagram or a whole block (styles inlined, laid out as on the page), and `toPng(el)` a PNG. Both take `theme: 'light' | 'dark'`. The playground has Download SVG and Download PNG.
+- **Formula captions** (#52): `caption: formula` under a chord, keyboard or fretboard writes what it is: "Am7 (A minor seventh): A C E G. Formula 1 b3 5 b7. Also written Amin7, Ami7, A-7." A scale adds its steps (W+H W W W+H W). `caption: fingering, formula` gives both. Progressions take it too. Names follow `naming`.
+- **Root marks you can tell without colors** (#14): `root-mark: shape` draws the root as a square dot (its finger or label still inside), a square ring on an open string, and a small square on its key. Apps and Publish set it for every block with the `rootMark` render option (Publish: `window.musicNotationOptions.rootMark`). Color stays the default.
+- **Descriptions for screen readers** (#14): every chord diagram, keyboard and fretboard has a description that screen readers read after its name: the fingering in words and where the root is, the keys and the root, or the notes string by string.
+- **Contrast**: two fallback colors are darker, so they pass on dark pages too (the accent and the wrong-answer red). Themes that set their own colors don't change.
+- For apps: `withRootMark`, `ROOT_MARKS`, `parseRootMark`, `rootMarkOf`, the type `RootMark`, `chordFormula`, `scaleFormula`, `descriptionOf`, `toSvgString`, `toPng`, and `copy` in the render and play options. A block drawn without playback now ends with the copy bar.
+
 ## 0.18.1 (2026-11-10)
 
 - **Fixed: a volume change didn't reach a playing tab or score.** The `/tab` entry is a bundle of its own, so `volumeChanged()` called through the main entry didn't reach a score's bar. Every copy of the library on a page now shares one list of live plays.
