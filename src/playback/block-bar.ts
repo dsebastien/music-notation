@@ -31,11 +31,13 @@ import {
     choice,
     icon,
     iconButton,
+    placeBar,
     playBar,
     pressedButton,
     valueSlider,
     volumeOf
 } from './bar-parts.js'
+import { copyImageButton, diagramImage } from './copy-image.js'
 
 /** One playable diagram of a block. */
 interface Item {
@@ -519,22 +521,6 @@ export interface GroupUi {
     changed(): void
 }
 
-/**
- * Where the bar goes: below the element of the block that holds its diagrams (a row, a figure
- * with its caption), inside the block (never between a page's source `<pre>` and the block); in
- * a fretboard exercise, between the fretboard and its tab.
- */
-function placeBar(block: Element, last: HTMLElement, bar: HTMLElement): void {
-    if (last.parentElement?.classList.contains('mn-exercise-block')) {
-        last.after(bar)
-        return
-    }
-    let node: Element = last
-    while (node.parentElement && node.parentElement !== block) node = node.parentElement
-    if (node.parentElement === block) node.after(bar)
-    else block.appendChild(bar)
-}
-
 /** The bar of a block's diagrams. Returns a function that stops what plays and frees it. */
 export function blockBarFor(
     doc: Document,
@@ -597,6 +583,14 @@ export function blockBarFor(
         (value) => group.setSound(value === 'piano' ? 'piano' : 'guitar')
     )
     bar.appendChild(sound)
+    // The selected diagram (the drawing shown, with its caption); the whole block with Shift or
+    // with one diagram (#11).
+    if (options.copy !== false)
+        bar.append(
+            ...copyImageButton(doc, win, (whole) =>
+                whole || !several ? block : diagramImage(made.selected.wrap)
+            )
+        )
 
     bind({
         changed() {

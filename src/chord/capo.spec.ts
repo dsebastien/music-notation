@@ -270,7 +270,7 @@ describe('capo in blocks', () => {
         const p = host()
         renderBlock('fretboard', 'A minor pentatonic\npositions: all\ncapo: 2\nfrets-from: nut', p)
         expect(
-            [...p.querySelectorAll('svg')].map((el) => el.getAttribute('data-mn-frets'))
+            [...p.querySelectorAll('svg.mn-svg')].map((el) => el.getAttribute('data-mn-frets'))
         ).toEqual(['5-8', '7-10', '9-13', '12-15', '14-17'])
     })
 

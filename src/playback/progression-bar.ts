@@ -22,6 +22,7 @@ import {
 } from './progression.js'
 import { barPlayer } from './strum-bar.js'
 import { handToApp } from './app-bar.js'
+import { copyImageButton } from './copy-image.js'
 
 const pitchesOf = (text: string | null): number[] =>
     (text ?? '')
@@ -242,6 +243,9 @@ export function progressionBarFor(
             }
         )
     )
+    // The whole block (#11), drawn without the bar.
+    if (options.copy !== false)
+        bar.append(...copyImageButton(doc, win, () => drawing.closest('.mn-block') ?? drawing))
     // Last, so the app's controls come after the bar's own (#77).
     const app = handToApp(options, bar, {
         kind: drawing.classList.contains('mn-chart') ? 'chart' : 'progression',

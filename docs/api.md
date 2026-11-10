@@ -39,6 +39,7 @@ Options:
 - `properties`: the note's properties, or a function of the block's element returning them (read at each render): an empty `chord`, `fretboard`, `keyboard`, `strum` or `picking` block draws from them. `propertyNames` renames them; `instrument` (`'guitar'` or `'piano'`) overrides the one read from the tags.
 - `tab`: draws the tab of a fretboard's `exercise:` (its alphaTex, as a `tab` block holds it) in a holder, for example with `renderTab` from `/tab`. Return a function that frees it: `destroy()` calls it. Without `tab`, the alphaTex shows under the diagram in a `pre > code.language-tab`, which the tab bundle draws on web pages.
 - Live volume (#85): `play.volume` is a number or a function. When the app's volume changes, call `volumeChanged()` (main entry): every diagram, pattern, progression or chart that is playing reads its volume again and the notes that sound take it at once. Without the call, a new volume is heard from the next play or loop pass. A `PlayHandle` has `setVolume(volume)` for this (the light and soundfont players have it; your own player may add it).
+- `copy`: **Copy as image** (#11), on by default, with or without `play`. With `play`, the button is on every bar: a block bar copies its selected diagram (the whole block with Shift, or when it has one diagram); progression, chart, strumming and picking bars copy the whole block. Without `play`, each block that draws gets a small bar of its own with only the button, in the same place and look; no diagram is selected then, so it copies the whole block. The PNG goes through `navigator.clipboard.write` in the bar's window; a message after the button (`.mn-play-said`, a polite live region) says "Copied", or what to do when the browser refuses. `copy: false` leaves the button out everywhere. Tab and score bars have no button. If you call `attachPlayback` yourself, pass `copy` in its options; `attachCopy(el)` adds the copy-only bars to what `el` drew. A block drawn without playback ends with that bar: count drawings as `svg.mn-svg`, not `svg` (the button's icon is an SVG).
 - `play.timedBar(bar)`: called with each bar that plays in time (strumming and picking patterns, progressions, ChordPro charts), once the bar is built, so the app can add its own controls and read the tempo. `bar` has `kind` (`'strum'`, `'picking'`, `'progression'` or `'chart'`), `element` (the `.mn-play` bar), `drawing` (the pattern's SVG, the `.mn-progression` or the `.mn-chart`), `compound` (true when the tempo counts dotted quarters), `tempo()` (the tempo set on the bar, 20 to 240, in the beat it counts: what the next pass plays), `onTempo(listener)` (calls `listener` with each new tempo set on the bar, and returns a function that stops it) and `add(control)`. `add` puts your control at the end of the bar, in a `.mn-play-app` slot, after the bar's own controls in the focus order and with their button styles. It shows and hides with the bar. Return a function that frees what you set up: `destroy()` calls it. A hook or a listener that throws leaves the bar as it is. The type is `TimedBar`.
 
 - `naming`: how note names show, `'letters'` (default), `'solfege'` (Do Ré Mi, `Ré m7`) or `'german'` (H for B natural, B for B♭). A block's `naming:` line wins. See [Note names](blocks.md#note-names-solfège-and-german).
@@ -138,6 +139,26 @@ Descriptions (#14): every chord diagram, keyboard and fretboard has a `<desc cla
 - `voiceLead(symbols)`: piano pitches for each chord, each in the close-position inversion that moves least from the one before. `voiceLeadVoicings(symbols, { voicing, form, octave, hands })`: shell or rootless voicings for each chord, `{ options, pitches }` (the `pianoVoicing` options with the form and octave chosen), the forms alternating so the chords move least around middle C (a shell whose third would sit below the low interval limit takes the other form: Am7 A2 G3 C4, not A2 C3 G3); null for a chord that can't take the voicing. `voiceMotion(a, b)`: the movement between two chords, each note moving to its own note (semitones).
 - `renderCircle(doc, { key, sevenths, neighbours, dominant, title })`: the circle of fifths for a key (`readKey('E minor')`). `dominant`: a minor key's `'major'` V (default, from the harmonic minor) or `'minor'` v.
 - `readKey(text)`: `G`, `Em`, `F# minor`, `D dorian` as `{ tonic, mode, name }`; `keyNotes(key)`, `keySignature(key)` (`{ count, accidentals }`: F# major is 6, F# C# G# D# A# E#), `keyChords(key, sevenths?)` (the seven chords with their numerals), `parentMajor(key)`, `signatureText(count)`, `MODES`. `keyProblem(key)`: null, or why a key can't be written (more than `MAX_SIGNATURE`, 7, sharps or flats) with its other name (`Gb minor needs 9 flats: write F# minor`); `readKey` accepts such keys, the blocks refuse them.
+
+## Export as SVG and PNG
+
+`toSvgString(el, options)` returns a standalone SVG of `el`, and `toPng(el, options)` a promise of a PNG `Blob` (#11). `el` is a drawing (`svg.mn-svg`) or any element that holds drawings and text: a `.mn-block`, a row, a captioned figure, a chart.
+
+- The image is laid out as the page lays it out, cropped to what it draws, with `padding` around it (8 px by default). Each drawing keeps its `viewBox`; titles, captions and chart lyrics become SVG text where the page wraps them; HTML backgrounds and borders become rectangles. Every style is inlined from the computed style: no classes, no `data-*`, no CSS variables, no `<foreignObject>`.
+- Left out: the bars, hidden parts, hit areas, the hidden names of playable diagrams, tabs and scores (alphaTab draws them). A note lit while it plays and the selection outline are drawn at rest.
+- `theme`: `'inherit'` (default, the page's colors), `'light'` or `'dark'` (the colors of Obsidian's default light or dark theme).
+- `background`: a CSS color under everything. `toSvgString` has none by default (transparent). `toPng` uses the page's background behind the element (white when there is none; `#1e1e1e` with `theme: 'dark'`).
+- `toPng`'s `scale`: pixels per CSS pixel, 2 by default, lowered so no side passes 16384 pixels.
+- Fonts: the page's font families, with `sans-serif` added when a list has no generic family. A PNG is drawn from the SVG as an image, which can't use the page's web fonts: a web font that isn't installed falls back to that family.
+- The image is made from a copy of the element, placed out of sight in its document and removed after: the page doesn't change. The element's document and window are used, so popout windows work.
+
+```ts
+import { toPng, toSvgString } from '@dsebastien/music-notation'
+
+const svg = toSvgString(block, { theme: 'light' })
+const png = await toPng(block, { scale: 2 })
+await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+```
 
 ## Styles
 

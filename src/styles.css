@@ -296,6 +296,16 @@
     opacity: 0.85;
 }
 
+/* What Copy as image says (#11): "Copied", or what to do when the browser refuses. */
+.mn-play-said {
+    font-size: 0.85em;
+    opacity: 0.85;
+}
+
+.mn-play-said:empty {
+    display: none;
+}
+
 /* The selected diagram's name on the bar of a row. */
 .mn-play-name {
     max-width: 16ch;

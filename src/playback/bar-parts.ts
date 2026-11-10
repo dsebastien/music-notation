@@ -16,13 +16,15 @@ export const ICONS = {
     /** A metronome, for the count-in. */
     count: 'M5.5 14h5L9 2.5H7zM8 11.5l4.5-7',
     /** Beats, for the click. */
-    click: 'M3 5v6M8 5v6M13 5v6'
+    click: 'M3 5v6M8 5v6M13 5v6',
+    /** A picture: Copy as image (#11). */
+    copy: 'M2.5 3.5h11v9h-11zM2.5 11l3.5-3.5 3 3 2-2 2.5 2.5M10.5 6.5h.01'
 } as const
 
 export type IconName = keyof typeof ICONS
 
 /** Icons drawn as lines; the others are filled shapes. */
-const STROKED = new Set<IconName>(['loop', 'count', 'click'])
+const STROKED = new Set<IconName>(['loop', 'count', 'click', 'copy'])
 
 export function icon(doc: Document, name: IconName): SVGElement {
     const root = svg(doc, 'svg', {
@@ -47,6 +49,22 @@ export function playBar(doc: Document, cls: string, label: string): HTMLElement 
     bar.setAttribute('role', 'group')
     bar.setAttribute('aria-label', label)
     return bar
+}
+
+/**
+ * Where the bar goes: below the element of the block that holds its diagrams (a row, a figure
+ * with its caption), inside the block (never between a page's source `<pre>` and the block); in
+ * a fretboard exercise, between the fretboard and its tab.
+ */
+export function placeBar(block: Element, last: Element, bar: HTMLElement): void {
+    if (last.parentElement?.classList.contains('mn-exercise-block')) {
+        last.after(bar)
+        return
+    }
+    let node: Element = last
+    while (node.parentElement && node.parentElement !== block) node = node.parentElement
+    if (node.parentElement === block) node.after(bar)
+    else block.appendChild(bar)
 }
 
 /** A button that shows an icon, named for screen readers and in its tooltip. */

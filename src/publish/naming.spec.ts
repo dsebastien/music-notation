@@ -36,3 +36,14 @@ describe('Publish: note names', () => {
         document.body.innerHTML = ''
     })
 })
+
+describe('Copy as image on a site (#11)', () => {
+    it('is on unless the page options say copy: false', async () => {
+        const { pageCopy } = await import('./auto.js')
+        expect(pageCopy(undefined)).toBe(true)
+        expect(pageCopy({})).toBe(true)
+        expect(pageCopy({ copy: true })).toBe(true)
+        expect(pageCopy({ copy: 'no' })).toBe(true)
+        expect(pageCopy({ copy: false })).toBe(false)
+    })
+})

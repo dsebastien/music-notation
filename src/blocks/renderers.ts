@@ -124,6 +124,11 @@ export interface RenderOptions extends LayoutDefaults {
     /** A playback bar on diagrams, strum and picking patterns, progressions and charts (true for the defaults). */
     play?: boolean | PlayOptions
     /**
+     * Copy as image (#11), on by default: the button on each play bar, or, without `play`, a small
+     * bar of its own under each block that draws (it copies the whole block). `false` leaves it out.
+     */
+    copy?: boolean
+    /**
      * The chords used row of `chords` blocks, when a chart has no `{diagrams}`: `'top'`,
      * `'bottom'` or `'off'` (the default). Guitar or piano diagrams follow `instrument`.
      */

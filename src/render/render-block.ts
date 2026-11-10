@@ -17,6 +17,7 @@ import {
 } from '../blocks/block-source.js'
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
+import { attachCopy } from '../playback/copy-image.js'
 import { attachPick, type PickLayer, type PickOptions } from './pick.js'
 import {
     lettersInBlock,
@@ -233,13 +234,18 @@ export function renderBlock(
               )
             : []
         // Hear the diagrams: a playback bar on each one that has notes to play.
+        // Copy as image (#11) is on the play bars, or on a bar of its own without playback.
+        const copy = options.copy !== false
         const stopPlayback = options.play
             ? attachPlayback(el, {
                   // Redraws for guitar follow the page's hand unless the app says (#60).
                   hand: options.hand,
-                  ...(typeof options.play === 'object' ? options.play : {})
+                  ...(typeof options.play === 'object' ? options.play : {}),
+                  copy
               })
-            : null
+            : copy
+              ? attachCopy(el)
+              : null
         return {
             ok: error === null,
             el,

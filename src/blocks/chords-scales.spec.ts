@@ -351,7 +351,7 @@ describe('scales and modes', () => {
             ['E', 'D', 'C', 'A', 'G'].map((shape) => `Am7 arpeggio, ${shape} shape`)
         )
         expect(
-            [...row.querySelectorAll('svg')].map((svg) => svg.getAttribute('data-mn-frets'))
+            [...row.querySelectorAll('svg.mn-svg')].map((svg) => svg.getAttribute('data-mn-frets'))
         ).toEqual(['5-8', '7-10', '9-13', '12-15', '14-17'])
         const list = host()
         renderBlock('fretboard', 'arpeggio: C\npositions: 2 4', list)

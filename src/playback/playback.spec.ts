@@ -440,10 +440,15 @@ describe('playback bar', () => {
         void popout.happyDOM.close()
     })
 
-    it('adds no bar without the option', () => {
+    it('adds no play bar without the option: only Copy as image, which copy: false leaves out (#11)', () => {
         const h = host()
         renderBlock('chord', 'A x02220', h)
-        expect(h.querySelector('.mn-play')).toBeNull()
+        expect(h.querySelector('.mn-playable')).toBeNull()
+        expect(h.querySelector('.mn-play-toggle')).toBeNull()
+        expect(h.querySelector('.mn-play')!.classList.contains('mn-copy-bar')).toBe(true)
+        const none = host()
+        renderBlock('chord', 'A x02220', none, { copy: false })
+        expect(none.querySelector('.mn-play')).toBeNull()
     })
 
     it('stops looping once the diagram is gone from the page', async () => {
