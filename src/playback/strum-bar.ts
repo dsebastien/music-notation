@@ -285,7 +285,7 @@ export function timedBarFor(
         )
     )
     // The whole block (#11), drawn without the bar.
-    if (options.copyImage !== false)
+    if (options.copy !== false)
         bar.append(...copyImageButton(doc, win, () => wrap.closest('.mn-block') ?? wrap))
     // Last, so the app's controls come after the bar's own (#77).
     const app = handToApp(options, bar, {

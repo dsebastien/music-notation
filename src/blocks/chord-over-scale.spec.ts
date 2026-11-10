@@ -84,7 +84,7 @@ describe('a chord over a scale', () => {
             row
         )
         expect(result.error).toBeNull()
-        const diagrams = [...row.querySelectorAll('svg')]
+        const diagrams = [...row.querySelectorAll('svg.mn-svg')]
         expect(diagrams).toHaveLength(5)
         for (const d of diagrams) {
             expect(d.getAttribute('data-mn-set')).toBe('A minor pentatonic')
@@ -99,7 +99,7 @@ describe('a chord over a scale', () => {
         expect(h.querySelector('.mn-tone, .mn-passing')).toBeNull()
         const row = host()
         renderBlock('fretboard', 'arpeggio: Am7\npositions: all', row)
-        expect(row.querySelectorAll('svg')).toHaveLength(5)
+        expect(row.querySelectorAll('svg.mn-svg')).toHaveLength(5)
         expect(row.querySelector('.mn-tone, .mn-passing')).toBeNull()
         expect(row.querySelector('.mn-title')?.textContent).toContain('arpeggio')
     })

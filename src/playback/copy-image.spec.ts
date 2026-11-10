@@ -3,7 +3,7 @@
  * block with Shift or one diagram), and what it says.
  */
 import { afterEach, describe, expect, it } from 'bun:test'
-import { COPY_SAID, copyImageButton, diagramImage } from './copy-image.js'
+import { attachCopy, COPY_SAID, copyImageButton, diagramImage } from './copy-image.js'
 import { renderBlock } from '../render/render-block.js'
 import type { TimedBar } from './controls.js'
 
@@ -158,12 +158,84 @@ describe('Copy as image on every bar that draws (#11)', () => {
         }
     })
 
-    it('is left out with copyImage: false', () => {
-        const { el } = renderBlock('chord', 'A x02220', host(), { play: { copyImage: false } })
-        expect(el.querySelector('.mn-play-copy')).toBeNull()
-        const { el: strum } = renderBlock('strum', 'D DU UDU', host(), {
-            play: { copyImage: false }
+    it('is left out everywhere with copy: false, with or without playback', () => {
+        for (const play of [true, false]) {
+            for (const [lang, source] of [
+                ['chord', 'A x02220'],
+                ['strum', 'D DU UDU'],
+                ['progression', 'key: C\nI V'],
+                ['chords', '[C]Hello']
+            ] as const) {
+                const { el } = renderBlock(lang, source, host(), { play, copy: false })
+                expect(el.querySelector('.mn-play-copy')).toBeNull()
+            }
+        }
+    })
+})
+
+describe('Copy as image without playback (#11)', () => {
+    it('gives each block that draws a small bar of its own, below its drawings', () => {
+        for (const [lang, source] of [
+            ['chord', 'A x02220\n---\nD xx0232'],
+            ['keyboard', 'scale: C major'],
+            ['fretboard', 'scale: A minor pentatonic'],
+            ['strum', 'D DU UDU'],
+            ['picking', 'pattern: travis\nchords: C Am'],
+            ['progression', 'key: C\nI vi IV V'],
+            ['chords', '[C]Hello [G]world'],
+            ['circle', 'key: C']
+        ] as const) {
+            const { el } = renderBlock(lang, source, host(), {})
+            const bars = el.querySelectorAll('.mn-play')
+            expect(bars.length).toBe(1)
+            const bar = bars[0]!
+            expect(bar.classList.contains('mn-copy-bar')).toBe(true)
+            expect(bar.classList.contains('mn-play-static')).toBe(true)
+            // Only the button and its message: nothing plays.
+            expect([...bar.children].map((c) => c.className)).toEqual([
+                'mn-play-copy',
+                'mn-play-said'
+            ])
+            // The last thing of the block, after what it draws.
+            expect(el.lastElementChild).toBe(bar)
+        }
+    })
+
+    it('copies the whole block, with or without Shift (no diagram is selected)', async () => {
+        clipboard('takes')
+        const { el } = renderBlock('chord', 'A x02220\n---\nD xx0232', host(), { copy: false })
+        const made: Element[] = []
+        attachCopy(el, (target) => {
+            made.push(target)
+            return Promise.resolve(new Blob(['png'], { type: 'image/png' }))
         })
-        expect(strum.querySelector('.mn-play-copy')).toBeNull()
+        const button = el.querySelector('.mn-copy-bar .mn-play-copy')!
+        click(button)
+        click(button, true)
+        await settle()
+        expect(made).toEqual([el, el])
+    })
+
+    it('is not on a block with a pick layer, an error, or a block that already has a bar', () => {
+        const { el: pick } = renderBlock('fretboard', 'notes: C E G', host(), { pick: true })
+        expect(pick.querySelector('.mn-play-copy')).toBeNull()
+        const { el: error } = renderBlock('chord', 'frets: 9', host(), {})
+        expect(error.querySelector('.mn-play-copy')).toBeNull()
+        const { el: played } = renderBlock('chord', 'A x02220', host(), { play: true })
+        attachCopy(played)
+        expect(played.querySelectorAll('.mn-play-copy').length).toBe(1)
+    })
+
+    it('puts the bar of a fretboard exercise between the fretboard and its tab', () => {
+        const { el } = renderBlock(
+            'fretboard',
+            'scale: A minor pentatonic\nposition: 1\nexercise: up',
+            host(),
+            {}
+        )
+        const bar = el.querySelector('.mn-copy-bar')
+        expect(bar).not.toBeNull()
+        expect(bar!.parentElement!.classList.contains('mn-exercise-block')).toBe(true)
+        expect(bar!.previousElementSibling!.tagName.toLowerCase()).toBe('svg')
     })
 })

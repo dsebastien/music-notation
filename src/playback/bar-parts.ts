@@ -51,6 +51,22 @@ export function playBar(doc: Document, cls: string, label: string): HTMLElement 
     return bar
 }
 
+/**
+ * Where the bar goes: below the element of the block that holds its diagrams (a row, a figure
+ * with its caption), inside the block (never between a page's source `<pre>` and the block); in
+ * a fretboard exercise, between the fretboard and its tab.
+ */
+export function placeBar(block: Element, last: Element, bar: HTMLElement): void {
+    if (last.parentElement?.classList.contains('mn-exercise-block')) {
+        last.after(bar)
+        return
+    }
+    let node: Element = last
+    while (node.parentElement && node.parentElement !== block) node = node.parentElement
+    if (node.parentElement === block) node.after(bar)
+    else block.appendChild(bar)
+}
+
 /** A button that shows an icon, named for screen readers and in its tooltip. */
 export function iconButton(
     doc: Document,

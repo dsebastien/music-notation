@@ -4,7 +4,7 @@
  */
 import { toPng } from '../export/image.js'
 import { html } from '../render/dom.js'
-import { iconButton } from './bar-parts.js'
+import { iconButton, placeBar, playBar } from './bar-parts.js'
 
 /** What the button says after a click. */
 export const COPY_SAID = {
@@ -86,4 +86,38 @@ export function copyImageButton(
         )
     })
     return [button, said]
+}
+
+/** Drawings that never go in an image bar's count: tabs and scores, pick layers (drills). */
+const NOT_DRAWN_HERE = '.mn-tab, .mn-tab-holder, .mn-tab-surface, .mn-exercise-tab'
+
+/**
+ * Copy as image without playback (#11): each block of `el` that draws (a drawing without a pick
+ * layer, a progression or a chart) and has no bar yet gets a small bar of its own, in the place
+ * and look of a play bar, with only the button. No diagram is selected without playback, so it
+ * copies the whole block, with or without Shift. Returns a function that frees it.
+ */
+export function attachCopy(el: HTMLElement, make?: (el: Element) => Promise<Blob>): () => void {
+    const doc = el.ownerDocument
+    const win = doc.defaultView
+    if (!win) return () => {}
+    const blocks = el.classList.contains('mn-block') ? [el] : [...el.querySelectorAll('.mn-block')]
+    const bars: HTMLElement[] = []
+    for (const block of blocks) {
+        if (block.querySelector('.mn-play')) continue
+        const drawings = [...block.querySelectorAll('svg.mn-svg')].filter(
+            (svg) => !svg.hasAttribute('data-mn-pick') && !svg.closest(NOT_DRAWN_HERE)
+        )
+        const timed = block.querySelector('[data-mn-progression-play]')
+        if (!drawings.length && !timed) continue
+        const bar = playBar(doc, 'mn-copy-bar', 'Image')
+        bar.append(...copyImageButton(doc, win, () => block, make))
+        // Below the chords of a progression or a chart; below the drawings otherwise.
+        if (timed) block.appendChild(bar)
+        else placeBar(block, drawings[drawings.length - 1]!, bar)
+        bars.push(bar)
+    }
+    return () => {
+        for (const bar of bars) bar.remove()
+    }
 }

@@ -55,7 +55,7 @@ describe('progression block', () => {
             'tonic',
             'subdominant'
         ])
-        expect(h.querySelector('svg')).toBeNull()
+        expect(h.querySelector('svg.mn-svg')).toBeNull()
     })
 
     it('raises typed Nashville extensions: 57 shows 5⁷, 2-7 2-⁷', () => {

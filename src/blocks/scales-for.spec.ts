@@ -69,12 +69,12 @@ describe('scales-for', () => {
         const h = host()
         const result = renderBlock('fretboard', 'scales-for: G D Em C\npositions: all', h)
         expect(result.error).toBeNull()
-        const sets = [...h.querySelectorAll('svg')].map((s) => s.getAttribute('data-mn-set'))
+        const sets = [...h.querySelectorAll('svg.mn-svg')].map((s) => s.getAttribute('data-mn-set'))
         expect(sets).toEqual(Array<string>(5).fill('G major'))
         expect(h.querySelector('.mn-title')?.textContent).toBe('G major, E shape')
         const box = host()
         renderBlock('fretboard', 'scales-for-notes: A C D E G\npositions: 1 2', box)
-        expect(box.querySelectorAll('svg')).toHaveLength(2)
+        expect(box.querySelectorAll('svg.mn-svg')).toHaveLength(2)
     })
 
     it('says what to write instead', () => {

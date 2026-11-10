@@ -83,6 +83,12 @@ function pagePlay(options: unknown): false | PlayOptions {
     return out
 }
 
+/** Copy as image on the site (#11): on unless the page options say `copy: false`. */
+export function pageCopy(options: unknown): boolean {
+    if (!options || typeof options !== 'object') return true
+    return (options as Record<string, unknown>)['copy'] !== false
+}
+
 /** The site's note names (#12): `naming` of the page options when valid, else letters (undefined). */
 export function pageNaming(options: unknown): Naming | undefined {
     if (!options || typeof options !== 'object') return undefined
@@ -100,7 +106,8 @@ if (!window.musicNotationLoaded) {
             naming: pageNaming(window.musicNotationOptions),
             properties: pageProperties(window.musicNotationOptions),
             voicings: lookupGuitarVoicing,
-            play: pagePlay(window.musicNotationOptions)
+            play: pagePlay(window.musicNotationOptions),
+            copy: pageCopy(window.musicNotationOptions)
         })
         window.MusicNotation = { ...api, lookupGuitarVoicing, stop }
     }
