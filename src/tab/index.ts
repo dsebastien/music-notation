@@ -22,7 +22,7 @@ import { followVolume } from '../playback/live-volume.js'
 export type AlphaTabModule = typeof AT
 
 /** The alphaTab release these blocks are made for (Publish loads it from jsDelivr). */
-export const ALPHATAB_VERSION = '1.8.4'
+export const ALPHATAB_VERSION = '1.9.0'
 
 /** jsDelivr URLs of alphaTab's script, music font and soundfont, for web pages. */
 export const alphaTabCdn = (version = ALPHATAB_VERSION) => {
@@ -631,7 +631,10 @@ export function renderTab(
                 // is a few systems, in view while it plays.
                 player: {
                     playerMode: at.PlayerMode.Disabled,
-                    enableUserInteraction: true,
+                    // Click to seek and drag to select a range (alphaTab 1.9 split
+                    // `enableUserInteraction` into these two).
+                    enableSeekToClick: true,
+                    enablePlaybackRangeSelection: true,
                     scrollMode: at.ScrollMode.Off
                 }
             }
