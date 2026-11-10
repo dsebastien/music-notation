@@ -991,7 +991,7 @@ In a block with several diagrams (`---`, `voicings:`, `positions: all`, modes, b
 - **Loop**: plays the selected diagram again and again, or the whole row with Play all in turn.
 - **Speed**, when the selected diagram plays several notes: the tempo of a scale ("90 BPM"), or the time between two strings of a strum ("12 ms"; 12 ms on guitar and 0 on piano by default; once you move it, it stays when you change the sound). The value shows next to the slider.
 - **Sound**: guitar or piano.
-- **Copy as image** (the picture button): copies the selected diagram, with its title and its caption, to the clipboard as a picture, to paste in a chat, a slide or a document. Shift+click copies the whole block. A block with one diagram copies the whole block. The picture has the colors of your theme, on the page's background, and leaves the bar out. "Copied" shows next to the button; if the browser refuses, it says what to do.
+- **Copy as image** (the picture button): copies the selected diagram, with its title and its caption, to the clipboard as a picture, to paste in a chat, a slide or a document. Shift+click copies the whole block. A block with one diagram copies the whole block. The picture has the colors of your theme, on the page's background, and leaves the bar out. "Copied" shows next to the button; if the browser refuses, it says what to do. With playback off, the button stays, alone on a small bar under the block, and copies the whole block.
 
 The volume is not on the bar. It is a setting of the app: in Music Practice, Settings → Playback; on Obsidian Publish, `play: { volume }` in `window.musicNotationOptions` (see [Publish](publish.md)).
 
