@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.19.2 (2026-11-10)
+
+- **Fixed: a click on a diagram scrolled the page** on pages with tabs or scores. There, diagrams play through a hidden alphaTab player at the end of the page, and its cursor made alphaTab scroll the page to it (on the docs site, tens of thousands of pixels). It has no cursor now and never scrolls.
+
 ## 0.19.1 (2026-11-10)
 
 - **Tabs and scores use alphaTab 1.9.0** (was 1.8.4): notes are spaced a little tighter, bar numbers sit at the start of each line, and hammer-on, pull-off and slide labels are placed above the staff. Playback, the bar and Guitar Pro files work as before. Apps that load alphaTab themselves should move to 1.9.0 too (the peer range is now `^1.9.0`).
