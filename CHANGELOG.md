@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0 (2026-11-10)
+
+- **The tab and score bar looks and works like the other bars** (#82): the same buttons and icons (Play, Stop, Loop, Metronome, Count-in), Speed with its value ("100 %"), always shown below the score. Its volume slider is gone: the volume is the app's, as for every bar (in Music Practice, Settings → Playback; on Publish, `play: { volume }`). For apps: `renderTab` takes `volume`, and `volumeChanged()` applies a new one at once.
+- **Fingering in words in progression blocks** (#80): `caption: fingering` in a `progression` block writes how to play each chord under its diagram, in the voicing the progression picked (voice-led piano voicings too). Put it before the first `---` for every section.
+- **Usual names for two seventh chords** (#78): the minor-major seventh is now written Am(maj7) and `i(maj7)`, and the augmented-major seventh C+maj7 and `bIII+maj7`, as method books write them (harmonize, numerals, Nashville numbers). Progressions still read the old spellings (`imaj7`, `imMaj7`, `bIIImaj7#5`). Blocks that showed AmMaj7 or Cmaj7#5 now show the new names.
+- **Chord change tips name strings as the fingering captions do** (#79): in tunings where two strings share a name (drop D), tips say "the 4th string (D)"; a tuning written with flats keeps them ("the Gb string"). For apps: `transition` and `smoothProgression` take `tuningNames`; the tip texts change in those tunings.
+
 ## 0.17.0 (2026-11-09)
 
 - **Name a capo chord by its sound** (#88): `sounds: title` titles the diagram with the chord you hear and the shape you play after it. An Em shape with `capo: 3` is titled "Gm (Em shape)", and the caption says "Capo 3". A `title:` you write stays. It works in a row of diagrams too.
