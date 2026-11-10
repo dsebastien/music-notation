@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.19.1 (2026-11-10)
+
+- **Tabs and scores use alphaTab 1.9.0** (was 1.8.4): notes are spaced a little tighter, bar numbers sit at the start of each line, and hammer-on, pull-off and slide labels are placed above the staff. Playback, the bar and Guitar Pro files work as before. Apps that load alphaTab themselves should move to 1.9.0 too (the peer range is now `^1.9.0`).
+- Maintenance: newer development tools (ESLint 10, typescript-eslint 8.72), two errors that keep their cause when they are rethrown, and two slow tests that no longer fail CI at random.
+
 ## 0.19.0 (2026-11-10)
 
 - **Copy as image** (#11, with #83): a button on the bar under each block copies a PNG of the selected diagram, with its title and captions, to paste in a chat, a slide or a document. Shift+click, or a block with one diagram, copies the whole block (a row, a progression, a chart's diagrams, a strumming or picking pattern). It uses the page's colors at twice the size, and says "Copied". With playback off (`play: false`), each block gets a small bar with only this button, and it copies the whole block. `copy: false` leaves the button out. Not on tabs and scores yet.
