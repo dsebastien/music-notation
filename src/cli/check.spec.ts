@@ -70,7 +70,7 @@ describe('checkNote', () => {
 
     test('linkedom (the command line DOM) draws what happy-dom draws', () => {
         const { document: linked } = parseHTML('<html><body></body></html>')
-        expect(checkNote('notes.md', fixture, linked as unknown as Document)).toEqual(
+        expect(checkNote('notes.md', fixture, linked)).toEqual(
             checkNote('notes.md', fixture, document)
         )
     })

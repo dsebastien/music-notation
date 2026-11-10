@@ -4,7 +4,7 @@ import { runPasses } from '../strum/play.js'
 import { renderBlock } from '../render/render-block.js'
 import { volumeChanged } from './live-volume.js'
 import * as alphaTab from '@coderline/alphatab'
-import { soundfontPlayer, type AlphaTabModule } from '../tab/index.js'
+import { soundfontPlayer } from '../tab/index.js'
 
 /** #85: a volume change is heard in what is playing, not only from the next play or pass. */
 
@@ -146,7 +146,7 @@ describe('players change the level of the notes that play (#85)', () => {
             playbackSpeed: 1,
             player: { playOneTimeMidiFile() {}, stop() {} }
         }
-        const player = soundfontPlayer(alphaTab as unknown as AlphaTabModule, () => api as never)
+        const player = soundfontPlayer(alphaTab, () => api as never)
         const handle = player.play([{ midi: 60, time: 0, duration: 1 }], {
             sound: 'piano',
             volume: 0.8

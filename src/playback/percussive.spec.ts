@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import * as alphaTab from '@coderline/alphatab'
 import { clickFrequency, lightPlayer, type NoteEvent } from './player.js'
-import { soundfontPlayer, type AlphaTabModule } from '../tab/index.js'
+import { soundfontPlayer } from '../tab/index.js'
 
 /** An audio context that records the nodes made and each envelope's levels and times. */
 function fakeWindow() {
@@ -145,7 +145,7 @@ describe('percussive notes (NoteEvent.kind)', () => {
             playbackSpeed: 1,
             player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
         }
-        const player = soundfontPlayer(alphaTab as unknown as AlphaTabModule, () => api as never)
+        const player = soundfontPlayer(alphaTab, () => api as never)
         const events: NoteEvent[] = [
             { midi: 88, time: 0, duration: 0.05, kind: 'click' },
             { midi: 40, time: 1, duration: 0.06, kind: 'muted' },

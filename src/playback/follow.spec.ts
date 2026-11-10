@@ -297,5 +297,6 @@ describe('styles', () => {
         // The marks the test covers, so a renderer change that drops one shows here.
         for (const c of ['mn-passing', 'mn-root', 'mn-tone', 'mn-char', 'mn-on', 'mn-circle-cell'])
             expect(classes).toContain(c)
-    })
+        // The cascade computed for every mark of seven blocks: past Bun's 5 s on CI (#93).
+    }, 30_000)
 })

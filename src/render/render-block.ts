@@ -149,7 +149,7 @@ export function renderBlock(
     // Messages quote what the user wrote ("H dorian"), not what it was read as.
     const quoted = (e: unknown) => quoteAsWritten(messageOf(e), reading.changes)
     const draw = (): RenderResult => {
-        let parts: string[] | null = null
+        let parts: string[] | null
         try {
             // scales-for first: the keys that split a block into a row need its scale.
             if ((language === 'fretboard' || language === 'keyboard') && !splitParts(text))

@@ -266,7 +266,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
     const soundOf = (written: string, shown: string): string | null => {
         const known = sounds.get(shown)
         if (known !== undefined) return known
-        let pitches: string | null = null
+        let pitches: string | null
         try {
             pitches =
                 chordDiagram(doc, shown, findDefinition(song.definitions, written), semitones, {
@@ -333,7 +333,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
                 const moved = definition.transposable ? semitones : 0
                 const shown = transposeChord(definition.name, moved, spelling)
                 const inline = html(doc, 'div', 'mn-line mn-chart-chord')
-                let diagram: SVGElement | null = null
+                let diagram: SVGElement | null
                 try {
                     // Under a capo, played and drawn like the chords used row.
                     diagram = chordDiagram(doc, shown, definition, moved, {

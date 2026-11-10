@@ -29,6 +29,6 @@ process.exitCode = await run(process.argv.slice(2), {
     cwd: process.cwd(),
     out: (line) => process.stdout.write(`${line}\n`),
     err: (line) => process.stderr.write(`${line}\n`),
-    doc: document as unknown as Document,
+    doc: document,
     version: version()
 })

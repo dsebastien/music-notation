@@ -439,7 +439,8 @@ function playSettingsOf(fields: Map<string, string>): [string, string][] {
                 parseStrum(`${time ? `time: ${time}\n` : ''}${strum}`)
             } catch (e) {
                 throw new Error(
-                    `strum: write beats, bar, arpeggio or a strumming pattern (D DU UDU): ${e instanceof Error ? e.message : String(e)}`
+                    `strum: write beats, bar, arpeggio or a strumming pattern (D DU UDU): ${e instanceof Error ? e.message : String(e)}`,
+                    { cause: e }
                 )
             }
         }

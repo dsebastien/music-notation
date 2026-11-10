@@ -709,7 +709,8 @@ export function renderTab(
                     bytes = options.resolveFile ? await options.resolveFile(parsed.file) : null
                 } catch (e) {
                     throw new Error(
-                        `Couldn't read "${parsed.file}": ${e instanceof Error ? e.message : String(e)}`
+                        `Couldn't read "${parsed.file}": ${e instanceof Error ? e.message : String(e)}`,
+                        { cause: e }
                     )
                 }
                 if (gone) return

@@ -42,38 +42,47 @@ const sources = [
     ['fretboard', 'E major\ntuning: bass']
 ] as const
 
+// Every block drawn and every pair of areas compared: past Bun's 5 s on a busy CI runner (#91).
+const SLOW = 30_000
+
 describe('hit areas', () => {
     for (const orientation of ['vertical', 'horizontal'] as const) {
         for (const hand of ['right', 'left'] as const) {
-            it(`are centered on their marks, in ${orientation} diagrams, ${hand}-handed`, () => {
-                for (const [language, source] of sources) {
-                    const host = document.createElement('div')
-                    const result = renderBlock(language, source, host, {
-                        orientation: { chord: orientation, fretboard: orientation },
-                        hand
-                    })
-                    expect(result.ok).toBe(true)
-                    const marks = [...host.querySelectorAll('[data-midi]')]
-                    expect(marks.length).toBeGreaterThan(0)
-                    const areas: Area[] = []
-                    for (const mark of marks) {
-                        const where = `${language} ${source} ${mark.getAttribute('data-mn-string')}`
-                        const area = areaOf(mark)
-                        expect(area, where).not.toBeNull()
-                        const { x, y, width, height } = area!
-                        expect(x + width / 2, where).toBeCloseTo(num(mark, 'cx'))
-                        expect(y + height / 2, where).toBeCloseTo(num(mark, 'cy'))
-                        // Larger than the mark, and 24 px or more along the string.
-                        const r = num(mark, 'r')
-                        expect(Math.min(width, height), where).toBeGreaterThan(2 * r)
-                        expect(Math.max(width, height), where).toBeGreaterThanOrEqual(24)
-                        areas.push(area!)
+            it(
+                `are centered on their marks, in ${orientation} diagrams, ${hand}-handed`,
+                () => {
+                    for (const [language, source] of sources) {
+                        const host = document.createElement('div')
+                        const result = renderBlock(language, source, host, {
+                            orientation: { chord: orientation, fretboard: orientation },
+                            hand
+                        })
+                        expect(result.ok).toBe(true)
+                        const marks = [...host.querySelectorAll('[data-midi]')]
+                        expect(marks.length).toBeGreaterThan(0)
+                        const areas: Area[] = []
+                        for (const mark of marks) {
+                            const where = `${language} ${source} ${mark.getAttribute('data-mn-string')}`
+                            const area = areaOf(mark)
+                            expect(area, where).not.toBeNull()
+                            const { x, y, width, height } = area!
+                            expect(x + width / 2, where).toBeCloseTo(num(mark, 'cx'))
+                            expect(y + height / 2, where).toBeCloseTo(num(mark, 'cy'))
+                            // Larger than the mark, and 24 px or more along the string.
+                            const r = num(mark, 'r')
+                            expect(Math.min(width, height), where).toBeGreaterThan(2 * r)
+                            expect(Math.max(width, height), where).toBeGreaterThanOrEqual(24)
+                            areas.push(area!)
+                        }
+                        for (let i = 0; i < areas.length; i++)
+                            for (let j = i + 1; j < areas.length; j++)
+                                expect(overlap(areas[i]!, areas[j]!), `${source} ${i} ${j}`).toBe(
+                                    false
+                                )
                     }
-                    for (let i = 0; i < areas.length; i++)
-                        for (let j = i + 1; j < areas.length; j++)
-                            expect(overlap(areas[i]!, areas[j]!), `${source} ${i} ${j}`).toBe(false)
-                }
-            })
+                },
+                SLOW
+            )
         }
     }
 

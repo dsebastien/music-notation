@@ -64,7 +64,7 @@ describe('parseTabSource', () => {
 })
 
 describe('import and export', () => {
-    const at = alphaTab as unknown as AlphaTabModule
+    const at = alphaTab
     it('exports Guitar Pro 7 and MIDI, and reads a score file back as alphaTex', () => {
         const gp = exportGp7(at, ':4 3.3 0.2 1.2 0.1')
         expect(String.fromCharCode(gp[0]!, gp[1]!)).toBe('PK')
@@ -202,7 +202,7 @@ describe('createSoundfontPlayer', () => {
             volume: 1
         })
         const tex = made[0]!.loaded as string
-        const real = alphaTab as unknown as AlphaTabModule
+        const real = alphaTab
         const score = real.importer.ScoreLoader.loadAlphaTex(tex)
         expect(score.tracks.map((t) => t.playbackInfo.program).sort((a, b) => a - b)).toEqual([
             0, 25, 28
@@ -261,7 +261,7 @@ describe('soundfont players say when their notes start (#41)', () => {
             playbackSpeed: 1,
             player: { playOneTimeMidiFile: () => order.push('play'), stop() {} }
         }
-        const player = soundfontPlayer(alphaTab as unknown as AlphaTabModule, () => api as never)
+        const player = soundfontPlayer(alphaTab, () => api as never)
         expect(player.reportsStart).toBe(true)
         player.play(note, { sound: 'guitar', volume: 1, onStart: () => order.push('start') })
         await Promise.resolve()
@@ -432,7 +432,7 @@ describe('renderTab', () => {
 })
 
 describe('tab blocks draw only what was written (#66)', () => {
-    const at = alphaTab as unknown as AlphaTabModule
+    const at = alphaTab
     const hidden = (tex: string, file = false) => {
         const score = at.importer.ScoreLoader.loadAlphaTex(tex)
         hideDefaultDynamics(score, file ? null : tex)
@@ -493,7 +493,7 @@ describe('soundfontPlayer', () => {
             playbackSpeed: 1,
             player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
         }
-        const player = soundfontPlayer(alphaTab as AlphaTabModule, () => api as never)
+        const player = soundfontPlayer(alphaTab, () => api as never)
         player
             .play(
                 [
@@ -522,7 +522,7 @@ describe('soundfontPlayer', () => {
             playbackSpeed: 1,
             player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
         }
-        const player = soundfontPlayer(alphaTab as AlphaTabModule, () => api as never)
+        const player = soundfontPlayer(alphaTab, () => api as never)
         player.play([{ midi: 60, time: 0, duration: 1 }], { sound: 'piano', volume: 1 }).stop()
         const events = played!.tracks.flatMap((t) => t.events)
         const last = Math.max(...events.map((e) => e.tick))
@@ -604,7 +604,7 @@ describe('renderTab, drums (#37)', () => {
     })
 
     it('chooses the staves of a score file too (Guitar Pro drums in a tab block)', async () => {
-        const gp = exportGp7(alphaTab as unknown as AlphaTabModule, band)
+        const gp = exportGp7(alphaTab, band)
         expect((await stavesOf('tab', 'file: [[Band.gp]]', gp)).staves).toEqual(['tab', 'score'])
         expect((await stavesOf('score', 'file: [[Band.gp]]', gp)).staves).toEqual([
             'score',

@@ -137,7 +137,7 @@ export function chordDiagram(
     const capo = drawing.capo && drawing.capo > 0 ? drawing.capo : 0
     // Under a capo the chart's names are the shapes played; they sound higher.
     const sounding = capo ? soundingChord(shown, capo) : shown
-    let el: SVGElement | null = null
+    let el: SVGElement | null
     if (drawing.instrument === 'piano') {
         // A piano has no capo: it plays what the guitar sounds, and the title says so.
         // Keys are counted from the root, so they move with it.
@@ -223,7 +223,7 @@ export function renderChordsUsed(
             skipped++
             continue
         }
-        let el: SVGElement | null = null
+        let el: SVGElement | null
         try {
             el = chordDiagram(doc, shown, definition, semitones, {
                 ...options,
