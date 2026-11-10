@@ -21,6 +21,7 @@ import { choice, icon, playBar, pressedButton, valueSlider, volumeOf } from './b
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
 import { handToApp } from './app-bar.js'
+import { copyImageButton } from './copy-image.js'
 
 const STROKES = new Set<Stroke>(['down', 'up', 'mute', 'rest'])
 
@@ -283,6 +284,9 @@ export function timedBarFor(
             (value) => (settings.sound = value === 'piano' ? 'piano' : 'guitar')
         )
     )
+    // The whole block (#11), drawn without the bar.
+    if (options.copyImage !== false)
+        bar.append(...copyImageButton(doc, win, () => wrap.closest('.mn-block') ?? wrap))
     // Last, so the app's controls come after the bar's own (#77).
     const app = handToApp(options, bar, {
         kind: piece.kind,

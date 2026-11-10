@@ -59,6 +59,11 @@ export interface PlayOptions {
      * throws leaves the bar as it is.
      */
     timedBar?: (bar: TimedBar) => void | (() => void)
+    /**
+     * `false` leaves Copy as image out of the bars (#11), for apps with their own export. On by
+     * default.
+     */
+    copyImage?: boolean
 }
 
 /** A bar that plays a piece in time, as an app sees it (`PlayOptions.timedBar`, #77). */

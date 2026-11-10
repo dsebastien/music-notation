@@ -36,6 +36,7 @@ import {
     valueSlider,
     volumeOf
 } from './bar-parts.js'
+import { copyImageButton, diagramImage } from './copy-image.js'
 
 /** One playable diagram of a block. */
 interface Item {
@@ -595,6 +596,14 @@ export function blockBarFor(
         (value) => group.setSound(value === 'piano' ? 'piano' : 'guitar')
     )
     bar.appendChild(sound)
+    // The selected diagram (the drawing shown, with its caption); the whole block with Shift or
+    // with one diagram (#11).
+    if (options.copyImage !== false)
+        bar.append(
+            ...copyImageButton(doc, win, (whole) =>
+                whole || !several ? block : diagramImage(made.selected.wrap)
+            )
+        )
 
     bind({
         changed() {
