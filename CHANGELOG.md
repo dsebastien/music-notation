@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.20.0 (2026-11-15)
 
-- **Fixed: a held note buzzed in the sample player** (#128): after a clean start, a chord or a note got a vibration and some noise while it rang. Chrome decodes a compressed sample a little shorter than it was, so the sample's loop ended past the sound and jumped from the wrong point at every turn. The player now keeps each loop inside the decoded sound, and the instrument files carry a short tail after each sample so nothing of the loop is lost. For maintainers: cut the instrument files again with `scripts/sounds/split-soundfont.ts`.
+- **The instrument sounds have their own package**: `@dsebastien/music-notation-sounds` holds the GeneralUser GS files, one small soundfont per instrument, under the GeneralUser GS license (its code is MIT). It is an optional peer dependency, as alphaTab is: apps on Node, Bun or Electron install it and pass `instruments: generaluser` (from `@dsebastien/music-notation-sounds/node`); web pages put its `generaluser` folder on their own host and name it in `play: { instruments }`. Nothing changes for pages that don't.
 
 - **Diagrams can play real instrument samples without alphaTab** (#109): on a page that names a folder of instrument files (`play: { instruments: '<folder URL>' }`) and has no tab, chords, scales, strums and progressions play through a small sample player built into the bundle. A first guitar chord downloads about 115 KB; alphaTab (about 1 MB) is not loaded. It sounds like the tabs' instruments: same samples, same level. When a file is missing or the browser can't decode it, the light synthesizer plays, as before. For apps: `sampledPlayer(win, source, fallback)`.
 
