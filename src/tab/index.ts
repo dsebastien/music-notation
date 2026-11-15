@@ -59,19 +59,22 @@ export interface TabAssets {
 
 /**
  * Loads the sounds of `sounds` into an alphaTab API whose player is on: the instrument files when
- * `assets.instruments` has them all, else the whole soundfont. Resolves once alphaTab took them
- * (each file is one `soundFontLoaded`); never rejects.
+ * `assets.instruments` has them all, else the whole soundfont (the result says which). Resolves
+ * once alphaTab took them (each file is one `soundFontLoaded`); rejects when nothing can be read.
+ * `add` keeps what the player has (sounds loaded later); else the first file replaces it.
  */
 async function loadSounds(
     api: AT.AlphaTabApi,
     doc: Document,
     assets: TabAssets,
-    sounds: Sounds
-): Promise<void> {
+    sounds: Sounds,
+    add = false
+): Promise<'instruments' | 'whole'> {
     const win = doc.defaultView
     const made = local(doc)
     let files: Uint8Array[] | null = null
     if (assets.instruments && win) files = await instrumentSounds(assets.instruments, sounds, win)
+    const kind = files ? 'instruments' : 'whole'
     if (!files) {
         if (typeof assets.soundFont === 'string') {
             try {
@@ -91,8 +94,9 @@ async function loadSounds(
         })
         // A player that never says so plays anyway.
         setTimeout(resolve, 8000)
-        all.forEach((bytes, i) => api.loadSoundFont(made.bytes(bytes), i > 0))
+        all.forEach((bytes, i) => api.loadSoundFont(made.bytes(bytes), add || i > 0))
     })
+    return kind
 }
 
 export interface TabOptions {
@@ -988,7 +992,17 @@ export function createSoundfontPlayer(
     let api: AT.AlphaTabApi | null = null
     let host: HTMLElement | null = null
     let ready: Promise<boolean> | null = null
-    const start = () => {
+    /**
+     * With instrument files (#108), a sound's files are read at its first use: a page of guitar
+     * chords never reads the piano. The sounds the player has, and the ones being read.
+     */
+    const have = new Set<Sound>()
+    const reading = new Map<Sound, Promise<boolean>>()
+    /** The whole soundfont is in (no folder, or it lacked something): every sound is there. */
+    let whole = !assets.instruments
+    const programsOf = (sound: Sound) =>
+        sound === 'guitar' ? [PROGRAMS.guitar, MUTED.program] : [PROGRAMS[sound]]
+    const start = (first: Sound = 'guitar') => {
         if (ready) return ready
         host = html(doc, 'div', 'mn-tab-hidden')
         host.setAttribute('aria-hidden', 'true')
@@ -1034,13 +1048,21 @@ export function createSoundfontPlayer(
                 settle()
             })
             current.error.on(() => resolve(false))
-            // One soundfont per instrument (#108): the diagrams' sounds only (a guitar, a piano,
-            // the muted guitar, the click), all in before the first note. Else the whole soundfont.
+            // One soundfont per instrument (#108): the sound that plays first (a guitar with its
+            // muted strings, or a piano) and the click, all in before the first note; the other
+            // sound at its first use (`sounding`). Else the whole soundfont.
             if (assets.instruments)
                 loadSounds(current, doc, assets, {
-                    programs: [PROGRAMS.guitar, PROGRAMS.piano, MUTED.program],
+                    programs: programsOf(first),
                     drums: false
-                }).then(loaded, () => resolve(false))
+                }).then(
+                    (kind) => {
+                        if (kind === 'whole') whole = true
+                        else have.add(first)
+                        loaded()
+                    },
+                    () => resolve(false)
+                )
             else current.soundFontLoaded.on(loaded)
         })
         if (assets.soundFont instanceof Uint8Array && !assets.instruments)
@@ -1053,6 +1075,31 @@ export function createSoundfontPlayer(
         )
         return ready
     }
+    /** The player started and `sound` is in it: its files are added when it is new. */
+    const sounding = async (sound: Sound): Promise<boolean> => {
+        if (!(await start(sound))) return false
+        if (whole || have.has(sound) || !api) return true
+        const current = api
+        let more = reading.get(sound)
+        if (!more) {
+            more = loadSounds(
+                current,
+                doc,
+                assets,
+                { programs: programsOf(sound), drums: false, click: false },
+                true
+            ).then(
+                (kind) => {
+                    if (kind === 'whole') whole = true
+                    else have.add(sound)
+                    return true
+                },
+                () => false
+            )
+            reading.set(sound, more)
+        }
+        return more
+    }
     const inner = soundfontPlayer(alphaTab, () => api)
     return {
         // Its notes start once the soundfont is in: `onStart` says when (the fallback's too).
@@ -1062,7 +1109,7 @@ export function createSoundfontPlayer(
             let stopped = false
             // A volume changed while the soundfont loads is the one the notes start with (#85).
             let volume = options.volume
-            void start().then((ok) => {
+            void sounding(options.sound).then((ok) => {
                 if (stopped) return
                 try {
                     if (ok) {
@@ -1097,6 +1144,9 @@ export function createSoundfontPlayer(
             host?.remove()
             api = null
             ready = null
+            have.clear()
+            reading.clear()
+            whole = !assets.instruments
         }
     }
 }

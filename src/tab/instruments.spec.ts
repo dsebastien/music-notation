@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import {
     filesOf,
     instrumentSounds,
+    pageInstruments,
     soundsOfScore,
     type InstrumentIndex,
     type InstrumentSource
@@ -33,6 +34,28 @@ const all = {
 }
 const names = (list: Uint8Array[] | null) => list?.map((b) => new TextDecoder().decode(b)) ?? null
 
+describe("a web page's instrument folder (#124)", () => {
+    it('is the folder the page names, and nothing else', () => {
+        expect(
+            pageInstruments({ play: { instruments: 'https://my.site/sounds/generaluser' } })
+        ).toBe('https://my.site/sounds/generaluser')
+        expect(pageInstruments({ play: { instruments: '  /sounds  ' } })).toBe('/sounds')
+        // No folder named: the library has no address of its own.
+        for (const options of [
+            undefined,
+            null,
+            {},
+            { play: false },
+            { play: {} },
+            { play: { volume: 0.5 } },
+            { play: { instruments: '' } },
+            { play: { instruments: 12 } },
+            { instruments: '/sounds' }
+        ])
+            expect(pageInstruments(options)).toBeUndefined()
+    })
+})
+
 describe('what a score plays (#108)', () => {
     it('its programs, once each, and whether it has drums', () => {
         const track = (program: number, isPercussion = false) => ({
@@ -59,6 +82,10 @@ describe('the files of what plays (#108)', () => {
             'p030.sf3',
             'click.sf3'
         ])
+    })
+
+    it('no click for sounds added to a player that has it', () => {
+        expect(filesOf(index, { programs: [0], drums: false, click: false })).toEqual(['p000.sf3'])
     })
 
     it('the drum kit instead of the click (the click is in it)', () => {

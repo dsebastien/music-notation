@@ -225,7 +225,7 @@ describe('a score loads only the instruments it plays (#108)', () => {
 describe("the diagrams' player loads only its own sounds (#108)", () => {
     const note = [{ midi: 60, time: 0, duration: 0.5 }]
 
-    it('a guitar, a piano, the muted guitar and the click, before the first note', async () => {
+    it('a guitar chord reads the guitar, its muted strings and the click: not the piano', async () => {
         const { mod, made } = fake()
         const { source, asked } = folder()
         const player = createSoundfontPlayer(
@@ -237,15 +237,51 @@ describe("the diagrams' player loads only its own sounds (#108)", () => {
         player.play(note, { sound: 'guitar', volume: 0.8 })
         await tick()
         await tick()
-        expect(asked).toEqual(['index.json', 'p025.sf3', 'p000.sf3', 'p028.sf3', 'click.sf3'])
+        expect(asked).toEqual(['index.json', 'p025.sf3', 'p028.sf3', 'click.sf3'])
         expect(made[0]!.loads).toEqual([
             ['p025.sf3', false],
-            ['p000.sf3', true],
             ['p028.sf3', true],
             ['click.sf3', true]
         ])
-        // The folder's files, not the whole soundfont's URL in alphaTab's settings.
         expect(made[0]!.oneTime).toBe(1)
+        // A second guitar chord reads nothing more.
+        player.play(note, { sound: 'guitar', volume: 0.8 })
+        await tick()
+        await tick()
+        expect(asked.length).toBe(4)
+        expect(made[0]!.oneTime).toBe(2)
+        // The first piano chord reads the piano, added to what is loaded (no second click).
+        player.play(note, { sound: 'piano', volume: 0.8 })
+        await tick()
+        await tick()
+        expect(asked.slice(4)).toEqual(['p000.sf3'])
+        expect(made[0]!.loads.slice(3)).toEqual([['p000.sf3', true]])
+        expect(made[0]!.oneTime).toBe(3)
+        player.destroy()
+    })
+
+    it('a piano chord first reads the piano and the click; the guitar at its first use', async () => {
+        const { mod, made } = fake()
+        const { source, asked } = folder()
+        const player = createSoundfontPlayer(
+            mod,
+            { scriptFile: null, font, soundFont: whole, instruments: source },
+            document
+        )
+        player.play(note, { sound: 'piano', volume: 0.8 })
+        await tick()
+        await tick()
+        expect(asked).toEqual(['index.json', 'p000.sf3', 'click.sf3'])
+        player.play(note, { sound: 'guitar', volume: 0.8 })
+        await tick()
+        await tick()
+        expect(made[0]!.loads).toEqual([
+            ['p000.sf3', false],
+            ['click.sf3', true],
+            ['p025.sf3', true],
+            ['p028.sf3', true]
+        ])
+        expect(made[0]!.oneTime).toBe(2)
         player.destroy()
     })
 

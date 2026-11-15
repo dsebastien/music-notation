@@ -15,6 +15,19 @@
  */
 export type InstrumentSource = string | ((file: string) => Promise<Uint8Array | null>)
 
+/**
+ * A web page's instrument folder: `play: { instruments: '<folder URL>' }` in its options
+ * (`window.musicNotationOptions`). The library has no address of its own for the sounds (#124):
+ * a page says where its folder is (its own site, or any host), else the whole soundfont plays.
+ */
+export function pageInstruments(options: unknown): string | undefined {
+    if (!options || typeof options !== 'object' || !('play' in options)) return undefined
+    const play: unknown = options.play
+    if (!play || typeof play !== 'object' || !('instruments' in play)) return undefined
+    const folder: unknown = play.instruments
+    return typeof folder === 'string' && folder.trim() ? folder.trim() : undefined
+}
+
 /** The folder's `index.json`, as far as playing needs it. */
 export interface InstrumentIndex {
     /** By General MIDI program, 0 to 127. */
@@ -28,6 +41,8 @@ export interface InstrumentIndex {
 export interface Sounds {
     programs: number[]
     drums: boolean
+    /** False leaves the click out: it is loaded already (sounds added to a player later). */
+    click?: boolean
 }
 
 /** The programs and the drums of a score's tracks. */
@@ -58,7 +73,7 @@ export function filesOf(index: InstrumentIndex, sounds: Sounds): string[] | null
     if (sounds.drums) {
         if (!index.drums?.file) return null
         files.push(index.drums.file)
-    } else if (index.click?.file) files.push(index.click.file)
+    } else if (index.click?.file && sounds.click !== false) files.push(index.click.file)
     return files.length ? files : null
 }
 

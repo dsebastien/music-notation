@@ -13,6 +13,7 @@ import {
     type TabResult
 } from './index.js'
 import { alphaTabLoader } from './load.js'
+import { pageInstruments } from './instruments.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
@@ -70,7 +71,14 @@ function renderAllTabs(doc: Document): void {
     void alphaTabOf(doc)
         .then((alphaTab) => {
             const cdn = alphaTabCdn()
-            const assets = { scriptFile: null, font: cdn.font, soundFont: cdn.soundFont }
+            // One soundfont per instrument when the page says where its folder is (#108).
+            const instruments = pageInstruments(window.musicNotationOptions)
+            const assets = {
+                scriptFile: null,
+                font: cdn.font,
+                soundFont: cdn.soundFont,
+                ...(instruments ? { instruments } : {})
+            }
             const win = doc.defaultView!
             win.musicNotationSoundfontPlayer ??= createSoundfontPlayer(
                 alphaTab,
