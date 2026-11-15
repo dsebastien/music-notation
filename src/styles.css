@@ -1265,6 +1265,8 @@
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
+    /* The scroll bar has its room from the start: the score is drawn once, at the width left. */
+    scrollbar-gutter: stable;
     outline: none;
 }
 

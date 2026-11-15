@@ -642,15 +642,17 @@ export function renderTab(
                     // `enableUserInteraction` into these two).
                     enableSeekToClick: true,
                     enablePlaybackRangeSelection: true,
-                    scrollMode: at.ScrollMode.Off,
-                    // What may scroll when the score follows the music: the score's own area,
-                    // which scrolls only in full screen (#113), never the page (alphaTab's
-                    // default, and it keeps the first element it finds).
-                    scrollElement: surface
+                    scrollMode: at.ScrollMode.Off
                 }
             }
             const current = new at.AlphaTabApi(surface, settings)
             api = current
+            // What may scroll when the score follows the music: the score's own area, which
+            // scrolls only in full screen (#113), never the page (alphaTab's default, and it
+            // keeps the first element it finds). Set here, not in the settings above: those go
+            // to alphaTab's workers, and with an element among them the score was drawn far too
+            // wide (1,202 px in a 657 px column, on one line).
+            current.settings.player.scrollElement = surface
             if (gone) {
                 current.destroy()
                 return

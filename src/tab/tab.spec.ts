@@ -885,7 +885,10 @@ describe('renderTab, full screen (#113)', () => {
         const api = made[0]!
         const surface = h.querySelector('.mn-tab-surface')!
         // The page is never what alphaTab scrolls (its default), and nothing follows at first (#89).
-        expect(api.options.player['scrollElement']).toBe(surface)
+        expect(api.settings.player['scrollElement']).toBe(surface)
+        // Not among the settings alphaTab starts with: those go to its workers, and an element
+        // there broke the drawing's width.
+        expect(api.options.player['scrollElement']).toBeUndefined()
         expect(api.options.player['scrollMode']).toBe(0)
         full(h)!.click()
         expect(result.el.classList.contains('mn-fullscreen')).toBe(true)
