@@ -337,7 +337,9 @@ type AudioContextClass = typeof AudioContext
 /** One audio context per window, made on the first play (browsers need a user gesture). */
 const contexts = new WeakMap<object, AudioContext>()
 
-function contextFor(win: Window & { AudioContext?: AudioContextClass }): AudioContext | null {
+export function contextFor(
+    win: Window & { AudioContext?: AudioContextClass }
+): AudioContext | null {
     const existing = contexts.get(win)
     if (existing) return existing
     const Ctor = win.AudioContext

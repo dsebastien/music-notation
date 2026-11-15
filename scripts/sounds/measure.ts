@@ -70,6 +70,22 @@ export function drumPattern(): alphaTab.midi.MidiFile {
     return midi
 }
 
+/**
+ * The loudest thing a diagram plays: six notes strummed 12 ms apart at velocity 100 (the open
+ * strings of a guitar), ringing two seconds, on `program`.
+ */
+export function chordPattern(program: number): alphaTab.midi.MidiFile {
+    const midi = new alphaTab.midi.MidiFile()
+    const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midi, true)
+    handler.addTempo(0, 60)
+    handler.addProgramChange(0, 0, 0, program)
+    const ticks = (seconds: number) => Math.round(seconds * midi.division)
+    ;[40, 45, 50, 55, 59, 64].forEach((key, i) =>
+        handler.addNote(0, ticks(i * 0.012), ticks(2), key, 100, 0)
+    )
+    return midi
+}
+
 /** Eight metronome clicks (key 33 of the percussion channel). */
 export function clickPattern(): alphaTab.midi.MidiFile {
     const midi = new alphaTab.midi.MidiFile()
