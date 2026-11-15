@@ -6,7 +6,8 @@
  *       [--name n] [--version v] [--format sf3|sf2] [--quality 4] [--target -21] [--reference kit.sf3]
  *
  * Writes `p000.sf3` to `p127.sf3` (bank 0), `drums.sf3` (the standard kit, bank 128 program 0),
- * `click.sf3` (the kit's metronome click alone) and `index.json`: for each file its name, bytes,
+ * `click.sf3` (the kit's metronome click alone), `index.json` (each program's file, what a player
+ * reads) and `report.json`: for each file its name, bytes,
  * loudness and the gain written into it. `sf3` (the default) compresses each sample to Ogg Vorbis
  * with ffmpeg (it must be on the PATH); `sf2` keeps the samples as they are. The files are not
  * part of this repository: the bank has its own license.
@@ -20,6 +21,7 @@ import { mkdir } from 'node:fs/promises'
 import { brotliCompressSync, constants } from 'node:zlib'
 import { cutPreset, oneSampleBank, readBank, type CutOptions, type Preset } from './sf2.js'
 import {
+    chordPattern,
     clickPattern,
     drumPattern,
     loudness,
@@ -46,8 +48,14 @@ const format = flag('format', 'sf3') === 'sf2' ? 'sf2' : 'sf3'
 const quality = flag('quality', '4')
 const target = Number(flag('target', '-21'))
 const reference = flag('reference', 'node_modules/@coderline/alphatab/dist/soundfont/sonivox.sf3')
-/** The loudest peak a gain may give, in dBFS. */
+/** The loudest peak a gain may give on the test phrase, in dBFS. */
 const HEADROOM = -1
+/**
+ * The loudest peak a gain may give on a six-note strummed chord at velocity 100 and full volume:
+ * full scale. The steel guitar brought to the target loudness peaked at +5.7 dBFS on a G chord,
+ * which clips; the phrase alone (single notes, one four-note chord) didn't show it.
+ */
+const CHORD_HEADROOM = 0
 /** The metronome click and bell of a General MIDI kit. */
 const CLICK_KEYS: [number, number] = [33, 34]
 
@@ -174,7 +182,9 @@ async function write(
     measure: ((bytes: Uint8Array) => Loudness) | null,
     wanted: number,
     options: CutOptions = {},
-    fixed?: number
+    fixed?: number,
+    /** The loudest thing it plays, when that is more than the measured phrase: its peak caps the gain. */
+    loudest?: (bytes: Uint8Array) => Loudness
 ): Promise<Entry> {
     const texts = {
         name: `${label}: ${preset.name}`,
@@ -184,8 +194,12 @@ async function write(
     let loud = measure ? measure(cut.bytes) : null
     const heard = loud !== null && Number.isFinite(loud.rms)
     if (loud) before.set(file, loud)
+    const most = heard && loudest ? loudest(cut.bytes).peak : -Infinity
     const gain =
-        fixed ?? (heard && loud ? round(Math.min(wanted - loud.rms, HEADROOM - loud.peak)) : 0)
+        fixed ??
+        (heard && loud
+            ? round(Math.min(wanted - loud.rms, HEADROOM - loud.peak, CHORD_HEADROOM - most))
+            : 0)
     if (gain) {
         cut = cutPreset(bank, preset, texts, { ...base, ...options, gain })
         if (measure) loud = measure(cut.bytes)
@@ -213,7 +227,15 @@ for (let program = 0; program < 128; program++) {
     const preset = bank.presets.find((p) => p.bank === 0 && p.program === program)
     if (!preset || (only.length && !only.includes(program))) continue
     const file = `p${String(program).padStart(3, '0')}.${format}`
-    programs[String(program)] = await write(file, preset, (b) => loudness(b, program), target)
+    programs[String(program)] = await write(
+        file,
+        preset,
+        (b) => loudness(b, program),
+        target,
+        {},
+        undefined,
+        (b) => loudnessOfMidi(b, chordPattern(program))
+    )
 }
 
 // The drum kit, as loud as the reference soundfont's; and its click alone, for the metronome and
@@ -233,27 +255,35 @@ const click = kit
     ? await write(`click.${format}`, kit, clicks, clickTarget, { keys: CLICK_KEYS })
     : null
 
-// With `--programs`, the programs written before stay in the index.
-const indexFile = Bun.file(`${out}/index.json`)
+// Two files. `report.json`: everything measured, for people. `index.json`: what a player reads
+// before its first note, as small as it can be (each program's file).
+// With `--programs`, the programs written before stay in both.
+const reportFile = Bun.file(`${out}/report.json`)
 const earlier: Record<string, Entry> =
-    only.length && (await indexFile.exists())
-        ? ((await indexFile.json()) as { programs: Record<string, Entry> }).programs
+    only.length && (await reportFile.exists())
+        ? ((await reportFile.json()) as { programs: Record<string, Entry> }).programs
         : {}
+const allPrograms = { ...earlier, ...programs }
 await Bun.write(
-    indexFile,
+    reportFile,
     JSON.stringify(
-        {
-            bank: name,
-            version,
-            format,
-            target,
-            programs: { ...earlier, ...programs },
-            drums,
-            click
-        },
+        { bank: name, version, format, target, programs: allPrograms, drums, click },
         null,
         2
     ) + '\n'
+)
+const fileOf = (entry: Entry | null) => (entry ? { file: entry.file } : null)
+await Bun.write(
+    `${out}/index.json`,
+    JSON.stringify({
+        bank: name,
+        version,
+        programs: Object.fromEntries(
+            Object.entries(allPrograms).map(([program, entry]) => [program, fileOf(entry)])
+        ),
+        drums: fileOf(drums),
+        click: fileOf(click)
+    }) + '\n'
 )
 
 // A check: before its gain, a program sounds the same from its own file as from the whole bank

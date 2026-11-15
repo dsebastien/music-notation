@@ -45,14 +45,26 @@ function pageProperties(
 
 /**
  * Playback on the page: on unless `play: false`; `play: { volume, bpm, strum, sound }` sets the
- * defaults (`strum` a number for guitar, or `{ guitar, piano }`). Diagrams use the light
- * synthesizer, or the tab bundle's soundfont once a page with tab blocks has loaded it
- * (`window.musicNotationSoundfontPlayer`).
+ * defaults (`strum` a number for guitar, or `{ guitar, piano }`). Diagrams use the tab bundle's
+ * soundfont once a page with tab blocks has loaded it (`window.musicNotationSoundfontPlayer`),
+ * else the sample player when the page names its instrument files (`play: { instruments }`), else
+ * the light synthesizer.
  */
 function pagePlay(options: unknown): false | PlayOptions {
     const given = (options as { play?: unknown } | null | undefined)?.play
     if (given === false) return false
-    const out: PlayOptions = { player: () => window.musicNotationSoundfontPlayer ?? null }
+    // The tab bundle's soundfont player once a page with tabs has it; else, when the page names
+    // a folder of instrument files (#109), the sample player, which needs no alphaTab; else the
+    // light synthesizer (null).
+    const folder = api.pageInstruments(options)
+    let sampled: NotePlayer | null = null
+    const out: PlayOptions = {
+        player: () =>
+            window.musicNotationSoundfontPlayer ??
+            (folder
+                ? (sampled ??= api.sampledPlayer(window, folder, api.lightPlayer(window)))
+                : null)
+    }
     if (given && typeof given === 'object') {
         const read = (key: string) => {
             const value = (given as Record<string, unknown>)[key]

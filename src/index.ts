@@ -69,6 +69,8 @@ export {
     type Sound,
     type SequenceOptions
 } from './playback/player.js'
+export { sampledPlayer, type SampledOptions } from './playback/sampled.js'
+export { pageInstruments, type InstrumentSource } from './tab/instruments.js'
 export { attachPlayback, type PlayOptions, type TimedBar } from './playback/controls.js'
 export { volumeChanged } from './playback/live-volume.js'
 export { attachCopy } from './playback/copy-image.js'
