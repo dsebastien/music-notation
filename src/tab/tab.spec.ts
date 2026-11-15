@@ -348,7 +348,9 @@ describe('renderTab', () => {
             'Count-in',
             'Tab',
             'Score',
-            'Both'
+            'Both',
+            // And full screen (#113).
+            'Full screen'
         ])
         expect(h.querySelector('.mn-tab-time')?.textContent).toBe('')
     })
@@ -818,5 +820,105 @@ describe('the tab and score bar looks and works like the other bars (#82)', () =
         volume = 0.1
         volumeChanged()
         expect(made[0]!.masterVolume).toBe(0.6)
+    })
+})
+
+describe('renderTab, full screen (#113)', () => {
+    const assets = {
+        scriptFile: null,
+        font: 'data:font/woff2;base64,',
+        soundFont: new Uint8Array()
+    }
+    type Made = {
+        settings: { player: Record<string, unknown> }
+        playerStateChanged: { fire(e: unknown): void }
+        updates: number
+        options: { player: Record<string, unknown> }
+    }
+    /** A fake alphaTab that keeps the APIs it makes, the settings they got, and their updates. */
+    const tracked = () => {
+        const mod = fakeAlphaTab()
+        const made: Made[] = []
+        const Base = mod.AlphaTabApi as unknown as new (...args: unknown[]) => Made
+        ;(mod as { AlphaTabApi: unknown }).AlphaTabApi = class extends Base {
+            override updates = 0
+            override options: Made['options']
+            constructor(...args: unknown[]) {
+                super(...args)
+                this.options = args[1] as Made['options']
+                made.push(this)
+            }
+            updateSettings() {
+                this.updates++
+            }
+        }
+        ;(mod as unknown as { synth: unknown }).synth = { PlayerState: { Paused: 0, Playing: 1 } }
+        return { mod, made }
+    }
+    const full = (h: HTMLElement) =>
+        h.querySelector<HTMLButtonElement>('.mn-tab-bar button[aria-label="Full screen"]')
+
+    it('has a Full screen button at the end of the bar, unless the app turns it off', async () => {
+        const h = document.createElement('div')
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: fakeAlphaTab(), assets })
+        await result.ready
+        const buttons = [...h.querySelectorAll('.mn-tab-bar button')]
+        expect(buttons.at(-1)).toBe(full(h)!)
+        result.destroy()
+        const off = document.createElement('div')
+        const none = renderTab('tab', ':4 3.3', off, {
+            alphaTab: fakeAlphaTab(),
+            assets,
+            fullScreen: false
+        })
+        await none.ready
+        expect(full(off)).toBeNull()
+        none.destroy()
+    })
+
+    it("scrolls only the score's own area, and only in full screen", async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: mod, assets })
+        await result.ready
+        const api = made[0]!
+        const surface = h.querySelector('.mn-tab-surface')!
+        // The page is never what alphaTab scrolls (its default), and nothing follows at first (#89).
+        expect(api.options.player['scrollElement']).toBe(surface)
+        expect(api.options.player['scrollMode']).toBe(0)
+        full(h)!.click()
+        expect(result.el.classList.contains('mn-fullscreen')).toBe(true)
+        expect(api.settings.player['scrollMode']).toBe(2)
+        expect(api.updates).toBe(1)
+        // A scroll by hand stops it; the music playing starts it again.
+        surface.dispatchEvent(new Event('wheel'))
+        expect(api.settings.player['scrollMode']).toBe(0)
+        api.playerStateChanged.fire({ state: 0 })
+        expect(api.settings.player['scrollMode']).toBe(0)
+        api.playerStateChanged.fire({ state: 1 })
+        expect(api.settings.player['scrollMode']).toBe(2)
+        full(h)!.click()
+        expect(result.el.classList.contains('mn-fullscreen')).toBe(false)
+        expect(api.settings.player['scrollMode']).toBe(0)
+        // Out of full screen, playing never turns it on.
+        api.playerStateChanged.fire({ state: 1 })
+        expect(api.settings.player['scrollMode']).toBe(0)
+        result.destroy()
+        h.remove()
+    })
+
+    it('a block removed in full screen leaves it', async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: mod, assets })
+        await result.ready
+        full(h)!.click()
+        const el = result.el
+        result.destroy()
+        expect(el.classList.contains('mn-fullscreen')).toBe(false)
+        expect(made[0]!.settings.player['scrollMode']).toBe(0)
+        h.remove()
     })
 })

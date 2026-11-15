@@ -18,13 +18,16 @@ export const ICONS = {
     /** Beats, for the click. */
     click: 'M3 5v6M8 5v6M13 5v6',
     /** A picture: Copy as image (#11). */
-    copy: 'M2.5 3.5h11v9h-11zM2.5 11l3.5-3.5 3 3 2-2 2.5 2.5M10.5 6.5h.01'
+    copy: 'M2.5 3.5h11v9h-11zM2.5 11l3.5-3.5 3 3 2-2 2.5 2.5M10.5 6.5h.01',
+    /** Four corners pointing out: full screen (#113); pointing in: leave it. */
+    full: 'M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10',
+    exit: 'M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5'
 } as const
 
 export type IconName = keyof typeof ICONS
 
 /** Icons drawn as lines; the others are filled shapes. */
-const STROKED = new Set<IconName>(['loop', 'count', 'click', 'copy'])
+const STROKED = new Set<IconName>(['loop', 'count', 'click', 'copy', 'full', 'exit'])
 
 export function icon(doc: Document, name: IconName): SVGElement {
     const root = svg(doc, 'svg', {
