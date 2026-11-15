@@ -17,6 +17,7 @@ import { pageInstruments } from './instruments.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
+import { pageFullScreen } from '../playback/full-screen.js'
 
 declare global {
     interface Window {
@@ -98,7 +99,8 @@ function renderAllTabs(doc: Document): void {
                 const result = renderTab(language, source, holder, {
                     alphaTab,
                     assets,
-                    volume: () => pageVolume() ?? DEFAULT_VOLUME
+                    volume: () => pageVolume() ?? DEFAULT_VOLUME,
+                    fullScreen: pageFullScreen(window.musicNotationOptions)
                 })
                 drawn.set(pre, { result, source, holder })
                 void result.ready.then(({ ok }) => {

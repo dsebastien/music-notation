@@ -129,6 +129,12 @@ export interface RenderOptions extends LayoutDefaults {
      */
     copy?: boolean
     /**
+     * Full screen (#113), on by default: a button on each block's bar that makes the block fill
+     * the screen, zoomed to fit it. Without `play`, it goes on the small bar of Copy as image.
+     * `false` leaves it out. Tabs and scores have their own (`renderTab`'s `fullScreen`).
+     */
+    fullScreen?: boolean
+    /**
      * The chords used row of `chords` blocks, when a chart has no `{diagrams}`: `'top'`,
      * `'bottom'` or `'off'` (the default). Guitar or piano diagrams follow `instrument`.
      */

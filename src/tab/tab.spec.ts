@@ -120,6 +120,7 @@ function fakeAlphaTab(error?: unknown): AlphaTabModule {
     }
     class Api {
         renderFinished = emitter()
+        postRenderFinished = emitter()
         error = emitter()
         playerStateChanged = emitter()
         playerPositionChanged = emitter()

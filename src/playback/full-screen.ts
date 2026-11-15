@@ -1,14 +1,15 @@
 /**
- * Full screen for a tab or a score (#113): a button on the player bar makes the block fill the
- * screen, so the score is laid out again at the screen's width (many more bars a line on a wide
- * screen) and several lines show at once. The score scrolls in an area of its own there, by hand
- * and with the music, and the bar stays at the bottom.
+ * Full screen for a block (#113): a button on the block's bar makes the block fill the screen. A
+ * tab or a score is laid out again at the screen's width (many more bars a line on a wide screen)
+ * and scrolls in an area of its own, by hand and with the music; other blocks (diagrams, charts,
+ * patterns, progressions, the circle of fifths) grow to fill the screen (`blockFullScreen`). The bar
+ * stays at the bottom.
  *
  * The browser's own full screen is asked for; when it refuses (an embedded page, an iPhone) or
  * doesn't have it, the block covers the window instead, with the same style (`mn-fullscreen`).
  * Nothing here knows alphaTab: `follow` turns the score's following on and off.
  */
-import { icon, iconButton } from '../playback/bar-parts.js'
+import { icon, iconButton } from './bar-parts.js'
 
 export interface FullScreen {
     /** The bar's button. */
@@ -37,9 +38,19 @@ function backgroundBehind(el: HTMLElement): string {
     return ''
 }
 
+export interface FullScreenOptions {
+    /**
+     * Whether the block is drawn again at its own size after full screen (a score: true, the
+     * default). It then keeps its height until `drawn()`, so the page doesn't move.
+     */
+    redraws?: boolean
+    /** Called after the block entered (true) or left (false) full screen. */
+    changed?: (on: boolean) => void
+}
+
 /**
- * The full screen control of a tab block. `block` fills the screen and `surface` (the score)
- * becomes its scroll area. `follow(true)` is called when the score may follow the music (in full
+ * The full screen control of a block. `block` fills the screen and `surface` (a score's drawing,
+ * or the block itself) becomes its scroll area. `follow(true)` is called when the score may follow the music (in full
  * screen, where only its own area scrolls), `follow(false)` when it must not: out of full screen
  * (the page never moves, #89), and after a scroll by hand, until the music plays again.
  */
@@ -47,10 +58,13 @@ export function fullScreenControl(
     doc: Document,
     block: HTMLElement,
     surface: HTMLElement,
-    follow: (on: boolean) => void
+    follow: (on: boolean) => void = () => {},
+    options: FullScreenOptions = {}
 ): FullScreen {
+    const redraws = options.redraws !== false
     const win = doc.defaultView
     const button = iconButton(doc, 'mn-tab-full', 'Full screen', 'full')
+    button.classList.add('mn-play-full')
     let on = false
     /** Whether the browser's full screen holds the block (else the block covers the window). */
     let browser = false
@@ -104,6 +118,7 @@ export function fullScreenControl(
         surface.tabIndex = 0
         surface.focus({ preventScroll: true })
         setFollow(true)
+        options.changed?.(true)
         try {
             // Refused or missing: the block covers the window, with the same style.
             void block.requestFullscreen?.().catch(() => {})
@@ -120,8 +135,10 @@ export function fullScreenControl(
         // The block comes back as tall as it was, until its score is drawn again at its width
         // (it is still laid out for the screen, a few lines high): the page doesn't move.
         if (place) {
-            block.style.minHeight = place.style.height
-            held = true
+            if (redraws) {
+                block.style.minHeight = place.style.height
+                held = true
+            }
             place.remove()
             place = null
         }
@@ -132,6 +149,7 @@ export function fullScreenControl(
         // The block left the page's flow and comes back: the page is where it was.
         if (before && win) win.scrollTo(before.x, before.y)
         before = null
+        options.changed?.(false)
         if (focus) button.focus({ preventScroll: true })
     }
     button.addEventListener('click', () => (on ? leave() : enter()))
@@ -173,4 +191,103 @@ export function fullScreenControl(
             doc.removeEventListener('fullscreenchange', changed)
         }
     }
+}
+
+/** The zooms a block may take in full screen, largest first. */
+const ZOOMS = [4, 3.5, 3, 2.5, 2.25, 2, 1.75, 1.5, 1.25, 1]
+/** The largest zoom of a block too tall for the screen at every zoom: bigger, and it scrolls. */
+const TALL_ZOOM = 1.5
+
+/**
+ * The zoom of a block in full screen: the largest that fits the screen, both ways. A block that
+ * never fits (a long chart) takes the largest zoom up to `TALL_ZOOM` whose width fits, and
+ * scrolls. `fits(zoom)` says how the block fits at that zoom.
+ */
+export function chooseZoom(fits: (zoom: number) => { width: boolean; height: boolean }): number {
+    const wide: number[] = []
+    for (const zoom of ZOOMS) {
+        const fit = fits(zoom)
+        if (fit.width && fit.height) return zoom
+        if (fit.width) wide.push(zoom)
+    }
+    return wide.find((zoom) => zoom <= TALL_ZOOM) ?? 1
+}
+
+/**
+ * Full screen for a block that isn't a score: diagrams, a chart, a pattern, a progression, the
+ * circle of fifths. Nothing is drawn again: what the block holds is zoomed (CSS `zoom`, so text
+ * wraps again and drawings stay sharp) to the largest size that fits the screen, and again when
+ * the screen's size changes. The bar keeps its size, at the bottom.
+ */
+export function blockFullScreen(doc: Document, block: HTMLElement): FullScreen {
+    const win = doc.defaultView
+    let frame = 0
+    const fit = () => {
+        frame = 0
+        if (!block.classList.contains('mn-fullscreen')) return
+        const zoom = chooseZoom((z) => {
+            block.style.setProperty('--mn-zoom', String(z))
+            return {
+                width: block.scrollWidth <= block.clientWidth + 1,
+                height: block.scrollHeight <= block.clientHeight + 1
+            }
+        })
+        block.style.setProperty('--mn-zoom', String(zoom))
+        // A bar inside what is zoomed (a chart's) keeps its own size.
+        for (const bar of nested()) bar.style.setProperty('zoom', String(1 / zoom))
+    }
+    const nested = () => [
+        ...block.querySelectorAll<HTMLElement>(':scope > :not(.mn-play) .mn-play')
+    ]
+    /** After the browser laid the block out at the screen's size. */
+    const later = () => {
+        if (!win || frame) return
+        frame = win.requestAnimationFrame(fit)
+    }
+    const control = fullScreenControl(doc, block, block, undefined, {
+        redraws: false,
+        changed: (on) => {
+            block.classList.toggle('mn-fullscreen-fit', on)
+            if (on) {
+                fit()
+                later()
+                win?.addEventListener('resize', later)
+            } else {
+                win?.removeEventListener('resize', later)
+                block.style.removeProperty('--mn-zoom')
+                for (const bar of nested()) bar.style.removeProperty('zoom')
+            }
+        }
+    })
+    return {
+        ...control,
+        destroy: () => {
+            control.destroy()
+            win?.removeEventListener('resize', later)
+            if (frame) win?.cancelAnimationFrame(frame)
+        }
+    }
+}
+
+/**
+ * Puts the Full screen button at the end of a block's bar (#113), unless `on` is false or the block
+ * has one already (a chart's diagrams and its timed bar share the block). Returns a function that
+ * frees it.
+ */
+export function addFullScreen(
+    doc: Document,
+    bar: HTMLElement,
+    block: Element | null,
+    on = true
+): () => void {
+    if (!on || !block || block.querySelector('.mn-play-full')) return () => {}
+    const full = blockFullScreen(doc, block as HTMLElement)
+    bar.appendChild(full.button)
+    return () => full.destroy()
+}
+
+/** Full screen on a web page (#113): on unless the page options say `fullScreen: false`. */
+export function pageFullScreen(options: unknown): boolean {
+    if (!options || typeof options !== 'object') return true
+    return (options as Record<string, unknown>)['fullScreen'] !== false
 }

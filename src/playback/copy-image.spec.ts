@@ -132,10 +132,12 @@ describe('Copy as image on every bar that draws (#11)', () => {
     const lastControl = (bar: Element) =>
         [...bar.children].filter((c) => !c.classList.contains('mn-play-said')).pop()
 
-    it('ends the block bar, after the sound', () => {
+    it('ends the block bar, after the sound; Full screen comes after it (#113)', () => {
         const { el } = renderBlock('chord', 'A x02220\n---\nD xx0232', host(), { play: {} })
         const bar = el.querySelector('.mn-block-bar')!
-        expect(lastControl(bar)!.classList.contains('mn-play-copy')).toBe(true)
+        const buttons = [...bar.querySelectorAll('button')]
+        expect(buttons.at(-2)!.classList.contains('mn-play-copy')).toBe(true)
+        expect(lastControl(bar)!.classList.contains('mn-play-full')).toBe(true)
         expect(bar.querySelector('.mn-play-said')).not.toBeNull()
     })
 
@@ -191,11 +193,14 @@ describe('Copy as image without playback (#11)', () => {
             const bar = bars[0]!
             expect(bar.classList.contains('mn-copy-bar')).toBe(true)
             expect(bar.classList.contains('mn-play-static')).toBe(true)
-            // Only the button and its message: nothing plays.
-            expect([...bar.children].map((c) => c.className)).toEqual([
+            // Only the button, its message and Full screen (#113): nothing plays.
+            const parts = [...bar.children]
+            expect(parts.map((c) => c.classList[0])).toEqual([
                 'mn-play-copy',
-                'mn-play-said'
+                'mn-play-said',
+                'mn-tab-full'
             ])
+            expect(parts[2]!.classList.contains('mn-play-full')).toBe(true)
             // The last thing of the block, after what it draws.
             expect(el.lastElementChild).toBe(bar)
         }
@@ -203,7 +208,10 @@ describe('Copy as image without playback (#11)', () => {
 
     it('copies the whole block, with or without Shift (no diagram is selected)', async () => {
         clipboard('takes')
-        const { el } = renderBlock('chord', 'A x02220\n---\nD xx0232', host(), { copy: false })
+        const { el } = renderBlock('chord', 'A x02220\n---\nD xx0232', host(), {
+            copy: false,
+            fullScreen: false
+        })
         const made: Element[] = []
         attachCopy(el, (target) => {
             made.push(target)

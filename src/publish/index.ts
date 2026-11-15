@@ -38,9 +38,13 @@ function fingerprint(text: string): string {
     return `${text.length}:${hash.toString(36)}`
 }
 
-/** The rendering that follows a `<pre>`, if it's still there. */
+/**
+ * The rendering that follows a `<pre>`, if it's still there. A block in full screen (#113) has its
+ * place kept by a placeholder between the two: it is still there.
+ */
 const renderingOf = (pre: HTMLElement): Element | null => {
-    const next = pre.nextElementSibling
+    let next = pre.nextElementSibling
+    if (next?.classList.contains('mn-fullscreen-place')) next = next.nextElementSibling
     return next?.classList.contains('mn-block') ? next : null
 }
 

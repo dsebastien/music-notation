@@ -18,7 +18,8 @@ import {
     volumeOf
 } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
-import { fullScreenControl } from './full-screen.js'
+import { fullScreenControl } from '../playback/full-screen.js'
+import { scoreFit } from './score-fit.js'
 import {
     instrumentSounds,
     soundsOfScore,
@@ -787,11 +788,55 @@ export function renderTab(
                     if (options.fullScreen !== false) {
                         // In full screen the score follows the music: only its own area scrolls
                         // there. Out of it, the page never moves (#89).
-                        const full = fullScreenControl(doc, el, surface, (on) => {
-                            current.settings.player.scrollMode = on
-                                ? at.ScrollMode.OffScreen
-                                : at.ScrollMode.Off
-                            current.updateSettings()
+                        // The score uses the screen there: its last line stretched, and larger
+                        // while it fits (a short score stayed small at the left).
+                        let page: { scale: number; fill: number } | null = null
+                        const fit = scoreFit(
+                            (scale, stretch) => {
+                                const display = current.settings.display as
+                                    typeof current.settings.display | undefined
+                                // Nothing to draw again once the block is gone.
+                                if (gone || !display) return
+                                page ??= {
+                                    scale: display.scale,
+                                    fill: display.lastSystemFillThreshold
+                                }
+                                display.scale = stretch ? scale : page.scale
+                                display.lastSystemFillThreshold = stretch ? 0 : page.fill
+                                current.updateSettings()
+                                current.render()
+                            },
+                            () => surface.scrollHeight <= surface.clientHeight + 1
+                        )
+                        const full = fullScreenControl(
+                            doc,
+                            el,
+                            surface,
+                            (on) => {
+                                current.settings.player.scrollMode = on
+                                    ? at.ScrollMode.OffScreen
+                                    : at.ScrollMode.Off
+                                current.updateSettings()
+                            },
+                            { changed: (on) => (on ? fit.enter() : fit.leave()) }
+                        )
+                        // Once the drawing is in the page (alphaTab sets its area's size last).
+                        current.postRenderFinished.on(() => {
+                            // alphaTab 1.9.0 gives its drawing area the wrong height at a scale
+                            // above 1 (half of it at 2), and the area hides the rest: it gets the
+                            // height of its parts.
+                            const area = surface.querySelector<HTMLElement>('.at-surface')
+                            if (area && full.active()) {
+                                const bottom = Math.max(
+                                    0,
+                                    ...[...area.children].map((part) => {
+                                        const p = part as HTMLElement
+                                        return p.offsetTop + p.offsetHeight
+                                    })
+                                )
+                                if (bottom > area.offsetHeight) area.style.height = `${bottom}px`
+                            }
+                            fit.drawn()
                         })
                         current.playerStateChanged.on((e) => {
                             if (Number(e.state) === Number(at.synth.PlayerState.Playing))

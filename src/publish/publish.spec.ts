@@ -31,6 +31,19 @@ describe('renderAll', () => {
         expect(document.querySelectorAll('.mn-block')).toHaveLength(1)
     })
 
+    it('leaves a block in full screen as it is: its placeholder is not a change (#113)', () => {
+        const pre = block('chord', 'A x02220')
+        document.body.append(pre)
+        renderAll(document, { play: true })
+        const drawn = pre.nextElementSibling as HTMLElement
+        ;(drawn.querySelector('.mn-play-full') as HTMLButtonElement).click()
+        expect(pre.nextElementSibling?.classList.contains('mn-fullscreen-place')).toBe(true)
+        expect(renderAll(document, { play: true })).toBe(0)
+        expect(drawn.isConnected).toBe(true)
+        expect(drawn.classList.contains('mn-fullscreen')).toBe(true)
+        expect(document.querySelectorAll('.mn-block')).toHaveLength(1)
+    })
+
     it('keeps the source visible when a block has an error', () => {
         const pre = block('chord', 'A')
         document.body.append(pre)
