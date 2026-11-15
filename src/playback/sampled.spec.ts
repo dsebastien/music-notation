@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { InstrumentSource } from '../tab/instruments.js'
 import type { NoteEvent, NotePlayer } from './player.js'
-import { sampledPlayer } from './sampled.js'
+import { loopWithin, sampledPlayer } from './sampled.js'
 import { amount, range, soundfontBytes, type FixtureZone } from './soundfont.fixture.js'
 
 type Call = [string, ...number[]]
@@ -20,7 +20,7 @@ interface FakeSource {
 }
 
 /** An audio context that keeps what was asked of it. `currentTime` is 10. */
-function fakeContext(decodes = true) {
+function fakeContext(decodes = true, seconds = 1) {
     const param = (value: number): Param & Record<string, unknown> => {
         const calls: Call[] = []
         return {
@@ -95,8 +95,10 @@ function fakeContext(decodes = true) {
         },
         decodeAudioData() {
             log.decoded++
-            // One second of sound, whatever the bytes.
-            return decodes ? Promise.resolve({ duration: 1 }) : Promise.reject(new Error('no'))
+            // One second of sound by default, whatever the bytes.
+            return decodes
+                ? Promise.resolve({ duration: seconds })
+                : Promise.reject(new Error('no'))
         }
     }
     return { ctx: ctx as unknown as BaseAudioContext, log }
@@ -368,5 +370,38 @@ describe('the sample player (#109)', () => {
         expect(ended).toBe(0)
         await wait(150)
         expect(ended).toBe(1)
+    })
+})
+
+describe('a loop inside the decoded sample (#128)', () => {
+    it('stays as it is when the buffer holds it', () => {
+        expect(loopWithin({ start: 0.1, end: 0.2 }, 1)).toEqual({ start: 0.1, end: 0.2 })
+        expect(loopWithin({ start: 0.1, end: 0.2 }, 0.2)).toEqual({ start: 0.1, end: 0.2 })
+    })
+
+    it('moves back as a whole when the buffer is shorter than its end, so its length stays', () => {
+        const loop = loopWithin({ start: 0.5, end: 0.6 }, 0.58)!
+        expect(loop.end).toBe(0.58)
+        expect(loop.start).toBeCloseTo(0.48)
+        expect(loop.end - loop.start).toBeCloseTo(0.1)
+    })
+
+    it('no loop when there is none, or no room for it', () => {
+        expect(loopWithin(undefined, 1)).toBeNull()
+        expect(loopWithin({ start: 0.2, end: 0.2 }, 1)).toBeNull()
+        expect(loopWithin({ start: 0.02, end: 0.6 }, 0.5)).toBeNull()
+    })
+
+    it('a sample the browser decodes shorter than its loop end loops on what it has', async () => {
+        // The guitar's loop is 0.1 to 0.2 s of its sample; the browser gives 0.19 s.
+        const { ctx, log } = fakeContext(true, 0.19)
+        const { source } = folder()
+        const player = sampledPlayer(window, source, fallback().player, { context: () => ctx })
+        player.play(note, { sound: 'guitar', volume: 0.8 })
+        await wait()
+        const s = log.sources[0]!
+        expect(s.loop).toBe(true)
+        expect(s.loopStart).toBeCloseTo(0.09)
+        expect(s.loopEnd).toBeCloseTo(0.19)
     })
 })

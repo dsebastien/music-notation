@@ -19,7 +19,7 @@
  */
 import { mkdir } from 'node:fs/promises'
 import { brotliCompressSync, constants } from 'node:zlib'
-import { cutPreset, oneSampleBank, readBank, type CutOptions, type Preset } from './sf2.js'
+import { cutPreset, oneSampleBank, readBank, TAIL, type CutOptions, type Preset } from './sf2.js'
 import {
     chordPattern,
     clickPattern,
@@ -98,7 +98,14 @@ const alone = (index: number, ogg?: Uint8Array): number => {
     const one = oneSampleBank(bank, index)
     const texts = { name: 'sample', comment: 'check' }
     try {
-        const cut = cutPreset(one.bank, one.preset, texts, ogg ? { encode: () => ogg } : {})
+        // The points with the same tail as the compressed form (#128): played alone, without
+        // its loop, a sample plays its tail too.
+        const cut = cutPreset(
+            one.bank,
+            one.preset,
+            texts,
+            ogg ? { encode: () => ogg } : { tail: true }
+        )
         return loudness(cut.bytes, 0, noteOf(one.key)).rms
     } catch {
         // alphaTab refused the stream.
@@ -140,7 +147,8 @@ const encode = (points: Uint8Array, rate: number, index: number): Uint8Array | n
         }
         if (!ogg) kept.wrong++
     } else kept.unchecked++
-    if (!ogg) kept.bytes += points.length
+    // The points without the tail they were given to be compressed (it is not written then).
+    if (!ogg) kept.bytes += points.length - TAIL * 2
     encoded.set(index, ogg)
     return ogg
 }

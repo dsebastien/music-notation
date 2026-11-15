@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { cutPreset, oneSampleBank, readBank } from './sf2.js'
+import { cutPreset, oneSampleBank, readBank, TAIL, withTail } from './sf2.js'
 
 const enc = new TextEncoder()
 
@@ -205,9 +205,10 @@ describe('cutting one preset out of a bank (#108)', () => {
                 return index === 1 ? ogg : null
             }
         })
+        // Each sample is given with its tail (TAIL points of 2 bytes).
         expect(seen).toEqual([
-            [6, 22050, 1],
-            [4, 32000, 2]
+            [6 + TAIL * 2, 22050, 1],
+            [4 + TAIL * 2, 32000, 2]
         ])
         const own = readBank(cut.bytes)
         expect(own.compressed).toBe(true)
@@ -298,5 +299,60 @@ describe('cutting one preset out of a bank (#108)', () => {
         expect(own.presets).toEqual([{ name: 'sample', program: 0, bank: 0, index: 0 }])
         expect(headers(own.tables['shdr']!).map((s) => s.name)).toEqual(['s1'])
         expect(u16s(own.smpl.subarray(0, 6))).toEqual([10, 20, 30])
+    })
+})
+
+describe('the tail after a compressed sample (#128)', () => {
+    const pcm = (points: number[]) => {
+        const out = new Uint8Array(points.length * 2)
+        const v = new DataView(out.buffer)
+        points.forEach((p, i) => v.setInt16(i * 2, p, true))
+        return out
+    }
+    const points = (bytes: Uint8Array) => {
+        const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.length)
+        return Array.from({ length: bytes.length / 2 }, (_, i) => v.getInt16(i * 2, true))
+    }
+
+    it('a looped sample goes on as its loop, so a decoder that drops its end loses only the tail', () => {
+        // Points 0 to 5; the loop is points 2 to 4 (its end is the point after it), point 5 after it.
+        const out = points(withTail(pcm([10, 20, 30, 40, -50, 30]), [2, 5]))
+        expect(out.length).toBe(6 + TAIL)
+        expect(out.slice(0, 6)).toEqual([10, 20, 30, 40, -50, 30])
+        // Point 5 is point 2 of the loop again: the tail goes on from point 6 as point 3, 4, 2…
+        expect(out.slice(6, 12)).toEqual([40, -50, 30, 40, -50, 30])
+        // Every point of the tail is the loop's point one loop length before it.
+        for (let k = 6; k < out.length; k++) expect(out[k]).toBe(out[k - 3])
+    })
+
+    it('a sample without a loop, or with a loop past its end, goes on in silence', () => {
+        expect(points(withTail(pcm([5, 6]), [0, 0])).slice(0, 4)).toEqual([5, 6, 0, 0])
+        expect(points(withTail(pcm([5, 6]), [0, 9])).every((p, i) => i < 2 || p === 0)).toBe(true)
+    })
+
+    it('the loop of a compressed sample still counts from its start; the tail is not in it', () => {
+        const bank = readBank(bankBytes())
+        let given: Uint8Array = new Uint8Array()
+        const cut = cutPreset(bank, bank.presets[1]!, texts, {
+            encode: (p, _rate, index) => {
+                if (index === 1) given = p
+                return index === 1 ? Uint8Array.from([0x4f, 0x67, 0x67]) : null
+            }
+        })
+        expect(headers(readBank(cut.bytes).tables['shdr']!)[0]!.loop).toEqual([0, 2])
+        // s1's three points, then its loop (points 0 and 1) turn after turn.
+        const p = points(given)
+        expect(p.length).toBe(3 + TAIL)
+        for (let k = 3; k < p.length; k++) expect(p[k]).toBe(p[k % 2])
+    })
+
+    it('a check can give uncompressed samples the same tail, to compare them as they play', () => {
+        const bank = readBank(bankBytes())
+        const own = readBank(cutPreset(bank, bank.presets[1]!, texts, { tail: true }).bytes)
+        const [s1, s2] = headers(own.tables['shdr']!)
+        // s1: 3 points and the tail; its loop stays where it was.
+        expect([s1!.start, s1!.end, s1!.loop]).toEqual([0, 3 + TAIL, [0, 2]])
+        // s2 starts after s1, its tail and the silent points between two samples.
+        expect(s2!.end - s2!.start).toBe(2 + TAIL)
     })
 })

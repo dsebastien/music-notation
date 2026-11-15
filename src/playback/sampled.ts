@@ -41,6 +41,26 @@ const LONGEST_RELEASE = 2.5
 /** The volume envelope's floor: 100 dB down is silence. */
 const SILENCE = 1e-5
 
+/**
+ * A sample's loop inside its decoded buffer (#128), in seconds. Browsers may decode an Ogg Vorbis
+ * sample a little shorter than it was (Chrome drops up to about 230 points at its end), and a loop
+ * whose end is past the buffer's end then jumps from the wrong point at each turn: a buzz while
+ * the note rings. Such a loop moves back as a whole, so it keeps its length: a held sound repeats
+ * about every loop length, so its two ends still meet. Null: no loop (none, or no room for it).
+ * The instrument files keep a tail after each compressed sample (`scripts/sounds`), so this only
+ * saves older files.
+ */
+export function loopWithin(
+    loop: { start: number; end: number } | undefined,
+    duration: number
+): { start: number; end: number } | null {
+    if (!loop || !(loop.end > loop.start)) return null
+    if (loop.end <= duration) return loop
+    const back = loop.end - duration
+    if (loop.start - back < 0) return null
+    return { start: loop.start - back, end: duration }
+}
+
 export interface SampledOptions {
     /**
      * The audio context to play in (a function, called at each play); the window's own by
@@ -146,11 +166,13 @@ export function sampledPlayer(
             2,
             ((key - region.rootKey) * region.scale + region.tune) / 1200
         )
-        const loop = voice.loops.get(region.sample)
-        if (region.loop && loop && loop.end > loop.start) {
+        const loop = region.loop
+            ? loopWithin(voice.loops.get(region.sample), buffer.duration)
+            : null
+        if (loop) {
             source.loop = true
             source.loopStart = loop.start
-            source.loopEnd = Math.min(loop.end, buffer.duration)
+            source.loopEnd = loop.end
         }
         // The level alphaTab gives a note: velocity as a linear gain, the attenuation taken off,
         // and its share of a note in the middle of the stereo field (each side gets 0.707).

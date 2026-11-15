@@ -16,6 +16,35 @@ const GEN_ATTENUATION = 48
 const GEN_SAMPLE = 53
 /** Silent points after each sample (the format asks for at least 46). */
 const PAD = 46
+/**
+ * Points added after each sample before it is compressed (#128). Browsers decode an Ogg Vorbis
+ * stream a little shorter than it was: Chrome drops up to about 230 points at its end. A loop ends
+ * close to its sample's end (often 20 points before it), so the loop's end was lost and the sample
+ * player looped from the wrong point: a buzz while a note rang. What a decoder drops is now this
+ * tail, never the sample.
+ */
+export const TAIL = 1024
+
+/**
+ * A sample's 16-bit points with `TAIL` points after its end. A looped sample goes on as its loop
+ * goes on (the points after its end are the loop's, turn after turn), so the encoder sees no jump
+ * near the loop; a sample without a loop goes on in silence. `loop` counts from the sample's start.
+ */
+export function withTail(pcm: Uint8Array, loop: [number, number]): Uint8Array {
+    const n = pcm.length >> 1
+    const out = new Uint8Array((n + TAIL) * 2)
+    out.set(pcm.subarray(0, n * 2))
+    const [start, end] = loop
+    if (!(end > start) || start < 0 || end > n) return out
+    const length = end - start
+    for (let k = 0; k < TAIL; k++) {
+        // Where point n + k falls in the loop, counted from the loop's start.
+        const from = start + ((n + k - start) % length)
+        out[(n + k) * 2] = pcm[from * 2]!
+        out[(n + k) * 2 + 1] = pcm[from * 2 + 1]!
+    }
+    return out
+}
 
 const SIZE = { phdr: 38, bag: 4, mod: 10, gen: 4, inst: 22, shdr: 46 } as const
 
@@ -250,6 +279,11 @@ export interface CutOptions {
     gain?: number
     /** Keeps only what plays these keys (lowest, highest): a drum kit's click alone. */
     keys?: [number, number]
+    /**
+     * Gives the samples kept uncompressed the tail a compressed one gets (`withTail`), so the two
+     * can be compared as they play: a check of a compressed sample against its points.
+     */
+    tail?: boolean
 }
 
 /**
@@ -264,7 +298,7 @@ export function cutPreset(
     options: CutOptions = {}
 ): Cut {
     if (bank.compressed) throw new Error('A SoundFont 3 file: its samples are compressed')
-    const { encode, gain, keys } = options
+    const { encode, gain, keys, tail } = options
     const t = bank.tables
     const [p0, p1] = zonesOf(t['phdr']!, SIZE.phdr, 24, preset.index)
     const has = (zone: Zone, oper: number) => zone.gens.some(([o]) => o === oper)
@@ -348,23 +382,28 @@ export function cutPreset(
         total += (end - start) / rate
         if ((type & 1) === 0) notMono++
         headers.bytes(shdr.subarray(at, at + 20))
-        const ogg = encode ? encode(pcm, rate, s) : null
+        const loop: [number, number] = [
+            sv.getUint32(at + 28, true) - start,
+            sv.getUint32(at + 32, true) - start
+        ]
+        const ogg = encode ? encode(withTail(pcm, loop), rate, s) : null
         if (ogg) {
             headers.u32(points.length)
             headers.u32(points.length + ogg.length)
             // Loops count from the sample's own start.
-            headers.u32(sv.getUint32(at + 28, true) - start)
-            headers.u32(sv.getUint32(at + 32, true) - start)
+            headers.u32(loop[0])
+            headers.u32(loop[1])
             points.bytes(ogg)
         } else {
             // Uncompressed points are found by their number: they start on an even byte.
             if (points.length % 2) points.bytes(new Uint8Array(1))
             const shift = points.length / 2 - start
+            const raw = tail ? withTail(pcm, loop) : pcm
             headers.u32(start + shift)
-            headers.u32(end + shift)
+            headers.u32(start + shift + raw.length / 2)
             headers.u32(sv.getUint32(at + 28, true) + shift)
             headers.u32(sv.getUint32(at + 32, true) + shift)
-            points.bytes(pcm)
+            points.bytes(raw)
             points.bytes(new Uint8Array(PAD * 2))
         }
         headers.bytes(shdr.subarray(at + 36, at + 42))
