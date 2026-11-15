@@ -19,6 +19,12 @@ import {
 } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
 import { fullScreenControl } from './full-screen.js'
+import {
+    instrumentSounds,
+    soundsOfScore,
+    type InstrumentSource,
+    type Sounds
+} from './instruments.js'
 
 export type AlphaTabModule = typeof AT
 
@@ -42,6 +48,55 @@ export interface TabAssets {
     font: string
     /** The soundfont: its bytes or a URL. */
     soundFont: Uint8Array | string
+    /**
+     * One soundfont per instrument (#108): the folder made by `scripts/sounds/split-soundfont.ts`
+     * (its URL, or a function that reads one of its files). A score, and the diagrams' player,
+     * then load only the instruments they play; `soundFont` is what plays when the folder can't
+     * be read or lacks one of them.
+     */
+    instruments?: InstrumentSource
+}
+
+/**
+ * Loads the sounds of `sounds` into an alphaTab API whose player is on: the instrument files when
+ * `assets.instruments` has them all, else the whole soundfont (the result says which). Resolves
+ * once alphaTab took them (each file is one `soundFontLoaded`); rejects when nothing can be read.
+ * `add` keeps what the player has (sounds loaded later); else the first file replaces it.
+ */
+async function loadSounds(
+    api: AT.AlphaTabApi,
+    doc: Document,
+    assets: TabAssets,
+    sounds: Sounds,
+    add = false
+): Promise<'instruments' | 'whole'> {
+    const win = doc.defaultView
+    const made = local(doc)
+    let files: Uint8Array[] | null = null
+    if (assets.instruments && win) files = await instrumentSounds(assets.instruments, sounds, win)
+    const kind = files ? 'instruments' : 'whole'
+    if (!files) {
+        if (typeof assets.soundFont === 'string') {
+            try {
+                const response = await win?.fetch(assets.soundFont)
+                files = response?.ok ? [new Uint8Array(await response.arrayBuffer())] : null
+            } catch {
+                files = null
+            }
+            if (!files) throw new Error(`Couldn't load the soundfont (${assets.soundFont})`)
+        } else files = [assets.soundFont]
+    }
+    const all = files
+    let taken = 0
+    await new Promise<void>((resolve) => {
+        api.soundFontLoaded.on(() => {
+            if (++taken >= all.length) resolve()
+        })
+        // A player that never says so plays anyway.
+        setTimeout(resolve, 8000)
+        all.forEach((bytes, i) => api.loadSoundFont(made.bytes(bytes), add || i > 0))
+    })
+    return kind
 }
 
 export interface TabOptions {
@@ -393,21 +448,50 @@ function playerBar(
     const bar = playBar(doc, 'mn-tab-bar', 'Playback')
     const state = { loop: false, metronome: false, countIn: false, speed: 1 }
     const level = () => volumeOf(volume)
+    /** Says on the Play button why playback can't happen; the score stays. */
+    let cant: (message: string) => void = () => {}
     let started: Promise<boolean> | null = null
     /** Settles the start when playback can't happen (alphaTab reports it as an error). */
     let cantStart: (() => void) | null = null
     /** Turns the player on, loads the soundfont, and waits until it can play. */
     const start = () => {
         started ??= new Promise<boolean>((resolve) => {
-            api.playerReady.on(() => resolve(true))
             cantStart = () => resolve(false)
             api.settings.player.playerMode = alphaTab.PlayerMode.EnabledSynthesizer
             api.settings.player.enableCursor = true
-            if (typeof assets.soundFont === 'string')
-                api.settings.player.soundFont = assets.soundFont
+            if (!assets.instruments) {
+                api.playerReady.on(() => resolve(true))
+                if (typeof assets.soundFont === 'string')
+                    api.settings.player.soundFont = assets.soundFont
+                api.updateSettings()
+                if (assets.soundFont instanceof Uint8Array)
+                    api.loadSoundFont(local(doc).bytes(assets.soundFont), false)
+                return
+            }
+            // One soundfont per instrument (#108): the files of what the score plays. alphaTab is
+            // ready after the first one; Play waits for them all.
+            let ready = false
+            let loaded = false
+            const settle = () => {
+                if (ready && loaded) resolve(true)
+            }
+            api.playerReady.on(() => {
+                ready = true
+                settle()
+            })
             api.updateSettings()
-            if (assets.soundFont instanceof Uint8Array)
-                api.loadSoundFont(local(doc).bytes(assets.soundFont), false)
+            const sounds = api.score ? soundsOfScore(api.score) : { programs: [], drums: false }
+            loadSounds(api, doc, assets, sounds).then(
+                () => {
+                    loaded = true
+                    settle()
+                },
+                (e: unknown) => {
+                    // Said on the Play button, as when alphaTab can't play.
+                    resolve(false)
+                    cant(e instanceof Error ? e.message : String(e))
+                }
+            )
         }).then((ok) => {
             if (ok) {
                 api.isLooping = state.loop
@@ -430,6 +514,11 @@ function playerBar(
             if (ok) api.playPause()
         })
     })
+    cant = (message) => {
+        play.disabled = true
+        play.title = `Can't play: ${message}`
+        play.setAttribute('aria-label', play.title)
+    }
     const stop = iconButton(doc, 'mn-tab-stop', 'Stop', 'stop')
     stop.addEventListener('click', () => live(() => api.stop()))
     const toggles = () =>
@@ -479,9 +568,7 @@ function playerBar(
         // The score stays; only playback is off (no soundfont, no audio).
         failed: (message) => {
             cantStart?.()
-            play.disabled = true
-            play.title = `Can't play: ${message}`
-            play.setAttribute('aria-label', play.title)
+            cant(message)
         }
     }
 }
@@ -905,7 +992,17 @@ export function createSoundfontPlayer(
     let api: AT.AlphaTabApi | null = null
     let host: HTMLElement | null = null
     let ready: Promise<boolean> | null = null
-    const start = () => {
+    /**
+     * With instrument files (#108), a sound's files are read at its first use: a page of guitar
+     * chords never reads the piano. The sounds the player has, and the ones being read.
+     */
+    const have = new Set<Sound>()
+    const reading = new Map<Sound, Promise<boolean>>()
+    /** The whole soundfont is in (no folder, or it lacked something): every sound is there. */
+    let whole = !assets.instruments
+    const programsOf = (sound: Sound) =>
+        sound === 'guitar' ? [PROGRAMS.guitar, MUTED.program] : [PROGRAMS[sound]]
+    const start = (first: Sound = 'guitar') => {
         if (ready) return ready
         host = html(doc, 'div', 'mn-tab-hidden')
         host.setAttribute('aria-hidden', 'true')
@@ -923,7 +1020,9 @@ export function createSoundfontPlayer(
                 // page to it (the host is at the end of the page) at every diagram played.
                 enableCursor: false,
                 scrollMode: alphaTab.ScrollMode.Off,
-                ...(typeof assets.soundFont === 'string' ? { soundFont: assets.soundFont } : {})
+                ...(typeof assets.soundFont === 'string' && !assets.instruments
+                    ? { soundFont: assets.soundFont }
+                    : {})
             }
         })
         const current = api
@@ -936,21 +1035,37 @@ export function createSoundfontPlayer(
             const settle = () => {
                 if (soundFont && player) resolve(true)
             }
-            current.soundFontLoaded.on(() => {
+            const loaded = () => {
                 soundFont = true
                 settle()
                 setTimeout(() => {
                     player = true
                     settle()
                 }, 4000)
-            })
+            }
             current.playerReady?.on(() => {
                 player = true
                 settle()
             })
             current.error.on(() => resolve(false))
+            // One soundfont per instrument (#108): the sound that plays first (a guitar with its
+            // muted strings, or a piano) and the click, all in before the first note; the other
+            // sound at its first use (`sounding`). Else the whole soundfont.
+            if (assets.instruments)
+                loadSounds(current, doc, assets, {
+                    programs: programsOf(first),
+                    drums: false
+                }).then(
+                    (kind) => {
+                        if (kind === 'whole') whole = true
+                        else have.add(first)
+                        loaded()
+                    },
+                    () => resolve(false)
+                )
+            else current.soundFontLoaded.on(loaded)
         })
-        if (assets.soundFont instanceof Uint8Array)
+        if (assets.soundFont instanceof Uint8Array && !assets.instruments)
             current.loadSoundFont(made.bytes(assets.soundFont), false)
         // The player needs a song loaded to be ready, and alphaTab loads only the soundfont presets
         // its song uses: one rest per diagram sound (and the muted guitar of muted strums), else
@@ -959,6 +1074,31 @@ export function createSoundfontPlayer(
             `\\track "Guitar" \\instrument ${PROGRAMS.guitar} r \\track "Piano" \\instrument ${PROGRAMS.piano} r \\track "Muted" \\instrument ${MUTED.program} r`
         )
         return ready
+    }
+    /** The player started and `sound` is in it: its files are added when it is new. */
+    const sounding = async (sound: Sound): Promise<boolean> => {
+        if (!(await start(sound))) return false
+        if (whole || have.has(sound) || !api) return true
+        const current = api
+        let more = reading.get(sound)
+        if (!more) {
+            more = loadSounds(
+                current,
+                doc,
+                assets,
+                { programs: programsOf(sound), drums: false, click: false },
+                true
+            ).then(
+                (kind) => {
+                    if (kind === 'whole') whole = true
+                    else have.add(sound)
+                    return true
+                },
+                () => false
+            )
+            reading.set(sound, more)
+        }
+        return more
     }
     const inner = soundfontPlayer(alphaTab, () => api)
     return {
@@ -969,7 +1109,7 @@ export function createSoundfontPlayer(
             let stopped = false
             // A volume changed while the soundfont loads is the one the notes start with (#85).
             let volume = options.volume
-            void start().then((ok) => {
+            void sounding(options.sound).then((ok) => {
                 if (stopped) return
                 try {
                     if (ok) {
@@ -1004,6 +1144,9 @@ export function createSoundfontPlayer(
             host?.remove()
             api = null
             ready = null
+            have.clear()
+            reading.clear()
+            whole = !assets.instruments
         }
     }
 }
