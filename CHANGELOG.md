@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Full screen for tabs and scores** (#113): a new button at the end of the player bar makes the music fill the screen. It is drawn again at the screen's width, so a wide screen shows many more bars on a line and several lines at once. The music scrolls there by hand and follows the playing bar by itself; a scroll by hand stops that until the next Play. Escape goes back to the page, where it was. For apps: `renderTab` takes `fullScreen: false` to leave the button out.
+
 ## 0.19.2 (2026-11-10)
 
 - **Fixed: a click on a diagram scrolled the page** on pages with tabs or scores. There, diagrams play through a hidden alphaTab player at the end of the page, and its cursor made alphaTab scroll the page to it (on the docs site, tens of thousands of pixels). It has no cursor now and never scrolls.

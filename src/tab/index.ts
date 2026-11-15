@@ -18,6 +18,7 @@ import {
     volumeOf
 } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
+import { fullScreenControl } from './full-screen.js'
 
 export type AlphaTabModule = typeof AT
 
@@ -70,6 +71,12 @@ export interface TabOptions {
      * #85); 0.8 by default. The bar has no volume of its own (#82).
      */
     volume?: number | (() => number)
+    /**
+     * The Full screen button at the end of the player bar (default true; #113): the block fills
+     * the screen, the score is drawn again at that width and scrolls in an area of its own, where
+     * it follows the music. `false` for an app that has its own view.
+     */
+    fullScreen?: boolean
 }
 
 export type Staves = 'tab' | 'score' | 'both'
@@ -640,6 +647,12 @@ export function renderTab(
             }
             const current = new at.AlphaTabApi(surface, settings)
             api = current
+            // What may scroll when the score follows the music: the score's own area, which
+            // scrolls only in full screen (#113), never the page (alphaTab's default, and it
+            // keeps the first element it finds). Set here, not in the settings above: those go
+            // to alphaTab's workers, and with an element among them the score was drawn far too
+            // wide (1,202 px in a 657 px column, on one line).
+            current.settings.player.scrollElement = surface
             if (gone) {
                 current.destroy()
                 return
@@ -684,6 +697,28 @@ export function renderTab(
                                 options.onKeepView
                             )
                         )
+                    if (options.fullScreen !== false) {
+                        // In full screen the score follows the music: only its own area scrolls
+                        // there. Out of it, the page never moves (#89).
+                        const full = fullScreenControl(doc, el, surface, (on) => {
+                            current.settings.player.scrollMode = on
+                                ? at.ScrollMode.OffScreen
+                                : at.ScrollMode.Off
+                            current.updateSettings()
+                        })
+                        current.playerStateChanged.on((e) => {
+                            if (Number(e.state) === Number(at.synth.PlayerState.Playing))
+                                full.playing()
+                        })
+                        // Drawn again at its own width after full screen: its height is its own.
+                        current.renderFinished.on(() => full.drawn())
+                        bar.bar.appendChild(full.button)
+                        const off = unbar
+                        unbar = () => {
+                            full.destroy()
+                            off()
+                        }
+                    }
                     // Touch screens have no hover: a tap on the score shows the bar.
                     el.addEventListener('pointerdown', (event) => {
                         if (
