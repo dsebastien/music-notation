@@ -54,6 +54,34 @@ export const noteOf = (midi: number): string => `:1 ${NAMES[midi % 12]}${Math.fl
 
 /** A phrase (the test phrase by default) on `program`, played with `soundFont` at full volume. */
 export function loudness(soundFont: Uint8Array, program: number, phrase = PHRASE): Loudness {
+    return loudnessOfMidi(soundFont, midiOf(program, phrase))
+}
+
+/** Two bars of kick, hi-hat and snare on the percussion channel: what a drum kit is heard on. */
+export function drumPattern(): alphaTab.midi.MidiFile {
+    const midi = new alphaTab.midi.MidiFile()
+    const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midi, true)
+    handler.addTempo(0, 100)
+    // The percussion channel takes the drum kit only once told.
+    handler.addProgramChange(0, 0, 9, 0)
+    const eighth = midi.division / 2
+    const keys = [36, 42, 38, 42, 36, 42, 38, 42]
+    for (let i = 0; i < 16; i++) handler.addNote(0, i * eighth, eighth, keys[i % 8]!, 100, 9)
+    return midi
+}
+
+/** Eight metronome clicks (key 33 of the percussion channel). */
+export function clickPattern(): alphaTab.midi.MidiFile {
+    const midi = new alphaTab.midi.MidiFile()
+    const handler = new alphaTab.midi.AlphaSynthMidiFileHandler(midi, true)
+    handler.addTempo(0, 100)
+    handler.addProgramChange(0, 0, 9, 0)
+    for (let i = 0; i < 8; i++) handler.addNote(0, i * midi.division, midi.division / 2, 33, 100, 9)
+    return midi
+}
+
+/** A song played with `soundFont` at full volume: its RMS and peak. */
+export function loudnessOfMidi(soundFont: Uint8Array, midi: alphaTab.midi.MidiFile): Loudness {
     const synth = new alphaTab.synth.AlphaSynth(
         silent as unknown as ConstructorParameters<typeof alphaTab.synth.AlphaSynth>[0],
         500
@@ -63,7 +91,7 @@ export function loudness(soundFont: Uint8Array, program: number, phrase = PHRASE
     options.masterVolume = 1
     options.metronomeVolume = 0
     options.soundFonts = [soundFont]
-    const exporter = synth.exportAudio(options, midiOf(program, phrase), [], new Map())
+    const exporter = synth.exportAudio(options, midi, [], new Map())
     let sum = 0
     let n = 0
     let peak = 0

@@ -11,6 +11,8 @@
  */
 
 const GEN_INSTRUMENT = 41
+const GEN_KEY_RANGE = 43
+const GEN_ATTENUATION = 48
 const GEN_SAMPLE = 53
 /** Silent points after each sample (the format asks for at least 46). */
 const PAD = 46
@@ -236,6 +238,20 @@ export interface Cut {
     notMono: number
 }
 
+export interface CutOptions {
+    /**
+     * Compresses a sample (its 16-bit points, mono, at `rate`) to Ogg Vorbis; `index` is the
+     * sample's place in the bank, for a cache. With it, the file is a SoundFont 3: samples are
+     * Ogg streams, found by their bytes, and loops count from each sample's start. Null keeps
+     * that sample uncompressed.
+     */
+    encode?: (points: Uint8Array, rate: number, index: number) => Uint8Array | null
+    /** Decibels added to everything the preset plays (in alphaTab; see `cutPreset`). */
+    gain?: number
+    /** Keeps only what plays these keys (lowest, highest): a drum kit's click alone. */
+    keys?: [number, number]
+}
+
 /**
  * One preset of a bank as a soundfont of its own: the same preset (name, bank, program), its
  * instruments and their samples, renumbered; nothing else. `texts` are the new file's name and
@@ -245,27 +261,58 @@ export function cutPreset(
     bank: Bank,
     preset: Preset,
     texts: { name: string; comment: string },
-    /**
-     * Compresses a sample (its 16-bit points, mono, at `rate`) to Ogg Vorbis; `index` is the
-     * sample's place in the bank, for a cache. With it, the file is a SoundFont 3: samples are
-     * Ogg streams, found by their bytes, and loops count from each sample's start.
-     */
-    encode?: (points: Uint8Array, rate: number, index: number) => Uint8Array | null
+    options: CutOptions = {}
 ): Cut {
     if (bank.compressed) throw new Error('A SoundFont 3 file: its samples are compressed')
+    const { encode, gain, keys } = options
     const t = bank.tables
     const [p0, p1] = zonesOf(t['phdr']!, SIZE.phdr, 24, preset.index)
-    const presetZones = readZones(t['pbag']!, t['pgen']!, t['pmod']!, p0, p1)
+    const has = (zone: Zone, oper: number) => zone.gens.some(([o]) => o === oper)
+    /** Whether a zone plays one of the keys kept (a zone without a key range plays them all). */
+    const inKeys = (zone: Zone): boolean => {
+        const range = zone.gens.find(([o]) => o === GEN_KEY_RANGE)
+        if (!keys || !range) return true
+        return (range[1] & 255) <= keys[1] && range[1] >> 8 >= keys[0]
+    }
+    let presetZones = readZones(t['pbag']!, t['pgen']!, t['pmod']!, p0, p1).filter(inKeys)
 
-    // The instruments it uses, in the order it names them.
-    const instruments: number[] = []
+    // The instruments it uses, in the order it names them, with the zones that play the keys kept
+    // (their global zone, which names no sample, stays).
+    const zonesOfInstrument = new Map<number, Zone[]>()
     for (const zone of presetZones)
-        for (const [oper, amount] of zone.gens)
-            if (oper === GEN_INSTRUMENT && !instruments.includes(amount)) instruments.push(amount)
-    const instrumentZones = instruments.map((i) => {
-        const [i0, i1] = zonesOf(t['inst']!, SIZE.inst, 20, i)
-        return readZones(t['ibag']!, t['igen']!, t['imod']!, i0, i1)
-    })
+        for (const [oper, amount] of zone.gens) {
+            if (oper !== GEN_INSTRUMENT || zonesOfInstrument.has(amount)) continue
+            const [i0, i1] = zonesOf(t['inst']!, SIZE.inst, 20, amount)
+            const zones = readZones(t['ibag']!, t['igen']!, t['imod']!, i0, i1).filter(
+                (z) => !has(z, GEN_SAMPLE) || inKeys(z)
+            )
+            // An instrument left without a sample is left out, with the preset zones that name it.
+            if (zones.some((z) => has(z, GEN_SAMPLE))) zonesOfInstrument.set(amount, zones)
+        }
+    presetZones = presetZones.filter((zone) =>
+        zone.gens.every(([o, a]) => o !== GEN_INSTRUMENT || zonesOfInstrument.has(a))
+    )
+    const instruments = [...zonesOfInstrument.keys()]
+    const instrumentZones = [...zonesOfInstrument.values()]
+
+    // The gain: an attenuation below zero, in the preset's global zone (the one that names no
+    // instrument), and in each zone that has an attenuation of its own (it replaces the global
+    // one). The SoundFont standard stops at zero; alphaTab adds it as it is, so it is a gain
+    // there, and nothing in other players.
+    if (gain) {
+        const amount = -Math.round(gain * 10)
+        const signed = (n: number) => (n > 0x7fff ? n - 0x10000 : n)
+        const add = (zone: Zone): boolean => {
+            const own = zone.gens.find(([o]) => o === GEN_ATTENUATION)
+            if (own) own[1] = (signed(own[1]) + amount) & 0xffff
+            return Boolean(own)
+        }
+        const first = presetZones[0]
+        if (first && !has(first, GEN_INSTRUMENT)) {
+            if (!add(first)) first.gens.push([GEN_ATTENUATION, amount & 0xffff])
+        } else presetZones.unshift({ gens: [[GEN_ATTENUATION, amount & 0xffff]], mods: [] })
+        for (const zone of presetZones.slice(1)) add(zone)
+    }
 
     // The samples they use, and the other half of each stereo pair.
     const shdr = t['shdr']!

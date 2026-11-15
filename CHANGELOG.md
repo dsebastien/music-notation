@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Tabs and diagrams can load one small soundfont per instrument** (#108): with a folder of instrument files (`assets.instruments`), a score downloads only the instruments it plays, at the first Play. With GeneralUser GS, a guitar is about 110 KB and a grand piano 360 KB, where the whole bank is 31 MB. Every instrument plays at the same loudness. The whole soundfont (`assets.soundFont`) still plays when the folder is missing or incomplete. For maintainers: `scripts/sounds/split-soundfont.ts` makes such a folder from a SoundFont 2 bank.
+
 - **Full screen for tabs and scores** (#113): a new button at the end of the player bar makes the music fill the screen. It is drawn again at the screen's width, so a wide screen shows many more bars on a line and several lines at once. The music scrolls there by hand and follows the playing bar by itself; a scroll by hand stops that until the next Play. Escape goes back to the page, where it was. For apps: `renderTab` takes `fullScreen: false` to leave the button out.
 
 ## 0.19.2 (2026-11-10)

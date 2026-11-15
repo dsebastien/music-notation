@@ -199,9 +199,11 @@ describe('cutting one preset out of a bank (#108)', () => {
         const ogg = Uint8Array.from([0x4f, 0x67, 0x67])
         const seen: [number, number, number][] = []
         // s1 (sample 1 of the bank) is compressed; s2 stays as it is.
-        const cut = cutPreset(bank, bank.presets[1]!, texts, (pcm, rate, index) => {
-            seen.push([pcm.length, rate, index])
-            return index === 1 ? ogg : null
+        const cut = cutPreset(bank, bank.presets[1]!, texts, {
+            encode: (pcm, rate, index) => {
+                seen.push([pcm.length, rate, index])
+                return index === 1 ? ogg : null
+            }
         })
         expect(seen).toEqual([
             [6, 22050, 1],
@@ -219,6 +221,73 @@ describe('cutting one preset out of a bank (#108)', () => {
         expect(u16s(own.smpl.subarray(4, 8))).toEqual([7, 8])
         // A compressed bank can't be cut again.
         expect(() => cutPreset(own, own.presets[0]!, texts)).toThrow('compressed')
+    })
+
+    it('a gain is written as an attenuation below zero, in the global zone', () => {
+        const bank = readBank(bankBytes())
+        // "Two" has a global zone (generator 8): the gain joins it. 6.5 dB is -65 centibels.
+        const two = readBank(cutPreset(bank, bank.presets[1]!, texts, { gain: 6.5 }).bytes)
+        expect(u16s(two.tables['pgen']!)).toEqual([8, 100, 48, 0x10000 - 65, 41, 0, 0, 0])
+        expect(u16s(two.tables['pbag']!)).toEqual([0, 0, 2, 0, 3, 1])
+        // "One" has none: a global zone is made for it, before the zone that names the instrument.
+        const one = readBank(cutPreset(bank, bank.presets[0]!, texts, { gain: 12 }).bytes)
+        expect(u16s(one.tables['pgen']!)).toEqual([48, 0x10000 - 120, 41, 0, 0, 0])
+        expect(u16s(one.tables['pbag']!)).toEqual([0, 0, 1, 0, 2, 0])
+        // A cut with a gain can't be told from one without by its samples.
+        expect(one.smpl).toEqual(readBank(cutPreset(bank, bank.presets[0]!, texts).bytes).smpl)
+    })
+
+    it('a zone with an attenuation of its own takes the gain too (it replaces the global one)', () => {
+        // "One", its zone with an attenuation of 3 dB (generator 48, 30 centibels) before its
+        // instrument: the zone's value wins over the global zone's in a player, so both move.
+        const bytes = bankBytes()
+        const bank = readBank(bytes)
+        const pgen = bank.tables['pgen']!
+        const zone = {
+            gens: [
+                [48, 30],
+                [41, 0]
+            ],
+            mods: []
+        }
+        const own = {
+            ...bank,
+            tables: {
+                ...bank.tables,
+                // One: generators 0 and 1. Two: its global zone (2), its zone (3).
+                pgen: Uint8Array.from([
+                    ...zone.gens.flatMap(([o, v]) => [...u16(o!), ...u16(v!)]),
+                    ...pgen.subarray(4)
+                ]),
+                pbag: Uint8Array.from(
+                    [0, 2, 3, 4].flatMap((g, i) => [...u16(g), ...u16(i === 3 ? 1 : 0)])
+                )
+            }
+        }
+        const cut = readBank(cutPreset(own, own.presets[0]!, texts, { gain: 5 }).bytes)
+        // The new global zone: -50. The zone's own 30 becomes -20.
+        expect(u16s(cut.tables['pgen']!)).toEqual([48, 0x10000 - 50, 48, 0x10000 - 20, 41, 0, 0, 0])
+    })
+
+    it('only the keys asked for: the zones that play them, and their samples', () => {
+        const bank = readBank(bankBytes())
+        // Instrument B's two zones get key ranges: s2 on keys 0 to 40, s1 on keys 41 to 127.
+        const igen = Uint8Array.from(
+            [43, 0x7f00, 53, 0, 43, 40 << 8, 53, 2, 43, (127 << 8) | 41, 53, 1, 0, 0].flatMap(u16)
+        )
+        const ibag = Uint8Array.from([0, 0, 2, 0, 4, 0, 6, 0].flatMap(u16))
+        const ranged = { ...bank, tables: { ...bank.tables, igen, ibag } }
+        const low = readBank(cutPreset(ranged, ranged.presets[1]!, texts, { keys: [33, 34] }).bytes)
+        expect(headers(low.tables['shdr']!).map((s) => s.name)).toEqual(['s2'])
+        expect(u16s(low.tables['igen']!)).toEqual([43, 40 << 8, 53, 0, 0, 0])
+        const high = readBank(
+            cutPreset(ranged, ranged.presets[1]!, texts, { keys: [60, 60] }).bytes
+        )
+        expect(headers(high.tables['shdr']!).map((s) => s.name)).toEqual(['s1'])
+        // Without keys, both.
+        expect(
+            readBank(cutPreset(ranged, ranged.presets[1]!, texts).bytes).tables['shdr']!.length
+        ).toBe(46 * 3)
     })
 
     it('one sample alone, on a preset of its own', () => {
