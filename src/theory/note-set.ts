@@ -6,6 +6,7 @@ import { Chord, Interval, Scale } from 'tonal'
 import { chromaOf, isFlat, midiOf, splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
 import { scaleName, scaleSpelling } from './scales.js'
+import { t } from '../i18n/translate.js'
 
 export type NoteLabel = 'notes' | 'degrees' | 'intervals' | 'fingers' | 'none'
 
@@ -65,9 +66,11 @@ export function describeMarks(set: NoteSet, marks: NoteMarks = {}): string {
     const different = names(marks.different)
     const tones = names(marks.chordTones)
     return (
-        (characteristic.length ? `, characteristic notes: ${characteristic.join(' ')}` : '') +
-        (different.length ? `, different from the compared scale: ${different.join(' ')}` : '') +
-        (tones.length ? `, chord tones: ${tones.join(' ')}` : '')
+        (characteristic.length
+            ? t('theory.marks.characteristic', { notes: characteristic.join(' ') })
+            : '') +
+        (different.length ? t('theory.marks.different', { notes: different.join(' ') }) : '') +
+        (tones.length ? t('theory.marks.chordTones', { notes: tones.join(' ') }) : '')
     )
 }
 

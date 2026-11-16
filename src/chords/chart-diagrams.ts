@@ -16,6 +16,7 @@ import { transposeChord, type KeyMove } from '../theory/transpose.js'
 import type { VoicingLookup } from '../voicings/index.js'
 import type { Song } from './chordpro.js'
 import { absoluteFrets, findDefinition, type ChordDefinition } from './defines.js'
+import { t } from '../i18n/translate.js'
 
 export type ChartInstrument = 'guitar' | 'piano'
 
@@ -149,7 +150,7 @@ export function chordDiagram(
         if (!set) return null
         el = renderKeyboard(doc, set, {
             playAs: 'chord',
-            title: sounding === shown ? title : `${title} (sounds ${sounding})`,
+            title: sounding === shown ? title : t('chords.chart.sounds', { title, sounding }),
             range: keyRangeOf(set),
             orientation: drawing.orientation?.keyboard
         })
@@ -179,9 +180,9 @@ export function missingMessage(names: readonly string[], instrument: ChartInstru
     const first = names[0] ?? 'X'
     const how =
         instrument === 'piano'
-            ? `{define: ${first} keys …} (semitones above the root, e.g. keys 0 4 7)`
-            : `{define: ${first} base-fret 1 frets …} (one fret per string, x for a muted one)`
-    return `No diagram for ${names.join(', ')}: give the shape with ${how}`
+            ? t('chords.chart.howPiano', { syntax: `{define: ${first} keys …}` })
+            : t('chords.chart.howGuitar', { syntax: `{define: ${first} base-fret 1 frets …}` })
+    return t('chords.chart.missing', { names: names.join(', '), how })
 }
 
 export interface ChordsUsedOptions extends ChordDrawing {
@@ -244,7 +245,14 @@ export function renderChordsUsed(
     const root = html(doc, 'div', 'mn-chart-diagrams')
     // The shapes under a capo are guitar shapes: piano diagrams say what they sound in their titles.
     if (song.capo && options.instrument === 'guitar' && options.capoCaption !== false) {
-        root.appendChild(html(doc, 'div', 'mn-chart-diagrams-caption', `Capo ${song.capo}`))
+        root.appendChild(
+            html(
+                doc,
+                'div',
+                'mn-chart-diagrams-caption',
+                t('chords.chart.capo', { capo: song.capo })
+            )
+        )
     }
     if (cells.length) {
         const row = html(doc, 'div', 'mn-row mn-chart-row')
@@ -257,7 +265,7 @@ export function renderChordsUsed(
                 doc,
                 'div',
                 'mn-chart-diagrams-note',
-                `${skipped} more chords not drawn (at most ${MAX_ROW})`
+                t('chords.chart.moreNotDrawn', { count: skipped, max: MAX_ROW })
             )
         )
     }

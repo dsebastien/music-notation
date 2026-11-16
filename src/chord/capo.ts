@@ -6,6 +6,7 @@
 import { chromaOf, isFlat, splitChordSymbol } from '../theory/pitch.js'
 import { transposeChord, transposeKey } from '../theory/transpose.js'
 import { chordNoteSet } from '../theory/note-set.js'
+import { t } from '../i18n/translate.js'
 
 /** The highest fret a capo goes on. */
 export const MAX_CAPO = 12
@@ -18,7 +19,7 @@ export function parseCapo(text: string): number {
     const value = text.trim().toLowerCase()
     const n = value === 'none' || value === 'no' ? 0 : Number(value)
     if (!Number.isInteger(n) || n < 0 || n > MAX_CAPO) {
-        throw new Error(`capo: use a fret from 1 to ${MAX_CAPO}, got "${text}"`)
+        throw new Error(t('chord.capo.fret', { max: MAX_CAPO, text }))
     }
     return n
 }
@@ -28,7 +29,7 @@ export function parseFretsFrom(text: string | undefined): FretsFrom {
     const value = text?.trim().toLowerCase()
     if (!value || value === 'capo') return 'capo'
     if (value === 'nut') return 'nut'
-    throw new Error(`frets-from: use capo (the default) or nut, got "${text}"`)
+    throw new Error(t('chord.capo.fretsFrom', { text: text ?? '' }))
 }
 
 /**

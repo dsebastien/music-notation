@@ -8,6 +8,8 @@ import { fingerVoicing } from './generate.js'
 import { STANDARD_TUNING } from './guitar.js'
 import { Note } from 'tonal'
 import { noteOf } from '../theory/pitch.js'
+import { t } from '../i18n/translate.js'
+import { andList, ordinal } from './words.js'
 
 /** A fretted chord: frets and fingers lowest string first, as `chord` blocks write them. */
 export interface GuitarFingering {
@@ -35,32 +37,73 @@ export interface PianoFingering {
     names?: ReadonlyMap<number, string>
 }
 
-const ordinal = (n: number) =>
-    `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`
-
-const GUITAR_FINGERS: Record<string, string> = {
-    '1': 'Index',
-    '2': 'Middle',
-    '3': 'Ring',
-    '4': 'Pinky',
-    'T': 'Thumb'
+const guitarFinger = (finger: string): string => {
+    switch (finger) {
+        case '1':
+            return t('chord.words.guitarIndex')
+        case '2':
+            return t('chord.words.guitarMiddle')
+        case '3':
+            return t('chord.words.guitarRing')
+        case '4':
+            return t('chord.words.guitarPinky')
+        case 'T':
+            return t('chord.words.guitarThumb')
+        default:
+            return t('chord.words.guitarFinger', { finger })
+    }
 }
 
-const PIANO_FINGERS: Record<string, string> = {
-    '1': 'thumb',
-    '2': 'index finger',
-    '3': 'middle finger',
-    '4': 'ring finger',
-    '5': 'little finger'
+const pianoFinger = (finger: string): string => {
+    switch (finger) {
+        case '1':
+            return t('chord.words.pianoThumb')
+        case '2':
+            return t('chord.words.pianoIndex')
+        case '3':
+            return t('chord.words.pianoMiddle')
+        case '4':
+            return t('chord.words.pianoRing')
+        case '5':
+            return t('chord.words.pianoLittle')
+        default:
+            return t('chord.words.pianoFinger', { finger })
+    }
 }
 
 const capitalized = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
 
-/** "A", "C and E", "A, D and G". */
-const andList = (items: string[]) =>
-    items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
-
 const letter = (midi: number) => noteOf(midi).replace(/-?\d+$/, '')
+
+/** A string as a sentence names it; `item` is set for a string named by its note. */
+interface StringName {
+    text: string
+    item?: string
+}
+
+function describeStrings(
+    tuning: readonly number[] | null,
+    count: number,
+    spelled?: readonly string[]
+): StringName[] {
+    const letters = tuning?.map((p, s) => spelled?.[s] ?? letter(p)) ?? []
+    const repeated = letters.filter((name, i) => letters.indexOf(name) !== i)
+    const byName =
+        tuning !== null &&
+        (repeated.length === 0 ||
+            (repeated.length === 1 && letters[0] === letters[count - 1] && count > 2))
+    return Array.from({ length: count }, (_, s) => {
+        if (!byName) return { text: numbered(tuning, count, s, spelled) }
+        const name = letters[s]!
+        const item =
+            repeated.length && s === 0
+                ? t('chord.words.lowName', { name })
+                : repeated.length && s === count - 1
+                  ? t('chord.words.highName', { name })
+                  : name
+        return { text: t('chord.words.stringNamed', { name: item }), item }
+    })
+}
 
 /**
  * What players call each string. When every name is different, or only the two outer strings share
@@ -73,19 +116,7 @@ export function stringNames(
     count: number,
     spelled?: readonly string[]
 ): string[] {
-    const letters = tuning?.map((p, s) => spelled?.[s] ?? letter(p)) ?? []
-    const repeated = letters.filter((name, i) => letters.indexOf(name) !== i)
-    const byName =
-        tuning !== null &&
-        (repeated.length === 0 ||
-            (repeated.length === 1 && letters[0] === letters[count - 1] && count > 2))
-    return Array.from({ length: count }, (_, s) => {
-        if (!byName) return numbered(tuning, count, s, spelled)
-        const name = letters[s]!
-        if (repeated.length && s === 0) return `the low ${name} string`
-        if (repeated.length && s === count - 1) return `the high ${name} string`
-        return `the ${name} string`
-    })
+    return describeStrings(tuning, count, spelled).map((n) => n.text)
 }
 
 /** "the 5th string (A)", for the strings to strum. */
@@ -95,8 +126,10 @@ function numbered(
     s: number,
     spelled?: readonly string[]
 ): string {
-    const name = tuning ? (spelled?.[s] ?? letter(tuning[s]!)) : null
-    return `the ${ordinal(count - s)} string${name ? ` (${name})` : ''}`
+    const note = tuning ? (spelled?.[s] ?? letter(tuning[s]!)) : null
+    return note
+        ? t('chord.words.stringNumberedNote', { n: ordinal(count - s), note })
+        : t('chord.words.stringNumbered', { n: ordinal(count - s) })
 }
 
 /** The strings from one index to another, both included. */
@@ -104,17 +137,18 @@ const range = (from: number, to: number) =>
     Array.from({ length: to - from + 1 }, (_, i) => from + i)
 
 /** "the A and G strings", or each name in full when one has a number. */
-const together = (names: string[]) =>
-    names.every((n) => /^the [^(]+ string$/.test(n))
-        ? `the ${andList(names.map((n) => n.slice(4, -7)))} strings`
-        : andList(names)
+const together = (names: StringName[]) =>
+    names.every((n) => n.item !== undefined)
+        ? t('chord.words.stringsNamed', { names: andList(names.map((n) => n.item!)) })
+        : andList(names.map((n) => n.text))
 
 function guitarWords(input: GuitarFingering): string[] {
     const { frets } = input
     const count = frets.length
     const tuning = input.tuning ?? (count === 6 ? STANDARD_TUNING : null)
     const spelled = input.tuningNames?.length === count ? input.tuningNames : undefined
-    const names = stringNames(tuning, count, spelled)
+    const described = describeStrings(tuning, count, spelled)
+    const names = described.map((n) => n.text)
     const capo = input.capo ?? 0
     const fromNut = capo > 0 && input.fretsFrom === 'nut'
     // The shape as the hand plays it: frets from the capo (the real neck's minus the capo with
@@ -126,20 +160,23 @@ function guitarWords(input: GuitarFingering): string[] {
     const sentences: string[] = []
     if (capo) {
         sentences.push(
-            `Capo on the ${ordinal(capo)} fret${fromNut ? '' : ': frets count from the capo'}.`
+            t(fromNut ? 'chord.words.capoNut' : 'chord.words.capoFrom', { fret: ordinal(capo) })
         )
     }
     const sounding = frets.flatMap((f, s) => (f !== null ? [s] : []))
-    if (!sounding.length) return [...sentences, 'Every string is muted: no note sounds.']
+    if (!sounding.length) return [...sentences, t('chord.words.allMuted')]
     const low = sounding[0]!
     const high = sounding.at(-1)!
     if (low === 0 && high === count - 1) {
-        sentences.push(count === 6 ? 'Strum all six strings.' : 'Strum every string.')
+        sentences.push(t(count === 6 ? 'chord.words.strumSix' : 'chord.words.strumAll'))
     } else if (high === count - 1) {
-        sentences.push(`Strum from ${numbered(tuning, count, low, spelled)}.`)
+        sentences.push(t('chord.words.strumFrom', { from: numbered(tuning, count, low, spelled) }))
     } else {
         sentences.push(
-            `Strum from ${numbered(tuning, count, low, spelled)} to ${numbered(tuning, count, high, spelled)}.`
+            t('chord.words.strumFromTo', {
+                from: numbered(tuning, count, low, spelled),
+                to: numbered(tuning, count, high, spelled)
+            })
         )
     }
     // Barres: one finger on two strings or more at the same fret.
@@ -151,40 +188,58 @@ function guitarWords(input: GuitarFingering): string[] {
             byFinger.set(finger, [...(byFinger.get(finger) ?? []), s])
     })
     const said = new Set<string>()
-    const fingerName = (finger: string) => GUITAR_FINGERS[finger] ?? `Finger ${finger}`
     frets.forEach((fret, s) => {
         if (fret === null || shape[s] === 0) return
         const finger = fingers[s]
         if (!finger) {
-            sentences.push(`Press ${names[s]} at the ${ordinal(fret)} fret.`)
+            sentences.push(t('chord.words.press', { string: names[s]!, fret: ordinal(fret) }))
             return
         }
         if (said.has(finger)) return
         said.add(finger)
-        const strings = byFinger.get(finger)!.filter((t) => frets[t] === fret)
+        const strings = byFinger.get(finger)!.filter((x) => frets[x] === fret)
         // A barre lies across every string between: each is fretted at that fret or higher, or
         // muted. With an open string (or a lower fret) between, the finger can't be flat there.
         const between = strings.length > 1 ? range(strings[0]!, strings.at(-1)!) : []
-        const flat = between.every((t) => shape[t] === null || shape[t]! >= shape[s]!)
+        const flat = between.every((x) => shape[x] === null || shape[x]! >= shape[s]!)
         if (strings.length > 1 && !flat) {
             sentences.push(
-                `${fingerName(finger)} on ${together(strings.map((t) => names[t]!))}, ${ordinal(fret)} fret.`
+                t('chord.words.fingerOn', {
+                    finger: guitarFinger(finger),
+                    strings: together(strings.map((x) => described[x]!)),
+                    fret: ordinal(fret)
+                })
             )
         } else if (strings.length > 1) {
             const from = count - strings.at(-1)!
             const to = count - strings[0]!
-            for (const t of strings) barred.add(t)
+            for (const x of strings) barred.add(x)
             sentences.push(
-                `${fingerName(finger)} bars the ${ordinal(fret)} fret, strings ${from} to ${to}.`
+                t('chord.words.fingerBars', {
+                    finger: guitarFinger(finger),
+                    fret: ordinal(fret),
+                    from,
+                    to
+                })
             )
         } else {
-            sentences.push(`${fingerName(finger)} on ${names[s]}, ${ordinal(fret)} fret.`)
+            sentences.push(
+                t('chord.words.fingerOn', {
+                    finger: guitarFinger(finger),
+                    strings: names[s]!,
+                    fret: ordinal(fret)
+                })
+            )
         }
         // The same finger on another fret (rare, as written): said string by string.
-        for (const t of byFinger.get(finger)!) {
-            if (frets[t] !== fret) {
+        for (const x of byFinger.get(finger)!) {
+            if (frets[x] !== fret) {
                 sentences.push(
-                    `${fingerName(finger)} also on ${names[t]}, ${ordinal(frets[t]!)} fret.`
+                    t('chord.words.fingerAlsoOn', {
+                        finger: guitarFinger(finger),
+                        string: names[x]!,
+                        fret: ordinal(frets[x]!)
+                    })
                 )
             }
         }
@@ -193,20 +248,45 @@ function guitarWords(input: GuitarFingering): string[] {
     const muted = frets.flatMap((f, s) => (f === null && s > low && s < high ? [names[s]!] : []))
     if (muted.length) {
         sentences.push(
-            `Mute ${andList(muted)}: let a fretting finger touch ${muted.length > 1 ? 'them' : 'it'} lightly.`
+            t(muted.length > 1 ? 'chord.words.mutePlural' : 'chord.words.muteOne', {
+                list: andList(muted)
+            })
         )
     }
     // Open strings (under a barre they are fretted, so not open).
-    const open = shape.flatMap((f, s) => (f === 0 && !barred.has(s) ? [names[s]!] : []))
+    const open = shape.flatMap((f, s) => (f === 0 && !barred.has(s) ? [described[s]!] : []))
     if (open.length) {
-        const where = capo ? ' at the capo' : ' open'
         const plural = open.length > 1
         // "The A and high E strings", or each name in full when one has a number.
-        sentences.push(
-            open.every((n) => /^the [^(]+ string$/.test(n))
-                ? `The ${andList(open.map((n) => n.slice(4, -7)))} ${plural ? 'strings ring' : 'string rings'}${where}.`
-                : `${capitalized(andList(open))} ${plural ? 'ring' : 'rings'}${where}.`
-        )
+        if (open.every((n) => n.item !== undefined)) {
+            const list = andList(open.map((n) => n.item!))
+            sentences.push(
+                t(
+                    capo
+                        ? plural
+                            ? 'chord.words.groupRingCapoPlural'
+                            : 'chord.words.groupRingCapoOne'
+                        : plural
+                          ? 'chord.words.groupRingOpenPlural'
+                          : 'chord.words.groupRingOpenOne',
+                    { list }
+                )
+            )
+        } else {
+            const list = capitalized(andList(open.map((n) => n.text)))
+            sentences.push(
+                t(
+                    capo
+                        ? plural
+                            ? 'chord.words.ringCapoPlural'
+                            : 'chord.words.ringCapoOne'
+                        : plural
+                          ? 'chord.words.ringOpenPlural'
+                          : 'chord.words.ringOpenOne',
+                    { list }
+                )
+            )
+        }
     }
     return sentences
 }
@@ -230,23 +310,32 @@ function pianoWords(input: PianoFingering): string[] {
         const without = group.filter((k) => !input.fingers?.has(k)).map(keyName)
         const fingered = withFinger.map((k) => {
             const finger = input.fingers!.get(k)!
-            return `${PIANO_FINGERS[finger] ?? `finger ${finger}`} on ${keyName(k)}`
+            return t('chord.words.pianoFingerOn', { finger: pianoFinger(finger), key: keyName(k) })
         })
         if (!fingered.length) return andList(without)
         if (!without.length) return fingered.join(', ')
-        return `${fingered.join(', ')}, and also play ${andList(without)}`
+        return t('chord.words.pianoAlsoPlay', {
+            fingered: fingered.join(', '),
+            list: andList(without)
+        })
     }
     const hands = input.hands
     if (!hands?.size) {
         return [
             keys.some((k) => input.fingers?.has(k))
-                ? `${capitalized(part(keys))}.`
-                : `Play ${part(keys)}.`
+                ? t('chord.words.sentence', { text: capitalized(part(keys)) })
+                : t('chord.words.play', { list: part(keys) })
         ]
     }
     return (['left', 'right'] as const).flatMap((hand) => {
         const group = keys.filter((k) => (hands.get(k) ?? 'right') === hand)
-        return group.length ? [`${capitalized(hand)} hand: ${part(group)}.`] : []
+        return group.length
+            ? [
+                  t(hand === 'left' ? 'chord.words.leftHand' : 'chord.words.rightHand', {
+                      part: part(group)
+                  })
+              ]
+            : []
     })
 }
 

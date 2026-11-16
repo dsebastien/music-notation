@@ -21,6 +21,7 @@ import {
     type ChartInstrument,
     type ChordDrawing
 } from './chart-diagrams.js'
+import { t } from '../i18n/translate.js'
 
 export interface ChartOptions {
     /** Semitones added to the song's own `{transpose}`. */
@@ -119,11 +120,19 @@ function timeOf(text: string | null): string | null {
     }
 }
 
-const SECTION_LABELS: Record<string, string> = {
-    chorus: 'Chorus',
-    bridge: 'Bridge',
-    tab: 'Tab',
-    grid: 'Grid'
+const sectionLabel = (kind: string): string | undefined => {
+    switch (kind) {
+        case 'chorus':
+            return t('chords.chart.chorus')
+        case 'bridge':
+            return t('chords.chart.bridge')
+        case 'tab':
+            return t('chords.chart.tab')
+        case 'grid':
+            return t('chords.chart.grid')
+        default:
+            return undefined
+    }
 }
 
 /** The key a song's chords are likeliest in ("C", "Am"); null when none reads. */
@@ -300,11 +309,13 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         root.appendChild(header)
     }
     const meta = [
-        key ? shown(`Key ${key}`) : null,
-        song.capo ? `Capo ${song.capo}` : null,
-        song.tempo ? `${song.tempo} BPM` : null,
+        key ? shown(t('chords.chart.key', { key })) : null,
+        song.capo ? t('chords.chart.capo', { capo: song.capo }) : null,
+        song.tempo ? t('chords.chart.tempo', { bpm: song.tempo }) : null,
         song.time ? song.time : null,
-        semitones % 12 ? `Transposed ${semitones > 0 ? '+' : ''}${semitones}` : null
+        semitones % 12
+            ? t('chords.chart.transposed', { amount: `${semitones > 0 ? '+' : ''}${semitones}` })
+            : null
     ].filter((m): m is string => m !== null)
     if (meta.length) root.appendChild(html(doc, 'div', 'mn-chart-meta', meta.join(' · ')))
     // Directives the chart couldn't read: what to write instead, and the rest still draws.
@@ -318,7 +329,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
 
     for (const section of song.sections) {
         const el = html(doc, 'div', `mn-section mn-section-${section.kind}`)
-        const label = section.label ?? SECTION_LABELS[section.kind]
+        const label = section.label ?? sectionLabel(section.kind)
         if (label) el.appendChild(html(doc, 'div', 'mn-section-label', label))
         for (const line of section.lines) {
             if (line.kind === 'empty') el.appendChild(html(doc, 'div', 'mn-line mn-line-empty'))

@@ -3,6 +3,8 @@
  * "A x02220 x01230"). Keys are case-insensitive; the last value wins.
  */
 
+import { t } from '../i18n/translate.js'
+
 export interface BlockSource {
     /** The first line when it has no `key:`; null otherwise. */
     head: string | null
@@ -22,7 +24,7 @@ export function parseBlockSource(source: string): BlockSource {
             const m = FIELD.exec(line)
             if (m) fields.set(m[1]!.toLowerCase(), m[2]!.trim())
             else if (i === 0) head = line
-            else throw new Error(`Expected "key: value", got "${line}"`)
+            else throw new Error(t('blocks.source.expected', { line }))
         })
     return { head, fields }
 }
@@ -49,7 +51,7 @@ export function parseStrings(text: string, count: number): number[] {
               .filter(Boolean)
               .map(Number)
     if (!numbers.length || numbers.some((n) => !Number.isInteger(n) || n < 1 || n > count)) {
-        throw new Error(`strings: use string numbers from 1 (the highest) to ${count}, e.g. 1-4`)
+        throw new Error(t('blocks.source.strings', { count }))
     }
     return numbers
 }

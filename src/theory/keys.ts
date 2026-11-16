@@ -5,6 +5,7 @@
  */
 import { Interval, Key, Note, Scale } from 'tonal'
 import { chromaOf } from './pitch.js'
+import { t } from '../i18n/translate.js'
 
 /** Modes a key can be in: major and minor, and the church modes. */
 export const MODES = [
@@ -128,12 +129,16 @@ export function keyProblem(key: MusicalKey): string | null {
     const count = Key.majorKey(parentMajor(key)).alteration
     if (Math.abs(count) <= MAX_SIGNATURE) return null
     const other = Note.enharmonic(key.tonic)
-    return `${key.name} needs ${Math.abs(count)} ${count > 0 ? 'sharps' : 'flats'}: write ${other} ${key.mode}`
+    return t(count > 0 ? 'theory.key.needsSharps' : 'theory.key.needsFlats', {
+        name: key.name,
+        count: Math.abs(count),
+        write: `${other} ${key.mode}`
+    })
 }
 
 /** "1♯", "3♭", "no ♯ or ♭". */
 export const signatureText = (count: number): string =>
-    count === 0 ? 'no ♯ or ♭' : `${Math.abs(count)}${count > 0 ? '♯' : '♭'}`
+    count === 0 ? t('theory.key.noSignature') : `${Math.abs(count)}${count > 0 ? '♯' : '♭'}`
 
 /** Chord suffix from the intervals of a stacked triad or seventh chord. */
 const STACKED: Record<string, string> = {

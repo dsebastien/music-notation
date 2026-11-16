@@ -23,6 +23,8 @@ import {
     type Orientation
 } from '../render/layout.js'
 import { chromaOf, nameOf } from '../theory/pitch.js'
+import { t } from '../i18n/translate.js'
+import { andList } from './words.js'
 
 /** Standard tuning, lowest string first. */
 export const STANDARD_TUNING = [40, 45, 50, 55, 59, 64]
@@ -192,7 +194,9 @@ const CAPTION = 18
 
 /** "Capo 2", "Capo 2, sounds B": what a diagram with a capo says under it. */
 export const capoCaption = (capo: number, sounds?: string): string =>
-    `Capo ${capo}${sounds ? `, sounds ${sounds}` : ''}`
+    sounds
+        ? t('chord.guitar.capoCaptionSounds', { capo, sounds })
+        : t('chord.guitar.capoCaption', { capo })
 
 export function renderGuitarDiagram(
     doc: Document,
@@ -235,7 +239,8 @@ export function renderGuitarDiagram(
     const along = (row: number) => row * ROW
     const at = (string: number, row: number) => frame.at(across(string), along(row))
 
-    const label = `${options.title ? `${options.title} chord diagram` : 'Chord diagram'}${capo ? `, ${capoCaption(capo, options.sounds).replace(/^Capo/, 'capo')}` : ''}`
+    const labelCapo = capoCaption(capo, options.sounds)
+    const label = `${options.title ? t('chord.guitar.diagramTitled', { title: options.title }) : t('chord.guitar.diagram')}${capo ? `, ${labelCapo.charAt(0).toLowerCase()}${labelCapo.slice(1)}` : ''}`
     const height = frame.height + (caption ? CAPTION : 0)
     const root = svgRoot(doc, frame.width, height, 'mn-guitar-chord', label)
     // Its hand, for a redraw that must keep it (#60).
@@ -472,11 +477,12 @@ function chordWords(
         words = []
     }
     if (roots.length) {
-        const list =
-            roots.length === 1
-                ? `string ${roots[0]}`
-                : `strings ${roots.slice(0, -1).join(', ')} and ${roots[roots.length - 1]}`
-        words.push(`The root is on ${list}.`)
+        const list = andList(roots.map(String))
+        words.push(
+            t(roots.length === 1 ? 'chord.guitar.rootOnString' : 'chord.guitar.rootOnStrings', {
+                list
+            })
+        )
     }
     return words.join(' ')
 }

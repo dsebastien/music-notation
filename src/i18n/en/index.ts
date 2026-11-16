@@ -4,14 +4,12 @@
  * placeholders are `{name}` (an identifier). A literal brace never appears in a table string:
  * what a message tells the user to write goes in as a parameter.
  */
-import { enCore } from './core.js'
 import { enDiagrams } from './diagrams.js'
 import { enParse } from './parse.js'
 import { enPlay } from './play.js'
 import { enTimed } from './timed.js'
 
 export const en = {
-    ...enCore,
     ...enParse,
     ...enDiagrams,
     ...enTimed,

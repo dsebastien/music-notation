@@ -13,6 +13,7 @@
  */
 import { canonicalSuffix } from '../theory/suffix.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
+import { t } from '../i18n/translate.js'
 
 export interface ChordDefinition {
     /** The chord's name, without brackets. */
@@ -129,7 +130,10 @@ export function parseDefinition(
         return {
             definition: null,
             problems: [
-                `{${directive}} needs a chord name: e.g. {${directive}: Am frets x 0 2 2 1 0}`
+                t('chords.define.needsName', {
+                    syntax: `{${directive}}`,
+                    example: `{${directive}: Am frets x 0 2 2 1 0}`
+                })
             ]
         }
     }
@@ -172,9 +176,7 @@ export function parseDefinition(
         if (word === 'base-fret' || word === 'base_fret') {
             const n = Number(values[0])
             if (values.length !== 1 || !Number.isInteger(n) || n < 1 || n > 24) {
-                problems.push(
-                    `${at}: base-fret takes one whole number from 1 to 24, e.g. base-fret 3`
-                )
+                problems.push(t('chords.define.baseFret', { at }))
             } else definition.baseFret = n
         } else if (word === 'frets') {
             const frets = values.map((t) =>
@@ -185,9 +187,7 @@ export function parseDefinition(
                 frets.length > MAX_STRINGS ||
                 frets.some((f) => Number.isNaN(f) || (f ?? 0) > 24)
             ) {
-                problems.push(
-                    `${at}: frets takes one value per string (2 to ${MAX_STRINGS}): a fret from 0 to 24, or x for a muted string, e.g. frets x 0 2 2 1 0`
-                )
+                problems.push(t('chords.define.frets', { at, max: MAX_STRINGS }))
             } else definition.frets = frets
         } else if (word === 'fingers') {
             wroteFingers = true
@@ -195,14 +195,12 @@ export function parseDefinition(
         } else if (word === 'keys') {
             const keys = values.map((t) => (/^\d{1,2}$/.test(t) ? Number(t) : NaN))
             if (!keys.length || keys.some((k) => Number.isNaN(k) || k >= MAX_KEYS)) {
-                problems.push(
-                    `${at}: keys takes semitones above the root, from 0 to ${MAX_KEYS - 1}, e.g. keys 0 4 7`
-                )
+                problems.push(t('chords.define.keys', { at, max: MAX_KEYS - 1 }))
             } else definition.keys = keys
         } else if (word === 'copy' || word === 'copyall') {
             const from = values[0]
             if (values.length !== 1 || !from) {
-                problems.push(`${at}: ${word} takes the name of one chord, e.g. ${word} Am`)
+                problems.push(t('chords.define.copy', { at, word }))
                 continue
             }
             const source = findDefinition(earlier, from)
@@ -222,7 +220,7 @@ export function parseDefinition(
             definition.diagram = values[0]?.toLowerCase() !== 'off'
         } else {
             problems.push(
-                `${at}: unknown "${tokens[i - 1 - values.length]}": use base-fret, frets, fingers, keys, copy, display or diagram`
+                t('chords.define.unknown', { at, word: tokens[i - 1 - values.length] ?? '' })
             )
         }
     }
@@ -234,14 +232,18 @@ export function parseDefinition(
         // Copied fingers that don't fit the new frets are dropped quietly (ChordPro keeps them).
         if (wroteFingers) {
             problems.push(
-                `${at}: fingers has ${definition.fingers.length} values for ${definition.frets.length} strings: give one per string (0 for none)`
+                t('chords.define.fingersCount', {
+                    at,
+                    fingers: definition.fingers.length,
+                    strings: definition.frets.length
+                })
             )
         }
         definition.fingers = null
     }
     const top = Math.max(0, ...(absoluteFrets(definition) ?? []).map((f) => f ?? 0))
     if (top > MAX_FRET) {
-        problems.push(`${at}: the shape reaches fret ${top}: frets go up to ${MAX_FRET}`)
+        problems.push(t('chords.define.reaches', { at, top, max: MAX_FRET }))
         definition.frets = null
     }
     return { definition, problems }

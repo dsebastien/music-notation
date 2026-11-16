@@ -7,6 +7,8 @@ import { fingerVoicing, generateVoicings, type GeneratedVoicing } from './genera
 import { STANDARD_TUNING } from './guitar.js'
 import { stringNames } from './fingering-words.js'
 import type { VoicingLookup } from '../voicings/index.js'
+import { t } from '../i18n/translate.js'
+import { ordinal } from './words.js'
 
 export interface TransitionStep {
     voicing: GeneratedVoicing
@@ -34,16 +36,22 @@ export interface TransitionOptions {
     tuningNames?: readonly string[]
 }
 
-const FINGER_NAMES: Record<string, string> = {
-    '1': 'index finger',
-    '2': 'middle finger',
-    '3': 'ring finger',
-    '4': 'pinky',
-    'T': 'thumb'
+const fingerNameOf = (finger: string): string => {
+    switch (finger) {
+        case '1':
+            return t('chord.transition.fingerIndex')
+        case '2':
+            return t('chord.transition.fingerMiddle')
+        case '3':
+            return t('chord.transition.fingerRing')
+        case '4':
+            return t('chord.transition.fingerPinky')
+        case 'T':
+            return t('chord.transition.fingerThumb')
+        default:
+            return t('chord.transition.fingerOther')
+    }
 }
-
-const ordinal = (n: number) =>
-    `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')}`
 
 /** A slide longer than this many frets is a finger lifted and placed again. */
 const MAX_SLIDE = 3
@@ -105,28 +113,39 @@ function move(
     movement -= strings.size - placed.size
     const shift = Math.abs(lowestFret(to.frets) - lowestFret(from))
     movement += 0.3 * shift
-    const fingerName = (f: string | null | undefined) => FINGER_NAMES[f ?? ''] ?? 'finger'
+    const fingerName = (f: string | null | undefined) => fingerNameOf(f ?? '')
     const seen = new Set<string>()
     for (const s of anchors) {
         const f = to.fingers[s]!
         if (seen.has(f)) continue
         seen.add(f)
-        tips.push(`Keep your ${fingerName(f)} on ${names[s]}'s ${ordinal(to.frets[s]!)} fret.`)
+        tips.push(
+            t('chord.transition.keep', {
+                finger: fingerName(f),
+                string: names[s]!,
+                fret: ordinal(to.frets[s]!)
+            })
+        )
     }
     for (const s of guides) {
         const f = to.fingers[s]!
         if (seen.has(f)) continue
         seen.add(f)
         tips.push(
-            `Slide your ${fingerName(f)} along ${names[s]} from fret ${from[s]} to ${to.frets[s]}.`
+            t('chord.transition.slide', {
+                finger: fingerName(f),
+                string: names[s]!,
+                from: from[s]!,
+                to: to.frets[s]!
+            })
         )
     }
     if (shift >= 2) {
         const up = lowestFret(to.frets) > lowestFret(from)
-        tips.push(`Move your hand ${up ? 'up' : 'down'} ${shift} frets.`)
+        tips.push(t(up ? 'chord.transition.moveUp' : 'chord.transition.moveDown', { shift }))
     }
     if (!anchors.length && !guides.length && shift < 2) {
-        tips.push('Lift all your fingers together and place them as one shape.')
+        tips.push(t('chord.transition.lift'))
     }
     return { anchors, guides, shift, movement: Math.round(movement * 10) / 10, tips }
 }

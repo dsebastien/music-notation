@@ -19,6 +19,7 @@ import {
 } from './keys.js'
 import { harmonicFunction, numeralOf, type HarmonicFunction } from './numerals.js'
 import { scaleName, scaleSpelling } from './scales.js'
+import { t } from '../i18n/translate.js'
 
 export const HARMONIZE_KINDS = ['triads', 'sevenths', 'sus', 'power'] as const
 
@@ -84,8 +85,7 @@ const MINOR_FUNCTIONS: HarmonicFunction[] = [
 
 const DIATONIC: HarmonicFunction[] = ['tonic', 'subdominant', 'dominant']
 
-const unknown = (text: string) =>
-    `Unknown scale "${text.trim()}": use e.g. key: G major, key: A harmonic minor or key: D dorian`
+const unknown = (text: string) => t('theory.harmonize.unknownScale', { text: text.trim() })
 
 /**
  * A scale to harmonize: a key (`G`, `Em`, `F# minor`, `D dorian`) or any 7-note scale tonal knows
@@ -107,7 +107,10 @@ export function readHarmonyScale(text: string): HarmonyScale | { error: string }
     if (scale.empty || !scale.tonic) return { error: unknown(text) }
     if (scale.notes.length !== 7) {
         return {
-            error: `harmonize needs a scale of 7 notes: ${scale.name} has ${scale.notes.length}`
+            error: t('theory.harmonize.sevenNotes', {
+                name: scale.name,
+                count: scale.notes.length
+            })
         }
     }
     const tonic = scale.tonic
@@ -123,7 +126,11 @@ export function readHarmonyScale(text: string): HarmonyScale | { error: string }
     const count = minor ? Key.minorKey(tonic).alteration : Key.majorKey(tonic).alteration
     if (Math.abs(count) > MAX_SIGNATURE) {
         return {
-            error: `${scale.name} needs ${Math.abs(count)} ${count > 0 ? 'sharps' : 'flats'}: write ${Note.enharmonic(tonic)} ${scale.type}`
+            error: t(count > 0 ? 'theory.key.needsSharps' : 'theory.key.needsFlats', {
+                name: scale.name,
+                count: Math.abs(count),
+                write: `${Note.enharmonic(tonic)} ${scale.type}`
+            })
         }
     }
     return { name: scale.name, notes, key }
@@ -139,13 +146,13 @@ function chordOn(
     const above = (step: number) => Interval.distance(root, notes[(i + step) % 7]!)
     if (kind === 'triads' || kind === 'sevenths') {
         const symbol = stackedChord(notes, i, kind === 'sevenths')
-        return symbol ? { symbol } : { reason: 'not a named chord' }
+        return symbol ? { symbol } : { reason: t('theory.harmonize.noNamedChord') }
     }
-    if (above(4) !== '5P') return { reason: 'no perfect fifth' }
+    if (above(4) !== '5P') return { reason: t('theory.harmonize.noFifth') }
     if (kind === 'power') return { symbol: `${root}5` }
     if (above(3) === '4P') return { symbol: `${root}sus4` }
     if (above(1) === '2M') return { symbol: `${root}sus2` }
-    return { reason: 'no perfect fourth or major second' }
+    return { reason: t('theory.harmonize.noFourthOrSecond') }
 }
 
 /**

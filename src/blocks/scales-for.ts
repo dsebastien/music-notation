@@ -5,6 +5,7 @@
 import { parseBlockSource, type BlockSource } from './block-source.js'
 import type { DiagramRenderer } from './renderers.js'
 import { bluesTonic, findScales } from '../theory/find.js'
+import { t } from '../i18n/translate.js'
 
 /** Keys that choose the notes themselves: they can't go with `scales-for`. */
 const OWN_NOTES = ['scale', 'chord', 'notes', 'root', 'modes']
@@ -18,33 +19,36 @@ export function scalesForBlock(block: BlockSource): BlockSource {
     const notes = block.fields.get('scales-for-notes')?.trim()
     if (chords === undefined && notes === undefined) return block
     if (chords !== undefined && notes !== undefined) {
-        throw new Error('Use scales-for (chords) or scales-for-notes, not both')
+        throw new Error(t('blocks.scalesFor.both'))
     }
     const key = chords !== undefined ? 'scales-for' : 'scales-for-notes'
     const own = OWN_NOTES.find((k) => block.fields.has(k))
     if (own || block.head) {
-        throw new Error(`${key} finds the scale itself: remove "${own ?? block.head}"`)
+        throw new Error(t('blocks.scalesFor.findsItself', { key, what: own ?? block.head ?? '' }))
     }
     const text = (chords ?? notes)!
     const items = text.split(/[\s,|]+/).filter(Boolean)
     if (!items.length) {
         throw new Error(
-            chords !== undefined
-                ? 'Add the chords: e.g. scales-for: G D Em C'
-                : 'Add the notes: e.g. scales-for-notes: C D E G A'
+            t(chords !== undefined ? 'blocks.scalesFor.addChords' : 'blocks.scalesFor.addNotes')
         )
     }
     const [best] = findScales(items, { as: chords !== undefined ? 'chords' : 'notes' })
     if (!best) {
         // No match at all means an item didn't read (a near match always exists for real notes).
         throw new Error(
-            chords !== undefined
-                ? `Didn't read the chords "${text}": use chord symbols, e.g. scales-for: G D Em C`
-                : `Didn't read the notes "${text}": use note names, e.g. scales-for-notes: C D E G A`
+            t(
+                chords !== undefined
+                    ? 'blocks.scalesFor.unreadChords'
+                    : 'blocks.scalesFor.unreadNotes',
+                { text }
+            )
         )
     }
     const listed = items.slice(0, TITLE_ITEMS).join(' ') + (items.length > TITLE_ITEMS ? '…' : '')
-    const outside = best.outside.length ? `, ${best.outside.join(' ')} outside` : ''
+    const outside = best.outside.length
+        ? t('blocks.scalesFor.outside', { notes: best.outside.join(' ') })
+        : ''
     const fields = new Map([...block.fields].filter(([k]) => k !== key))
     fields.set('scale', best.name)
     // A blues: the blues scale, named as players say it, with the other usual choices; its notes
@@ -52,8 +56,13 @@ export function scalesForBlock(block: BlockSource): BlockSource {
     const blues = chords !== undefined ? bluesTonic(items) : null
     const title =
         blues && best.type === 'minor blues'
-            ? `${best.tonic} blues scale for ${listed} (or ${best.tonic} minor pentatonic, ${best.tonic} mixolydian)`
-            : `${best.name} for ${listed}${outside}`
+            ? t('blocks.scalesFor.bluesTitle', {
+                  tonic: best.tonic,
+                  listed,
+                  pentatonic: `${best.tonic} minor pentatonic`,
+                  mixolydian: `${best.tonic} mixolydian`
+              })
+            : t('blocks.scalesFor.title', { name: best.name, listed, outside })
     if (!fields.get('title')) fields.set('title', title)
     return { head: null, fields }
 }
