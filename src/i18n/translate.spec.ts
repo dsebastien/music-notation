@@ -17,10 +17,10 @@ describe('languageOf', () => {
 describe('t', () => {
     it('is English outside withLanguage', () => {
         expect(currentLanguage()).toBe('en')
-        expect(t('core.example')).toBe('Example')
+        expect(t('playback.play')).toBe('Play')
     })
     it('speaks the language of withLanguage, and restores it, even on a throw', () => {
-        expect(withLanguage('fr', () => t('core.example'))).toBe('Exemple')
+        expect(withLanguage('fr', () => t('playback.play'))).toBe('Lecture')
         expect(() =>
             withLanguage('fr', () => {
                 throw new Error('x')
@@ -31,8 +31,8 @@ describe('t', () => {
     it('keeps its language in a captured translator', () => {
         const fr = withLanguage('fr', () => translator())
         const en = translator()
-        expect(fr('core.example')).toBe('Exemple')
-        expect(en('core.example')).toBe('Example')
-        expect(translatorFor('fr')('core.example')).toBe('Exemple')
+        expect(fr('playback.play')).toBe('Lecture')
+        expect(en('playback.play')).toBe('Play')
+        expect(translatorFor('fr')('playback.play')).toBe('Lecture')
     })
 })
