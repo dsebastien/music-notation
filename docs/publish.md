@@ -53,6 +53,7 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 - Better sounds, one small file per instrument: `play: { instruments: '<folder URL>' }` names a folder of instrument soundfonts (the `generaluser` folder of the npm package `@dsebastien/music-notation-sounds`, or one made by the library's `scripts/sounds/split-soundfont.ts`). Tabs and scores then load only the instruments they play, at the first Play (a guitar is about 110 KB with GeneralUser GS), and diagrams on pages with tabs use them too. The folder can be on your own site or on any host that lets your pages read it (CORS). The sounds package's folder on jsDelivr works as is, the way this guide uses it: `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation-sounds@0.1.1/generaluser` (hear it next to the other sounds on [Sounds](sounds.md)). The library has no address of its own for these files: without `instruments`, the soundfont that ships with alphaTab plays, as before. When the folder can't be read or lacks an instrument, that soundfont plays too.
 - `play: { engine: 'light' }` (or `'generaluser'`, `'sonivox'`) chooses the engine that plays. The library tries it first, then `generaluser`, `sonivox` and `light`, and skips what the page doesn't have, so a page never goes silent. Tabs and scores never play through the light synthesizer: with `engine: 'light'`, they play the instrument files when the page names them, else sonivox.
 - A block can wish for an engine with an `engine:` line (`{engine: light}` in a chord chart). Its wish comes before the page's choice, and falls back the same way when the page can't give it. See [Sounds](sounds.md#which-one-plays-on-your-pages).
+- The bars, the texts for screen readers and the messages of the blocks are in the page's language: French when `<html lang>` says so (`fr`, `fr-BE`, `fr-CA` and the like), else English. If your site's pages declare French, the bars are in French with nothing to set. `language: 'fr'` or `language: 'en'` forces one. It doesn't change the note names: that's `naming` (below). See [Language of the texts](blocks.md#language-of-the-texts).
 - Defaults for the whole site go in `window.musicNotationOptions`, set before the bundle loads (at the top of `publish.js`). A block's own `orientation`, `hand`, `naming`, `root-mark` and `names` still win.
 
 ```js
@@ -63,7 +64,9 @@ window.musicNotationOptions = {
     // 'german' (H for B). It never changes how your notes are read.
     naming: 'solfege',
     // The root as a shape too, not only a color: 'color' (default) or 'shape'.
-    rootMark: 'shape'
+    rootMark: 'shape',
+    // The language of the bars and messages: 'en' or 'fr'. Without it, the page's own (<html lang>).
+    language: 'fr'
 }
 ```
 

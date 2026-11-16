@@ -1017,6 +1017,38 @@ What you write by hand stays as you wrote it: titles (`title:`, `{title}`) and l
 
 The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default for showing (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). `caption: fingering` sentences stay in letters; `caption: formula` follows the naming. So do the [note names on tabs and scores](#note-names-on-the-notes), from the app's or the page's naming.
 
+## Language of the texts
+
+The texts a block shows or announces can be in French. English is the default, and the fallback. French is the first translation; there are no other languages yet.
+
+What the language changes:
+
+- The bars under the blocks: Play, Pause, Stop, Loop, Count-in, Metronome, the tempo, Copy as image, Full screen, Follow the music and Note names.
+- The view switches (Tab / Score / Both, Guitar / Piano) and the playback choices (On the beats, Once a bar, Arpeggio).
+- The labels of sliders and menus, and their values.
+- What screen readers read: the names of buttons and diagrams ("Play G chord diagram"), the tooltips, and the descriptions of diagrams.
+- The messages a block shows when its source has a mistake, while it loads, and when it can't play.
+
+What stays as it is, on purpose:
+
+- The block syntax: its keys and values (`chord:`, `labels: notes`, `instrument: piano`, `staves: both`). It is the same in every language, so a note draws in every app and on every site, whatever their language.
+- What a message quotes from your text, or tells you to write. In `staves: utilisez tab, score ou both, reçu « piano »`, the words `staves`, `tab`, `score` and `both` stay: that's what you write.
+- Note names in letters, chord symbols, and interval and degree labels (R, b3, 5).
+- Scale and chord type names inside titles ("A minor pentatonic").
+- The [`music-notation check`](check.md) command. It stays in English.
+- alphaTab's own messages in tabs and scores: the detail after "ligne 3, colonne 8 :".
+
+French note names (Do Ré Mi) are a separate choice: [`naming: solfege`](#note-names-solfège-and-german). The language doesn't change the naming.
+
+Where the language comes from:
+
+- On a web page and on Obsidian Publish: the page's own language. See [Obsidian Publish](publish.md).
+- In apps: the app passes it (the `language` option, see [JavaScript API](api.md#language-of-the-texts)), else English. The Music Practice plugin passes Obsidian's language from its next release.
+
+The language is read when a block is drawn. A block drawn again takes the new language; the blocks already on the page don't switch.
+
+A French text that reads wrong or odd? Report it in the [GitHub issues](https://github.com/dsebastien/music-notation/issues).
+
 ## Root marks without color
 
 The root is drawn in its own color. `root-mark: shape` makes it a shape too, for players who don't tell the colors apart: the root's dots are rounded squares (the finger or label still inside), an open root string is a square ring, and a root key gets a small square.

@@ -16,6 +16,7 @@ And there's more:
 - [Chord diagrams in a chart](blocks.md#chord-diagrams-in-a-chart), with your own shapes (`{define}`) and the capo.
 - A key finder: give a [progression](blocks.md#progressions) its chord names and it finds the key, or ask [which scale fits](blocks.md#which-scale-fits) a song's chords.
 - [Follow the notes](blocks.md#hear-the-diagrams): with playback on, each note lights up on the drawing when you hear it.
+- [French texts](blocks.md#language-of-the-texts): the bars, the messages and what screen readers read follow the page's language. English stays the default.
 
 ![Chord diagrams, a piano chord, a keyboard, a fretboard and a chord chart](images/overview.png)
 
