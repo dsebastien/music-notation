@@ -104,6 +104,16 @@ describe('full screen for every block (#113)', () => {
         expect(pressed).toBe(3)
     })
 
+    it('a block gone from the page in full screen gives Space back to the page', () => {
+        const { el } = renderBlock('chord', 'A x02220', host(), { play: true })
+        click(el.querySelector('.mn-play-full')!)
+        el.remove()
+        const down = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+        document.body.dispatchEvent(down)
+        expect(down.defaultPrevented).toBe(false)
+        expect(el.classList.contains('mn-fullscreen')).toBe(false)
+    })
+
     it('one button per block, even when two bars share it', () => {
         const block = host()
         const bar = document.createElement('div')

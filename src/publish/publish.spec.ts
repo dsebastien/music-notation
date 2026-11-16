@@ -42,6 +42,7 @@ describe('renderAll', () => {
         expect(drawn.isConnected).toBe(true)
         expect(drawn.classList.contains('mn-fullscreen')).toBe(true)
         expect(document.querySelectorAll('.mn-block')).toHaveLength(1)
+        ;(drawn.querySelector('.mn-play-full') as HTMLButtonElement).click()
     })
 
     it('keeps the source visible when a block has an error', () => {

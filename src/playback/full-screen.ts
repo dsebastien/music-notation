@@ -175,6 +175,11 @@ export function fullScreenControl(
      */
     const space = (event: KeyboardEvent) => {
         if (!on || event.key !== ' ' || event.ctrlKey || event.metaKey || event.altKey) return
+        // A block gone from the page (a site navigated away) leaves full screen: the key is the page's.
+        if (!block.isConnected) {
+            leave(false)
+            return
+        }
         const target = event.target as HTMLElement | null
         if (target?.closest('input:not([type=range]), textarea, select, [contenteditable=true]'))
             return
