@@ -1370,3 +1370,16 @@
     padding: 6px 0 8px;
     background: inherit;
 }
+
+/* Follow the music (#97): paused while the reader scrolls by hand, the button stays on but dim. */
+.mn-play button.mn-tab-follow.mn-follow-paused {
+    opacity: 0.55;
+}
+
+/* A tab or a score on one line (`layout: line`, #97): it scrolls sideways in its own area, by
+   hand and with the music. The page never moves. */
+.mn-tab.mn-tab-line .mn-tab-surface {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+}

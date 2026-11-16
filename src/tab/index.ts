@@ -12,7 +12,8 @@ import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/playe
 import { chooseEngine, engineOf, type Engine } from '../playback/engine.js'
 import { icon, iconButton, playBar, pressedButton, volumeOf } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
-import { fullScreenControl } from '../playback/full-screen.js'
+import { fullScreenControl, type FullScreen } from '../playback/full-screen.js'
+import { followScroll } from './follow-scroll.js'
 import { scoreFit } from './score-fit.js'
 import { tempoAt, tempoControl, type TempoUnit } from './tempo.js'
 import {
@@ -174,6 +175,11 @@ export interface TabSource {
     tracks: number[] | null
     /** The block's wish for an engine (`engine:`, #124); null without one. */
     engine: Engine | null
+    /**
+     * `layout: line` draws the music on one line that scrolls sideways (#97); `page`, the
+     * default, in systems one under the other.
+     */
+    layout: 'page' | 'line'
     /** The alphaTex itself. */
     tex: string
     /** Lines of the block before the alphaTex (settings, blank lines), for error positions. */
@@ -185,10 +191,10 @@ export interface TabSource {
     fromText: boolean
 }
 
-const SETTING = /^\s*(staves|file|tracks?|engine)\s*:\s*(.*)$/i
+const SETTING = /^\s*(staves|file|tracks?|engine|layout)\s*:\s*(.*)$/i
 
 /**
- * A tab block's own settings (lines `staves:`, `file:`, `tracks:`, `engine:` at the top, `//` comments
+ * A tab block's own settings (lines `staves:`, `file:`, `tracks:`, `engine:`, `layout:` at the top, `//` comments
  * allowed among them), then its alphaTex, or a plain-text tab, converted (#71). ```tab blocks show
  * tablature, ```score blocks standard notation, unless `staves:` says otherwise. Throws a message
  * for the user.
@@ -201,6 +207,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
         file: null,
         tracks: null,
         engine: null,
+        layout: 'page',
         tex: '',
         texLine: 0,
         fromText: false
@@ -233,6 +240,12 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
                 throw new Error(`engine: use generaluser, sonivox or light, got "${value}"`)
             }
             out.engine = engine
+        } else if (key === 'layout') {
+            const v = value.toLowerCase()
+            if (v !== 'page' && v !== 'line') {
+                throw new Error(`layout: use page or line, got "${value}"`)
+            }
+            out.layout = v
         } else {
             const tracks = value
                 .split(/[\s,]+/)
@@ -753,6 +766,9 @@ export function renderTab(
             if (!at?.AlphaTabApi) throw new Error("alphaTab isn't loaded")
             const surface = html(doc, 'div', 'mn-tab-surface')
             el.appendChild(surface)
+            // One line that scrolls sideways in its own area (#97).
+            const line = parsed.layout === 'line'
+            el.classList.toggle('mn-tab-line', line)
             const { assets } = options
             const made = local(doc)
             const settings: AT.json.SettingsJson = {
@@ -772,7 +788,8 @@ export function renderTab(
                 display: {
                     // Default: what each staff shows is set when the score loads (chooseStaves).
                     staveProfile: 'Default',
-                    resources: colorsOf(el)
+                    resources: colorsOf(el),
+                    ...(line ? { layoutMode: at.LayoutMode?.Horizontal ?? 1 } : {})
                 },
                 // The player starts at the first Play (playerBar). It never scrolls the page: the
                 // default (Continuous) jumped it at each Play, OffScreen to the page's end. A block
@@ -847,6 +864,86 @@ export function renderTab(
                                 options.onKeepView
                             )
                         )
+                    // Follow the music (#97). Three cases, one button. In full screen the score
+                    // follows by default: only its own area scrolls there (alphaTab does it).
+                    // On one line (`layout: line`) it follows by default too: only its own area
+                    // scrolls, sideways. Else it is off until the reader asks (the page never
+                    // moves by itself, #89), and then the nearest scroll area or the page moves
+                    // by the smallest step that shows the system that plays (`followScroll`).
+                    let full: FullScreen | null = null
+                    /** Full screen lets the score follow now (not after a scroll by hand there). */
+                    let fullFollows = false
+                    /** The reader's choice in full screen: on unless turned off there. */
+                    let fullWish = true
+                    const inFull = () => full?.active() ?? false
+                    const followButton = iconButton(
+                        doc,
+                        'mn-tab-follow',
+                        'Follow the music',
+                        'follow'
+                    )
+                    const showFollow = () => {
+                        const on = inFull() ? fullWish : follow.on()
+                        const paused = inFull() ? fullWish && !fullFollows : on && !follow.active()
+                        followButton.setAttribute('aria-pressed', String(on))
+                        followButton.classList.toggle('mn-on', on)
+                        followButton.classList.toggle('mn-follow-paused', paused)
+                        followButton.title = paused
+                            ? 'Follow the music (paused while you scroll: Play or click to follow again)'
+                            : 'Follow the music'
+                    }
+                    /** What alphaTab scrolls by itself: its own area only, never the page. */
+                    const applyScroll = () => {
+                        const along = line ? at.ScrollMode.Continuous : at.ScrollMode.OffScreen
+                        const mode = inFull()
+                            ? fullFollows && fullWish
+                                ? along
+                                : at.ScrollMode.Off
+                            : line && follow.active()
+                              ? along
+                              : at.ScrollMode.Off
+                        if (current.settings.player.scrollMode !== mode) {
+                            current.settings.player.scrollMode = mode
+                            current.updateSettings()
+                        }
+                        showFollow()
+                    }
+                    const follow = followScroll(el, { on: line, changed: applyScroll })
+                    if (line) {
+                        // Room before the bar that plays, so the cursor isn't on the edge.
+                        current.settings.player.scrollOffsetX = -24
+                        current.settings.player.scrollMode = at.ScrollMode.Continuous
+                        current.updateSettings()
+                    }
+                    followButton.addEventListener('click', () => {
+                        if (!inFull()) return follow.press()
+                        // Paused by a scroll in full screen: follows again. Else on or off there.
+                        if (fullWish && !fullFollows) full?.playing()
+                        else fullWish = !fullWish
+                        applyScroll()
+                    })
+                    current.playerStateChanged.on((e) => {
+                        if (Number(e.state) === Number(at.synth?.PlayerState.Playing))
+                            follow.playing()
+                    })
+                    const shown = bar
+                    current.playerPositionChanged.on(() => {
+                        if (line || inFull() || !follow.active()) return
+                        const cursor = surface.querySelector('.at-cursor-bar')
+                        if (!cursor) return
+                        const { top, bottom } = cursor.getBoundingClientRect()
+                        // The bar stays at the bottom of the view, over the music.
+                        follow.show({ top, bottom }, shown.bar.offsetHeight + 12)
+                    })
+                    showFollow()
+                    bar.bar.appendChild(followButton)
+                    {
+                        const off = unbar
+                        unbar = () => {
+                            follow.destroy()
+                            off()
+                        }
+                    }
                     if (options.fullScreen !== false) {
                         // In full screen the score follows the music: only its own area scrolls
                         // there. Out of it, the page never moves (#89).
@@ -870,25 +967,24 @@ export function renderTab(
                             },
                             () => surface.scrollHeight <= surface.clientHeight + 1
                         )
-                        const full = fullScreenControl(
+                        const control = fullScreenControl(
                             doc,
                             el,
                             surface,
                             (on) => {
-                                current.settings.player.scrollMode = on
-                                    ? at.ScrollMode.OffScreen
-                                    : at.ScrollMode.Off
-                                current.updateSettings()
+                                fullFollows = on
+                                applyScroll()
                             },
                             { changed: (on) => (on ? fit.enter() : fit.leave()) }
                         )
+                        full = control
                         // Once the drawing is in the page (alphaTab sets its area's size last).
                         current.postRenderFinished.on(() => {
                             // alphaTab 1.9.0 gives its drawing area the wrong height at a scale
                             // above 1 (half of it at 2), and the area hides the rest: it gets the
                             // height of its parts.
                             const area = surface.querySelector<HTMLElement>('.at-surface')
-                            if (area && full.active()) {
+                            if (area && control.active()) {
                                 const bottom = Math.max(
                                     0,
                                     ...[...area.children].map((part) => {
@@ -902,14 +998,14 @@ export function renderTab(
                         })
                         current.playerStateChanged.on((e) => {
                             if (Number(e.state) === Number(at.synth.PlayerState.Playing))
-                                full.playing()
+                                control.playing()
                         })
                         // Drawn again at its own width after full screen: its height is its own.
-                        current.renderFinished.on(() => full.drawn())
-                        bar.bar.appendChild(full.button)
+                        current.renderFinished.on(() => control.drawn())
+                        bar.bar.appendChild(control.button)
                         const off = unbar
                         unbar = () => {
-                            full.destroy()
+                            control.destroy()
                             off()
                         }
                     }
