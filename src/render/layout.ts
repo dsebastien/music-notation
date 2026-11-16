@@ -4,6 +4,8 @@
  * so text stays upright in every orientation (nothing is rotated or mirrored).
  */
 
+import { t } from '../i18n/translate.js'
+
 export type Orientation = 'vertical' | 'horizontal'
 export type Hand = 'left' | 'right'
 
@@ -18,13 +20,13 @@ export interface LayoutDefaults {
 export function parseOrientation(text: string): Orientation {
     const value = text.trim().toLowerCase()
     if (value === 'vertical' || value === 'horizontal') return value
-    throw new Error(`Unknown orientation "${text}": use vertical or horizontal`)
+    throw new Error(t('render.layout.orientation', { text }))
 }
 
 export function parseHand(text: string): Hand {
     const value = text.trim().toLowerCase()
     if (value === 'left' || value === 'right') return value
-    throw new Error(`Unknown hand "${text}": use left or right`)
+    throw new Error(t('render.layout.hand', { text }))
 }
 
 /** Keeps only valid layout defaults from untrusted input (a page's `window.musicNotationOptions`). */

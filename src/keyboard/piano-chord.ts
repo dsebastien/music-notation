@@ -33,6 +33,7 @@
  * root position, over any bass, as method books write it (C/E and C first inversion: E3 + C4 E4
  * G4; D/F#: F#3 + D4 F#4 A4).
  */
+import { t } from '../i18n/translate.js'
 import { Note } from 'tonal'
 import { orFail } from '../blocks/note-set-field.js'
 import { keyNotes, readKey } from '../theory/keys.js'
@@ -116,9 +117,7 @@ function shellOf(symbol: string, tones: Tone[], form: ShellForm): number[] {
     const third = find(tones, '3M', '3m', '4P', '2M')
     const seventh = find(tones, '7m', '7M', '7d', '6M', '13M')
     if (!third || !seventh) {
-        throw new Error(
-            `Shell voicings need a third and a seventh or sixth (C7, Cmaj7, Cm7, C6): ${symbol} has none`
-        )
+        throw new Error(t('keyboard.piano.shell', { symbol }))
     }
     return form === 'R-7'
         ? [root.chroma, seventh.chroma, third.chroma]
@@ -160,9 +159,7 @@ function rootlessOf(
         : (find(tones, '6M', '13M') ?? (triad ? { chroma: at(9), interval: '6M' } : undefined))
     // A diminished seventh has no seventh to keep (7d): it isn't voiced rootless.
     if (!third || !(seventh ?? sixth)) {
-        throw new Error(
-            `Rootless voicings are for major, minor, dominant (sus4 too) and half-diminished seventh or sixth chords and major or minor triads (Cmaj7, Cm7, C7, C7sus4, Cm7b5, C6, C, Cm): not ${symbol}`
-        )
+        throw new Error(t('keyboard.piano.rootless', { symbol }))
     }
     const sevenChroma = (seventh ?? sixth)!.chroma
     const dominant = third.interval === '3M' && seventh?.interval === '7m'
@@ -254,21 +251,25 @@ export function pianoVoicing(
     const hands = options.hands
     const octave = options.octave ?? (hands === 'left' || style === 'rootless' ? 3 : 4)
     if (!Number.isInteger(octave) || octave < 0 || octave > 8) {
-        throw new Error(`octave: use a number from 0 to 8, got "${octave}"`)
+        throw new Error(t('keyboard.piano.octave', { text: octave }))
     }
     if (!Number.isInteger(inversion) || inversion < 0) {
-        throw new Error(`inversion: use 0 (root position), 1, 2 or 3, got "${inversion}"`)
+        throw new Error(t('keyboard.piano.inversion', { text: inversion }))
     }
     if (inversion > 0) {
         if (slash !== null) {
-            throw new Error(`${symbol} already says its bass: leave inversion out`)
+            throw new Error(t('keyboard.piano.slashInversion', { symbol }))
         }
         if (style === 'shell' || style === 'rootless') {
-            throw new Error(`inversion goes with close or open voicings, not ${style}`)
+            throw new Error(t('keyboard.piano.inversionStyle', { style }))
         }
         if (inversion >= tones.length) {
             throw new Error(
-                `${symbol} has ${tones.length} notes: inversion goes up to ${tones.length - 1}`
+                t('keyboard.piano.inversionMax', {
+                    symbol,
+                    notes: tones.length,
+                    max: tones.length - 1
+                })
             )
         }
     }
@@ -294,7 +295,7 @@ export function pianoVoicing(
         chromas = order.map((t) => t.chroma)
     }
     if (style === 'open' && chromas.length < 3) {
-        throw new Error(`Open voicings need three notes or more: ${symbol} has ${chromas.length}`)
+        throw new Error(t('keyboard.piano.open', { symbol, notes: chromas.length }))
     }
     let right = stack(chromas, octave)
     // Open: the note above the bass goes up an octave.
@@ -328,7 +329,7 @@ export function pianoVoicing(
     }
     const pitches = [...new Set([...left, ...bass, ...right])].sort((a, b) => a - b)
     if (pitches[0]! < LOWEST || pitches[pitches.length - 1]! > HIGHEST) {
-        throw new Error(`octave ${octave} puts ${symbol} off the piano's keys: try octave 3 or 4`)
+        throw new Error(t('keyboard.piano.offKeys', { octave, symbol }))
     }
     return {
         pitches,
@@ -472,7 +473,7 @@ function jazzFingering(voicing: PianoVoicing): Map<number, string> | null {
 
 /** Piano voicing of a chord as a note set: close root position from octave 4, a slash chord's bass in octave 3. */
 export function pianoPitches(symbol: string, options: PianoVoicingOptions = {}): NoteSet {
-    const set = orFail(chordNoteSet(symbol), `Unknown chord "${symbol}"`)
+    const set = orFail(chordNoteSet(symbol), t('keyboard.piano.unknownChord', { symbol }))
     const pitches = pianoVoicing(symbol, options)!.pitches
     // Rootless voicings add a 9th or a 13th the symbol doesn't list: they join the chord's notes
     // (lit, spelled and labeled from the root: G7's A is 9, its E 13).
@@ -515,9 +516,7 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
     if (inversion) {
         const n = INVERSIONS[inversion.replace(/\s*inversion$/, '')] ?? Number(inversion)
         if (!Number.isInteger(n) || n < 0) {
-            throw new Error(
-                `inversion: use root, first, second, third (or 0 to 3), got "${inversion}"`
-            )
+            throw new Error(t('keyboard.piano.inversionWord', { text: inversion }))
         }
         options.inversion = n
     }
@@ -525,7 +524,7 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
     if (octave) {
         const n = Number(octave)
         if (!Number.isInteger(n) || n < 0 || n > 8) {
-            throw new Error(`octave: use a number from 0 to 8 (4 is middle C's), got "${octave}"`)
+            throw new Error(t('keyboard.piano.octaveMiddle', { text: octave }))
         }
         options.octave = n
     }
@@ -540,9 +539,7 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
             (m![1] === 'rootless' && /^[AB]$/.test(form)) ||
             (m![1] === 'shell' && /^R[37]$/.test(form))
         if (!m || !fits) {
-            throw new Error(
-                `voicing: use close, open, shell, shell R-7, rootless A or rootless B, got "${voicing}"`
-            )
+            throw new Error(t('keyboard.piano.voicing', { text: voicing }))
         }
         options.voicing = m[1] as PianoVoicingStyle
         if (form && m[1] === 'rootless') options.rootless = form as RootlessForm
@@ -551,13 +548,13 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
     const keyText = get('key')?.trim()
     if (keyText) {
         const key = readKey(keyText)
-        if (!key) throw new Error(`Unknown key "${keyText}": use e.g. key: C minor or key: Eb`)
+        if (!key) throw new Error(t('keyboard.piano.key', { text: keyText }))
         options.key = keyNotes(key).map((n) => chromaOf(n)!)
     }
     const resolvesTo = get('resolves-to')?.trim()
     if (resolvesTo) {
         if (!chordNoteSet(resolvesTo)) {
-            throw new Error(`resolves-to: write a chord, e.g. resolves-to: Cm, got "${resolvesTo}"`)
+            throw new Error(t('keyboard.piano.resolvesTo', { text: resolvesTo }))
         }
         options.resolvesTo = resolvesTo
     }
@@ -566,7 +563,7 @@ export function pianoOptionsOf(get: (key: string) => string | undefined): PianoV
         if (['left+right', 'both', 'two', 'right+left'].includes(hands))
             options.hands = 'left+right'
         else if (hands === 'left' || hands === 'right') options.hands = hands
-        else throw new Error(`hands: use left+right, left or right, got "${hands}"`)
+        else throw new Error(t('keyboard.piano.hands', { text: hands }))
     }
     return options
 }

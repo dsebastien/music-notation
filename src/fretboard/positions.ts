@@ -15,6 +15,7 @@
  * root's major scale (natural minor for chords with a minor third), chord tones outside that scale
  * added on the string that keeps the hand in place.
  */
+import { t } from '../i18n/translate.js'
 import { scaleNoteSet, type NoteSet } from '../theory/note-set.js'
 
 export type PositionSystem = 'box' | 'caged' | '3nps'
@@ -123,15 +124,13 @@ export function numberingOf(
     const value = text?.trim().toLowerCase().replace(/\s+/g, ' ')
     if (!value) return 'root'
     if (value !== 'minor' && value !== 'relative minor') {
-        throw new Error(`numbering: use minor (positions from the relative minor), got "${text}"`)
+        throw new Error(t('fretboard.positions.numbering', { text: text ?? '' }))
     }
     if (!isMajorPentatonic(set)) {
-        throw new Error(
-            `numbering: minor is for major pentatonic positions (e.g. A major pentatonic), not ${set.title}`
-        )
+        throw new Error(t('fretboard.positions.numberingPentatonic', { title: set.title }))
     }
     if (system === 'caged') {
-        throw new Error('numbering: minor numbers boxes and 3nps positions, not CAGED shapes')
+        throw new Error(t('fretboard.positions.numberingCaged'))
     }
     return 'minor'
 }
@@ -309,7 +308,7 @@ export function positionOf(
     const shape = shapeText?.trim().toLowerCase()
     const n = positionText === undefined ? null : Number(positionText)
     if (positionText !== undefined && (!Number.isInteger(n) || n! < 1)) {
-        throw new Error(`position must be a whole number from 1, got "${positionText}"`)
+        throw new Error(t('fretboard.positions.position', { text: positionText }))
     }
     if (shape === undefined || shape === '') return n === null ? null : { system: 'box', n }
     if (shape === '3nps') return { system: '3nps', n: n ?? 1 }
@@ -317,5 +316,5 @@ export function positionOf(
     const letter = shape.replace(/^caged\s*/, '').replace(/[\s-]*shape$/, '')
     const caged = CAGED_SHAPES.findIndex((s) => s.toLowerCase() === letter)
     if (caged >= 0) return { system: 'caged', n: caged + 1 }
-    throw new Error(`Unknown shape "${shapeText}": use C, A, G, E, D or 3nps`)
+    throw new Error(t('fretboard.positions.shape', { text: shapeText ?? '' }))
 }

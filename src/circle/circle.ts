@@ -6,6 +6,7 @@
  * and `data-mn-strum`, the chord) so playback can play them on a click; the key's chords also
  * carry their root's pitch class (`data-mn-chroma`) so they light while the scale plays.
  */
+import { t } from '../i18n/translate.js'
 import { shown } from '../theory/naming.js'
 import { Key } from 'tonal'
 import { svg, svgRoot, svgText } from '../render/dom.js'
@@ -140,6 +141,9 @@ function placed(key: MusicalKey, sevenths: boolean, harmonic: boolean) {
     return shown.map((chord, i) => ({ chord, cell: cellOf(triads[i]!.symbol) }))
 }
 
+/** A mode's name in the language of the drawing ("major", "dorian"). */
+const modeName = (mode: MusicalKey['mode']): string => t(`circle.mode.${mode}`)
+
 export function renderCircle(doc: Document, options: CircleOptions = {}): SVGElement {
     const key = options.key ?? { tonic: 'C', mode: 'major', name: 'C major' }
     const minor = key.mode === 'minor' || key.mode === 'aeolian'
@@ -150,10 +154,12 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
     const chipsTop = top + SIZE + 8
     const height = chipsTop + CHIP_H + 2
     const signature = keySignature(key)
-    const label =
-        `Circle of fifths, ${key.name}: ${signatureText(signature.count)}` +
-        (signature.accidentals.length ? ` (${signature.accidentals.join(' ')})` : '') +
-        `; chords: ${chords.map(({ chord }) => `${chord.numeral} ${chord.symbol}`).join(', ')}`
+    const label = t('circle.label', {
+        key: `${key.tonic} ${modeName(key.mode)}`,
+        signature: signatureText(signature.count),
+        accidentals: signature.accidentals.length ? ` (${signature.accidentals.join(' ')})` : '',
+        chords: chords.map(({ chord }) => `${chord.numeral} ${chord.symbol}`).join(', ')
+    })
     const root = svgRoot(doc, width, height, 'mn-circle', label)
     // The wheel is centered when a long title widens the drawing.
     const shift = (width - SIZE) / 2
@@ -218,7 +224,9 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
             })
             const name = shown(chord ? pretty(chord.symbol) : pretty(defaults[ring][position]!))
             const title = svg(doc, 'title')
-            title.textContent = chord ? `${chord.numeral}: ${name}` : name.replace('/', ' or ')
+            title.textContent = chord
+                ? `${chord.numeral}: ${name}`
+                : name.replace('/', ` ${t('circle.or')} `)
             cell.appendChild(title)
             // The cell and its labels, raised above the others while it plays (`raise`).
             const slot = svg(doc, 'g', { 'class': 'mn-circle-slot', 'data-mn-raise': '' })
@@ -251,7 +259,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
         const chord = at('major', position)
         const count = chord ? Key.majorKey(splitChordSymbol(chord.symbol)!.root).alteration : 0
         const own = chord !== undefined && Math.abs(count) <= MAX_SIGNATURE
-        const text = own ? signatureText(count).replace('no ♯ or ♭', '0') : SIGNATURES[position]!
+        const text = own ? (count === 0 ? '0' : signatureText(count)) : SIGNATURES[position]!
         const [x, y] = point((R.sig + R.major) / 2, position * 30, top)
         g.appendChild(
             svgText(doc, text, {
@@ -266,7 +274,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
     // The center: the key, its signature and the notes it alters.
     const centerY = top + CENTER
     const centerLines: [string, string][] = [
-        [shown(pretty(key.tonic) + ` ${key.mode}`), 'mn-circle-key'],
+        [shown(pretty(key.tonic) + ` ${modeName(key.mode)}`), 'mn-circle-key'],
         [signatureText(signature.count), 'mn-circle-key-sig']
     ]
     if (signature.accidentals.length && signature.accidentals.length <= 7) {
@@ -348,7 +356,7 @@ const yes = (text: string | undefined, key: string, fallback: boolean): boolean 
     const value = text.trim().toLowerCase()
     if (['yes', 'true', 'on'].includes(value)) return true
     if (['no', 'false', 'off'].includes(value)) return false
-    throw new Error(`${key} must be yes or no, got "${text}"`)
+    throw new Error(t('render.yesNo', { key, text }))
 }
 
 /**
@@ -364,19 +372,15 @@ export const renderCircleBlock: Renderer = (doc, source) => {
     }
     const keyText = get('key') ?? block.head ?? 'C'
     const key = readKey(keyText)
-    if (!key) throw new Error(`Unknown key "${keyText}": use e.g. key: G, key: Em or key: D dorian`)
+    if (!key) throw new Error(t('circle.key', { text: keyText }))
     const modeText = get('mode')?.toLowerCase()
     if (modeText !== undefined) {
         if (!(MODES as readonly string[]).includes(modeText)) {
-            throw new Error(
-                `Unknown mode "${modeText}": use major, minor, dorian, phrygian, lydian, mixolydian or locrian`
-            )
+            throw new Error(t('circle.mode', { text: modeText }))
         }
         const written = /\s*[A-Ga-g][#♯b♭]?\s*(\S*)/.exec(keyText)?.[1] ?? ''
         if (written && key.mode !== modeText) {
-            throw new Error(
-                `key: ${keyText} already says ${key.mode}: leave out mode or write the key's note alone`
-            )
+            throw new Error(t('circle.modeTwice', { key: keyText, mode: key.mode }))
         }
         key.mode = modeText as MusicalKey['mode']
         key.name = `${key.tonic} ${key.mode}`
@@ -386,14 +390,12 @@ export const renderCircleBlock: Renderer = (doc, source) => {
     if (problem) throw new Error(problem)
     const chordsText = get('chords')?.toLowerCase()
     if (chordsText !== undefined && chordsText !== 'triads' && chordsText !== 'sevenths') {
-        throw new Error(`chords: use triads or sevenths, got "${chordsText}"`)
+        throw new Error(t('circle.chords', { text: chordsText }))
     }
     const neighbours = yes(get('neighbours') ?? get('neighbors'), 'neighbours', true)
     const dominant = get('dominant')?.toLowerCase()
     if (dominant !== undefined && dominant !== 'major' && dominant !== 'minor') {
-        throw new Error(
-            `dominant: use major (V, from the harmonic minor) or minor (v), got "${dominant}"`
-        )
+        throw new Error(t('circle.dominant', { text: dominant }))
     }
     const title = get('title')
     return renderCircle(doc, {

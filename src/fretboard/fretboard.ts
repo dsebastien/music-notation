@@ -2,6 +2,7 @@
  * Fretboards with the notes of a scale, chord or list, as SVG. Horizontal by default, high string
  * on top like tabs; vertical has the nut on top, like a chord diagram.
  */
+import { t } from '../i18n/translate.js'
 import { shown } from '../theory/naming.js'
 import { noteMark } from '../render/root-mark.js'
 import {
@@ -101,7 +102,7 @@ export function renderFretboard(
     const names = given.map((p) => p + capo)
     // Inlays sit on the real neck's frets.
     const real = (fret: number) => fret + (fromNut ? 0 : capo)
-    const caption = capo ? `Capo ${capo}` : undefined
+    const caption = capo ? t('fretboard.capo', { fret: capo }) : undefined
     const cells = options.cells
     const played = cells ? new Set(cells.map((c) => `${c.string}:${c.fret}`)) : null
     const [from, to] = cells?.length
@@ -144,7 +145,7 @@ export function renderFretboard(
         frame.width,
         height,
         'mn-fretboard',
-        `${options.title ?? `Fretboard: ${set.title}`}${caption ? `, ${caption.toLowerCase()}` : ''}${describeMarks(set, options.marks)}`
+        `${options.title ?? t('fretboard.title', { title: set.title })}${caption ? `, ${caption.toLowerCase()}` : ''}${describeMarks(set, options.marks)}`
     )
     if (caption) {
         root.appendChild(
@@ -302,11 +303,13 @@ export function renderFretboard(
             )
             sounding.add(open + fret)
             notesHere.push(
-                `${nameShown(member.name)} ${fret === 0 ? 'open' : `at fret ${fret}`}${set.root === member.chroma ? ' (root)' : ''}`
+                `${fret === 0 ? t('fretboard.note.open', { note: nameShown(member.name) }) : t('fretboard.note.fret', { note: nameShown(member.name), fret })}${set.root === member.chroma ? t('fretboard.note.root') : ''}`
             )
         }
         if (notesHere.length)
-            described.push(`String ${strings - s} (${name}): ${notesHere.join(', ')}.`)
+            described.push(
+                t('fretboard.string', { n: strings - s, name, notes: notesHere.join(', ') })
+            )
     }
     // Low string first, as players read a neck.
     describeDiagram(root, described.reverse().join(' '))
@@ -334,7 +337,10 @@ export function renderFretboard(
                             note: memberOf(set, pitch)?.name ?? nameOf(pitch % 12, set.preferFlats),
                             string,
                             fret,
-                            name: `String ${string}, ${fret === 0 ? 'open' : `fret ${fret}`}`,
+                            name:
+                                fret === 0
+                                    ? t('fretboard.pick.open', { string })
+                                    : t('fretboard.pick.fret', { string, fret }),
                             mark: frame.at(across(s), center(fret)),
                             radius: DOT_R
                         }

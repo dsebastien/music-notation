@@ -3,13 +3,12 @@
  * (`shape`: the root's dots are rounded squares, an open string's ring a square ring, a root key
  * gets a small square), so the root doesn't rest on color alone.
  */
+import { t } from '../i18n/translate.js'
 import { svg } from './dom.js'
 
 export type RootMark = 'color' | 'shape'
 
 export const ROOT_MARKS: readonly RootMark[] = ['color', 'shape']
-
-const ROOT_MARK_ERROR = 'root-mark: write color or shape'
 
 /** A root mark given by an app (any value): a valid one, else null. */
 export function rootMarkOf(value: unknown): RootMark | null {
@@ -23,7 +22,7 @@ export function rootMarkOf(value: unknown): RootMark | null {
 /** A block's `root-mark:` value; throws what to write otherwise. */
 export function parseRootMark(text: string): RootMark {
     const mark = rootMarkOf(text)
-    if (!mark) throw new Error(`${ROOT_MARK_ERROR}, got "${text.trim()}"`)
+    if (!mark) throw new Error(t('render.rootMark.invalid', { text: text.trim() }))
     return mark
 }
 
