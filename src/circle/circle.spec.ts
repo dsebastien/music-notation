@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { renderBlock } from '../render/render-block.js'
 import { sequenceOf, type NoteEvent, type NotePlayer } from '../playback/player.js'
-import { noteTargets } from '../playback/follow.js'
+import { noteTargets, raise } from '../playback/follow.js'
 import { chordPitches, pretty } from './circle.js'
 import { describeBlock } from '../cli/describe.js'
 import { accessibleName } from '../render/dom.js'
@@ -257,5 +257,30 @@ describe('following the scale on the circle', () => {
         expect(ab.getAttribute('data-midi')).toBe('56')
         expect(ab.hasAttribute('data-mn-chroma')).toBe(false)
         expect(cell(h, 'major', 'C')!.getAttribute('data-mn-chroma')).toBe('0')
+    })
+})
+
+describe('the cell that plays shows its whole outline', () => {
+    it('each cell sits with its labels in a group that rises above the others while it plays', () => {
+        const { el } = renderBlock(
+            'circle',
+            'key: C',
+            document.body.appendChild(document.createElement('div'))
+        )
+        const cells = [...el.querySelectorAll('.mn-circle-cell')]
+        expect(cells.length).toBeGreaterThan(0)
+        for (const cell of cells) {
+            const slot = cell.parentElement!
+            expect(slot.hasAttribute('data-mn-raise')).toBe(true)
+            // Its labels are with it, so a raised cell keeps them on top of its fill.
+            expect(slot.querySelector('text')).not.toBeNull()
+        }
+        const first = cells[0]!
+        const slot = first.parentElement!
+        expect(slot.parentElement!.lastElementChild).not.toBe(slot)
+        raise(first)
+        expect(slot.parentElement!.lastElementChild).toBe(slot)
+        // Drawn last, and nothing else moved out of the drawing.
+        expect(el.querySelectorAll('.mn-circle-cell')).toHaveLength(cells.length)
     })
 })
