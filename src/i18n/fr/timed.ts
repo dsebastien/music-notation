@@ -35,8 +35,7 @@ export const frTimed = {
         'L’accord [{chord}] termine le rythme : placez-le avant un coup ou un -',
     'strum.pattern.chordLineAlone':
         'Une ligne d’accords demande une ligne de rythme dessous, par exemple D - D U - U D U',
-    'strum.pattern.missing':
-        'Écrivez un rythme de strumming, par exemple D - D U - U D U (ou D DU UDU)',
+    'strum.pattern.missing': 'Écrivez une rythmique, par exemple D - D U - U D U (ou D DU UDU)',
     'strum.key.unknown':
         'Clé « {key} » inconnue : utilisez time, subdivision, swing, chord, tempo, tuning, title ou pattern',
     'strum.swing.withTriplets':
@@ -74,8 +73,8 @@ export const frTimed = {
     'strum.feel.swingPercent': 'Swing {percent} %',
     'strum.feel.swing16': 'Swing en doubles croches',
     'strum.feel.swing16Percent': 'Swing en doubles croches {percent} %',
-    'strum.name': 'Rythme de strumming {written}, {time}, {subdivision}{feel}',
-    'strum.name.titled': '{title} : rythme de strumming {written}, {time}, {subdivision}{feel}',
+    'strum.name': 'Rythmique {written}, {time}, {subdivision}{feel}',
+    'strum.name.titled': '{title} : rythmique {written}, {time}, {subdivision}{feel}',
     'strum.name.feel': ', {feel}',
     'strum.tuning.unknown':
         'Accordage « {tuning} » inconnu : utilisez par exemple tuning: standard, drop d, ukulele ou E2 A2 D3 G3 B3 E4',
@@ -107,7 +106,7 @@ export const frTimed = {
     'picking.name': 'Motif de picking {written}, {time}, {subdivision}{over}',
     'picking.name.titled': '{title} : motif de picking {written}, {time}, {subdivision}{over}',
     'picking.name.over': ', sur {chords}',
-    'picking.voicing.none': 'Aucun doigté jouable de {chord} pour cet accordage',
+    'picking.voicing.none': 'Aucune position jouable de {chord} pour cet accordage',
 
     // --- export/image.ts -------------------------------------------------------------------------
     'export.image.title': 'Notation musicale'
