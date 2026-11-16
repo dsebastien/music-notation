@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.22.1 (2026-11-16)
+
+- **Fixed: the tempo field cut off three-digit tempos in Obsidian**: Obsidian sizes input fields differently than a web page does, so the number field of the tempo control (new in 0.22.0) showed 100 BPM as "10"; it now shows the whole number. Web pages (the guide, Obsidian Publish) were not affected.
+
 ## 0.22.0 (2026-11-16)
 
 - **Set the tempo of tabs and scores in BPM** (#114): the speed slider of the tab and score bar is now a tempo control: "− 60 BPM + · 71 %". It shows the tempo the music plays at (the score's tempo times the speed), with the speed in percent next to it, dim. − and + step by 1 BPM (by 5 % in percent). Type a number in the value and press Enter, or step with the Up and Down arrow keys; Escape gives the value back. The unit button switches between BPM and percent, and a click on the dim value goes back to 100 %. The range is the same: 25 to 150 % of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. For apps and pages: `renderTab` takes `tempoUnit: 'bpm' | 'percent'` (the unit shown first, BPM by default) and `onTempoUnit(unit)` (called when the reader switches the unit, to remember it), `speed()` still gives the speed as a factor (0.25 to 1.5), and on web pages `play: { tempoUnit: 'percent' }` in `window.musicNotationOptions` starts the tab bars in percent, while a switch on a bar holds for the tabs drawn after it.
