@@ -25,6 +25,16 @@ declare global {
         musicNotationTabLoaded?: boolean
         musicNotationSoundfontPlayer?: NotePlayer
         musicNotationOptions?: unknown
+        /**
+         * The tab bundle's API for a page's own scripts (the guide's Sounds page): draw a tab or
+         * a score with assets of its choice, make a soundfont player, load alphaTab from jsDelivr.
+         */
+        MusicNotationTab?: {
+            renderTab: typeof renderTab
+            createSoundfontPlayer: typeof createSoundfontPlayer
+            loadAlphaTab: () => Promise<AlphaTabModule>
+            alphaTabCdn: typeof alphaTabCdn
+        }
     }
 }
 
@@ -117,6 +127,12 @@ function renderAllTabs(doc: Document): void {
 
 if (!window.musicNotationTabLoaded) {
     window.musicNotationTabLoaded = true
+    window.MusicNotationTab = {
+        renderTab,
+        createSoundfontPlayer,
+        loadAlphaTab: () => alphaTabOf(document),
+        alphaTabCdn
+    }
     const start = () => {
         injectStyles(document)
         renderAllTabs(document)

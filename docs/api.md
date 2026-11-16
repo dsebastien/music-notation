@@ -1,6 +1,6 @@
 ---
 title: JavaScript API
-nav_order: 6
+nav_order: 7
 ---
 
 # JavaScript API
