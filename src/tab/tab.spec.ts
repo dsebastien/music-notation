@@ -25,6 +25,7 @@ describe('parseTabSource', () => {
             file: null,
             tracks: null,
             engine: null,
+            layout: 'page',
             tex: ':4 3.3 0.2',
             texLine: 0,
             fromText: false
@@ -356,6 +357,8 @@ describe('renderTab', () => {
             'Tab',
             'Score',
             'Both',
+            // Follow the music (#97).
+            'Follow the music',
             // And full screen (#113).
             'Full screen'
         ])
@@ -846,6 +849,7 @@ describe('renderTab, full screen (#113)', () => {
     type Made = {
         settings: { player: Record<string, unknown> }
         playerStateChanged: { fire(e: unknown): void }
+        playerPositionChanged: { fire(e: unknown): void }
         updates: number
         options: { player: Record<string, unknown> }
     }
@@ -923,6 +927,156 @@ describe('renderTab, full screen (#113)', () => {
         expect(api.settings.player['scrollMode']).toBe(0)
         result.destroy()
         h.remove()
+    })
+
+    const followOf = (h: HTMLElement) =>
+        h.querySelector<HTMLButtonElement>('.mn-tab-bar .mn-tab-follow')!
+
+    it('Follow is off at first, and never makes alphaTab scroll the page (#97, #89)', async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: mod, assets })
+        await result.ready
+        const api = made[0]!
+        const follow = followOf(h)
+        expect(follow.getAttribute('aria-pressed')).toBe('false')
+        expect(api.updates).toBe(0)
+        follow.click()
+        expect(follow.getAttribute('aria-pressed')).toBe('true')
+        expect(follow.classList.contains('mn-on')).toBe(true)
+        // The page is scrolled by the library's own steps: alphaTab's scrolling stays off.
+        api.playerStateChanged.fire({ state: 1 })
+        expect(api.settings.player['scrollMode'] ?? 0).toBe(0)
+        // A scroll by hand pauses it; Play follows again.
+        h.dispatchEvent(new Event('wheel', { bubbles: true }))
+        expect(follow.classList.contains('mn-follow-paused')).toBe(true)
+        expect(follow.getAttribute('aria-pressed')).toBe('true')
+        expect(follow.title).toContain('paused')
+        api.playerStateChanged.fire({ state: 1 })
+        expect(follow.classList.contains('mn-follow-paused')).toBe(false)
+        expect(follow.title).toBe('Follow the music')
+        // A click while paused follows again; the next one turns it off.
+        h.dispatchEvent(new Event('wheel', { bubbles: true }))
+        follow.click()
+        expect(follow.classList.contains('mn-follow-paused')).toBe(false)
+        expect(follow.getAttribute('aria-pressed')).toBe('true')
+        follow.click()
+        expect(follow.getAttribute('aria-pressed')).toBe('false')
+        result.destroy()
+        h.remove()
+    })
+
+    it('with Follow on, the page moves by the least that shows the system that plays', async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: mod, assets })
+        await result.ready
+        const api = made[0]!
+        const surface = h.querySelector<HTMLElement>('.mn-tab-surface')!
+        const cursor = document.createElement('div')
+        cursor.className = 'at-cursor-bar'
+        let top = 100
+        cursor.getBoundingClientRect = () => ({ top, bottom: top + 100 }) as DOMRect
+        surface.appendChild(cursor)
+        const win = h.ownerDocument.defaultView!
+        const moves: number[] = []
+        const scrollBy = win.scrollBy.bind(win)
+        win.scrollBy = ((options: ScrollToOptions) => {
+            moves.push(options.top ?? 0)
+        }) as typeof win.scrollBy
+        try {
+            // Off: nothing moves.
+            top = 5000
+            api.playerPositionChanged.fire({ currentTime: 0, endTime: 1000, currentTick: 0 })
+            expect(moves).toEqual([])
+            followOf(h).click()
+            api.playerPositionChanged.fire({ currentTime: 0, endTime: 1000, currentTick: 0 })
+            expect(moves).toHaveLength(1)
+            expect(moves[0]).toBeGreaterThan(0)
+            // In view: no move.
+            top = 100
+            api.playerPositionChanged.fire({ currentTime: 0, endTime: 1000, currentTick: 0 })
+            expect(moves).toHaveLength(1)
+        } finally {
+            win.scrollBy = scrollBy
+        }
+        result.destroy()
+        h.remove()
+    })
+
+    it('in full screen it follows by default; the button turns that off and on there', async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', ':4 3.3', h, { alphaTab: mod, assets })
+        await result.ready
+        const api = made[0]!
+        const follow = followOf(h)
+        full(h)!.click()
+        expect(follow.getAttribute('aria-pressed')).toBe('true')
+        expect(api.settings.player['scrollMode']).toBe(2)
+        follow.click()
+        expect(follow.getAttribute('aria-pressed')).toBe('false')
+        expect(api.settings.player['scrollMode']).toBe(0)
+        // Off by the reader's choice: the music playing doesn't turn it on again.
+        api.playerStateChanged.fire({ state: 1 })
+        expect(api.settings.player['scrollMode']).toBe(0)
+        follow.click()
+        expect(api.settings.player['scrollMode']).toBe(2)
+        // Paused by a scroll there: a click follows again.
+        h.querySelector('.mn-tab-surface')!.dispatchEvent(new Event('wheel'))
+        expect(api.settings.player['scrollMode']).toBe(0)
+        expect(follow.classList.contains('mn-follow-paused')).toBe(true)
+        follow.click()
+        expect(api.settings.player['scrollMode']).toBe(2)
+        expect(follow.classList.contains('mn-follow-paused')).toBe(false)
+        // Out of full screen: the button shows the page's own choice again (off).
+        full(h)!.click()
+        expect(follow.getAttribute('aria-pressed')).toBe('false')
+        expect(api.settings.player['scrollMode']).toBe(0)
+        result.destroy()
+        h.remove()
+    })
+
+    it('layout: line draws one line that follows the music in its own area', async () => {
+        const { mod, made } = tracked()
+        ;(mod as unknown as { LayoutMode: unknown }).LayoutMode = { Page: 0, Horizontal: 1 }
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', 'layout: line\n:4 3.3', h, { alphaTab: mod, assets })
+        await result.ready
+        const api = made[0]!
+        expect(result.el.classList.contains('mn-tab-line')).toBe(true)
+        expect(
+            (api.options as unknown as { display: { layoutMode?: number } }).display.layoutMode
+        ).toBe(1)
+        // Only the score's own area scrolls (sideways): on from the start.
+        expect(api.settings.player['scrollElement']).toBe(h.querySelector('.mn-tab-surface')!)
+        expect(api.settings.player['scrollMode']).toBe(1)
+        const follow = followOf(h)
+        expect(follow.getAttribute('aria-pressed')).toBe('true')
+        follow.click()
+        expect(api.settings.player['scrollMode']).toBe(0)
+        result.destroy()
+        // The default is the page layout.
+        const page = renderTab('tab', ':4 3.3', h, { alphaTab: mod, assets })
+        await page.ready
+        expect(page.el.classList.contains('mn-tab-line')).toBe(false)
+        expect(
+            (made[1]!.options as unknown as { display: { layoutMode?: number } }).display.layoutMode
+        ).toBeUndefined()
+        page.destroy()
+        h.remove()
+    })
+
+    it('reads layout: among the settings, and says what to write', () => {
+        expect(parseTabSource('tab', 'layout: Line\n:4 3.3').layout).toBe('line')
+        expect(parseTabSource('tab', ':4 3.3').layout).toBe('page')
+        expect(() => parseTabSource('tab', 'layout: wide\n:4 3.3')).toThrow(
+            'layout: use page or line, got "wide"'
+        )
     })
 
     it('a block removed in full screen leaves it', async () => {

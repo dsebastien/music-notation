@@ -1107,18 +1107,38 @@ staves: both
 <div class="mn-live" markdown="0"><pre><code class="language-score">staves: both
 :4 (0.1 1.2 0.3 2.4 3.5).2 (3.1 0.2 0.3 0.4 2.5 3.6).2</code></pre></div>
 
-| Key      | Meaning                                                                                                   |
-| -------- | --------------------------------------------------------------------------------------------------------- |
-| `staves` | `tab`, `score` or `both`. `tab` blocks show tablature and `score` blocks notation by default.             |
-| `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
-| `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
-| `engine` | The sound engine you wish for: `generaluser`, `sonivox` or `light`. See [sound engine](#sound-engine).    |
+| Key      | Meaning                                                                                                                                       |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `staves` | `tab`, `score` or `both`. `tab` blocks show tablature and `score` blocks notation by default.                                                 |
+| `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it).                                     |
+| `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                                                    |
+| `engine` | The sound engine you wish for: `generaluser`, `sonivox` or `light`. See [sound engine](#sound-engine).                                        |
+| `layout` | `page` (default) or `line`: the music on one line that scrolls sideways. See [follow the music and one line](#follow-the-music-and-one-line). |
 
-These keys go on the first lines, and the alphaTex follows. Drums have no tablature: in a `tab` block, drum tracks (`\instrument percussion`, or drums in a file) and other tracks without strings show notation, and stringed tracks keep tablature only. `staves: both` adds tablature under the notation of stringed tracks. Under the music, a player bar: play / pause, stop, loop, metronome, count-in, the tempo, the time, the view: **Tab**, **Score** or **Both** (when a track has tablature), and **Full screen**. The view drawn is lit; a click draws the music again in another view, without changing the block (write `staves:` to keep it; the Music Practice plugin has **Keep this view** to write it). The tempo shows the BPM the music plays at, with the speed in percent next to it, dim ("− 60 BPM + · 71 %"): − and + step by 1 BPM, you can type a number (Enter) or step with the Up and Down arrow keys, the unit button switches to percent (− and + then step by 5%), and a click on the dim value goes back to 100%. Its range is 25 to 150% of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column. alphaTab plays every note forte when no dynamic is written; that "f" isn't drawn unless the music has a dynamic (`{dy p}`, or `{dy f}` to show the forte).
+These keys go on the first lines, and the alphaTex follows. Drums have no tablature: in a `tab` block, drum tracks (`\instrument percussion`, or drums in a file) and other tracks without strings show notation, and stringed tracks keep tablature only. `staves: both` adds tablature under the notation of stringed tracks. Under the music, a player bar: play / pause, stop, loop, metronome, count-in, the tempo, the time, the view: **Tab**, **Score** or **Both** (when a track has tablature), **Follow the music** (see [below](#follow-the-music-and-one-line)) and **Full screen**. The view drawn is lit; a click draws the music again in another view, without changing the block (write `staves:` to keep it; the Music Practice plugin has **Keep this view** to write it). The tempo shows the BPM the music plays at, with the speed in percent next to it, dim ("− 60 BPM + · 71 %"): − and + step by 1 BPM, you can type a number (Enter) or step with the Up and Down arrow keys, the unit button switches to percent (− and + then step by 5%), and a click on the dim value goes back to 100%. Its range is 25 to 150% of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column. alphaTab plays every note forte when no dynamic is written; that "f" isn't drawn unless the music has a dynamic (`{dy p}`, or `{dy f}` to show the forte).
 
-**Full screen** makes the music fill the screen: it is drawn again at the screen's width (many more bars on a line on a wide screen), several lines show at once, and the bar stays at the bottom. The last line is stretched to the full width. A short score is drawn larger, step by step, as long as it still fits the screen: a one-bar score fills the width. A long score keeps its size, so a wide screen still shows more bars on a line. The music scrolls there, by hand (the wheel, Page Up, Page Down, Home, End) and by itself while it plays; a scroll by hand stops that until the next Play. The space bar plays and pauses, wherever the focus is (a text field keeps its space). Escape, or the button again, goes back to the page, where it was.
+**Full screen** makes the music fill the screen: it is drawn again at the screen's width (many more bars on a line on a wide screen), several lines show at once, and the bar stays at the bottom. The last line is stretched to the full width. A short score is drawn larger, step by step, as long as it still fits the screen: a one-bar score fills the width. A long score keeps its size, so a wide screen still shows more bars on a line. The music scrolls there, by hand (the wheel, Page Up, Page Down, Home, End) and by itself while it plays; a scroll by hand stops that until the next Play. There, [Follow the music](#follow-the-music-and-one-line) is on by default. The space bar plays and pauses, wherever the focus is (a text field keeps its space). Escape, or the button again, goes back to the page, where it was.
 
 On web pages, the [tab bundle](publish.html) loads alphaTab, its music font and its soundfont from jsDelivr, only on pages that have tab or score blocks.
+
+### Follow the music and one line
+
+**Follow the music** (the target button, before Full screen) keeps the line of music that plays in view. It is off by default: the page never moves by itself unless you ask. With it on, while the music plays, the nearest area that scrolls (an app's reading pane, a box with its own height), else the page, moves by the smallest step that shows the line that plays and the one after it, so you can read ahead. The bar that stays at the bottom of the view never covers it. Use it for a long tab you play along with, hands on the instrument.
+
+- A scroll by hand (the wheel, touch, Page Up, Page Down, the arrow keys, Home, End) pauses it: your hand wins. The button stays on, dim. It follows again at the next Play, or when you click the button. Another click turns it off.
+- In full screen, the score follows the music by default, as before, and only its own area scrolls. The same button turns that off and on there, and that choice is separate from the one on the page.
+
+`layout: line` draws the music on one line that scrolls sideways, in an area of its own. The default, `layout: page`, puts the lines of music one under the other. On one line, Follow the music is on by default: the music moves under the cursor (the line that follows the beat), which stays near the left edge, and only the block's own area scrolls, never the page. You can scroll it by hand too. Use it for a riff or an exercise you loop.
+
+```text
+layout: line
+\title "Riff"
+\tempo 100
+.
+:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r
+```
+
+It goes on the first lines, with `staves:`, `file:`, `tracks:` and `engine:`. Another value shows an error in the block: `layout: use page or line, got "wide"`.
 
 ## Chords (ChordPro)
 
