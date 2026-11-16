@@ -9,17 +9,11 @@ import type * as AT from '@coderline/alphatab'
 import { html } from '../render/dom.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
 import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/player.js'
-import {
-    icon,
-    iconButton,
-    playBar,
-    pressedButton,
-    valueSlider,
-    volumeOf
-} from '../playback/bar-parts.js'
+import { icon, iconButton, playBar, pressedButton, volumeOf } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
 import { fullScreenControl } from '../playback/full-screen.js'
 import { scoreFit } from './score-fit.js'
+import { tempoAt, tempoControl, type TempoUnit } from './tempo.js'
 import {
     instrumentSounds,
     soundsOfScore,
@@ -133,6 +127,13 @@ export interface TabOptions {
      * it follows the music. `false` for an app that has its own view.
      */
     fullScreen?: boolean
+    /**
+     * The unit the bar's tempo shows first (#114): `'bpm'` (default) or `'percent'`; the other one
+     * shows next to it. Percent when the score has no tempo.
+     */
+    tempoUnit?: TempoUnit
+    /** The reader switched the tempo's unit on the bar: an app may remember it for the next scores. */
+    onTempoUnit?: (unit: TempoUnit) => void
 }
 
 export type Staves = 'tab' | 'score' | 'both'
@@ -439,7 +440,8 @@ function playerBar(
     api: AT.AlphaTabApi,
     alphaTab: AlphaTabModule,
     assets: TabAssets,
-    volume: TabOptions['volume']
+    volume: TabOptions['volume'],
+    tempoOptions: Pick<TabOptions, 'tempoUnit' | 'onTempoUnit'> = {}
 ): {
     bar: HTMLElement
     failed: (message: string) => void
@@ -540,9 +542,16 @@ function playerBar(
         state.countIn = on
         toggles()
     })
-    const speed = valueSlider(doc, 'Speed', '%', 25, 150, 100, (n) => {
-        state.speed = n / 100
-        live(() => (api.playbackSpeed = state.speed))
+    // The tempo where the music is (#114): the score's, then each tempo change as it plays.
+    let tempoNow: number | null = api.score?.tempo ?? null
+    const speed = tempoControl(doc, {
+        ...(tempoOptions.tempoUnit ? { unit: tempoOptions.tempoUnit } : {}),
+        tempo: () => tempoNow,
+        set: (n) => {
+            state.speed = n
+            live(() => (api.playbackSpeed = state.speed))
+        },
+        ...(tempoOptions.onTempoUnit ? { unitChanged: tempoOptions.onTempoUnit } : {})
     })
     const position = html(doc, 'span', 'mn-tab-time', '')
     bar.append(play, stop, loop, metronome, countIn, speed.field, position)
@@ -561,6 +570,15 @@ function playerBar(
     })
     api.playerPositionChanged.on((e) => {
         position.textContent = `${time(e.currentTime)} / ${time(e.endTime)}`
+        const tempo = tempoAt(
+            api.tickCache?.masterBars ?? [],
+            e.currentTick,
+            api.score?.tempo ?? null
+        )
+        if (tempo !== tempoNow) {
+            tempoNow = tempo
+            speed.refresh()
+        }
     })
     return {
         bar,
@@ -761,7 +779,7 @@ export function renderTab(
             current.renderFinished.on(() => {
                 if (settled || gone) return
                 if (options.player !== false) {
-                    bar = playerBar(doc, current, at, assets, options.volume)
+                    bar = playerBar(doc, current, at, assets, options.volume, options)
                     unbar = bar.destroy
                     speedOf = bar.speed
                     el.appendChild(bar.bar)

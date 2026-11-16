@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Set the tempo of tabs and scores in BPM** (#114): the speed slider of the tab and score bar is now a tempo control: "− 60 BPM + · 71 %". It shows the tempo the music plays at (the score's tempo times the speed), with the speed in percent next to it, dim. − and + step by 1 BPM (by 5 % in percent). Type a number in the value and press Enter, or step with the Up and Down arrow keys; Escape gives the value back. The unit button switches between BPM and percent, and a click on the dim value goes back to 100 %. The range is the same: 25 to 150 % of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. For apps and pages: `renderTab` takes `tempoUnit: 'bpm' | 'percent'` (the unit shown first, BPM by default) and `onTempoUnit(unit)` (called when the reader switches the unit, to remember it), `speed()` still gives the speed as a factor (0.25 to 1.5), and on web pages `play: { tempoUnit: 'percent' }` in `window.musicNotationOptions` starts the tab bars in percent, while a switch on a bar holds for the tabs drawn after it.
+- **Fixed: `music-notation check` on Windows** (#123): it lists files with `/` between folders on every system, Windows included (its own tests failed there).
+
 ## 0.21.2 (2026-11-16)
 
 - **Fixed: empty chord blocks ignored the chord's root and quality** (#132): the Obsidian Starter Kit's guitar chord, piano chord and guitar arpeggio templates ask for `chord_root` and `chord_quality` and leave `chord_symbol` empty, and an empty block drew from `chord_symbol` only, so it drew nothing. Without a `chord_symbol`, the chord now comes from the root and the quality: "A" and "Minor 7" give Am7, "5 (Power)" gives A5, and a root alone gives its major chord. A `chord_symbol` still wins. It works for chord notes (guitar and piano), arpeggio notes and a guitar chord note's empty fretboard, in Obsidian (Music Practice) and on Obsidian Publish. Existing notes draw as soon as they have a root. For apps: `propertyNames` takes `chordRoot` and `chordQuality`.
