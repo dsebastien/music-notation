@@ -15,6 +15,7 @@ import {
 import type { TempoUnit } from './tempo.js'
 import { alphaTabLoader } from './load.js'
 import { pageInstruments } from './instruments.js'
+import { pageEngine } from '../playback/engine.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
@@ -25,6 +26,8 @@ declare global {
         alphaTab?: AlphaTabModule
         musicNotationTabLoaded?: boolean
         musicNotationSoundfontPlayer?: NotePlayer
+        /** The whole soundfont (sonivox) for the diagrams, when a block or the page asks (#124). */
+        musicNotationSonivoxPlayer?: NotePlayer
         musicNotationOptions?: unknown
         /**
          * The tab bundle's API for a page's own scripts (the guide's Sounds page): draw a tab or
@@ -113,6 +116,17 @@ function renderAllTabs(doc: Document): void {
                 doc,
                 lightPlayer(win)
             )
+            // The engine choice (#124): sonivox for the diagrams too. With a folder it is a second
+            // player (it makes its alphaTab instance at its first play only), else the same one.
+            win.musicNotationSonivoxPlayer ??= instruments
+                ? createSoundfontPlayer(
+                      alphaTab,
+                      { scriptFile: null, font: cdn.font, soundFont: cdn.soundFont },
+                      doc,
+                      lightPlayer(win)
+                  )
+                : win.musicNotationSoundfontPlayer
+            const engine = pageEngine(window.musicNotationOptions)
             for (const code of blocks) {
                 const pre = code.parentElement!
                 if (!pre.parentElement) continue
@@ -126,6 +140,7 @@ function renderAllTabs(doc: Document): void {
                     alphaTab,
                     assets,
                     volume: () => pageVolume() ?? DEFAULT_VOLUME,
+                    ...(engine ? { engine } : {}),
                     fullScreen: pageFullScreen(window.musicNotationOptions),
                     ...(pageTempoUnit() ? { tempoUnit: pageTempoUnit()! } : {}),
                     onTempoUnit: (unit) => (tempoUnit = unit)
