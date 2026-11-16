@@ -21,6 +21,8 @@ declare global {
         musicNotationOptions?: unknown
         /** Set by the tab bundle once its soundfont is loaded: diagrams play through it. */
         musicNotationSoundfontPlayer?: NotePlayer
+        /** Set by the tab bundle: alphaTab's whole soundfont (sonivox), for the engine choice. */
+        musicNotationSonivoxPlayer?: NotePlayer
         MusicNotation?: typeof api & {
             lookupGuitarVoicing: typeof lookupGuitarVoicing
             stop: () => void
@@ -46,25 +48,35 @@ function pageProperties(
 
 /**
  * Playback on the page: on unless `play: false`; `play: { volume, bpm, strum, sound }` sets the
- * defaults (`strum` a number for guitar, or `{ guitar, piano }`). Diagrams use the tab bundle's
- * soundfont once a page with tab blocks has loaded it (`window.musicNotationSoundfontPlayer`),
- * else the sample player when the page names its instrument files (`play: { instruments }`), else
- * the light synthesizer.
+ * defaults (`strum` a number for guitar, or `{ guitar, piano }`). The engines the page has (#124):
+ * GeneralUser GS when it names its instrument files (`play: { instruments }`), through the tab
+ * bundle's player once a page with tab blocks has loaded it, else through the sample player;
+ * sonivox once the tab bundle is there (it needs alphaTab); the light synthesizer always.
+ * `play: { engine }` is the page's choice, a block's `engine:` line its wish; what the page
+ * doesn't have falls back, in this order: GeneralUser GS, sonivox, light.
  */
 function pagePlay(options: unknown): false | PlayOptions {
     const given = (options as { play?: unknown } | null | undefined)?.play
     if (given === false) return false
-    // The tab bundle's soundfont player once a page with tabs has it; else, when the page names
-    // a folder of instrument files (#109), the sample player, which needs no alphaTab; else the
-    // light synthesizer (null).
     const folder = api.pageInstruments(options)
+    const engine = api.pageEngine(options)
     let sampled: NotePlayer | null = null
     const out: PlayOptions = {
-        player: () =>
-            window.musicNotationSoundfontPlayer ??
-            (folder
-                ? (sampled ??= api.sampledPlayer(window, folder, api.lightPlayer(window)))
-                : null)
+        engines: {
+            // The instrument files (#108, #109): the tab bundle's player once a page with tabs has
+            // it, else the sample player, which needs no alphaTab.
+            generaluser: () =>
+                folder
+                    ? (window.musicNotationSoundfontPlayer ??
+                      (sampled ??= api.sampledPlayer(window, folder, api.lightPlayer(window))))
+                    : null,
+            // alphaTab's whole soundfont: there once the tab bundle is. Without a folder, the tab
+            // bundle's player is that one.
+            sonivox: () =>
+                window.musicNotationSonivoxPlayer ??
+                (folder ? null : window.musicNotationSoundfontPlayer)
+        },
+        ...(engine ? { engine } : {})
     }
     if (given && typeof given === 'object') {
         const read = (key: string) => {

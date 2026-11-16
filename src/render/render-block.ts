@@ -18,6 +18,7 @@ import {
 import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
 import { attachCopy } from '../playback/copy-image.js'
+import { blockEngine } from '../playback/engine.js'
 import { attachPick, type PickLayer, type PickOptions } from './pick.js'
 import {
     lettersInBlock,
@@ -122,6 +123,15 @@ export function renderBlock(
             text = fromProperties
             el.classList.add('mn-from-properties')
         }
+    }
+    // The block's wish for an engine (#124): its `engine:` line (`{engine: …}` in a chart), kept
+    // on the block for its bars and taken out of the text, so no parser has to know it.
+    try {
+        const wish = blockEngine(text, language === 'chords')
+        text = wish.source
+        if (wish.engine) el.setAttribute('data-mn-engine', wish.engine)
+    } catch (e) {
+        return failed(el, host, language, messageOf(e))
     }
     // Names in solfège or German are read into letters first (#12); the drawing shows them in
     // the block's naming.

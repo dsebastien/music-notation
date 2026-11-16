@@ -24,6 +24,7 @@ describe('parseTabSource', () => {
             stavesWritten: false,
             file: null,
             tracks: null,
+            engine: null,
             tex: ':4 3.3 0.2',
             texLine: 0,
             fromText: false

@@ -72,6 +72,14 @@ export {
 export { sampledPlayer, type SampledOptions } from './playback/sampled.js'
 export { pageInstruments, type InstrumentSource } from './tab/instruments.js'
 export { attachPlayback, type PlayOptions, type TimedBar } from './playback/controls.js'
+export {
+    ENGINES,
+    chooseEngine,
+    engineOf,
+    engineOrder,
+    pageEngine,
+    type Engine
+} from './playback/engine.js'
 export { volumeChanged } from './playback/live-volume.js'
 export { attachCopy } from './playback/copy-image.js'
 export {

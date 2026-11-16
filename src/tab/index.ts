@@ -9,6 +9,7 @@ import type * as AT from '@coderline/alphatab'
 import { html } from '../render/dom.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
 import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/player.js'
+import { chooseEngine, engineOf, type Engine } from '../playback/engine.js'
 import { icon, iconButton, playBar, pressedButton, volumeOf } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
 import { fullScreenControl } from '../playback/full-screen.js'
@@ -94,9 +95,34 @@ async function loadSounds(
     return kind
 }
 
+/**
+ * The engine a tab or a score plays through (#124): the instrument files (`generaluser`) or the
+ * whole soundfont (`sonivox`). The wish first, when the assets have it, then the fallback order.
+ * The light synthesizer can't play a score: that wish gets the best sound there is.
+ */
+export function tabEngine(assets: TabAssets, wish?: Engine | null): 'generaluser' | 'sonivox' {
+    const chosen = chooseEngine(wish, (engine) =>
+        engine === 'generaluser' ? Boolean(assets.instruments) : engine === 'sonivox'
+    )
+    return chosen?.engine === 'generaluser' ? 'generaluser' : 'sonivox'
+}
+
+/** The assets a tab plays with for an engine: without the instrument files for `sonivox`. */
+export function engineAssets(assets: TabAssets, wish?: Engine | null): TabAssets {
+    if (!assets.instruments || tabEngine(assets, wish) === 'generaluser') return assets
+    const { instruments: _left, ...whole } = assets
+    return whole
+}
+
 export interface TabOptions {
     alphaTab: AlphaTabModule
     assets: TabAssets
+    /**
+     * The engine the page or the app chose (#124): `generaluser` (the instrument files of
+     * `assets.instruments`) or `sonivox` (`assets.soundFont`, whole). A block's `engine:` line
+     * comes first; what the assets don't have falls back (see `tabEngine`).
+     */
+    engine?: Engine
     /** The bytes of a file a block names (`file: [[Song.gp]]`); null when it can't be found. */
     resolveFile?: (link: string) => Promise<Uint8Array | null>
     /** The player bar (default true). The player itself starts at the first Play. */
@@ -146,6 +172,8 @@ export interface TabSource {
     file: string | null
     /** Tracks to draw (1-based); all by default. */
     tracks: number[] | null
+    /** The block's wish for an engine (`engine:`, #124); null without one. */
+    engine: Engine | null
     /** The alphaTex itself. */
     tex: string
     /** Lines of the block before the alphaTex (settings, blank lines), for error positions. */
@@ -157,10 +185,10 @@ export interface TabSource {
     fromText: boolean
 }
 
-const SETTING = /^\s*(staves|file|tracks?)\s*:\s*(.*)$/i
+const SETTING = /^\s*(staves|file|tracks?|engine)\s*:\s*(.*)$/i
 
 /**
- * A tab block's own settings (lines `staves:`, `file:`, `tracks:` at the top, `//` comments
+ * A tab block's own settings (lines `staves:`, `file:`, `tracks:`, `engine:` at the top, `//` comments
  * allowed among them), then its alphaTex, or a plain-text tab, converted (#71). ```tab blocks show
  * tablature, ```score blocks standard notation, unless `staves:` says otherwise. Throws a message
  * for the user.
@@ -172,6 +200,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
         stavesWritten: false,
         file: null,
         tracks: null,
+        engine: null,
         tex: '',
         texLine: 0,
         fromText: false
@@ -198,6 +227,12 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
                     .replace(/^!?\[\[|\]\]$/g, '')
                     .split(/[|#]/)[0]!
                     .trim() || null
+        } else if (key === 'engine') {
+            const engine = engineOf(value)
+            if (!engine) {
+                throw new Error(`engine: use generaluser, sonivox or light, got "${value}"`)
+            }
+            out.engine = engine
         } else {
             const tracks = value
                 .split(/[\s,]+/)
@@ -779,7 +814,16 @@ export function renderTab(
             current.renderFinished.on(() => {
                 if (settled || gone) return
                 if (options.player !== false) {
-                    bar = playerBar(doc, current, at, assets, options.volume, options)
+                    const wish = parsed.engine ?? engineOf(options.engine)
+                    if (parsed.engine) el.setAttribute('data-mn-engine', parsed.engine)
+                    bar = playerBar(
+                        doc,
+                        current,
+                        at,
+                        engineAssets(assets, wish),
+                        options.volume,
+                        options
+                    )
                     unbar = bar.destroy
                     speedOf = bar.speed
                     el.appendChild(bar.bar)

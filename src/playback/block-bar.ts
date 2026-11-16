@@ -271,7 +271,7 @@ export function diagramGroup(
             }
         }
         try {
-            return run(playerFor(here, options))
+            return run(playerFor(here, options, item.wrap))
         } catch {
             return run(lightFor(here))
         }

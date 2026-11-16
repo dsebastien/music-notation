@@ -21,6 +21,7 @@ import {
 } from '../theory/note-set.js'
 import { midiOf, nameOf } from '../theory/pitch.js'
 import { DEFAULT_STRUM, lightPlayer, type NotePlayer, type PlayKind, type Sound } from './player.js'
+import { chooseEngine, engineOf, engineWish, type Engine } from './engine.js'
 import { strumBarFor } from './strum-bar.js'
 import { progressionBarFor } from './progression-bar.js'
 import { pickingBarFor } from './picking-bar.js'
@@ -33,6 +34,16 @@ export interface PlayOptions {
      * (popouts have their own). The light synthesizer by default.
      */
     player?: NotePlayer | ((win: Window) => NotePlayer | null | undefined)
+    /**
+     * The players the host has, by engine (#124): GeneralUser GS samples, the sonivox bank, the
+     * light synthesizer (the library's own when left out). Each is a player or a function read
+     * at each play (null: not there now). When given, a block plays through the first engine the
+     * host has, in this order: the block's `engine:` line, `engine`, then GeneralUser GS, sonivox
+     * and light. `player` is then not used. Without it, `player` plays, as before.
+     */
+    engines?: Partial<Record<Engine, NotePlayer | ((win: Window) => NotePlayer | null | undefined)>>
+    /** The engine the page or the app chose (a setting): tried first, after a block's own wish. */
+    engine?: Engine
     /** Guitar or piano; by default the diagram's (piano for keyboards and piano chords). */
     sound?: Sound
     /**
@@ -122,8 +133,24 @@ export function lightFor(win: Window): NotePlayer {
     return player
 }
 
-/** The player apps passed (read at each play), else the light synthesizer. */
-export function playerFor(win: Window, options: PlayOptions): NotePlayer {
+/**
+ * The player apps passed (read at each play), else the light synthesizer. With `engines` (#124),
+ * the first engine the host has: the wish of the block `el` is in, the host's `engine`, then the
+ * fallback order; the light synthesizer when it has none.
+ */
+export function playerFor(win: Window, options: PlayOptions, el?: Element | null): NotePlayer {
+    const engines = options.engines
+    if (engines) {
+        const chosen = chooseEngine(engineWish(el) ?? engineOf(options.engine), (engine) => {
+            const given = engines[engine]
+            try {
+                return typeof given === 'function' ? given(win) : given
+            } catch {
+                return null
+            }
+        })
+        return chosen?.value ?? lightFor(win)
+    }
     const given = typeof options.player === 'function' ? options.player(win) : options.player
     return given ?? lightFor(win)
 }

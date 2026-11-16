@@ -217,7 +217,7 @@ export function attachPick(diagram: Element, options: PickOptions = {}): PickLay
             const sound: Sound =
                 play.sound ??
                 (diagram.getAttribute('data-mn-sound') === 'piano' ? 'piano' : 'guitar')
-            sounding = playerFor(win, play).play(
+            sounding = playerFor(win, play, diagram).play(
                 [{ midi: num(el, 'data-mn-pitch'), time: 0, duration: PICK_NOTE }],
                 { sound, volume: volumeOf(play.volume) }
             )

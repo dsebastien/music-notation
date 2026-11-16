@@ -88,7 +88,7 @@ function unitOf(drawing: Element): number {
  */
 export function barPlayer(wrap: Element, win: Window, options: PlayOptions): NotePlayer {
     const here = wrap.ownerDocument.defaultView ?? win
-    const chosen = playerFor(here, options)
+    const chosen = playerFor(here, options, wrap)
     return {
         reportsStart: startsReported(chosen),
         play(events: NoteEvent[], opts: Parameters<NotePlayer['play']>[1]) {
