@@ -5,6 +5,7 @@
 import { toPng } from '../export/image.js'
 import { html } from '../render/dom.js'
 import { iconButton, placeBar, playBar } from './bar-parts.js'
+import { addFullScreen } from './full-screen.js'
 
 /** What the button says after a click. */
 export const COPY_SAID = {
@@ -95,14 +96,21 @@ const NOT_DRAWN_HERE = '.mn-tab, .mn-tab-holder, .mn-tab-surface, .mn-exercise-t
  * Copy as image without playback (#11): each block of `el` that draws (a drawing without a pick
  * layer, a progression or a chart) and has no bar yet gets a small bar of its own, in the place
  * and look of a play bar, with only the button. No diagram is selected without playback, so it
- * copies the whole block, with or without Shift. Returns a function that frees it.
+ * copies the whole block, with or without Shift. The bar also has Full screen (#113). `options`
+ * leaves either one out (`false`); a bar with neither isn't made. Returns a function that frees it.
  */
-export function attachCopy(el: HTMLElement, make?: (el: Element) => Promise<Blob>): () => void {
+export function attachCopy(
+    el: HTMLElement,
+    make?: (el: Element) => Promise<Blob>,
+    options: { copy?: boolean; fullScreen?: boolean } = {}
+): () => void {
     const doc = el.ownerDocument
     const win = doc.defaultView
     if (!win) return () => {}
     const blocks = el.classList.contains('mn-block') ? [el] : [...el.querySelectorAll('.mn-block')]
     const bars: HTMLElement[] = []
+    const frees: (() => void)[] = []
+    if (options.copy === false && options.fullScreen === false) return () => {}
     for (const block of blocks) {
         if (block.querySelector('.mn-play')) continue
         const drawings = [...block.querySelectorAll('svg.mn-svg')].filter(
@@ -111,13 +119,15 @@ export function attachCopy(el: HTMLElement, make?: (el: Element) => Promise<Blob
         const timed = block.querySelector('[data-mn-progression-play]')
         if (!drawings.length && !timed) continue
         const bar = playBar(doc, 'mn-copy-bar', 'Image')
-        bar.append(...copyImageButton(doc, win, () => block, make))
+        if (options.copy !== false) bar.append(...copyImageButton(doc, win, () => block, make))
+        frees.push(addFullScreen(doc, bar, block, options.fullScreen))
         // Below the chords of a progression or a chart; below the drawings otherwise.
         if (timed) block.appendChild(bar)
         else placeBar(block, drawings[drawings.length - 1]!, bar)
         bars.push(bar)
     }
     return () => {
+        for (const free of frees) free()
         for (const bar of bars) bar.remove()
     }
 }

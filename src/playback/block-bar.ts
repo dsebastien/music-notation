@@ -38,6 +38,7 @@ import {
     volumeOf
 } from './bar-parts.js'
 import { copyImageButton, diagramImage } from './copy-image.js'
+import { addFullScreen } from './full-screen.js'
 
 /** One playable diagram of a block. */
 interface Item {
@@ -591,6 +592,7 @@ export function blockBarFor(
                 whole || !several ? block : diagramImage(made.selected.wrap)
             )
         )
+    const freeFull = addFullScreen(doc, bar, block, options.fullScreen)
 
     bind({
         changed() {
@@ -610,5 +612,8 @@ export function blockBarFor(
             sound.value = made.sound
         }
     })
-    return () => group.destroy()
+    return () => {
+        freeFull()
+        group.destroy()
+    }
 }

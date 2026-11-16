@@ -440,14 +440,18 @@ describe('playback bar', () => {
         void popout.happyDOM.close()
     })
 
-    it('adds no play bar without the option: only Copy as image, which copy: false leaves out (#11)', () => {
+    it('adds no play bar without the option: Copy as image and Full screen only, each left out by false (#11, #113)', () => {
         const h = host()
         renderBlock('chord', 'A x02220', h)
         expect(h.querySelector('.mn-playable')).toBeNull()
         expect(h.querySelector('.mn-play-toggle')).toBeNull()
         expect(h.querySelector('.mn-play')!.classList.contains('mn-copy-bar')).toBe(true)
+        const full = host()
+        renderBlock('chord', 'A x02220', full, { copy: false })
+        expect(full.querySelector('.mn-play-copy')).toBeNull()
+        expect(full.querySelector('.mn-play .mn-play-full')).not.toBeNull()
         const none = host()
-        renderBlock('chord', 'A x02220', none, { copy: false })
+        renderBlock('chord', 'A x02220', none, { copy: false, fullScreen: false })
         expect(none.querySelector('.mn-play')).toBeNull()
     })
 

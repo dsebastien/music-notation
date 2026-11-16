@@ -17,6 +17,7 @@ import { pageInstruments } from './instruments.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
+import { pageFullScreen } from '../playback/full-screen.js'
 
 declare global {
     interface Window {
@@ -24,6 +25,16 @@ declare global {
         musicNotationTabLoaded?: boolean
         musicNotationSoundfontPlayer?: NotePlayer
         musicNotationOptions?: unknown
+        /**
+         * The tab bundle's API for a page's own scripts (the guide's Sounds page): draw a tab or
+         * a score with assets of its choice, make a soundfont player, load alphaTab from jsDelivr.
+         */
+        MusicNotationTab?: {
+            renderTab: typeof renderTab
+            createSoundfontPlayer: typeof createSoundfontPlayer
+            loadAlphaTab: () => Promise<AlphaTabModule>
+            alphaTabCdn: typeof alphaTabCdn
+        }
     }
 }
 
@@ -98,7 +109,8 @@ function renderAllTabs(doc: Document): void {
                 const result = renderTab(language, source, holder, {
                     alphaTab,
                     assets,
-                    volume: () => pageVolume() ?? DEFAULT_VOLUME
+                    volume: () => pageVolume() ?? DEFAULT_VOLUME,
+                    fullScreen: pageFullScreen(window.musicNotationOptions)
                 })
                 drawn.set(pre, { result, source, holder })
                 void result.ready.then(({ ok }) => {
@@ -115,6 +127,12 @@ function renderAllTabs(doc: Document): void {
 
 if (!window.musicNotationTabLoaded) {
     window.musicNotationTabLoaded = true
+    window.MusicNotationTab = {
+        renderTab,
+        createSoundfontPlayer,
+        loadAlphaTab: () => alphaTabOf(document),
+        alphaTabCdn
+    }
     const start = () => {
         injectStyles(document)
         renderAllTabs(document)

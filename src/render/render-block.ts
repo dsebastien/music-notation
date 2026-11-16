@@ -235,16 +235,19 @@ export function renderBlock(
             : []
         // Hear the diagrams: a playback bar on each one that has notes to play.
         // Copy as image (#11) is on the play bars, or on a bar of its own without playback.
+        // Full screen (#113) is on the same bars.
         const copy = options.copy !== false
+        const fullScreen = options.fullScreen !== false
         const stopPlayback = options.play
             ? attachPlayback(el, {
                   // Redraws for guitar follow the page's hand unless the app says (#60).
                   hand: options.hand,
                   ...(typeof options.play === 'object' ? options.play : {}),
-                  copy
+                  copy,
+                  fullScreen
               })
-            : copy
-              ? attachCopy(el)
+            : copy || fullScreen
+              ? attachCopy(el, undefined, { copy, fullScreen })
               : null
         return {
             ok: error === null,

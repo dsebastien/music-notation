@@ -29,6 +29,7 @@ function fake(): { mod: AlphaTabModule; made: Made[] } {
     }
     class Api implements Made {
         renderFinished = emitter()
+        postRenderFinished = emitter()
         error = emitter()
         playerStateChanged = emitter()
         playerPositionChanged = emitter()

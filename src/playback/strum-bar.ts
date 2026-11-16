@@ -22,6 +22,7 @@ import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
 import { handToApp } from './app-bar.js'
 import { copyImageButton } from './copy-image.js'
+import { addFullScreen } from './full-screen.js'
 
 const STROKES = new Set<Stroke>(['down', 'up', 'mute', 'rest'])
 
@@ -287,6 +288,7 @@ export function timedBarFor(
     // The whole block (#11), drawn without the bar.
     if (options.copy !== false)
         bar.append(...copyImageButton(doc, win, () => wrap.closest('.mn-block') ?? wrap))
+    const freeFull = addFullScreen(doc, bar, wrap.closest('.mn-block'), options.fullScreen)
     // Last, so the app's controls come after the bar's own (#77).
     const app = handToApp(options, bar, {
         kind: piece.kind,
@@ -296,6 +298,7 @@ export function timedBarFor(
     })
     return () => {
         stop()
+        freeFull()
         app.free()
     }
 }

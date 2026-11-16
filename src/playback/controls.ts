@@ -65,6 +65,11 @@ export interface PlayOptions {
      * its own `copy` option, which also works without playback.
      */
     copy?: boolean
+    /**
+     * `false` leaves Full screen out of the bars (#113). On by default. `renderBlock` sets it from
+     * its own `fullScreen` option, which also works without playback.
+     */
+    fullScreen?: boolean
 }
 
 /** A bar that plays a piece in time, as an app sees it (`PlayOptions.timedBar`, #77). */

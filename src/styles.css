@@ -318,7 +318,7 @@
 .mn-play input[type='range'] {
     all: unset;
     appearance: none;
-    width: 44px;
+    width: 36px;
     /* As tall as the thumb, so no host or browser has to center it: the visible 3px track is a
        centered line drawn by the background. */
     height: 9px;
@@ -1255,7 +1255,8 @@
     max-width: none;
     height: auto;
     margin: 0;
-    padding: 12px 16px 8px;
+    /* Room on the sides, more on a wide screen. */
+    padding: 12px max(24px, 3vw) 8px;
     overflow: hidden;
     background: Canvas;
 }
@@ -1274,4 +1275,52 @@
     position: static;
     flex: none;
     margin-top: 8px;
+}
+
+/* Full screen for the other blocks (#113): diagrams, charts, patterns, progressions, the circle of
+   fifths. What the block holds is zoomed to the largest size that fits the screen (the control
+   sets --mn-zoom), centered; a block that can't fit scrolls. The bar keeps its size, at the
+   bottom. */
+.mn-block.mn-fullscreen-fit {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+    width: auto;
+    max-width: none;
+    height: auto;
+    margin: 0;
+    padding: 16px max(32px, 4vw) 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: Canvas;
+    outline: none;
+}
+
+.mn-block.mn-fullscreen-fit > :not(.mn-play) {
+    zoom: var(--mn-zoom, 1);
+    flex: none;
+}
+
+/* A row of diagrams is centered on the screen. */
+.mn-block.mn-fullscreen-fit .mn-row {
+    justify-content: center;
+}
+
+/* Centered while it fits; from the top when it scrolls. */
+.mn-block.mn-fullscreen-fit > :first-child {
+    margin-top: auto;
+}
+
+.mn-block.mn-fullscreen-fit > .mn-play {
+    position: sticky;
+    bottom: 0;
+    flex: none;
+    align-self: stretch;
+    margin-top: auto;
+    padding: 6px 0 8px;
+    background: inherit;
 }

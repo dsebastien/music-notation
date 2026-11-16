@@ -1,5 +1,7 @@
 <!-- The live examples on these pages are drawn by the published library (the exact release, bumped at each release): the
      main bundle for diagrams and charts, the tab bundle for tabs and scores (it loads alphaTab). -->
+<!-- The guide's sound: GeneralUser GS, from the sounds package (set before the bundles read it). -->
+<script src="{{ '/assets/js/options.js' | relative_url }}"></script>
 <script
     defer
     src="https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@0.20.0/dist/music-notation.publish.min.js"
@@ -58,6 +60,30 @@
     }
     .mn-playground #mn-output {
         margin-top: 0.75rem;
+    }
+    .mn-sounds-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1rem;
+        align-items: start;
+        margin-bottom: 1.5rem;
+    }
+    .mn-sounds-tabs {
+        grid-template-columns: 1fr;
+    }
+    .mn-sounds-cell {
+        border: 1px solid #e6e1e8;
+        border-radius: 6px;
+        padding: 0.5rem 0.75rem;
+        min-width: 0;
+    }
+    .mn-sounds-head {
+        font-weight: 600;
+    }
+    .mn-sounds-note {
+        font-size: 0.8rem;
+        color: #5c5962;
+        margin-bottom: 0.25rem;
     }
     .mn-gallery {
         display: flex;

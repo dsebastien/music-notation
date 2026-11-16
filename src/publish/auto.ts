@@ -13,6 +13,7 @@ import { rootMarkOf, type RootMark } from '../render/root-mark.js'
 import { autoRender } from './index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import type { NotePlayer } from '../playback/player.js'
+import { pageFullScreen } from '../playback/full-screen.js'
 
 declare global {
     interface Window {
@@ -128,7 +129,8 @@ if (!window.musicNotationLoaded) {
             properties: pageProperties(window.musicNotationOptions),
             voicings: lookupGuitarVoicing,
             play: pagePlay(window.musicNotationOptions),
-            copy: pageCopy(window.musicNotationOptions)
+            copy: pageCopy(window.musicNotationOptions),
+            fullScreen: pageFullScreen(window.musicNotationOptions)
         })
         window.MusicNotation = { ...api, lookupGuitarVoicing, stop }
     }
