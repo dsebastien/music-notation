@@ -1015,7 +1015,7 @@ Letter names come first, so notes you already wrote never change:
 
 What you write by hand stays as you wrote it: titles (`title:`, `{title}`) and lyrics are never rewritten. CAGED shapes keep their letters (`E shape`). German note words (Fis, Es, Dur, Moll) and lowercase minor keys are not read.
 
-The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default for showing (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). Tabs and scores and `caption: fingering` sentences stay in letters; `caption: formula` follows the naming.
+The `naming:` line names the whole block, every diagram of a row. In a chart, write it as a directive: `{naming: solfege}`. Apps can set the default for showing (the `naming` render option); on Obsidian Publish, see [Publish](publish.md). `caption: fingering` sentences stay in letters; `caption: formula` follows the naming. So do the [note names on tabs and scores](#note-names-on-the-notes), from the app's or the page's naming.
 
 ## Root marks without color
 
@@ -1114,8 +1114,9 @@ staves: both
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                                                    |
 | `engine` | The sound engine you wish for: `generaluser`, `sonivox` or `light`. See [sound engine](#sound-engine).                                        |
 | `layout` | `page` (default) or `line`: the music on one line that scrolls sideways. See [follow the music and one line](#follow-the-music-and-one-line). |
+| `names`  | `on` or `off`: the name of every note, above the tablature. See [note names on the notes](#note-names-on-the-notes).                          |
 
-These keys go on the first lines, and the alphaTex follows. Drums have no tablature: in a `tab` block, drum tracks (`\instrument percussion`, or drums in a file) and other tracks without strings show notation, and stringed tracks keep tablature only. `staves: both` adds tablature under the notation of stringed tracks. Under the music, a player bar: play / pause, stop, loop, metronome, count-in, the tempo, the time, the view: **Tab**, **Score** or **Both** (when a track has tablature), **Follow the music** (see [below](#follow-the-music-and-one-line)) and **Full screen**. The view drawn is lit; a click draws the music again in another view, without changing the block (write `staves:` to keep it; the Music Practice plugin has **Keep this view** to write it). The tempo shows the BPM the music plays at, with the speed in percent next to it, dim ("− 60 BPM + · 71 %"): − and + step by 1 BPM, you can type a number (Enter) or step with the Up and Down arrow keys, the unit button switches to percent (− and + then step by 5%), and a click on the dim value goes back to 100%. Its range is 25 to 150% of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column. alphaTab plays every note forte when no dynamic is written; that "f" isn't drawn unless the music has a dynamic (`{dy p}`, or `{dy f}` to show the forte).
+These keys go on the first lines, and the alphaTex follows. Drums have no tablature: in a `tab` block, drum tracks (`\instrument percussion`, or drums in a file) and other tracks without strings show notation, and stringed tracks keep tablature only. `staves: both` adds tablature under the notation of stringed tracks. Under the music, a player bar: play / pause, stop, loop, metronome, count-in, the tempo, the time, the view: **Tab**, **Score** or **Both** (when a track has tablature), **Note names** (see [note names on the notes](#note-names-on-the-notes)), **Follow the music** (see [below](#follow-the-music-and-one-line)) and **Full screen**. The view drawn is lit; a click draws the music again in another view, without changing the block (write `staves:` to keep it; the Music Practice plugin has **Keep this view** to write it). The tempo shows the BPM the music plays at, with the speed in percent next to it, dim ("− 60 BPM + · 71 %"): − and + step by 1 BPM, you can type a number (Enter) or step with the Up and Down arrow keys, the unit button switches to percent (− and + then step by 5%), and a click on the dim value goes back to 100%. Its range is 25 to 150% of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column. alphaTab plays every note forte when no dynamic is written; that "f" isn't drawn unless the music has a dynamic (`{dy p}`, or `{dy f}` to show the forte).
 
 **Full screen** makes the music fill the screen: it is drawn again at the screen's width (many more bars on a line on a wide screen), several lines show at once, and the bar stays at the bottom. The last line is stretched to the full width. A short score is drawn larger, step by step, as long as it still fits the screen: a one-bar score fills the width. A long score keeps its size, so a wide screen still shows more bars on a line. The music scrolls there, by hand (the wheel, Page Up, Page Down, Home, End) and by itself while it plays; a scroll by hand stops that until the next Play. There, [Follow the music](#follow-the-music-and-one-line) is on by default. The space bar plays and pauses, wherever the focus is (a text field keeps its space). Escape, or the button again, goes back to the page, where it was.
 
@@ -1138,7 +1139,31 @@ layout: line
 :8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r
 ```
 
-It goes on the first lines, with `staves:`, `file:`, `tracks:` and `engine:`. Another value shows an error in the block: `layout: use page or line, got "wide"`.
+It goes on the first lines, with `staves:`, `file:`, `tracks:`, `engine:` and `names:`. Another value shows an error in the block: `layout: use page or line, got "wide"`.
+
+### Note names on the notes
+
+`names: on` writes the name of every note on a tab or a score. It's for beginners who can't read a staff yet, and for tab readers who want to learn the notes.
+
+```text
+names: on
+\title "Riff"
+\tempo 100
+.
+:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 r | 0.6 3.6 5.6 3.6 0.6 r r r
+```
+
+- The names are drawn above the tablature, one per note. When the block shows both, they sit between the staff and the tablature.
+- A chord's names are stacked, the highest note on top. On a tab, they are in the same order as the strings.
+- Sharps by default, flats in a key with flats (the bar's key signature). No octave numbers.
+- A rest, a tied note (it doesn't sound again) and a dead note (`x`) have no name. Drum staves have none.
+- A score with lyrics of its own keeps them. There, the names are written on one line of text above the staff, so they don't mix with the verses.
+
+The names follow the naming of the app or the page: letters (C D E, the default), solfège (Do Ré Mi) or German (H for B). On a web page, it's the same `naming` option as for the diagrams (see [Publish](publish.md)). A `naming:` line in a `tab` or `score` block is not read.
+
+On the bar under the block, **Note names** (the letter A, between the Tab / Score / Both control and Follow the music) turns the names on and off while you read. The block's text doesn't change.
+
+It goes on the first lines, with `staves:`, `file:`, `tracks:`, `engine:` and `layout:`. A site or an app can show the names on every tab and score that has no `names:` line (on a web page: `tab: { names: true }` in `window.musicNotationOptions`). The block's own line wins: `names: off` hides them there. Another value shows an error in the block: `names: use on or off, got "maybe"`.
 
 ## Chords (ChordPro)
 
