@@ -4,6 +4,7 @@
  */
 import type { PickOptions } from '../render/pick.js'
 import type { Naming } from '../theory/naming.js'
+import type { Language } from '../i18n/language.js'
 import type { RootMark } from '../render/root-mark.js'
 import {
     baseFretOf,
@@ -157,6 +158,12 @@ export interface RenderOptions extends LayoutDefaults {
      * A block's `naming:` line wins. Input reads all three.
      */
     naming?: Naming
+    /**
+     * The language of the texts the block shows and announces (#136): `'en'` (default) or `'fr'`;
+     * `'fr-BE'` and the like read as French, anything else as English. Read when the block is drawn.
+     * It never changes the block's syntax, nor the note names (`naming`).
+     */
+    language?: Language | (string & {})
     /**
      * How diagrams mark their root (#14): `color` (default) or `shape` (also a square, so the root
      * doesn't rest on color alone). A block's `root-mark:` line wins.

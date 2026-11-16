@@ -28,6 +28,8 @@ import {
     type BlockReading,
     type Naming
 } from '../theory/naming.js'
+import { languageOf } from '../i18n/language.js'
+import { withLanguage } from '../i18n/translate.js'
 import { rootMarkInBlock, rootMarkOf, withRootMark, type RootMark } from './root-mark.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
@@ -96,6 +98,18 @@ export function renderBlock(
     source: string,
     host: HTMLElement,
     given: RenderOptions = {}
+): RenderResult {
+    // The texts of the block (errors, bars, descriptions) come in the block's language (#136).
+    return withLanguage(languageOf(given.language) ?? 'en', () =>
+        drawBlock(language, source, host, given)
+    )
+}
+
+function drawBlock(
+    language: NotationLanguage,
+    source: string,
+    host: HTMLElement,
+    given: RenderOptions
 ): RenderResult {
     const doc = host.ownerDocument
     const el = html(doc, 'div', `mn-block mn-block-${language}`)
