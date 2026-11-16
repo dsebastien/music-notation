@@ -865,6 +865,8 @@ An empty `chord`, `fretboard`, `keyboard`, `strum` or `picking` block can draw w
 | `strum_pattern`, `time_signature`, `strum_feel`, `chord_symbol`, `bpm_current` | A strumming pattern: one bar per list item. A feel of `swing` or `shuffle` swings, `60%` sets the ratio, and `bpm_current` from 20 to 240 is the tempo.                                     |
 | `picking_pattern`, `time_signature`, `chord_symbol`, `bpm_current`             | A fingerpicking pattern in an empty `picking` block: a pattern name, or the pattern, one bar per list item. `bpm_current` from 20 to 240 is the tempo.                                      |
 
+Wherever the table names `chord_symbol`, a note without one gets its chord from `chord_root` and `chord_quality`, the two properties the Obsidian Starter Kit's templates ask for: `A` and `Minor 7` give Am7, `A` and `5 (Power)` give A5, and a root alone gives its major chord. A `chord_symbol` always wins.
+
 ## Several diagrams
 
 Separate diagrams with a line of three dashes (`---`) to draw them side by side: a song's chords, a progression, the positions of a scale. The row wraps on narrow screens.

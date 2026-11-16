@@ -12,6 +12,10 @@ import { namedPicking } from '../picking/pattern.js'
 /** Property names, as Music Practice and the Obsidian Starter Kit write them by default. */
 export interface PropertyNames {
     chordSymbol: string
+    /** The chord's root ("A", "C#"), read with the quality when the note has no chord symbol (#132). */
+    chordRoot: string
+    /** The chord's quality ("Minor 7", "5 (Power)"), read with the root (#132). */
+    chordQuality: string
     frets: string
     fingers: string
     /** First fret shown (guitar); 0 or empty means computed. */
@@ -38,6 +42,8 @@ export interface PropertyNames {
 
 export const DEFAULT_PROPERTY_NAMES: PropertyNames = {
     chordSymbol: 'chord_symbol',
+    chordRoot: 'chord_root',
+    chordQuality: 'chord_quality',
     frets: 'frets',
     fingers: 'fingers',
     position: 'position',
@@ -126,10 +132,23 @@ function cagedShape(value: unknown): string | null {
     return m ? m[1]!.toUpperCase() : null
 }
 
-/** The note's chord as the library reads it ("A Minor 7" → "Am7"); null when it doesn't. */
+/**
+ * The note's chord as the library reads it ("A Minor 7" → "Am7"); null when it doesn't. Without a
+ * chord symbol, its root and quality as the Obsidian Starter Kit's templates ask for them (#132):
+ * "A" and "Minor 7" → "Am7"; a note in brackets is left out ("5 (Power)" → "A5").
+ */
 function chordOf(properties: Properties, names: PropertyNames): string | null {
-    const value = first(properties[names.chordSymbol])
+    const value = first(properties[names.chordSymbol]) || rootAndQuality(properties, names)
     return value ? (readChord(value)?.symbol ?? null) : null
+}
+
+function rootAndQuality(properties: Properties, names: PropertyNames): string {
+    const root = first(properties[names.chordRoot])
+    if (!root) return ''
+    const quality = first(properties[names.chordQuality])
+        .replace(/\([^)]*\)/g, '')
+        .trim()
+    return quality ? `${root} ${quality}` : root
 }
 
 /**
@@ -233,7 +252,8 @@ export function blockFromProperties(
     if (language === 'strum') return strumSource(properties, names)
     if (language === 'picking') return pickingSource(properties, names)
     if (language === 'chord') {
-        const symbol = get(names.chordSymbol)
+        // Without a chord symbol, the chord its root and quality name (#132).
+        const symbol = get(names.chordSymbol) ?? chordOf(properties, names) ?? undefined
         if (symbol) lines.push(`symbol: ${symbol}`)
         if (instrument === 'piano') {
             const pitches = get(names.pitches)
