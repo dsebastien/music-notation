@@ -193,3 +193,83 @@ describe('empty blocks drawn from these notes', () => {
         expect(r.el.classList.contains('mn-empty')).toBe(true)
     })
 })
+
+describe('a chord from its root and quality when the note has no chord symbol (#132)', () => {
+    const guitar = { tags: ['type/music/guitar/chord'] }
+    const piano = { tags: ['type/music/piano/chord'] }
+
+    it("draws a new chord note: the Starter Kit's template asks for the root and the quality", () => {
+        expect(
+            blockFromProperties('chord', { ...guitar, chord_root: 'A', chord_quality: 'Minor 7' })
+        ).toBe('symbol: Am7')
+        expect(
+            blockFromProperties('chord', { ...piano, chord_root: 'C#', chord_quality: 'Major 7' })
+        ).toBe('symbol: C#maj7\ninstrument: piano')
+        // A note in brackets is not part of the name.
+        expect(
+            blockFromProperties('chord', { ...guitar, chord_root: 'E', chord_quality: '5 (Power)' })
+        ).toBe('symbol: E5')
+        // A root alone is its major chord.
+        expect(blockFromProperties('chord', { ...guitar, chord_root: 'G' })).toBe('symbol: G')
+    })
+
+    it('reads every quality the template offers', () => {
+        for (const quality of [
+            'Major',
+            'Minor',
+            '5 (Power)',
+            '7',
+            'Major 7',
+            'Minor 7',
+            'Minor 7 flat 5',
+            'Diminished',
+            'Diminished 7',
+            'Augmented',
+            'Sus2',
+            'Sus4',
+            '7sus4',
+            'Add9',
+            '6',
+            'Minor 6',
+            '9',
+            'Major 9',
+            'Minor 9',
+            '11',
+            '13'
+        ])
+            expect(
+                blockFromProperties('chord', {
+                    ...guitar,
+                    chord_root: 'Bb',
+                    chord_quality: quality
+                })
+            ).toMatch(/^symbol: Bb\S*$/)
+    })
+
+    it('a chord symbol wins, and nothing is drawn without a root', () => {
+        expect(
+            blockFromProperties('chord', {
+                ...guitar,
+                chord_symbol: 'Dm',
+                chord_root: 'A',
+                chord_quality: 'Minor 7'
+            })
+        ).toBe('symbol: Dm')
+        expect(blockFromProperties('chord', { ...guitar, chord_quality: 'Minor 7' })).toBeNull()
+    })
+
+    it("an arpeggio note and a guitar chord note's fretboard use them too", () => {
+        expect(
+            blockFromProperties('fretboard', {
+                tags: ['type/music/guitar/arpeggio'],
+                chord_root: 'A',
+                chord_quality: 'Minor 7'
+            })
+        ).toBe('arpeggio: Am7')
+    })
+
+    it('the names are the defaults Music Practice and the Starter Kit use', () => {
+        expect(DEFAULT_PROPERTY_NAMES.chordRoot).toBe('chord_root')
+        expect(DEFAULT_PROPERTY_NAMES.chordQuality).toBe('chord_quality')
+    })
+})
