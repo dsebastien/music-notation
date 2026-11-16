@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.21.1 (2026-11-16)
 
 - **Fixed: the circle of fifths hid part of the outline of the chord that plays**: the cells drawn after it covered its border. The cell that plays is now drawn on top, with its whole outline.
 
