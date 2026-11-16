@@ -49,7 +49,7 @@ export const frDiagrams = {
         'Sur {count} cordes, inversion: any demande six cordes ou moins : ajoutez par exemple strings: 1-6',
     'render.voicings.wideArea': 'une zone large',
     'render.voicings.oneWidening':
-        'Sur {count} cordes, utilisez un seul élargissement à la fois parmi {list}',
+        'Sur {count} cordes, utilisez une seule option à la fois parmi {list}',
     // render/render-block: no voicing
     'render.noVoicing.gaps': 'Les cordes {strings} ne sont pas côte à côte : ajoutez gaps: yes',
     'render.noVoicing.rootString': 'root-string {string} ne fait pas partie des cordes {strings}',
@@ -136,7 +136,7 @@ export const frDiagrams = {
     'fretboard.positions.numberingPentatonic':
         'numbering: minor sert aux positions de la pentatonique majeure (par exemple A major pentatonic), pas à {title}',
     'fretboard.positions.numberingCaged':
-        'numbering: minor numérote les positions en boîtes et 3nps, pas les formes CAGED',
+        'numbering: minor numérote les positions (« box ») et 3nps, pas les formes CAGED',
     'fretboard.positions.position':
         'position doit être un nombre entier à partir de 1, reçu « {text} »',
     'fretboard.positions.shape': 'Forme inconnue « {text} » : utilisez C, A, G, E, D ou 3nps',

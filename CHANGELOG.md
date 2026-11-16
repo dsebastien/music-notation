@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.23.1 (2026-11-16)
+
+- **Better French words in the blocks** (#136): the French texts from 0.23.0 were reworded to match how French-speaking guitarists and teachers write. A strumming pattern is now a "rythmique" (it was "rythme de strumming"), and a scale box is a "position" ("position 1") instead of a "boîte". A chord that can't be played now reads "Aucune position jouable", and the tip to mute strings is simpler. Nothing changes in English.
+
 ## 0.23.0 (2026-11-16)
 
 - **The texts of the blocks can be in French** (#136): the bars under the blocks (Play, Pause, Stop, Loop, Count-in, Metronome, the tempo, Copy as image, Full screen, Follow the music, Note names), the view switches, the playback choices, the labels of sliders and menus, what screen readers read (button names, descriptions of diagrams) and the messages a block shows when its source has a mistake, while it loads or when it can't play. English stays the default and the fallback. The block syntax doesn't change (`chord:`, `staves: both`), and neither do the words a message quotes from your text or tells you to write, note names in letters, chord symbols, scale names in titles, the `music-notation check` command and alphaTab's own messages. French note names stay a separate choice (`naming: solfege`). On web pages and Obsidian Publish, the blocks follow the page's language (`<html lang>`), and `language: 'fr'` or `'en'` in `window.musicNotationOptions` forces one. The language is read when a block is drawn: blocks already on the page don't switch. For apps: `renderBlock`, `renderTab`, `attachPlayback`, `attachCopy`, `toSvgString` and `toPng` take `language` (`'en'` by default, or `'fr'`). The main entry exports `languageOf`, `LANGUAGES_OF_TEXTS`, `withLanguage` and the type `Language`. `renderTab(...).ready` now gives `line` and `column` for an alphaTex mistake, so apps don't have to read them out of the message, which is translated now.
