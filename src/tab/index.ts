@@ -14,6 +14,8 @@ import { icon, iconButton, playBar, pressedButton, volumeOf } from '../playback/
 import { followVolume } from '../playback/live-volume.js'
 import { fullScreenControl, type FullScreen } from '../playback/full-screen.js'
 import { followScroll } from './follow-scroll.js'
+import { nameNotes, namesOf } from './note-names.js'
+import { namingOf, type Naming } from '../theory/naming.js'
 import { scoreFit } from './score-fit.js'
 import { tempoAt, tempoControl, type TempoUnit } from './tempo.js'
 import {
@@ -119,6 +121,16 @@ export interface TabOptions {
     alphaTab: AlphaTabModule
     assets: TabAssets
     /**
+     * Note names on the notes (#112): whether a block without a `names:` line shows them (default
+     * false). The bar's Note names button turns them on and off while reading.
+     */
+    names?: boolean
+    /**
+     * How the note names are written: `letters` (C D E, the default), `solfege` (Do Ré Mi) or
+     * `german` (H for B). The library's naming, as for the diagrams.
+     */
+    naming?: Naming
+    /**
      * The engine the page or the app chose (#124): `generaluser` (the instrument files of
      * `assets.instruments`) or `sonivox` (`assets.soundFont`, whole). A block's `engine:` line
      * comes first; what the assets don't have falls back (see `tabEngine`).
@@ -180,6 +192,11 @@ export interface TabSource {
      * default, in systems one under the other.
      */
     layout: 'page' | 'line'
+    /**
+     * `names: on` writes the name of every note (#112), `names: off` doesn't; null without the
+     * line (the app's default then).
+     */
+    names: boolean | null
     /** The alphaTex itself. */
     tex: string
     /** Lines of the block before the alphaTex (settings, blank lines), for error positions. */
@@ -191,10 +208,10 @@ export interface TabSource {
     fromText: boolean
 }
 
-const SETTING = /^\s*(staves|file|tracks?|engine|layout)\s*:\s*(.*)$/i
+const SETTING = /^\s*(staves|file|tracks?|engine|layout|names)\s*:\s*(.*)$/i
 
 /**
- * A tab block's own settings (lines `staves:`, `file:`, `tracks:`, `engine:`, `layout:` at the top, `//` comments
+ * A tab block's own settings (lines `staves:`, `file:`, `tracks:`, `engine:`, `layout:`, `names:` at the top, `//` comments
  * allowed among them), then its alphaTex, or a plain-text tab, converted (#71). ```tab blocks show
  * tablature, ```score blocks standard notation, unless `staves:` says otherwise. Throws a message
  * for the user.
@@ -208,6 +225,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
         tracks: null,
         engine: null,
         layout: 'page',
+        names: null,
         tex: '',
         texLine: 0,
         fromText: false
@@ -246,6 +264,10 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
                 throw new Error(`layout: use page or line, got "${value}"`)
             }
             out.layout = v
+        } else if (key === 'names') {
+            const names = namesOf(value)
+            if (names === null) throw new Error(`names: use on or off, got "${value}"`)
+            out.names = names
         } else {
             const tracks = value
                 .split(/[\s,]+/)
@@ -816,6 +838,11 @@ export function renderTab(
                 return
             }
             options.onApi?.(current)
+            /** Note names (#112): the block's `names:` line, else the app's default. */
+            let named = parsed.names ?? options.names === true
+            const naming: Naming = namingOf(options.naming) ?? 'letters'
+            /** Takes the names off the score that has them. */
+            let unname: (() => void) | null = null
             /** Slash and numbered staves as written: `both` shows them again after a switch. */
             let written: { showSlash: boolean; showNumbered: boolean }[] = []
             current.scoreLoaded.on((score) => {
@@ -825,6 +852,9 @@ export function renderTab(
                 chooseStaves(view, score)
                 tablature = hasTablature(score, parsed.tracks)
                 hideDefaultDynamics(score, parsed.file ? null : parsed.tex)
+                // Note names (#112), before the first drawing.
+                unname = null
+                if (named) unname = nameNotes(score, naming)
             })
             hideCredit(current, surface)
             let bar: ReturnType<typeof playerBar> | null = null
@@ -864,6 +894,18 @@ export function renderTab(
                                 options.onKeepView
                             )
                         )
+                    // Note names (#112): on and off while reading. The score is drawn again from
+                    // the one loaded, as for the views: the player and its song stay.
+                    bar.bar.appendChild(
+                        pressedButton(doc, 'mn-tab-names', 'Note names', 'names', named, (on) => {
+                            named = on
+                            const score = current.score
+                            if (gone || !score) return
+                            unname?.()
+                            unname = on ? nameNotes(score, naming) : null
+                            current.render()
+                        })
+                    )
                     // Follow the music (#97). Three cases, one button. In full screen the score
                     // follows by default: only its own area scrolls there (alphaTab does it).
                     // On one line (`layout: line`) it follows by default too: only its own area

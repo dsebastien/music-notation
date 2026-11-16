@@ -26,6 +26,7 @@ describe('parseTabSource', () => {
             tracks: null,
             engine: null,
             layout: 'page',
+            names: null,
             tex: ':4 3.3 0.2',
             texLine: 0,
             fromText: false
@@ -357,6 +358,8 @@ describe('renderTab', () => {
             'Tab',
             'Score',
             'Both',
+            // Note names (#112).
+            'Note names',
             // Follow the music (#97).
             'Follow the music',
             // And full screen (#113).
@@ -1069,6 +1072,82 @@ describe('renderTab, full screen (#113)', () => {
         ).toBeUndefined()
         page.destroy()
         h.remove()
+    })
+
+    const namesButton = (h: HTMLElement) =>
+        h.querySelector<HTMLButtonElement>('.mn-tab-bar .mn-tab-names')!
+    const lyricsOf = (api: Made) =>
+        (
+            api as unknown as {
+                score: {
+                    tracks: {
+                        staves: { bars: { voices: { beats: { lyrics: string[] | null }[] }[] }[] }[]
+                    }[]
+                }
+            }
+        ).score.tracks[0]!.staves[0]!.bars[0]!.voices[0]!.beats.map((b) => b.lyrics)
+
+    it('names: on writes the name of every note; the button turns them off and on (#112)', async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const result = renderTab('tab', 'names: on\n:4 0.6 3.6 (0.1 1.2 0.3).2', h, {
+            alphaTab: mod,
+            assets
+        })
+        await result.ready
+        const api = made[0]! as Made & { renders: number }
+        expect(lyricsOf(api)).toEqual([['E'], ['G'], ['E', 'C', 'G']])
+        const button = namesButton(h)
+        expect(button.getAttribute('aria-pressed')).toBe('true')
+        button.click()
+        expect(lyricsOf(api)).toEqual([null, null, null])
+        expect(api.renders).toBe(1)
+        expect(button.getAttribute('aria-pressed')).toBe('false')
+        button.click()
+        expect(lyricsOf(api)).toEqual([['E'], ['G'], ['E', 'C', 'G']])
+        expect(api.renders).toBe(2)
+        result.destroy()
+        h.remove()
+    })
+
+    it('note names are off by default; the app sets the default and the naming', async () => {
+        const { mod, made } = tracked()
+        const h = document.createElement('div')
+        document.body.appendChild(h)
+        const plain = renderTab('tab', ':4 0.6 3.6', h, { alphaTab: mod, assets })
+        await plain.ready
+        expect(lyricsOf(made[0]!)).toEqual([null, null])
+        expect(namesButton(h).getAttribute('aria-pressed')).toBe('false')
+        plain.destroy()
+        const named = renderTab('tab', ':4 0.6 3.6', h, {
+            alphaTab: mod,
+            assets,
+            names: true,
+            naming: 'solfege'
+        })
+        await named.ready
+        expect(lyricsOf(made[1]!)).toEqual([['Mi'], ['Sol']])
+        named.destroy()
+        // The block's own line wins over the app's default.
+        const off = renderTab('tab', 'names: off\n:4 0.6 3.6', h, {
+            alphaTab: mod,
+            assets,
+            names: true
+        })
+        await off.ready
+        expect(lyricsOf(made[2]!)).toEqual([null, null])
+        off.destroy()
+        h.remove()
+    })
+
+    it('reads names: among the settings, and says what to write', () => {
+        expect(parseTabSource('tab', 'names: on\n:4 3.3').names).toBe(true)
+        expect(parseTabSource('tab', 'names: Off\n:4 3.3').names).toBe(false)
+        expect(parseTabSource('tab', ':4 3.3').names).toBeNull()
+        expect(() => parseTabSource('tab', 'names: maybe\n:4 3.3')).toThrow(
+            'names: use on or off, got "maybe"'
+        )
     })
 
     it('reads layout: among the settings, and says what to write', () => {

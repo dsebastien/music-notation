@@ -16,6 +16,7 @@ import type { TempoUnit } from './tempo.js'
 import { alphaTabLoader } from './load.js'
 import { pageInstruments } from './instruments.js'
 import { pageEngine } from '../playback/engine.js'
+import { namingOf } from '../theory/naming.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
@@ -127,6 +128,15 @@ function renderAllTabs(doc: Document): void {
                   )
                 : win.musicNotationSoundfontPlayer
             const engine = pageEngine(window.musicNotationOptions)
+            // Note names on tabs (#112): the page's naming (as for the diagrams) and its default.
+            const page = (window.musicNotationOptions ?? {}) as Record<string, unknown>
+            const naming = namingOf(page['naming'])
+            const tabs = page['tab']
+            // `tab: { names: true }` shows them on every tab that has no `names:` line.
+            const names =
+                typeof tabs === 'object' &&
+                tabs !== null &&
+                (tabs as Record<string, unknown>)['names'] === true
             for (const code of blocks) {
                 const pre = code.parentElement!
                 if (!pre.parentElement) continue
@@ -141,6 +151,8 @@ function renderAllTabs(doc: Document): void {
                     assets,
                     volume: () => pageVolume() ?? DEFAULT_VOLUME,
                     ...(engine ? { engine } : {}),
+                    ...(naming ? { naming } : {}),
+                    ...(names ? { names } : {}),
                     fullScreen: pageFullScreen(window.musicNotationOptions),
                     ...(pageTempoUnit() ? { tempoUnit: pageTempoUnit()! } : {}),
                     onTempoUnit: (unit) => (tempoUnit = unit)
