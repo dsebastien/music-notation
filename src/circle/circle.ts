@@ -220,7 +220,10 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
             const title = svg(doc, 'title')
             title.textContent = chord ? `${chord.numeral}: ${name}` : name.replace('/', ' or ')
             cell.appendChild(title)
-            g.appendChild(cell)
+            // The cell and its labels, raised above the others while it plays (`raise`).
+            const slot = svg(doc, 'g', { 'class': 'mn-circle-slot', 'data-mn-raise': '' })
+            slot.appendChild(cell)
+            g.appendChild(slot)
             const mid = (outer + inner) / 2
             const solid = mark === ' mn-circle-tonic' || mark === ' mn-circle-neighbour'
             const textClass = `mn-circle-label mn-circle-label-${ring}${solid ? ' mn-circle-on' : ''}`
@@ -230,7 +233,7 @@ export function renderCircle(doc: Document, options: CircleOptions = {}): SVGEle
             lines.forEach((line, i) => {
                 const [x, y] = point(mid, position * 30, top)
                 const isNumeral = chord !== undefined && i === lines.length - 1
-                g.appendChild(
+                slot.appendChild(
                     svgText(doc, line, {
                         'class': isNumeral ? `${textClass} mn-circle-numeral` : textClass,
                         x,

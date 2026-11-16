@@ -9,6 +9,17 @@ import type { NoteEvent, NotePlayer, PlayKind } from './player.js'
 export const PLAYING_CLASS = 'mn-playing'
 
 /**
+ * A drawing whose parts touch (the circle of fifths' cells) groups each part with its labels in an
+ * element marked `data-mn-raise`. The part that plays is drawn last, so its outline isn't covered
+ * by the parts drawn after it (they hid part of the playing cell's border).
+ */
+export function raise(el: Element): void {
+    const group = el.closest('[data-mn-raise]')
+    const parent = group?.parentNode
+    if (group && parent && parent.lastChild !== group) parent.appendChild(group)
+}
+
+/**
  * How long (ms) the bar waits for a player that doesn't say when its notes start (no
  * `reportsStart`) before it lights notes from the play call.
  */
@@ -164,6 +175,7 @@ export function followNotes(
             if (!lit.has(el)) {
                 el.classList.add(PLAYING_CLASS)
                 lit.add(el)
+                raise(el)
             }
         if (next === Infinity) return end()
         // A millisecond past the boundary, so the next tick lands on the far side of it.

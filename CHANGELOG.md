@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed: the circle of fifths hid part of the outline of the chord that plays**: the cells drawn after it covered its border. The cell that plays is now drawn on top, with its whole outline.
+
 ## 0.21.0 (2026-11-16)
 
 - **Full screen for every block** (#113): chord diagrams, keyboards, fretboards, the circle of fifths, strumming and picking patterns, progressions and chord charts get a **Full screen** button at the end of their bar, after Copy as image (with playback off, on their small bar). The block grows to the largest size that fits the screen, both ways, centered, and fits again when the screen's size changes; the bar keeps its size at the bottom. Nothing is drawn again: it is the same drawing, larger (a chart's text wraps again). A block that can't fit at any size, such as a long chord chart, is shown up to 1.5 times larger and scrolls. Escape, or the button again, goes back to the page, where it was. Tabs and scores in full screen use the screen better too: the last line is stretched to the full width, and a short score is drawn larger, step by step, as long as it still fits (a one-bar score fills the width). A long score keeps its size, so a wide screen still shows more bars on a line. For apps and pages: `fullScreen: false` leaves the button out (in `renderBlock`, `PlayOptions` and `attachCopy`; in `window.musicNotationOptions`, also on tabs and scores).
