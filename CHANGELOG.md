@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.21.2 (2026-11-16)
 
 - **Fixed: empty chord blocks ignored the chord's root and quality** (#132): the Obsidian Starter Kit's guitar chord, piano chord and guitar arpeggio templates ask for `chord_root` and `chord_quality` and leave `chord_symbol` empty, and an empty block drew from `chord_symbol` only, so it drew nothing. Without a `chord_symbol`, the chord now comes from the root and the quality: "A" and "Minor 7" give Am7, "5 (Power)" gives A5, and a root alone gives its major chord. A `chord_symbol` still wins. It works for chord notes (guitar and piano), arpeggio notes and a guitar chord note's empty fretboard, in Obsidian (Music Practice) and on Obsidian Publish. Existing notes draw as soon as they have a root. For apps: `propertyNames` takes `chordRoot` and `chordQuality`.
 
