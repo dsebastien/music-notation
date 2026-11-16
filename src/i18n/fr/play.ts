@@ -4,7 +4,7 @@ export const frPlay = {
     'playback.bar': 'Lecture',
     'playback.diagram': 'Diagramme',
     'playback.place': '({n} sur {total})',
-    'playback.playItem': 'Lire {name}',
+    'playback.playItem': 'Lire : {name}',
     'playback.playAll': 'Tout lire à la suite',
     'playback.play': 'Lecture',
     'playback.stop': 'Arrêter',
