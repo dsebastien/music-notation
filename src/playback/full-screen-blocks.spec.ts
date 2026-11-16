@@ -74,6 +74,36 @@ describe('full screen for every block (#113)', () => {
         expect(el.classList.contains('mn-fullscreen')).toBe(false)
     })
 
+    it('Space plays and pauses in full screen, wherever the focus is, and nowhere else', () => {
+        const { el } = renderBlock('chord', 'A x02220', host(), { play: true })
+        const toggle = el.querySelector('.mn-play-toggle')!
+        let pressed = 0
+        toggle.addEventListener('click', () => pressed++)
+        const space = (target: EventTarget) => {
+            const down = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })
+            target.dispatchEvent(down)
+            target.dispatchEvent(new KeyboardEvent('keyup', { key: ' ', bubbles: true }))
+            return down
+        }
+        // Out of full screen, Space is the page's.
+        expect(space(document.body).defaultPrevented).toBe(false)
+        expect(pressed).toBe(0)
+        const full = el.querySelector('.mn-play-full')!
+        click(full)
+        // The focus on the page, on the block, or on a button of the bar.
+        expect(space(document.body).defaultPrevented).toBe(true)
+        space(el)
+        space(full)
+        expect(pressed).toBe(3)
+        // A field keeps its space.
+        const field = el.appendChild(document.createElement('input'))
+        expect(space(field).defaultPrevented).toBe(false)
+        expect(pressed).toBe(3)
+        click(full)
+        space(document.body)
+        expect(pressed).toBe(3)
+    })
+
     it('one button per block, even when two bars share it', () => {
         const block = host()
         const bar = document.createElement('div')

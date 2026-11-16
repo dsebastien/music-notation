@@ -25,7 +25,7 @@ export interface FullScreen {
 }
 
 /** Keys that scroll the score by hand. */
-const SCROLL_KEYS = new Set(['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown', ' '])
+const SCROLL_KEYS = new Set(['PageUp', 'PageDown', 'Home', 'End', 'ArrowUp', 'ArrowDown'])
 
 /** The first background that shows behind `el`: its page's, as the reader sees it. */
 function backgroundBehind(el: HTMLElement): string {
@@ -168,6 +168,23 @@ export function fullScreenControl(
     surface.addEventListener('keydown', (event) => {
         if (SCROLL_KEYS.has(event.key)) byHand()
     })
+    /**
+     * Space plays and pauses in full screen, wherever the focus is (the score, a button of the bar,
+     * nothing): it presses the bar's Play. Fields that take a space keep it. The key goes no
+     * further, so it never scrolls, and a focused button doesn't take it as a click too.
+     */
+    const space = (event: KeyboardEvent) => {
+        if (!on || event.key !== ' ' || event.ctrlKey || event.metaKey || event.altKey) return
+        const target = event.target as HTMLElement | null
+        if (target?.closest('input:not([type=range]), textarea, select, [contenteditable=true]'))
+            return
+        event.preventDefault()
+        event.stopPropagation()
+        if (event.type !== 'keydown' || event.repeat) return
+        block.querySelector<HTMLButtonElement>('.mn-play .mn-play-toggle')?.click()
+    }
+    doc.addEventListener('keydown', space, true)
+    doc.addEventListener('keyup', space, true)
     // Escape in the browser's full screen: the browser leaves it, and the page hears no key.
     const changed = () => {
         if (doc.fullscreenElement === block) browser = true
@@ -189,6 +206,8 @@ export function fullScreenControl(
         destroy: () => {
             leave(false)
             doc.removeEventListener('fullscreenchange', changed)
+            doc.removeEventListener('keydown', space, true)
+            doc.removeEventListener('keyup', space, true)
         }
     }
 }
