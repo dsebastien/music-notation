@@ -313,7 +313,11 @@
 }
 
 .mn-play .mn-tempo-value {
+    /* Obsidian gives every input border-box and a 30 px height: 3.5ch then held the
+       padding and border too, and "100" was cut. */
+    box-sizing: content-box;
     width: 3.5ch;
+    height: auto;
     padding: 0 2px;
     border: 1px solid var(--mn-faint);
     border-radius: 4px;
