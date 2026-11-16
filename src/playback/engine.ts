@@ -5,6 +5,8 @@
  * one of the fallback order plays, and the light synthesizer is always there for diagrams.
  */
 
+import { t } from '../i18n/translate.js'
+
 export type Engine = 'generaluser' | 'sonivox' | 'light'
 
 /** The fallback order, always: the best sound the host has. */
@@ -54,7 +56,7 @@ export function blockEngine(
     const rest = source.replace(chart ? DIRECTIVE : LINE, (_line: string, value: string) => {
         const read = engineOf(value)
         if (!read) {
-            throw new Error(`engine: use generaluser, sonivox or light, got "${value}"`)
+            throw new Error(t('playback.engine.invalid', { value }))
         }
         engine = read
         return ''

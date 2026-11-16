@@ -6,6 +6,7 @@
  * one bar: its diagrams play on a click, on the sound it chose.
  */
 import { html } from '../render/dom.js'
+import { translator, type Translator } from '../i18n/translate.js'
 import { isCompound, parseStrum, parseTime, type StrumPattern } from '../strum/pattern.js'
 import { countedTempoOf, tempoOf } from '../strum/play.js'
 import type { PlayOptions } from './controls.js'
@@ -80,12 +81,13 @@ function strumOf(
     }
 }
 
-const STRUM_LABELS: Record<ProgressionStrum | 'pattern', string> = {
-    beats: 'On the beats',
-    bar: 'Once a bar',
-    arpeggio: 'Arpeggio',
-    pattern: 'Pattern'
-}
+/** The names of the strums, in the language in progress. */
+const strumLabels = (tr: Translator): Record<ProgressionStrum | 'pattern', string> => ({
+    beats: tr('playback.strum.beats'),
+    bar: tr('playback.strum.bar'),
+    arpeggio: tr('playback.strum.arpeggio'),
+    pattern: tr('playback.strum.pattern')
+})
 
 export function progressionBarFor(
     doc: Document,
@@ -96,6 +98,8 @@ export function progressionBarFor(
 ): () => void {
     const { bars, marks } = barsFromDrawing(drawing)
     if (!bars.length) return () => {}
+    // Kept for the toggle, which changes its text on each press, after the draw.
+    const tr = translator()
     const time = drawing.getAttribute('data-mn-time')
     let beatsPerBar = 4
     let beatUnit = 4
@@ -128,7 +132,7 @@ export function progressionBarFor(
     let strum: ProgressionStrum | 'pattern' = pattern ? 'pattern' : written.strum
     let playing: PlayHandle | null = null
 
-    const bar = playBar(doc, 'mn-progression-play', 'Play the chords in time')
+    const bar = playBar(doc, 'mn-progression-play', tr('playback.progression.bar'))
     // Below the chords (#58).
     drawing.appendChild(bar)
 
@@ -136,8 +140,11 @@ export function progressionBarFor(
     toggle.type = 'button'
     const show = () => {
         toggle.replaceChildren(icon(doc, playing ? 'stop' : 'play'))
-        toggle.setAttribute('aria-label', playing ? 'Stop' : 'Play in time')
-        toggle.title = playing ? 'Stop' : 'Play in time'
+        toggle.setAttribute(
+            'aria-label',
+            playing ? tr('playback.stop') : tr('playback.progression.play')
+        )
+        toggle.title = playing ? tr('playback.stop') : tr('playback.progression.play')
     }
     const stop = () => {
         playing?.stop()
@@ -197,17 +204,31 @@ export function progressionBarFor(
 
     // Changes apply from the next pass of a loop.
     bar.append(
-        pressedButton(doc, 'mn-play-loop', 'Loop', 'loop', false, (on) => (settings.loop = on)),
-        pressedButton(doc, 'mn-play-count', 'Count-in', 'count', false, (on) => {
+        pressedButton(
+            doc,
+            'mn-play-loop',
+            tr('playback.loop'),
+            'loop',
+            false,
+            (on) => (settings.loop = on)
+        ),
+        pressedButton(doc, 'mn-play-count', tr('playback.countIn'), 'count', false, (on) => {
             settings.countIn = on
         }),
-        pressedButton(doc, 'mn-play-click', 'Click', 'click', true, (on) => (settings.click = on))
+        pressedButton(
+            doc,
+            'mn-play-click',
+            tr('playback.click'),
+            'click',
+            true,
+            (on) => (settings.click = on)
+        )
     )
     bar.appendChild(
         valueSlider(
             doc,
-            'Tempo (BPM)',
-            'BPM',
+            tr('playback.tempo'),
+            tr('playback.unit.bpm'),
             20,
             240,
             settings.bpm,
@@ -215,7 +236,7 @@ export function progressionBarFor(
                 settings.bpm = tempoOf(n)
                 app.tempoChanged(settings.bpm)
             },
-            compound ? 'counts dotted quarters' : undefined
+            compound ? tr('playback.dotted') : undefined
         ).field
     )
     const strums: (ProgressionStrum | 'pattern')[] = [
@@ -224,19 +245,27 @@ export function progressionBarFor(
     ]
     // A new strum starts again from the first bar.
     bar.appendChild(
-        choice(doc, 'mn-play-strum', 'Strum', strums, strum, STRUM_LABELS, (value) => {
-            strum = value
-            if (playing) start()
-        })
+        choice(
+            doc,
+            'mn-play-strum',
+            tr('playback.strumChoice'),
+            strums,
+            strum,
+            strumLabels(tr),
+            (value) => {
+                strum = value
+                if (playing) start()
+            }
+        )
     )
     bar.appendChild(
         choice(
             doc,
             'mn-play-sound',
-            'Sound',
+            tr('playback.sound'),
             ['guitar', 'piano'] as const,
             settings.sound,
-            { guitar: 'Guitar', piano: 'Piano' },
+            { guitar: tr('playback.guitar'), piano: tr('playback.piano') },
             (value) => {
                 settings.sound = value === 'piano' ? 'piano' : 'guitar'
                 // The diagrams play on it too (not redrawn: the block chose their drawing).

@@ -3,16 +3,26 @@
  * clipboard, in the window the bar is in, and a short message after it.
  */
 import { toPng } from '../export/image.js'
+import { languageOf } from '../i18n/language.js'
+import { currentLanguage, translator, translatorFor, withLanguage } from '../i18n/translate.js'
 import { html } from '../render/dom.js'
 import { iconButton, placeBar, playBar } from './bar-parts.js'
 import { addFullScreen } from './full-screen.js'
 
-/** What the button says after a click. */
+/** The catalog keys of what the button says after a click. */
+const SAID_KEYS = {
+    copied: 'playback.copy.copied',
+    refused: 'playback.copy.refused',
+    unsupported: 'playback.copy.unsupported',
+    failed: 'playback.copy.failed'
+} as const
+
+/** What the button says after a click, in English (the other languages are in the catalog). */
 export const COPY_SAID = {
-    copied: 'Copied',
-    refused: 'Allow clipboard access for this page, then try again.',
-    unsupported: "This browser can't copy images: use a recent Chrome, Edge, Safari or Firefox.",
-    failed: "The image couldn't be made."
+    copied: translatorFor('en')(SAID_KEYS.copied),
+    refused: translatorFor('en')(SAID_KEYS.refused),
+    unsupported: translatorFor('en')(SAID_KEYS.unsupported),
+    failed: translatorFor('en')(SAID_KEYS.failed)
 } as const
 
 /** How long a message stays. */
@@ -38,8 +48,10 @@ export function copyImageButton(
     target: (whole: boolean) => Element | null,
     make: (el: Element) => Promise<Blob> = (el) => toPng(el)
 ): [HTMLButtonElement, HTMLElement] {
-    const button = iconButton(doc, 'mn-play-copy', 'Copy as image', 'copy')
-    button.setAttribute('aria-description', 'Shift+click copies the whole block')
+    // Kept for the click: the message comes after the draw, in the block's language.
+    const tr = translator()
+    const button = iconButton(doc, 'mn-play-copy', tr('playback.copy.button'), 'copy')
+    button.setAttribute('aria-description', tr('playback.copy.hint'))
     const said = html(doc, 'span', 'mn-play-said')
     said.setAttribute('aria-live', 'polite')
     let timer: { id: number; win: Window } | null = null
@@ -62,7 +74,7 @@ export function copyImageButton(
         const clipboard = here.navigator.clipboard as Clipboard | undefined
         const Item = here.ClipboardItem
         if (typeof clipboard?.write !== 'function' || typeof Item !== 'function')
-            return say(here, COPY_SAID.unsupported)
+            return say(here, tr(SAID_KEYS.unsupported))
         let madeIt = true
         const png = make(el).catch((error: unknown) => {
             madeIt = false
@@ -75,14 +87,14 @@ export function copyImageButton(
             // A promise, inside the click: Safari keeps the user gesture while the PNG is made.
             wrote = clipboard.write([new Item({ 'image/png': png })])
         } catch {
-            return say(here, COPY_SAID.refused)
+            return say(here, tr(SAID_KEYS.refused))
         }
         wrote.then(
-            () => say(here, COPY_SAID.copied),
+            () => say(here, tr(SAID_KEYS.copied)),
             () =>
                 png.then(
-                    () => say(here, COPY_SAID.refused),
-                    () => say(here, madeIt ? COPY_SAID.refused : COPY_SAID.failed)
+                    () => say(here, tr(SAID_KEYS.refused)),
+                    () => say(here, madeIt ? tr(SAID_KEYS.refused) : tr(SAID_KEYS.failed))
                 )
         )
     })
@@ -102,7 +114,18 @@ const NOT_DRAWN_HERE = '.mn-tab, .mn-tab-holder, .mn-tab-surface, .mn-exercise-t
 export function attachCopy(
     el: HTMLElement,
     make?: (el: Element) => Promise<Blob>,
-    options: { copy?: boolean; fullScreen?: boolean } = {}
+    options: { copy?: boolean; fullScreen?: boolean; language?: string } = {}
+): () => void {
+    // A standalone call speaks the language asked; inside renderBlock, the block's.
+    return withLanguage(languageOf(options.language) ?? currentLanguage(), () =>
+        attachCopyIn(el, make, options)
+    )
+}
+
+function attachCopyIn(
+    el: HTMLElement,
+    make: ((el: Element) => Promise<Blob>) | undefined,
+    options: { copy?: boolean; fullScreen?: boolean }
 ): () => void {
     const doc = el.ownerDocument
     const win = doc.defaultView
@@ -118,7 +141,7 @@ export function attachCopy(
         )
         const timed = block.querySelector('[data-mn-progression-play]')
         if (!drawings.length && !timed) continue
-        const bar = playBar(doc, 'mn-copy-bar', 'Image')
+        const bar = playBar(doc, 'mn-copy-bar', translator()('playback.copy.bar'))
         if (options.copy !== false) bar.append(...copyImageButton(doc, win, () => block, make))
         frees.push(addFullScreen(doc, bar, block, options.fullScreen))
         // Below the chords of a progression or a chart; below the drawings otherwise.

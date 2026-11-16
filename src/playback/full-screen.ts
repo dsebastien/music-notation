@@ -9,6 +9,7 @@
  * doesn't have it, the block covers the window instead, with the same style (`mn-fullscreen`).
  * Nothing here knows alphaTab: `follow` turns the score's following on and off.
  */
+import { translator } from '../i18n/translate.js'
 import { icon, iconButton } from './bar-parts.js'
 
 export interface FullScreen {
@@ -63,7 +64,9 @@ export function fullScreenControl(
 ): FullScreen {
     const redraws = options.redraws !== false
     const win = doc.defaultView
-    const button = iconButton(doc, 'mn-tab-full', 'Full screen', 'full')
+    // The title changes on each press, long after the draw: keep the block's language.
+    const tr = translator()
+    const button = iconButton(doc, 'mn-tab-full', tr('playback.full.enter'), 'full')
     button.classList.add('mn-play-full')
     let on = false
     /** Whether the browser's full screen holds the block (else the block covers the window). */
@@ -89,7 +92,7 @@ export function fullScreenControl(
         block.classList.toggle('mn-fullscreen', on)
         button.classList.toggle('mn-on', on)
         button.setAttribute('aria-pressed', String(on))
-        button.title = on ? 'Exit full screen' : 'Full screen'
+        button.title = on ? tr('playback.full.exit') : tr('playback.full.enter')
         button.replaceChildren(icon(doc, on ? 'exit' : 'full'))
     }
     const enter = () => {

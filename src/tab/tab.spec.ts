@@ -448,6 +448,85 @@ describe('renderTab', () => {
         )
     })
 
+    it('gives the place of the mistake as data, in every language (#136)', async () => {
+        const cause = {
+            parserDiagnostics: {
+                items: [{ severity: 2, message: 'Group not closed.', start: { line: 1, col: 4 } }]
+            }
+        }
+        const fails = (language?: string) =>
+            renderTab('tab', 'staves: both\n:4 (3.3', host(), {
+                alphaTab: fakeAlphaTab(
+                    Object.assign(new Error('Error parsing alphaTex'), { cause })
+                ),
+                assets,
+                ...(language ? { language } : {})
+            }).ready
+        expect(await fails()).toEqual({
+            ok: false,
+            error: 'line 2, column 4: Group not closed.',
+            line: 2,
+            column: 4
+        })
+        expect(await fails('fr-BE')).toEqual({
+            ok: false,
+            error: 'ligne 2, colonne 4 : Group not closed.',
+            line: 2,
+            column: 4
+        })
+    })
+
+    it('draws the bar in the language asked, English by default and when invalid (#136)', async () => {
+        const labelsOf = async (language?: string) => {
+            const h = host()
+            const result = renderTab('tab', 'staves: both\n:4 3.3', h, {
+                alphaTab: fakeAlphaTab(),
+                assets,
+                ...(language ? { language } : {})
+            })
+            await result.ready
+            return [...h.querySelectorAll('.mn-tab-bar button')].map((b) =>
+                b.getAttribute('aria-label')
+            )
+        }
+        const english = await labelsOf()
+        expect(english).toContain('Play')
+        expect(await labelsOf('de')).toEqual(english)
+        const french = await labelsOf('fr')
+        expect(french).toContain('Lecture')
+        expect(french).not.toContain('Play')
+    })
+
+    it('says a French parse error in French, and keeps the keywords (#136)', async () => {
+        const h = host()
+        const result = renderTab('tab', 'staves: nope\n:4 3.3', h, {
+            alphaTab: fakeAlphaTab(),
+            assets,
+            language: 'fr'
+        })
+        expect((await result.ready).error).toBe(
+            'staves: utilisez tab, score ou both, reçu « nope »'
+        )
+    })
+
+    it('keeps the block language for the Play button after the draw (#136)', async () => {
+        const h = host()
+        const result = renderTab('tab', ':4 3.3', h, {
+            alphaTab: fakeAlphaTab(),
+            assets,
+            language: 'fr'
+        })
+        await result.ready
+        // Another block of another language is drawn after: it must not change this one's.
+        const other = host()
+        await renderTab('tab', ':4 3.3', other, { alphaTab: fakeAlphaTab(), assets }).ready
+        const play = h.querySelector<HTMLButtonElement>('.mn-tab-bar .mn-play-toggle')!
+        expect(play.title).toBe('Lecture')
+        expect(other.querySelector<HTMLButtonElement>('.mn-tab-bar .mn-play-toggle')!.title).toBe(
+            'Play'
+        )
+    })
+
     it('draws every part right away, not only once an observer sees it (#82)', async () => {
         // Lazy loading drew a part only when an IntersectionObserver saw it: on a page that
         // isn't painted (an Obsidian window on another desktop, a PDF export) every part
