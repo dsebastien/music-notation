@@ -4,6 +4,7 @@
  */
 import type { PickOptions } from '../render/pick.js'
 import type { Naming } from '../theory/naming.js'
+import type { Language } from '../i18n/language.js'
 import type { RootMark } from '../render/root-mark.js'
 import {
     baseFretOf,
@@ -35,7 +36,7 @@ import {
     tonicNearMiddleC
 } from '../keyboard/keyboard.js'
 import {
-    AUTO_FINGERING_NEEDS_SCALE,
+    autoFingeringNeedsScale,
     autoFingeringHand,
     autoFingeringUnknown,
     isBothHandsFingering,
@@ -102,6 +103,7 @@ import { renderProgression } from './progression.js'
 import { renderCircleBlock } from '../circle/circle.js'
 import { renderStrumBlock } from '../strum/render.js'
 import { renderPickingBlock } from '../picking/render.js'
+import { t } from '../i18n/translate.js'
 
 export interface RenderOptions extends LayoutDefaults {
     /** Finds guitar voicings for chord blocks that only give a symbol (see `/voicings`). */
@@ -157,6 +159,12 @@ export interface RenderOptions extends LayoutDefaults {
      * A block's `naming:` line wins. Input reads all three.
      */
     naming?: Naming
+    /**
+     * The language of the texts the block shows and announces (#136): `'en'` (default) or `'fr'`;
+     * `'fr-BE'` and the like read as French, anything else as English. Read when the block is drawn.
+     * It never changes the block's syntax, nor the note names (`naming`).
+     */
+    language?: Language | (string & {})
     /**
      * How diagrams mark their root (#14): `color` (default) or `shape` (also a square, so the root
      * doesn't rest on color alone). A block's `root-mark:` line wins.
@@ -226,17 +234,19 @@ const MAX_STRINGS = 12
 const MAX_KEYS = 88
 
 const tuningOf = (text: string) => {
-    const tuning = orFail(parseTuning(text), `Unknown tuning "${text}"`)
-    if (tuning.length > MAX_STRINGS) throw new Error(`At most ${MAX_STRINGS} strings`)
+    const tuning = orFail(parseTuning(text), t('blocks.progression.unknownTuning', { text }))
+    if (tuning.length > MAX_STRINGS) {
+        throw new Error(t('blocks.render.maxStrings', { max: MAX_STRINGS }))
+    }
     return tuning
 }
 
 const rangeOf = (text: string) =>
-    orFail(parseKeyRange(text), `Invalid range "${text}": use e.g. C3-B4`)
+    orFail(parseKeyRange(text), t('blocks.render.invalidRange', { text }))
 
 const keyRange = (range: [number, number]): [number, number] => {
     if (range[1] - range[0] + 1 > MAX_KEYS) {
-        throw new Error(`At most ${MAX_KEYS} keys: give a smaller range, e.g. range: C3-B5`)
+        throw new Error(t('blocks.render.maxKeys', { max: MAX_KEYS }))
     }
     return range
 }
@@ -264,7 +274,7 @@ const rootOf = (symbol: string): number | null => {
 const positiveInt = (text: string, what: string) => {
     const n = Number(text)
     if (!Number.isInteger(n) || n < 1)
-        throw new Error(`${what} must be a whole number from 1, got "${text}"`)
+        throw new Error(t('blocks.render.wholeFrom1', { what, text }))
     return n
 }
 
@@ -292,15 +302,14 @@ function shorthand(head: string | null) {
 }
 
 const unrecognized = (written: string) =>
-    new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+    new Error(t('blocks.render.unrecognized', { written, suggestions: suggestChords(written) }))
 
 /** root: in a chord block (or a row it expands into): it only applies to note lists. */
-export const ROOT_FOR_LISTS_ONLY =
-    'root only applies to lists of notes on fretboards and keyboards (notes: C E G with root: C): a chord has its own root'
+export const rootForListsOnly = () => t('blocks.render.rootForListsOnly')
 
 const renderChord: DiagramRenderer = (doc, block, options) => {
     // root: is for note lists (#33); a chord has its own root.
-    if (block.fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
+    if (block.fields.get('root')?.trim()) throw new Error(rootForListsOnly())
     const short = shorthand(block.head)
     const name = field(block, 'name')
     // A chord written as a symbol or in words; a `name` that reads as a chord ("name: A Major")
@@ -315,7 +324,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     const capoText = field(block, 'capo')
     const capo = capoText ? parseCapo(capoText) : 0
     if (instrument === 'piano' || instrument === 'keyboard' || (pitchesText && !instrument)) {
-        if (capo) throw new Error('capo is for guitar and other fretted instruments, not piano')
+        if (capo) throw new Error(t('blocks.chord.capoNotPiano'))
         // Inversion, octave, voicing style and hands (#16).
         const voicingOptions = pianoOptionsOf((key) => field(block, key))
         const fingering = field(block, 'fingering', 'fingers')
@@ -328,16 +337,15 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                 ['inversion', 'octave'].find((key) => field(block, key)) ??
                 (voicingOptions.voicing ? 'voicing' : undefined)
             if (given) {
-                throw new Error(
-                    `${given} goes with a chord symbol: pitches are already the keys to play`
-                )
+                throw new Error(t('blocks.chord.pitchesGivenKeys', { given }))
             }
             if (fingering?.trim().toLowerCase() === 'auto') {
-                throw new Error(
-                    'fingering: auto goes with a chord symbol: write the fingers, e.g. 1 3 5'
-                )
+                throw new Error(t('blocks.chord.autoNeedsSymbol'))
             }
-            set = orFail(listNoteSet(pitchesText), `Invalid pitches "${pitchesText}"`)
+            set = orFail(
+                listNoteSet(pitchesText),
+                t('blocks.chord.invalidPitches', { text: pitchesText })
+            )
             if (!set.pitches) {
                 // Pitch classes only: stack them upwards from octave 4.
                 let previous = 59
@@ -401,13 +409,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
                     captionHands = new Map(voiced.pitches.map((p): [number, 'left'] => [p, 'left']))
                 }
                 if (!auto) {
-                    throw new Error(
-                        'fingering: auto covers triads and four-note chords (sevenths, sixths) in close position, and rootless and shell voicings one hand can reach: write the fingers, e.g. fingering: 1 2 3 4 5'
-                    )
+                    throw new Error(t('blocks.chord.autoCovers'))
                 }
             }
         } else {
-            throw new Error('Add a chord symbol or "pitches:"')
+            throw new Error(t('blocks.chord.addSymbolOrPitches'))
         }
         const fingers =
             auto ?? (fingering ? fingersFor(set.pitches!, fingering) : new Map<number, string>())
@@ -449,7 +455,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     }
 
     if (instrument && instrument !== 'guitar' && !field(block, 'tuning')) {
-        throw new Error(`Unknown instrument "${instrument}": use guitar or piano, or give a tuning`)
+        throw new Error(t('blocks.chord.unknownInstrument', { instrument }))
     }
     const fretsText = field(block, 'frets') ?? short.frets
     // Checked even without a capo, so a typo doesn't go unnoticed.
@@ -458,21 +464,28 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     const fromNut = capo > 0 && fretsFrom === 'nut' && fretsText !== undefined
     let voicing: FrettedVoicing
     if (fretsText) {
-        const frets = orFail(parseFrets(fretsText), `Invalid frets "${fretsText}": use e.g. x02220`)
-        if (frets.length > MAX_STRINGS) throw new Error(`At most ${MAX_STRINGS} strings`)
+        const frets = orFail(
+            parseFrets(fretsText),
+            t('blocks.chord.invalidFrets', { text: fretsText })
+        )
+        if (frets.length > MAX_STRINGS) {
+            throw new Error(t('blocks.render.maxStrings', { max: MAX_STRINGS }))
+        }
         if (fromNut && !fretsFromCapo(frets, capo)) {
-            throw new Error(
-                `With frets-from: nut, every sounding fret is at the capo (${capo}) or above: write x for strings behind it`
-            )
+            throw new Error(t('blocks.chord.nutAtCapo', { capo }))
         }
         if (!fromNut && capo && frets.some((f) => f !== null && f + capo > 36)) {
-            throw new Error(`With capo ${capo}, frets go up to ${36 - capo}`)
+            throw new Error(t('blocks.chord.capoMaxFret', { capo, max: 36 - capo }))
         }
         const fingersText = field(block, 'fingers') ?? short.fingers
         const fingers = fingersText ? parseFingers(fingersText) : []
         if (fingersText && fingers.length !== frets.length) {
             throw new Error(
-                `"${fingersText}" has ${fingers.length} fingers for ${frets.length} strings`
+                t('blocks.chord.fingersCount', {
+                    text: fingersText,
+                    fingers: fingers.length,
+                    strings: frets.length
+                })
             )
         }
         voicing = { frets, fingers: frets.map((_, i) => fingers[i] ?? null) }
@@ -483,13 +496,11 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         const index = n ? positiveInt(n, 'voicing') - 1 : 0
         voicing = orFail(
             options.voicings(symbol, index),
-            `No voicing ${index + 1} found for "${symbol}": add "frets:"`
+            t('blocks.chord.noVoicing', { n: index + 1, symbol })
         )
     } else {
         throw new Error(
-            symbol
-                ? `Add "frets:" for ${symbol} (e.g. frets: x02220)`
-                : 'Add a chord symbol and "frets:"'
+            symbol ? t('blocks.chord.addFretsFor', { symbol }) : t('blocks.chord.addSymbolAndFrets')
         )
     }
     const position = field(block, 'position', 'base')
@@ -498,7 +509,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
         const fretted = voicing.frets.filter((f): f is number => f !== null && f > 0)
         if (fretted.length && base > Math.min(...fretted)) {
             throw new Error(
-                `position ${base} is above the lowest fretted note (fret ${Math.min(...fretted)})`
+                t('blocks.chord.positionAboveLowest', { base, fret: Math.min(...fretted) })
             )
         }
         voicing.baseFret = base
@@ -507,7 +518,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     const tuning = tuningText ? tuningOf(tuningText) : undefined
     if (tuning && tuning.length !== voicing.frets.length) {
         throw new Error(
-            `The tuning has ${tuning.length} strings, the frets ${voicing.frets.length}`
+            t('blocks.chord.tuningStrings', { tuning: tuning.length, frets: voicing.frets.length })
         )
     }
     // The shape as played: frets from the capo. Chords are named from it (an A shape is A), and
@@ -531,7 +542,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
     // `sounds: title`: the chord heard titles the diagram, the shape played after it ("Gm (Em
     // shape)"); a title written by hand stays.
     if (capo && sounding && soundsInTitle(field(block, 'sounds')) && !field(block, 'title'))
-        title = `${sounding} (${title ?? symbol} shape)`
+        title = t('blocks.chord.soundsTitle', { sounding, shape: title ?? symbol ?? '' })
     // A symbol the theory doesn't know still titles the diagram; only its root marks are lost.
     // Root marks follow the sounding notes (B's with an A shape and a capo on 2).
     const root = sounding ? (chordNoteSet(sounding)?.root ?? rootOf(sounding)) : null
@@ -594,10 +605,7 @@ const renderChord: DiagramRenderer = (doc, block, options) => {
 
 /** A chord's formula caption, or what to add when the library doesn't know the chord. */
 function chordCaption(symbol: string | undefined): string[] {
-    return orFail(
-        symbol ? chordFormula(symbol) : null,
-        'caption: formula needs a chord the library knows: add its symbol (e.g. symbol: A)'
-    )
+    return orFail(symbol ? chordFormula(symbol) : null, t('blocks.chord.captionFormulaChord'))
 }
 
 /** A keyboard's or fretboard's formula caption: its scale's, else its chord's. */
@@ -607,10 +615,7 @@ function setCaption(set: NoteSet): string[] {
         : set.root !== null && !set.list && !set.pitches
           ? chordFormula(set.title)
           : null
-    return orFail(
-        formula,
-        'caption: formula needs a chord or a scale the library knows: add chord: or scale:'
-    )
+    return orFail(formula, t('blocks.chord.captionFormulaSet'))
 }
 
 /**
@@ -659,23 +664,19 @@ function soundsField(
     if (soundsInTitle(value)) {
         // In the title, not the caption; a title the library can't read as a chord can't move up.
         if (capo && (!shape || !chordNoteSet(shape))) {
-            throw new Error(
-                'sounds: title needs a chord the library knows: add its symbol (e.g. symbol: A)'
-            )
+            throw new Error(t('blocks.chord.soundsTitleNeedsChord'))
         }
         return undefined
     }
     const auto = /^(yes|true|on|auto)$/i.test(value)
     if (!capo) {
         if (auto) return undefined
-        throw new Error(`sounds goes with a capo: add e.g. capo: 2`)
+        throw new Error(t('blocks.chord.soundsNeedsCapo'))
     }
     if (auto) {
         // A title the library can't read as a chord can't be moved up.
         if (!shape || !chordNoteSet(shape)) {
-            throw new Error(
-                'sounds: yes needs a chord the library knows: add its symbol (e.g. symbol: A), or write the chord: sounds: B'
-            )
+            throw new Error(t('blocks.chord.soundsYesNeedsChord'))
         }
         return soundingChord(shape, capo)
     }
@@ -683,7 +684,12 @@ function soundsField(
     if (!read) throw unrecognized(value)
     if (shape && !soundsLike(read.symbol, shape, capo)) {
         throw new Error(
-            `With capo ${capo}, ${shape} sounds ${soundingChord(shape, capo)}, not ${value}: write sounds: ${soundingChord(shape, capo)} (or sounds: yes)`
+            t('blocks.chord.soundsMismatch', {
+                capo,
+                shape,
+                sounding: soundingChord(shape, capo),
+                value
+            })
         )
     }
     return value
@@ -708,12 +714,12 @@ function dotLabels(
     const value = text?.toLowerCase()
     if (value === undefined || value === 'fingers') return null
     if (!['intervals', 'notes', 'none'].includes(value)) {
-        throw new Error(`Unknown labels "${text}": use fingers, intervals, notes or none`)
+        throw new Error(t('blocks.chord.unknownLabels', { text: text ?? '' }))
     }
     if (value === 'none') return voicing.frets.map(() => null)
     const set = symbol ? chordNoteSet(symbol) : null
     const strings = tuning ?? (voicing.frets.length === 6 ? STANDARD_TUNING : null)
-    if (!set || !strings) throw new Error(`labels: ${value} needs a chord the library knows`)
+    if (!set || !strings) throw new Error(t('blocks.chord.labelsNeedChord', { value }))
     return voicing.frets.map((fret, s) => {
         if (fret === null || fret === 0) return null
         const member = set.members.find((m) => m.chroma === (strings[s]! + fret) % 12)
@@ -751,12 +757,10 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
     const autoHand = fingering ? autoFingeringHand(fingering) : null
     // Both hands split the block into two keyboards (#49), which a diagram of a row can't do.
     if (fingering && isBothHandsFingering(fingering)) {
-        throw new Error(
-            'fingering: auto both draws two keyboards: put it in a block of its own, not in a --- row'
-        )
+        throw new Error(t('blocks.keyboard.autoBothAlone'))
     }
     if (autoHand && (set.root === null || set.list || set.pitches || !set.scaleType)) {
-        throw new Error(AUTO_FINGERING_NEEDS_SCALE)
+        throw new Error(autoFingeringNeedsScale())
     }
     if (fingering && set.scaleType && set.root !== null && !set.list && !set.pitches) {
         const chromas = set.members.map((m) => m.chroma)
@@ -767,12 +771,21 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
                 throw new Error(autoFingeringUnknown(set.title))
             }
             octave = standard
-            title ??= `${set.title}, ${autoHand} hand`
+            title ??= t(
+                autoHand === 'left'
+                    ? 'blocks.keyboard.handTitleLeft'
+                    : 'blocks.keyboard.handTitleRight',
+                { title: set.title }
+            )
         } else {
             octave = parseFingerList(fingering)
             if (octave.length !== chromas.length + 1) {
                 throw new Error(
-                    `fingering has ${octave.length} fingers: ${set.title} needs ${chromas.length + 1}, one per note from the root up to the root above`
+                    t('blocks.keyboard.fingersCount', {
+                        fingers: octave.length,
+                        title: set.title,
+                        needed: chromas.length + 1
+                    })
                 )
             }
         }
@@ -825,14 +838,17 @@ const renderKeyboardBlock: DiagramRenderer = (doc, block, options) => {
         }
         if (fingerList.length !== pitches.length) {
             throw new Error(
-                `fingering has ${fingerList.length} fingers for ${pitches.length} notes: one finger per note, in the order written`
+                t('blocks.keyboard.fingersForNotes', {
+                    fingers: fingerList.length,
+                    notes: pitches.length
+                })
             )
         }
         if (new Set(pitches).size !== pitches.length) {
-            throw new Error('A key is listed twice: one finger per key')
+            throw new Error(t('blocks.keyboard.keyTwice'))
         }
         if (keys && pitches.some((midi) => midi < keys[0] || midi > keys[1])) {
-            throw new Error('The fingered notes go past the range: widen range: or leave it out')
+            throw new Error(t('blocks.keyboard.pastRange'))
         }
         fingers = new Map(pitches.map((midi, i) => [midi, fingerList[i]!]))
     } else if (
@@ -883,37 +899,31 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
     const fromNut = capo > 0 && fretsFrom === 'nut'
     const fretsText = field(block, 'frets')
     const frets = fretsText
-        ? orFail(parseRange(fretsText), `Invalid frets "${fretsText}": use e.g. 5-8`)
+        ? orFail(parseRange(fretsText), t('blocks.fretboard.invalidFrets', { text: fretsText }))
         : undefined
     if (frets && frets[1] > MAX_FRET - (fromNut ? 0 : capo)) {
-        throw new Error(`Frets go up to ${MAX_FRET - (fromNut ? 0 : capo)}`)
+        throw new Error(t('blocks.fretboard.maxFret', { max: MAX_FRET - (fromNut ? 0 : capo) }))
     }
     if (frets && fromNut && frets[0] < capo) {
-        throw new Error(
-            `With frets-from: nut, frets start at the capo (${capo}) or above: e.g. frets: ${capo}-${capo + 5}`
-        )
+        throw new Error(t('blocks.fretboard.nutStartsAtCapo', { capo, example: capo + 5 }))
     }
     const tuningText = field(block, 'tuning')
     const tuning = tuningText ? tuningOf(tuningText) : undefined
     let cells: Cell[] | undefined
     if (!at && field(block, 'numbering')) {
-        throw new Error('numbering goes with a position: e.g. position: 1 or positions: all')
+        throw new Error(t('blocks.fretboard.numberingNeedsPosition'))
     }
     // A chord's positions are arpeggios: they show which chord tone each note is.
     const arpeggio = at !== null && isArpeggio(set)
     if (at) {
         if (set.root === null || set.list) {
-            throw new Error(
-                'Positions need a scale or a chord: e.g. scale: A minor or arpeggio: Am7'
-            )
+            throw new Error(t('blocks.fretboard.positionsNeedSet'))
         }
         // A numbered position of a 7-note scale is a CAGED one; boxes are for 5-note scales.
         // Arpeggios have CAGED shapes.
         if (at.system === 'box' && (arpeggio || set.members.length !== 5)) at.system = 'caged'
         if (arpeggio && at.system === '3nps') {
-            throw new Error(
-                'Arpeggios use CAGED shapes: position 1 to 5, or shape: E, D, C, A or G (not 3nps)'
-            )
+            throw new Error(t('blocks.fretboard.arpeggioCaged'))
         }
         const count = positionCount(set, at.system)
         const named = { 'box': 'box', 'caged': 'CAGED', '3nps': '3nps' }[at.system]
@@ -926,12 +936,17 @@ const renderFretboardBlock: DiagramRenderer = (doc, block, options) => {
                 within: frets ? [frets[0] - shift, frets[1] - shift] : undefined,
                 numbering
             }),
-            `${set.title} has ${count} ${named} positions: use position 1 to ${count}`
+            t('blocks.fretboard.positionCount', { title: set.title, count, named })
         )
         cells = relative.map((cell) => ({ ...cell, fret: cell.fret + shift }))
         if (frets && cells.some((cell) => cell.fret < frets[0] || cell.fret > frets[1])) {
             throw new Error(
-                `${set.title}, position ${at.n} doesn't fit in frets ${frets[0]}-${frets[1]}: widen frets: or leave it out`
+                t('blocks.fretboard.positionNotFit', {
+                    title: set.title,
+                    n: at.n,
+                    from: frets[0],
+                    to: frets[1]
+                })
             )
         }
     }
@@ -1005,21 +1020,19 @@ function exerciseOf(
     const rhythmText = field(block, 'rhythm')
     if (text === undefined) {
         if (rhythmText !== undefined) {
-            throw new Error('rhythm goes with exercise: e.g. exercise: up-down')
+            throw new Error(t('blocks.fretboard.rhythmNeedsExercise'))
         }
         return null
     }
     const direction = parseDirection(text)
     const rhythm = rhythmText === undefined ? '8ths' : parseRhythm(rhythmText)
-    if (!cells) throw new Error('exercise plays one position: add position: 1 (or shape: E)')
+    if (!cells) throw new Error(t('blocks.fretboard.exerciseNeedsPosition'))
     const tempoText = field(block, 'tempo', 'bpm')
     let tempo = typeof options.play === 'object' ? options.play.bpm : undefined
     if (tempoText !== undefined) {
         tempo = Number(tempoText.replace(/\s*bpm$/i, ''))
         if (!Number.isFinite(tempo) || tempo < 20 || tempo > 240) {
-            throw new Error(
-                `Invalid tempo "${tempoText}": use beats a minute from 20 to 240, e.g. tempo: 80`
-            )
+            throw new Error(t('blocks.fretboard.invalidTempo', { text: tempoText }))
         }
     }
     tempo = tempo === undefined || !Number.isFinite(tempo) ? DEFAULT_EXERCISE_TEMPO : tempo
@@ -1045,12 +1058,16 @@ function positionTitle(
     arpeggio: boolean,
     numbering: string | undefined
 ): string {
-    const name = arpeggio ? `${set.title} arpeggio` : set.title
+    const name = arpeggio ? t('blocks.fretboard.arpeggioTitle', { name: set.title }) : set.title
     const from =
-        numberingOf(numbering, set, at.system) === 'minor' ? ` (from ${relativeMinorOf(set)}m)` : ''
-    if (at.system === 'caged') return `${name}, ${CAGED_SHAPES[at.n - 1]} shape`
-    if (at.system === '3nps') return `${name}, 3nps ${at.n}${from}`
-    return `${name}, box ${at.n}${from}`
+        numberingOf(numbering, set, at.system) === 'minor'
+            ? t('blocks.fretboard.fromMinor', { minor: relativeMinorOf(set) ?? '' })
+            : ''
+    if (at.system === 'caged') {
+        return t('blocks.fretboard.shapeTitle', { name, shape: CAGED_SHAPES[at.n - 1]! })
+    }
+    if (at.system === '3nps') return t('blocks.fretboard.threeNpsTitle', { name, n: at.n, from })
+    return t('blocks.fretboard.boxTitle', { name, n: at.n, from })
 }
 
 /** Diagram languages and their renderers. */

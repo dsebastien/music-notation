@@ -5,6 +5,7 @@
  * pattern can play it.
  */
 import { html } from '../render/dom.js'
+import { translator } from '../i18n/translate.js'
 import {
     countedTempoOf,
     runPasses,
@@ -122,7 +123,7 @@ export function strumBarFor(
     return timedBarFor(doc, win, drawing, options, {
         kind: 'strum',
         cls: 'mn-strum-playable',
-        label: 'Play the strumming pattern',
+        label: translator()('playback.strumPattern.bar'),
         compound: (score.slotsPerPulse ?? score.slotsPerBeat) > score.slotsPerBeat,
         make: (s, first, id) =>
             strumEvents(score, {
@@ -161,6 +162,8 @@ export function timedBarFor(
     options: PlayOptions,
     piece: TimedPiece
 ): () => void {
+    // Kept for the toggle, which changes its text on each press, after the draw.
+    const tr = translator()
     const wrap = html(doc, 'div', `mn-timed ${piece.cls}`)
     drawing.parentNode?.insertBefore(wrap, drawing)
     wrap.appendChild(drawing)
@@ -190,8 +193,8 @@ export function timedBarFor(
     toggle.type = 'button'
     const show = () => {
         toggle.replaceChildren(icon(doc, playing ? 'stop' : 'play'))
-        toggle.setAttribute('aria-label', playing ? 'Stop' : 'Play')
-        toggle.title = playing ? 'Stop' : 'Play'
+        toggle.setAttribute('aria-label', playing ? tr('playback.stop') : tr('playback.play'))
+        toggle.title = playing ? tr('playback.stop') : tr('playback.play')
     }
     const stop = () => {
         playing?.stop()
@@ -246,24 +249,38 @@ export function timedBarFor(
     bar.appendChild(toggle)
 
     bar.append(
-        pressedButton(doc, 'mn-play-loop', 'Loop', 'loop', false, (on) => (settings.loop = on)),
-        pressedButton(doc, 'mn-play-count', 'Count-in', 'count', false, (on) => {
+        pressedButton(
+            doc,
+            'mn-play-loop',
+            tr('playback.loop'),
+            'loop',
+            false,
+            (on) => (settings.loop = on)
+        ),
+        pressedButton(doc, 'mn-play-count', tr('playback.countIn'), 'count', false, (on) => {
             settings.countIn = on
         })
     )
     if (piece.click !== undefined)
         bar.appendChild(
-            pressedButton(doc, 'mn-play-click', 'Click', 'click', piece.click, (on) => {
-                settings.click = on
-            })
+            pressedButton(
+                doc,
+                'mn-play-click',
+                tr('playback.click'),
+                'click',
+                piece.click,
+                (on) => {
+                    settings.click = on
+                }
+            )
         )
     // Changes apply from the next pass of a loop. The tempo counts dotted quarters in compound
     // time.
     bar.appendChild(
         valueSlider(
             doc,
-            'Tempo (BPM)',
-            'BPM',
+            tr('playback.tempo'),
+            tr('playback.unit.bpm'),
             20,
             240,
             settings.bpm,
@@ -271,17 +288,17 @@ export function timedBarFor(
                 settings.bpm = tempoOf(n)
                 app.tempoChanged(settings.bpm)
             },
-            compound ? 'counts dotted quarters' : undefined
+            compound ? tr('playback.dotted') : undefined
         ).field
     )
     bar.appendChild(
         choice(
             doc,
             'mn-play-sound',
-            'Sound',
+            tr('playback.sound'),
             ['guitar', 'piano'] as const,
             settings.sound,
-            { guitar: 'Guitar', piano: 'Piano' },
+            { guitar: tr('playback.guitar'), piano: tr('playback.piano') },
             (value) => (settings.sound = value === 'piano' ? 'piano' : 'guitar')
         )
     )

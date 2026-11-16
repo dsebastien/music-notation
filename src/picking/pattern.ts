@@ -5,6 +5,7 @@
  * picked together (a pinch: `p+a`, `pa`), `-` `.` `_` rests, `|` bar lines. Named patterns:
  * Travis, alternate bass, 1-2-3-4 (an arpeggio).
  */
+import { t } from '../i18n/translate.js'
 import {
     isCompound,
     MAX_TEMPO,
@@ -93,8 +94,6 @@ const FIELD = /^([A-Za-z][\w-]*)\s*:\s*(.*)$/
 const COUNTS = /^(?:\d+|&|\+|e|a|and|trip|let)(?:\s+(?:\d+|&|\+|e|a|and|trip|let))*$/i
 const isCountLine = (line: string) => /[&+]/.test(line) && COUNTS.test(line.trim())
 const RESTS = new Set(['-', '.', '_'])
-const HELP =
-    "write p (the thumb on the bass), p' (the alternate bass), i, m, a (strings 3, 2, 1), a string number from 1 (the highest), - for a rest, + between notes picked together (p+a)"
 
 /** One token's plucks; throws a message naming it. */
 function plucksOf(token: string, strings: number): Pluck[] {
@@ -105,13 +104,10 @@ function plucksOf(token: string, strings: number): Pluck[] {
         if (!same) plucks.push(p)
     }
     for (const part of parts) {
-        if (!part) throw new Error(`Didn't understand "${token}": ${HELP}`)
+        if (!part) throw new Error(notUnderstood(token))
         if (/^\d+$/.test(part)) {
             const n = Number(part)
-            if (n < 1 || n > strings)
-                throw new Error(
-                    `String ${n} doesn't exist: strings go from 1 (the highest) to ${strings}`
-                )
+            if (n < 1 || n > strings) throw new Error(t('picking.string.missing', { n, strings }))
             add({ string: n })
             continue
         }
@@ -119,7 +115,7 @@ function plucksOf(token: string, strings: number): Pluck[] {
         const letters = /^(?:p'?|i|m|a)+$/i.test(part)
             ? part.toLowerCase().match(/p'?|i|m|a/g)
             : null
-        if (!letters) throw new Error(`Didn't understand "${token}": ${HELP}`)
+        if (!letters) throw new Error(notUnderstood(token))
         for (const l of letters)
             add(
                 l.startsWith('p')
@@ -129,6 +125,10 @@ function plucksOf(token: string, strings: number): Pluck[] {
     }
     return plucks
 }
+
+/** "Didn't understand" with what to write instead. */
+const notUnderstood = (token: string) =>
+    t('picking.token.notUnderstood', { token, help: t('picking.help') })
 
 /** The slots of pattern text, in bars: each run between bar lines is whole bars. */
 function slotsOf(
@@ -157,7 +157,13 @@ function slotsOf(
         if (!run.length) continue
         if (run.length % perBar) {
             throw new Error(
-                `A bar of ${time} in ${subdivision} has ${perBar} slots, found ${run.length}${runs.length > 1 ? ' between bar lines' : ''}: add notes or rests (-) so each bar has ${perBar}, or change time:`
+                t('picking.bar.slots', {
+                    time,
+                    subdivision,
+                    perBar,
+                    found: run.length,
+                    between: runs.length > 1 ? t('picking.bar.betweenBarLines') : ''
+                })
             )
         }
         slots.push(...run)
@@ -175,10 +181,7 @@ export function parsePicking(source: string, strings = 6): PickingPattern {
         const m = FIELD.exec(line)
         if (m && !/^\d/.test(line)) {
             const key = m[1]!.toLowerCase()
-            if (!KEYS.includes(key))
-                throw new Error(
-                    `Unknown key "${m[1]}": use time, subdivision, swing, chord, chords, tempo, tuning, title or pattern`
-                )
+            if (!KEYS.includes(key)) throw new Error(t('picking.key.unknown', { key: m[1]! }))
             const name = key === 'bpm' ? 'tempo' : key === 'progression' ? 'chords' : key
             fields.set(name, m[2]!.trim())
         } else if (!isCountLine(line)) lines.push(line)
@@ -194,22 +197,19 @@ export function parsePicking(source: string, strings = 6): PickingPattern {
     const swingText = fields.get('swing')
     const swing = swingText ? parseSwing(swingText) : null
     if (swing !== null && (subdivision === 'triplets' || compound || slotsPerBeat % 2))
-        throw new Error(
-            'Swing plays pairs of 8ths or 16ths inside a beat: remove swing:, or write time: 4/4 with 8ths'
-        )
+        throw new Error(t('picking.swing.pairs'))
     const tempoText = fields.get('tempo')
     let tempo: number | null = null
     if (tempoText) {
         tempo = Number(tempoText.replace(/\s*bpm$/i, ''))
         if (!Number.isFinite(tempo) || tempo < MIN_TEMPO || tempo > MAX_TEMPO)
             throw new Error(
-                `Invalid tempo "${tempoText}": use beats a minute from ${MIN_TEMPO} to ${MAX_TEMPO}, e.g. tempo: 80`
+                t('picking.tempo.invalid', { text: tempoText, min: MIN_TEMPO, max: MAX_TEMPO })
             )
     }
     const patternText = fields.get('pattern')
     const name = patternText ? namedPicking(patternText) : null
-    if (patternText && lines.length)
-        throw new Error('Write the pattern once: as pattern: or as pattern lines, not both')
+    if (patternText && lines.length) throw new Error(t('picking.pattern.twice'))
     let slots: PickingSlot[]
     if (name) {
         // A named pattern fills one bar, its 8ths repeated in the block's time.
@@ -219,20 +219,16 @@ export function parsePicking(source: string, strings = 6): PickingPattern {
         }))
     } else {
         const text = patternText ? [patternText] : lines
-        if (!text.length)
-            throw new Error(
-                `Write a pattern: a line such as p i m a p i m a, or pattern: travis, alternate bass or 1-2-3-4`
-            )
+        if (!text.length) throw new Error(t('picking.pattern.missing'))
         slots = slotsOf(text, perBar, strings, time, subdivision)
     }
     const bars = slots.length / perBar
-    if (bars > MAX_PICKING_BARS)
-        throw new Error(
-            `At most ${MAX_PICKING_BARS} bars in one pattern: split it into several blocks`
-        )
+    if (bars > MAX_PICKING_BARS) throw new Error(t('strum.bars.tooMany', { max: MAX_PICKING_BARS }))
     const chords = (fields.get('chords') ?? '').split(/[\s,|]+/).filter(Boolean)
     if (chords.length > MAX_PICKING_BARS * 2)
-        throw new Error(`At most ${MAX_PICKING_BARS * 2} chords, found ${chords.length}`)
+        throw new Error(
+            t('picking.chords.tooMany', { max: MAX_PICKING_BARS * 2, found: chords.length })
+        )
     return {
         slots,
         beatsPerBar,

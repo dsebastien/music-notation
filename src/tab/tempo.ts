@@ -7,6 +7,7 @@
  * where the music is (it changes with the score's tempo changes), or null when it isn't known.
  */
 import { html } from '../render/dom.js'
+import { translator } from '../i18n/translate.js'
 
 export type TempoUnit = 'bpm' | 'percent'
 
@@ -107,11 +108,13 @@ export interface TempoOptions {
 }
 
 export function tempoControl(doc: Document, options: TempoOptions): TempoControl {
+    // Kept: the labels are written again at each change, long after the draw.
+    const tr = translator()
     let speed = 1
     let unit: TempoUnit = options.unit ?? 'bpm'
     const field = html(doc, 'span', 'mn-tempo')
     field.setAttribute('role', 'group')
-    field.setAttribute('aria-label', 'Tempo')
+    field.setAttribute('aria-label', tr('tab.tempo.group'))
     const button = (cls: string, text: string, label: string) => {
         const b = html(doc, 'button', cls, text)
         b.type = 'button'
@@ -119,15 +122,15 @@ export function tempoControl(doc: Document, options: TempoOptions): TempoControl
         b.title = label
         return b
     }
-    const down = button('mn-tempo-down', '−', 'Slower')
-    const up = button('mn-tempo-up', '+', 'Faster')
+    const down = button('mn-tempo-down', '−', tr('tab.tempo.slower'))
+    const up = button('mn-tempo-up', '+', tr('tab.tempo.faster'))
     const input = html(doc, 'input', 'mn-tempo-value')
     input.type = 'text'
     input.inputMode = 'numeric'
     input.size = 3
     input.autocomplete = 'off'
-    const unitButton = button('mn-tempo-unit', 'BPM', 'Show the speed in percent')
-    const other = button('mn-tempo-other', '', 'Back to 100 %')
+    const unitButton = button('mn-tempo-unit', 'BPM', tr('tab.tempo.toPercent'))
+    const other = button('mn-tempo-other', '', tr('tab.tempo.reset'))
     /** Whether the reader is typing a value not committed yet. */
     let editing = false
     input.addEventListener('input', () => (editing = true))
@@ -137,18 +140,25 @@ export function tempoControl(doc: Document, options: TempoOptions): TempoControl
         const w = written(speed, shownUnit(), tempo)
         // A value being typed stays until it's committed (a tempo change mustn't overwrite it).
         if (!editing) input.value = w.value
-        input.setAttribute('aria-label', w.unit === 'BPM' ? 'Tempo in BPM' : 'Speed in percent')
+        input.setAttribute(
+            'aria-label',
+            w.unit === 'BPM' ? tr('tab.tempo.inBpm') : tr('tab.tempo.inPercent')
+        )
         unitButton.textContent = w.unit
         unitButton.hidden = !tempo
-        const toOther = shownUnit() === 'bpm' ? 'percent' : 'BPM'
-        unitButton.setAttribute('aria-label', `Show the speed in ${toOther}`)
-        unitButton.title = `Show the speed in ${toOther}`
+        const toOther = tr(shownUnit() === 'bpm' ? 'tab.tempo.toPercent' : 'tab.tempo.toBpm')
+        unitButton.setAttribute('aria-label', toOther)
+        unitButton.title = toOther
         other.textContent = w.other ? `· ${w.other}` : ''
         other.hidden = !w.other
         other.disabled = speed === 1
         field.title = tempo
-            ? `Tempo: ${bpmOf(speed, tempo)} BPM, ${Math.round(speed * 100)} % of ${Math.round(tempo)} BPM`
-            : `Speed: ${Math.round(speed * 100)} %`
+            ? tr('tab.tempo.title', {
+                  bpm: bpmOf(speed, tempo),
+                  percent: Math.round(speed * 100),
+                  tempo: Math.round(tempo)
+              })
+            : tr('tab.tempo.speedTitle', { percent: Math.round(speed * 100) })
         down.disabled = speed <= SPEED_MIN
         up.disabled = speed >= SPEED_MAX
     }

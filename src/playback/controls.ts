@@ -4,6 +4,8 @@
  * below it (`block-bar.ts`) and each pattern, progression and chart its bar in time.
  */
 import { namingOf, withNaming } from '../theory/naming.js'
+import { languageOf, LANGUAGES_OF_TEXTS, type Language } from '../i18n/language.js'
+import { currentLanguage, t, translatorFor, withLanguage } from '../i18n/translate.js'
 import { rootMarkOf, withRootMark } from '../render/root-mark.js'
 import { accessibleName, setAccessibleName } from '../render/dom.js'
 import { keyRangeOf, renderKeyboard } from '../keyboard/keyboard.js'
@@ -28,6 +30,11 @@ import { pickingBarFor } from './picking-bar.js'
 import { blockBarFor, diagramGroup } from './block-bar.js'
 
 export interface PlayOptions {
+    /**
+     * The language of the bars' texts and of the diagrams they redraw (#136): `'en'` or `'fr'`.
+     * Inside `renderBlock` the block's language is used; a standalone call defaults to English.
+     */
+    language?: Language | (string & {})
     /**
      * Plays the notes: a player, or a function returning one at each play (null for the default),
      * so a soundfont loaded later is used once it's there. The function gets the diagram's window
@@ -197,6 +204,18 @@ export function dataOf(diagram: Element): DiagramData | null {
     }
 }
 
+/**
+ * The hand a title ends with (", left hand"), in each language: a title is redrawn from the text
+ * on the page, whichever language drew it.
+ */
+const HAND_SUFFIX = new RegExp(
+    `,\\s*(?:${LANGUAGES_OF_TEXTS.flatMap((language) =>
+        (['render.hand.left', 'render.hand.right'] as const).map((key) =>
+            translatorFor(language)(key).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        )
+    ).join('|')})$`
+)
+
 const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
 
 /** A note name with the octave that gives this pitch ("B#3" is MIDI 60, "Cb5" is 71). */
@@ -241,7 +260,7 @@ function redrawNamed(
     const name = accessibleName(diagram) ?? ''
     return withNaming(naming, () => redrawLetters(doc, diagram, data, pageHand), [
         title,
-        title.replace(/,\s*(left|right) hand$/, ''),
+        title.replace(HAND_SUFFIX, ''),
         name
     ])
 }
@@ -298,10 +317,12 @@ function redrawLetters(
             : 'notes'
     // A hand belongs to the piano: "C major, right hand" is "C major" on a guitar.
     const shownTitle = diagram.querySelector('.mn-title')?.textContent ?? undefined
-    const heading = toGuitar ? shownTitle?.replace(/,\s*(left|right) hand$/, '') : shownTitle
+    const heading = toGuitar ? shownTitle?.replace(HAND_SUFFIX, '') : shownTitle
     // A piano plays what the guitar sounds: the title says which chord that is.
     const title =
-        sounds && heading ? `${heading} (sounds ${sounds})` : (heading ?? sounds ?? undefined)
+        sounds && heading
+            ? t('playback.redraw.sounds', { heading, chord: sounds })
+            : (heading ?? sounds ?? undefined)
     // A piano chord on guitar: a grip a guitarist plays (the easiest voicing of the chord), not a
     // map of its pitches over the neck. An inversion keeps its bass (C first inversion: C/E's
     // grip); a rootless voicing has no bass of its own.
@@ -342,7 +363,7 @@ function redrawLetters(
         })
         drawn.setAttribute('data-mn-chord', symbol!)
         const name = accessibleName(diagram)
-        if (name) setAccessibleName(drawn, `${name}, drawn for guitar`)
+        if (name) setAccessibleName(drawn, t('playback.redraw.guitar', { name }))
         drawn.classList.add('mn-redrawn')
         return drawn
     }
@@ -366,7 +387,11 @@ function redrawLetters(
           })
     // Its name stays the diagram's, for screen readers.
     const name = accessibleName(diagram)
-    if (name) setAccessibleName(drawn, `${name}, drawn for ${toGuitar ? 'guitar' : 'piano'}`)
+    if (name)
+        setAccessibleName(
+            drawn,
+            toGuitar ? t('playback.redraw.guitar', { name }) : t('playback.redraw.piano', { name })
+        )
     drawn.classList.add('mn-redrawn')
     return drawn
 }
@@ -377,6 +402,14 @@ function redrawLetters(
  * Returns a function that stops whatever plays.
  */
 export function attachPlayback(el: HTMLElement, options: PlayOptions = {}): () => void {
+    // The language asked (a standalone call), else the block's (inside `renderBlock`); the bars keep
+    // it for what they redraw and say later.
+    return withLanguage(languageOf(options.language) ?? currentLanguage(), () =>
+        attachPlaybackIn(el, options)
+    )
+}
+
+function attachPlaybackIn(el: HTMLElement, options: PlayOptions): () => void {
     const doc = el.ownerDocument
     const win = doc.defaultView
     if (!win) return () => {}

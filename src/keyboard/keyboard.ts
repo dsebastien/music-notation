@@ -1,4 +1,5 @@
 /** Piano keyboards with highlighted notes, as SVG. */
+import { t } from '../i18n/translate.js'
 import { shown } from '../theory/naming.js'
 import { rootAsShape } from '../render/root-mark.js'
 import { describeDiagram, svg, svgLabel, svgRoot, svgText } from '../render/dom.js'
@@ -170,7 +171,15 @@ export function renderKeyboard(
                 .map(([midi]) => midi)
                 .sort((a, b) => a - b)
             return keys.length
-                ? `${hand} hand: ${keys.map((midi) => `${memberOf(set, midi)?.name ?? nameOf(midi, set.preferFlats)}${Math.floor(midi / 12) - 1}`).join(' ')}`
+                ? t('keyboard.hand', {
+                      hand: t(hand === 'left' ? 'render.hand.left' : 'render.hand.right'),
+                      keys: keys
+                          .map(
+                              (midi) =>
+                                  `${memberOf(set, midi)?.name ?? nameOf(midi, set.preferFlats)}${Math.floor(midi / 12) - 1}`
+                          )
+                          .join(' ')
+                  })
                 : ''
         })
         .filter(Boolean)
@@ -180,7 +189,7 @@ export function renderKeyboard(
         width,
         height,
         'mn-keyboard',
-        `${options.title ?? `Keyboard: ${set.title}`}${handWords ? `, ${handWords}` : ''}${describeMarks(set, options.marks)}`
+        `${options.title ?? t('keyboard.title', { title: set.title })}${handWords ? `, ${handWords}` : ''}${describeMarks(set, options.marks)}`
     )
     if (options.title) {
         root.appendChild(
@@ -348,7 +357,7 @@ export function renderKeyboard(
             )
             const mark = svgLabel(
                 doc,
-                hand === 'left' ? 'LH' : 'RH',
+                t(hand === 'left' ? 'keyboard.handMark.left' : 'keyboard.handMark.right'),
                 at(center, line + 8),
                 `mn-key-hand mn-hand-${hand}`
             )
@@ -368,7 +377,7 @@ export function renderKeyboard(
                 pickTarget(doc, key(along, WHITE_W, WHITE_H), {
                     pitch: midi,
                     note: spelled(midi),
-                    name: `White key ${i + 1}`,
+                    name: t('keyboard.whiteKey', { n: i + 1 }),
                     mark: at(along + WHITE_W / 2, WHITE_H - 14),
                     radius: 8
                 })
@@ -387,7 +396,7 @@ export function renderKeyboard(
                 pickTarget(doc, key(along, BLACK_W, BLACK_H), {
                     pitch: black,
                     note: spelled(black),
-                    name: `Black key ${++blacks}`,
+                    name: t('keyboard.blackKey', { n: ++blacks }),
                     mark: at(along + BLACK_W / 2, BLACK_H - 12),
                     radius: 6
                 })
@@ -421,13 +430,16 @@ export function renderKeyboard(
         if (!member) continue
         const finger = options.fingers?.get(midi)
         const notes = [
-            ...(set.root === member.chroma ? ['root'] : []),
-            ...(finger ? [`finger ${finger}`] : [])
+            ...(set.root === member.chroma ? [t('keyboard.lit.root')] : []),
+            ...(finger ? [t('keyboard.lit.finger', { finger })] : [])
         ]
         keysLit.push(
             `${shown(member.name)}${Math.floor(midi / 12) - 1}${notes.length ? ` (${notes.join(', ')})` : ''}`
         )
     }
-    describeDiagram(root, keysLit.length ? `Keys: ${keysLit.join(', ')}.` : '')
+    describeDiagram(
+        root,
+        keysLit.length ? t('keyboard.lit.keys', { keys: keysLit.join(', ') }) : ''
+    )
     return root
 }

@@ -8,6 +8,7 @@ import { STANDARD_TUNING, baseFretOf, type FrettedVoicing } from './guitar.js'
 import { chordNoteSet, type NoteSetMember } from '../theory/note-set.js'
 import { chromaOf, splitChordSymbol } from '../theory/pitch.js'
 import { canonicalSuffix } from '../theory/suffix.js'
+import { t } from '../i18n/translate.js'
 
 type CagedLetter = 'C' | 'A' | 'G' | 'E' | 'D'
 
@@ -29,6 +30,36 @@ export type VoicingShape =
     | 'Open bass'
     | 'Open strings'
     | `Strings ${string}`
+
+/** A shape's name as the diagram's title shows it (the shape itself stays the English token). */
+export function shapeLabel(shape: VoicingShape): string {
+    switch (shape) {
+        case 'Open':
+            return t('chord.shape.open')
+        case 'Power chord':
+            return t('chord.shape.power')
+        case 'Triad':
+            return t('chord.shape.triad')
+        case 'Shell':
+            return t('chord.shape.shell')
+        case 'Hendrix chord':
+            return t('chord.shape.hendrix')
+        case 'Open bass':
+            return t('chord.shape.openBass')
+        case 'Open strings':
+            return t('chord.shape.openStrings')
+    }
+    const caged = /^([A-G]) shape(?: \(strings (.+)\))?$/.exec(shape)
+    if (caged) {
+        return caged[2] === undefined
+            ? t('chord.shape.caged', { letter: caged[1]! })
+            : t('chord.shape.cagedStrings', { letter: caged[1]!, strings: caged[2] })
+    }
+    const drop = /^Drop ([23]) \(strings (.+)\)$/.exec(shape)
+    if (drop) return t('chord.shape.drop', { n: drop[1]!, strings: drop[2]! })
+    const strings = /^Strings (.+)$/.exec(shape)
+    return strings ? t('chord.shape.strings', { strings: strings[1]! }) : shape
+}
 
 /** The E and A shapes: with a barre, the barre chords everyone learns. */
 const isBarreShape = (shape: VoicingShape | null) => shape === 'E shape' || shape === 'A shape'

@@ -17,6 +17,7 @@ import { alphaTabLoader } from './load.js'
 import { pageInstruments } from './instruments.js'
 import { pageEngine } from '../playback/engine.js'
 import { namingOf } from '../theory/naming.js'
+import { pageLanguage } from '../i18n/page.js'
 import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
@@ -150,6 +151,7 @@ function renderAllTabs(doc: Document): void {
                     alphaTab,
                     assets,
                     volume: () => pageVolume() ?? DEFAULT_VOLUME,
+                    language: pageLanguage(window.musicNotationOptions, doc),
                     ...(engine ? { engine } : {}),
                     ...(naming ? { naming } : {}),
                     ...(names ? { names } : {}),

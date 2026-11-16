@@ -9,6 +9,7 @@ import { splitChordSymbol } from './pitch.js'
 import { canonicalSuffix } from './suffix.js'
 import { parseChord } from './chord-symbol.js'
 import { shown } from './naming.js'
+import { t } from '../i18n/translate.js'
 
 /** At most this many other symbols for a chord. */
 const MAX_ALIASES = 5
@@ -35,10 +36,16 @@ export function chordFormula(symbol: string): string[] | null {
     const chord = Chord.getChord(canonicalSuffix(parts.suffix), parts.root)
     const words = chord.type || parseChord(written)?.quality.toLowerCase() || parts.suffix
     const tones = set.members.filter((m) => m.interval !== null)
-    const bass = parts.bass ? `, ${shown(parts.bass)} in the bass` : ''
+    const bass = parts.bass ? t('theory.formula.inTheBass', { bass: shown(parts.bass) }) : ''
     const sentences = [
-        `${shown(written)} (${shown(parts.root)} ${words}${bass}): ${tones.map((m) => shown(m.name)).join(' ')}.`,
-        `Formula ${formulaOf(tones)}.`
+        t('theory.formula.chord', {
+            written: shown(written),
+            root: shown(parts.root),
+            words,
+            bass,
+            notes: tones.map((m) => shown(m.name)).join(' ')
+        }),
+        t('theory.formula.formula', { formula: formulaOf(tones) })
     ]
     const slash = parts.bass ? `/${parts.bass}` : ''
     const own = new Set([written, `${parts.root}${parts.suffix}${slash}`])
@@ -52,7 +59,11 @@ export function chordFormula(symbol: string): string[] | null {
     ]
         .filter((other) => !own.has(other))
         .slice(0, MAX_ALIASES)
-    if (others.length) sentences.push(`Also written ${others.map((o) => shown(o)).join(', ')}.`)
+    if (others.length) {
+        sentences.push(
+            t('theory.formula.alsoWritten', { list: others.map((o) => shown(o)).join(', ') })
+        )
+    }
     return sentences
 }
 
@@ -74,8 +85,11 @@ export function scaleFormula(name: string): string[] | null {
         return STEP_NAMES[half] ?? `${half}H`
     })
     return [
-        `${shown(set.title)}: ${members.map((m) => shown(m.name)).join(' ')}.`,
-        `Formula ${formulaOf(members)}.`,
-        `Steps ${steps.join(' ')}.`
+        t('theory.formula.scale', {
+            title: shown(set.title),
+            notes: members.map((m) => shown(m.name)).join(' ')
+        }),
+        t('theory.formula.formula', { formula: formulaOf(members) }),
+        t('theory.formula.steps', { steps: steps.join(' ') })
     ]
 }

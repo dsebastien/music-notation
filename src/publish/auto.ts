@@ -10,6 +10,7 @@ import { injectStyles } from '../styles.js'
 import { layoutDefaults } from '../render/layout.js'
 import { namingOf, type Naming } from '../theory/naming.js'
 import { rootMarkOf, type RootMark } from '../render/root-mark.js'
+import { pageLanguage } from '../i18n/page.js'
 import { autoRender } from './index.js'
 import type { PlayOptions } from '../playback/controls.js'
 import type { NotePlayer } from '../playback/player.js'
@@ -139,6 +140,11 @@ if (!window.musicNotationLoaded) {
             // The root as a shape too (#14): color or shape; anything else is color.
             rootMark: pageRootMark(window.musicNotationOptions),
             properties: pageProperties(window.musicNotationOptions),
+            // The language of the texts (#136): the page's option, else <html lang>, else English.
+            // A getter: read at each draw, so a page that changes language draws the next blocks in it.
+            get language() {
+                return pageLanguage(window.musicNotationOptions, document)
+            },
             voicings: lookupGuitarVoicing,
             play: pagePlay(window.musicNotationOptions),
             copy: pageCopy(window.musicNotationOptions),

@@ -6,6 +6,7 @@ import { Key } from 'tonal'
 import { generateVoicings, type GeneratedVoicing } from './generate.js'
 import { STANDARD_TUNING } from './guitar.js'
 import { chordNoteSet, intervalLabel } from '../theory/note-set.js'
+import { t } from '../i18n/translate.js'
 
 export interface Triad extends GeneratedVoicing {
     /** 0 root position, 1 first inversion (third in the bass), 2 second (fifth in the bass). */
@@ -27,7 +28,13 @@ export interface TriadOptions {
 
 /** The inversion's name: "root position", "1st inversion", "2nd inversion". */
 export const inversionName = (inversion: number): string =>
-    inversion === 0 ? 'root position' : inversion === 1 ? '1st inversion' : '2nd inversion'
+    t(
+        inversion === 0
+            ? 'chord.triads.rootPosition'
+            : inversion === 1
+              ? 'chord.triads.firstInversion'
+              : 'chord.triads.secondInversion'
+    )
 
 /**
  * Close triads (the three notes within four frets) of a three-note chord (major, minor, diminished, augmented, sus) on a string set,

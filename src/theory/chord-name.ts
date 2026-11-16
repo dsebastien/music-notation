@@ -3,6 +3,7 @@
  * reverse of `parseChord().name`, so both directions round-trip.
  */
 import { parseChord, spellNote, type ParsedChord } from './chord-symbol.js'
+import { t } from '../i18n/translate.js'
 
 /** Quality in words (lowercase, single spaces) → suffix. The words `parseChord` writes, and a few more. */
 const QUALITY_WORDS = new Map<string, string>([
@@ -130,5 +131,9 @@ export function suggestChords(text: string): string {
     // Nothing close: offer the plain major chord.
     const near =
         quality && distance(quality, closest.toLowerCase()) <= Math.max(2, quality.length / 2)
-    return `${root}, ${root}m, ${root}7 or ${spelled} ${near ? closest : 'Major'}`
+    return t('theory.chord.suggest', {
+        root,
+        spelled,
+        quality: near ? closest : 'Major'
+    })
 }

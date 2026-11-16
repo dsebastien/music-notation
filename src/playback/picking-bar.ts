@@ -6,6 +6,7 @@
 import { pickingEvents, type PickingScore } from '../picking/play.js'
 import type { PickedNote } from '../picking/voicing.js'
 import { isCompound } from '../strum/pattern.js'
+import { translator } from '../i18n/translate.js'
 import type { PlayOptions } from './controls.js'
 import type { ProgressionSettings } from './progression.js'
 import { timedBarFor } from './strum-bar.js'
@@ -60,7 +61,7 @@ export function pickingBarFor(
     return timedBarFor(doc, win, drawing, options, {
         kind: 'picking',
         cls: 'mn-strum-playable mn-picking-playable',
-        label: 'Play the picking pattern',
+        label: translator()('playback.picking.bar'),
         compound: score.slotsPerPulse > score.slotsPerBeat,
         click: false,
         make: (s, first, id) =>

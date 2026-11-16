@@ -5,7 +5,6 @@ import {
     SHARED_KEYS,
     type DiagramLanguage,
     type NotationLanguage,
-    ROOT_FOR_LISTS_ONLY,
     type RenderOptions
 } from '../blocks/renderers.js'
 import {
@@ -28,6 +27,8 @@ import {
     type BlockReading,
     type Naming
 } from '../theory/naming.js'
+import { languageOf } from '../i18n/language.js'
+import { t, withLanguage } from '../i18n/translate.js'
 import { rootMarkInBlock, rootMarkOf, withRootMark, type RootMark } from './root-mark.js'
 import { alignTitleLines, layoutDefaults, parseHand, parseOrientation } from './layout.js'
 import { blockFromProperties, DEFAULT_PROPERTY_NAMES, instrumentOf } from '../blocks/properties.js'
@@ -35,7 +36,6 @@ import { modesOf } from '../theory/scales.js'
 import { resolveScalesFor, scalesForBlock } from '../blocks/scales-for.js'
 import { chordField, noteSetOf } from '../blocks/note-set-field.js'
 import {
-    AUTO_FINGERING_NEEDS_SCALE,
     autoFingeringUnknown,
     isBothHandsFingering,
     standardScaleFingering
@@ -56,6 +56,7 @@ import {
     distinctShapes,
     generateVoicings,
     MAX_GENERATED_STRINGS,
+    shapeLabel,
     type GeneratedVoicing,
     type VoicingOptions
 } from '../chord/generate.js'
@@ -96,6 +97,18 @@ export function renderBlock(
     source: string,
     host: HTMLElement,
     given: RenderOptions = {}
+): RenderResult {
+    // The texts of the block (errors, bars, descriptions) come in the block's language (#136).
+    return withLanguage(languageOf(given.language) ?? 'en', () =>
+        drawBlock(language, source, host, given)
+    )
+}
+
+function drawBlock(
+    language: NotationLanguage,
+    source: string,
+    host: HTMLElement,
+    given: RenderOptions
 ): RenderResult {
     const doc = host.ownerDocument
     const el = html(doc, 'div', `mn-block mn-block-${language}`)
@@ -355,7 +368,7 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const value = block.fields.get('positions')?.trim()
     if (value === undefined) return null
     if (block.fields.has('exercise')) {
-        throw new Error('exercise plays one position: write position: 1 (not positions:)')
+        throw new Error(t('render.positions.exerciseOne'))
     }
     // A scale, or a chord: its arpeggio (`arpeggio: Am7`, `chord: Am7`, or a shorthand chord).
     const chordText = chordField(block)
@@ -364,14 +377,12 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const written = scaleSet ? scaleText! : (chordText ?? block.head)
     const set = scaleSet ?? (written ? chordNoteSet(written) : null)
     if (!written || !set) {
-        throw new Error(
-            'positions needs a scale or a chord: e.g. A minor pentatonic or arpeggio: Am7'
-        )
+        throw new Error(t('render.positions.needsSet'))
     }
     const arpeggio = !scaleSet
     const shape = block.fields.get('shape')?.trim().toLowerCase()
     if (arpeggio && shape === '3nps') {
-        throw new Error('Arpeggios use CAGED shapes, not 3nps: leave shape out')
+        throw new Error(t('render.positions.arpeggioCaged'))
     }
     const system =
         shape === '3nps' ? '3nps' : !arpeggio && set.members.length === 5 ? 'box' : 'caged'
@@ -382,7 +393,7 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
             : value.split(/[\s,]+/).map(Number)
     const bad = wanted.find((n) => !Number.isInteger(n) || n < 1 || n > count)
     if (bad !== undefined) {
-        throw new Error(`positions: use all, or numbers from 1 to ${count} for ${set.title}`)
+        throw new Error(t('render.positions.range', { count, title: set.title }))
     }
     // Up the neck, each position at or above the one before; an unknown tuning fails in the diagram.
     const tuningText = block.fields.get('tuning')
@@ -401,7 +412,10 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     )
     const numbered = numbering === 'minor' ? ['numbering: minor'] : []
     // Short, so the titles don't widen every diagram of the row.
-    const from = numbering === 'minor' ? ` (from ${relativeMinorOf(set)}m)` : ''
+    const from =
+        numbering === 'minor'
+            ? t('render.positions.fromMinor', { root: relativeMinorOf(set) ?? '' })
+            : ''
     const fretsOf = (n: number) => {
         const cells = neck[n - 1]
         if (!cells?.length) return []
@@ -430,14 +444,24 @@ function positionParts(language: DiagramLanguage, source: string): string[] | nu
     const own = others
         .filter(([key]) => key !== 'columns' && !shared.includes(key))
         .map(([key, v]) => `${key}: ${v}`)
-    const name = arpeggio ? `${set.title} arpeggio` : set.title
+    const name = arpeggio ? t('render.positions.arpeggioTitle', { title: set.title }) : set.title
     const diagrams = wanted.map((n) => {
         const at =
             system === 'caged'
-                ? [`shape: ${CAGED_SHAPES[n - 1]}`, `title: ${name}, ${CAGED_SHAPES[n - 1]} shape`]
+                ? [
+                      `shape: ${CAGED_SHAPES[n - 1]}`,
+                      `title: ${t('render.positions.shapeTitle', { name, shape: CAGED_SHAPES[n - 1]! })}`
+                  ]
                 : system === '3nps'
-                  ? ['shape: 3nps', `position: ${n}`, `title: ${name}, 3nps ${n}${from}`]
-                  : [`position: ${n}`, `title: ${name}, box ${n}${from}`]
+                  ? [
+                        'shape: 3nps',
+                        `position: ${n}`,
+                        `title: ${t('render.positions.npsTitle', { name, n, from })}`
+                    ]
+                  : [
+                        `position: ${n}`,
+                        `title: ${t('render.positions.boxTitle', { name, n, from })}`
+                    ]
         const what = arpeggio ? `arpeggio: ${written}` : `scale: ${written}`
         // A chord over the scale (#48) marks its tones in every position.
         const over = !arpeggio && chordText ? [`chord: ${chordText}`] : []
@@ -467,7 +491,7 @@ function handParts(language: DiagramLanguage, source: string): string[] | null {
     block = scalesForBlock(block)
     const set = noteSetOf(block)
     if (set.root === null || set.list || set.pitches || !set.scaleType) {
-        throw new Error(AUTO_FINGERING_NEEDS_SCALE)
+        throw new Error(t('keyboard.fingering.autoNeedsScale'))
     }
     if (!standardScaleFingering(set.root, set.scaleType, 'right')) {
         throw new Error(autoFingeringUnknown(set.title))
@@ -482,7 +506,11 @@ function handParts(language: DiagramLanguage, source: string): string[] | null {
             ...head,
             ...others,
             `fingering: auto ${side}`,
-            ...(title ? [`title: ${title}, ${side} hand`] : [])
+            ...(title
+                ? [
+                      `title: ${t('render.fingering.handTitle', { title, hand: t(side === 'left' ? 'render.hand.left' : 'render.hand.right') })}`
+                  ]
+                : [])
         ].join('\n')
     const columns = block.fields.get('columns')?.trim() || '1'
     return [`columns: ${columns}`, hand('right'), hand('left')]
@@ -516,7 +544,7 @@ const yes = (text: string | undefined, key: string): boolean | undefined => {
     const value = text.trim().toLowerCase()
     if (['yes', 'true', 'on'].includes(value)) return true
     if (['no', 'false', 'off'].includes(value)) return false
-    throw new Error(`${key} must be yes or no, got "${text}"`)
+    throw new Error(t('render.yesNo', { key, text }))
 }
 
 /** The last voicing lists, so a block drawn again (scrolling, switching views) doesn't search again. */
@@ -560,7 +588,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const value = block.fields.get('voicings')?.trim()
     if (value === undefined) return null
     const fields = block.fields
-    if (fields.has('triads')) throw new Error('Use triads or voicings, not both')
+    if (fields.has('triads')) throw new Error(t('render.voicings.notBoth'))
     const instrument = fields.get('instrument')?.toLowerCase()
     if (
         instrument === 'piano' ||
@@ -568,32 +596,32 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
         fields.has('pitches') ||
         fields.has('notes')
     ) {
-        throw new Error('voicings are for guitar and other fretted instruments')
+        throw new Error(t('render.voicings.fretted'))
     }
     // Once for the block, not in every diagram it expands into.
-    if (fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
+    if (fields.get('root')?.trim()) throw new Error(t('render.rootListsOnly'))
     const refused = NOT_WITH_VOICINGS.find((key) => fields.has(key))
-    if (refused) throw new Error(`voicings finds the frets itself: remove "${refused}"`)
+    if (refused) throw new Error(t('render.voicings.noFrets', { value: refused }))
     const frettish = block.head?.split(/\s+/).find((t, i) => i > 0 && parseFrets(t) !== null)
-    if (frettish) throw new Error(`voicings finds the frets itself: remove "${frettish}"`)
+    if (frettish) throw new Error(t('render.voicings.noFrets', { value: frettish }))
     const written = fields.get('symbol') ?? fields.get('chord') ?? block.head ?? fields.get('name')
-    if (!written) throw new Error('voicings needs a chord: e.g. A Major')
+    if (!written) throw new Error(t('render.voicings.needsChord'))
     const chord = readChord(written)
-    if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+    if (!chord) throw new Error(unknownChord(written))
     const tuningText = fields.get('tuning')
     if (instrument && instrument !== 'guitar' && !tuningText) {
-        throw new Error(`Unknown instrument "${instrument}": use guitar, or give a tuning`)
+        throw new Error(t('render.voicings.instrument', { instrument }))
     }
     const tuning = tuningText ? parseTuning(tuningText) : null
-    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    if (tuningText && !tuning) throw new Error(t('render.tuning', { text: tuningText }))
     const count = tuning?.length ?? 6
     if (count > MAX_GENERATED_STRINGS) {
-        throw new Error(`voicings works on up to ${MAX_GENERATED_STRINGS} strings`)
+        throw new Error(t('render.voicings.maxStrings', { max: MAX_GENERATED_STRINGS }))
     }
     const all = value.toLowerCase() === 'all'
     const wanted = all ? MAX_DIAGRAMS : Number(value)
     if (!Number.isInteger(wanted) || wanted < 1 || wanted > MAX_DIAGRAMS) {
-        throw new Error(`voicings: use all, or a number from 1 to ${MAX_DIAGRAMS}`)
+        throw new Error(t('render.voicings.count', { max: MAX_DIAGRAMS }))
     }
     const options: VoicingOptions = {}
     if (tuning) options.tuning = tuning
@@ -601,7 +629,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     if (area) {
         const range = area.trim().toLowerCase() === 'open' ? 'open' : parseRange(area)
         if (!range || (range !== 'open' && range[1] > 24)) {
-            throw new Error(`area: use open, or frets like 5-9 (up to 24), got "${area}"`)
+            throw new Error(t('render.voicings.area', { area }))
         }
         // Fretted notes start at fret 1: "0-3" means from the nut.
         options.area = range === 'open' ? 'open' : [Math.max(1, range[0]), Math.max(1, range[1])]
@@ -610,7 +638,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     if (rootString) {
         const n = Number(rootString)
         if (!Number.isInteger(n) || n < 1 || n > count) {
-            throw new Error(`root-string: use a string number from 1 (the highest) to ${count}`)
+            throw new Error(t('render.voicings.rootString', { count }))
         }
         options.bassString = n
     }
@@ -621,7 +649,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
         const n = inversion === 'root' ? 0 : Number(inversion)
         if (inversion === 'any') options.inversion = 'any'
         else if (Number.isInteger(n) && n >= 0 && n <= 3) options.inversion = n
-        else throw new Error(`inversion: use 0 (root), 1, 2, 3 or any, got "${inversion}"`)
+        else throw new Error(t('render.voicings.inversion', { inversion }))
     }
     if (yes(fields.get('stretch'), 'stretch')) options.maxSpan = 5
     const open = yes(fields.get('open'), 'open')
@@ -633,19 +661,17 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     // block quick to draw.
     if (count > 6) {
         if (options.inversion === 'any' && (options.strings?.length ?? count) > 6) {
-            throw new Error(
-                `On ${count} strings, inversion: any needs six strings or fewer: add e.g. strings: 1-6`
-            )
+            throw new Error(t('render.voicings.manyStringsAny', { count }))
         }
         const wide = [
             options.gaps ? 'gaps' : null,
             options.maxSpan ? 'stretch' : null,
             Array.isArray(options.area) && options.area[1] - options.area[0] > 11
-                ? 'a wide area'
+                ? t('render.voicings.wideArea')
                 : null
         ].filter((w): w is string => w !== null)
         if (wide.length > 1) {
-            throw new Error(`On ${count} strings, use one of ${wide.join(', ')} at a time`)
+            throw new Error(t('render.voicings.oneWidening', { count, list: wide.join(', ') }))
         }
     }
     // One diagram per shape, the easiest ones, drawn up the neck (#72).
@@ -678,7 +704,7 @@ function voicingParts(language: DiagramLanguage, source: string): string[] | nul
     const diagrams = voicings.map((v) =>
         [
             `symbol: ${chord.symbol}`,
-            `title: ${title}${v.shape ? `, ${v.shape}` : ''}`,
+            `title: ${title}${v.shape ? `, ${shapeLabel(v.shape)}` : ''}`,
             `frets: ${frets(v.frets)}`,
             `fingers: ${v.fingers.map((f) => f ?? 'x').join('')}`,
             ...own
@@ -703,23 +729,23 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
     const value = block.fields.get('triads')?.trim()
     if (value === undefined) return null
     const fields = block.fields
-    if (fields.has('voicings')) throw new Error('Use triads or voicings, not both')
+    if (fields.has('voicings')) throw new Error(t('render.voicings.notBoth'))
     // Once for the block, not in every diagram it expands into.
-    if (fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
+    if (fields.get('root')?.trim()) throw new Error(t('render.rootListsOnly'))
     const refused = NOT_WITH_VOICINGS.find((key) => fields.has(key))
-    if (refused) throw new Error(`triads finds the frets itself: remove "${refused}"`)
+    if (refused) throw new Error(t('render.triads.noFrets', { value: refused }))
     const instrument = fields.get('instrument')?.toLowerCase()
     if (instrument && instrument !== 'guitar' && !fields.get('tuning')) {
-        throw new Error('triads are for guitar and other fretted instruments: give a tuning')
+        throw new Error(t('render.triads.fretted'))
     }
     const tuningText = fields.get('tuning')
     const tuning = tuningText ? parseTuning(tuningText) : null
-    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    if (tuningText && !tuning) throw new Error(t('render.tuning', { text: tuningText }))
     const count = tuning?.length ?? 6
     const strings = parseStrings(value, count)
     const sorted = [...strings].sort((a, b) => a - b)
     if (sorted.length !== 3 || sorted[2]! - sorted[0]! !== 2) {
-        throw new Error(`triads: give three strings next to each other, e.g. 1-3 or 2-4`)
+        throw new Error(t('render.triads.strings'))
     }
     const inversionText = fields.get('inversion')?.trim().toLowerCase()
     let inversion: number | 'any' | undefined
@@ -727,47 +753,45 @@ function triadParts(language: DiagramLanguage, source: string): string[] | null 
         const n = inversionText === 'root' ? 0 : Number(inversionText)
         if (inversionText === 'any') inversion = 'any'
         else if (n === 0 || n === 1 || n === 2) inversion = n
-        else
-            throw new Error(`inversion: use 0 (root position), 1, 2 or any, got "${inversionText}"`)
+        else throw new Error(t('render.triads.inversion', { inversion: inversionText }))
     }
     const options = { strings: sorted, ...(tuning ? { tuning } : {}) }
     const keyText = fields.get('key')
     let diagrams: { symbol: string; title: string; triad: Triad }[]
     const head = fields.get('title')
     if (keyText) {
-        if (inversion === 'any') throw new Error('With a key, pick one inversion: 0, 1 or 2')
+        if (inversion === 'any') throw new Error(t('render.triads.keyInversion'))
         const triads = keyTriads(keyText, {
             ...options,
             ...(inversion !== undefined ? { inversion } : {})
         })
-        if (!triads)
-            throw new Error(`Unknown key "${keyText}": use e.g. key: G major or key: E minor`)
-        diagrams = triads.map((t) => ({
-            symbol: t.symbol,
-            title: `${t.numeral} · ${t.symbol}`,
-            triad: t.triad
+        if (!triads) throw new Error(t('render.triads.key', { text: keyText }))
+        diagrams = triads.map((item) => ({
+            symbol: item.symbol,
+            title: `${item.numeral} · ${item.symbol}`,
+            triad: item.triad
         }))
     } else {
         const written =
             fields.get('symbol') ?? fields.get('chord') ?? block.head ?? fields.get('name')
-        if (!written) throw new Error('triads needs a chord (e.g. G) or a key (key: G major)')
+        if (!written) throw new Error(t('render.triads.needsChord'))
         const chord = readChord(written)
-        if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+        if (!chord) throw new Error(unknownChord(written))
         const notes = chordNoteSet(chord.symbol)?.members.filter((m) => m.interval !== null).length
         if (notes !== 3) {
-            throw new Error(`${chord.symbol} isn't a triad (three notes): try voicings: all`)
+            throw new Error(t('render.triads.notTriad', { symbol: chord.symbol }))
         }
         const list = triadVoicings(chord.symbol, {
             ...options,
             ...(inversion !== undefined ? { inversion } : {})
         })
-        diagrams = list.slice(0, MAX_DIAGRAMS).map((t) => ({
+        diagrams = list.slice(0, MAX_DIAGRAMS).map((item) => ({
             symbol: chord.symbol,
-            title: `${head ?? written}, ${inversionName(t.inversion)}`,
-            triad: t
+            title: `${head ?? written}, ${inversionName(item.inversion)}`,
+            triad: item
         }))
     }
-    if (!diagrams.length) throw new Error('No triad fits on these strings: try another string set')
+    if (!diagrams.length) throw new Error(t('render.triads.none'))
     const shared = SHARED_KEYS.chord
     const others = [...fields].filter(
         ([key]) =>
@@ -853,32 +877,36 @@ function transitionParts(
     const fromText = fields.get('from')
     const progressionText = fields.get('progression')
     if (fromText === undefined && progressionText === undefined) {
-        if (fields.has('to'))
-            throw new Error('Add the chord you hold: from: C (with its frets: from: C x32010)')
+        if (fields.has('to')) throw new Error(t('render.transitions.needsFrom'))
         return null
     }
     const instrument = fields.get('instrument')?.toLowerCase()
     if (instrument && instrument !== 'guitar' && !fields.get('tuning')) {
-        throw new Error('Transitions are for guitar and other fretted instruments: give a tuning')
+        throw new Error(t('render.transitions.fretted'))
     }
     if (fromText !== undefined && progressionText !== undefined) {
-        throw new Error('Use from and to, or progression, not both')
+        throw new Error(t('render.transitions.notBoth'))
     }
     // Once for the block, not in every diagram it expands into.
-    if (fields.get('root')?.trim()) throw new Error(ROOT_FOR_LISTS_ONLY)
+    if (fields.get('root')?.trim()) throw new Error(t('render.rootListsOnly'))
     const refused = [...NOT_WITH_VOICINGS, 'voicings', 'triads'].find((key) => fields.has(key))
     if (refused)
-        throw new Error(`"${refused}" can't be used with ${fromText ? 'from' : 'progression'}`)
+        throw new Error(
+            t('render.transitions.refused', {
+                key: refused,
+                with: fromText ? 'from' : 'progression'
+            })
+        )
     const tuningText = fields.get('tuning')
     const tuning = tuningText ? parseTuning(tuningText) : null
-    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    if (tuningText && !tuning) throw new Error(t('render.tuning', { text: tuningText }))
     const count = tuning?.length ?? 6
     if (count > MAX_GENERATED_STRINGS) {
-        throw new Error(`Transitions work on up to ${MAX_GENERATED_STRINGS} strings`)
+        throw new Error(t('render.transitions.maxStrings', { max: MAX_GENERATED_STRINGS }))
     }
     const read = (written: string) => {
         const chord = readChord(written)
-        if (!chord) throw new Error(`Didn't recognize "${written}": try ${suggestChords(written)}`)
+        if (!chord) throw new Error(unknownChord(written))
         return chord.symbol
     }
     const shared = SHARED_KEYS.chord
@@ -915,14 +943,14 @@ function transitionParts(
         )
             .map((n) => n.trim())
             .filter(Boolean)
-        if (names.length < 2) throw new Error('progression: give two chords or more, e.g. G D Em C')
+        if (names.length < 2) throw new Error(t('render.transitions.twoChords'))
         if (names.length > MAX_DIAGRAMS)
-            throw new Error(`progression: at most ${MAX_DIAGRAMS} chords`)
+            throw new Error(t('render.transitions.maxChords', { max: MAX_DIAGRAMS }))
         const steps = smoothProgression(names.map(read), {
             ...options,
             ...(voicings ? { voicings } : {})
         })
-        if (!steps.length) throw new Error('No playable voicings for this progression')
+        if (!steps.length) throw new Error(t('render.transitions.noVoicings'))
         return [
             ...(header.length ? [header.join('\n')] : []),
             ...steps.map((s, i) =>
@@ -931,26 +959,30 @@ function transitionParts(
         ]
     }
     const toText = fields.get('to')
-    if (!toText) throw new Error('Add the next chord: to: D')
+    if (!toText) throw new Error(t('render.transitions.needsTo'))
     const held = heldChord(fromText!)
     const fromSymbol = read(held.written)
     const fromFrets = held.frets ?? generateVoicings(fromSymbol, options)[0]?.frets ?? null
-    if (!fromFrets) throw new Error(`No playable voicing of ${held.written}: add its frets`)
+    if (!fromFrets) throw new Error(t('render.transitions.noHeld', { chord: held.written }))
     if (fromFrets.length !== count) {
         throw new Error(
-            `"${fretsText(fromFrets)}" has ${fromFrets.length} strings, the tuning ${count}`
+            t('render.transitions.stringCount', {
+                frets: fretsText(fromFrets),
+                have: fromFrets.length,
+                count
+            })
         )
     }
     const fromFingers = held.fingers ? parseFingers(held.fingers) : fingerVoicing(fromFrets)
     const howMany = Number(fields.get('count') ?? 3)
     if (!Number.isInteger(howMany) || howMany < 1 || howMany > MAX_DIAGRAMS - 1) {
-        throw new Error(`count: use a number from 1 to ${MAX_DIAGRAMS - 1}`)
+        throw new Error(t('render.transitions.count', { max: MAX_DIAGRAMS - 1 }))
     }
     const steps = transition(fromFrets, read(toText), {
         ...options,
         ...(fromFingers ? { fromFingers } : {})
     }).slice(0, howMany)
-    if (!steps.length) throw new Error(`No playable voicing of ${toText}`)
+    if (!steps.length) throw new Error(t('render.transitions.noTarget', { chord: toText }))
     return [
         ...(header.length ? [header.join('\n')] : []),
         diagram(fromSymbol, held.written, fromFrets, held.fingers ?? fromFingers),
@@ -967,6 +999,10 @@ function transitionParts(
     ]
 }
 
+/** The message for a chord the library doesn't know, with what it might have meant. */
+const unknownChord = (written: string): string =>
+    t('render.unknownChord', { written, suggestions: suggestChords(written) })
+
 /** Why no voicing fits, saying which filter to change. */
 function noVoicing(written: string, symbol: string, options: VoicingOptions): string {
     const strings = options.strings
@@ -974,19 +1010,22 @@ function noVoicing(written: string, symbol: string, options: VoicingOptions): st
         ? [...strings].sort((a, b) => a - b).every((n, i, all) => i === 0 || n === all[i - 1]! + 1)
         : true
     if (strings && !contiguous && !options.gaps) {
-        return `strings ${strings.join(' ')} aren't next to each other: add gaps: yes`
+        return t('render.noVoicing.gaps', { strings: strings.join(' ') })
     }
     if (strings && options.bassString !== undefined && !strings.includes(options.bassString)) {
-        return `root-string ${options.bassString} isn't among strings ${strings.join(' ')}`
+        return t('render.noVoicing.rootString', {
+            string: options.bassString,
+            strings: strings.join(' ')
+        })
     }
     const notes = chordNoteSet(symbol)?.members.filter((m) => m.interval !== null).length ?? 0
     if (typeof options.inversion === 'number' && options.inversion >= notes) {
-        return `${symbol} has ${notes} notes: inversion goes up to ${notes - 1}`
+        return t('render.noVoicing.inversion', { symbol, notes, max: notes - 1 })
     }
     if (options.bassString !== undefined) {
-        return `No voicing of ${written} has its bass on string ${options.bassString}: try another root-string`
+        return t('render.noVoicing.bass', { chord: written, string: options.bassString })
     }
-    return `No playable voicing of ${written} fits: widen the area, allow open strings or add stretch: yes`
+    return t('render.noVoicing.none', { chord: written })
 }
 
 /**
@@ -1004,13 +1043,16 @@ function modeParts(language: DiagramLanguage, source: string): string[] | null {
     const value = block.fields.get('modes')
     if (value === undefined) return null
     const modes = modesOf(value)
-    if (!modes) throw new Error(`"${value}" has no modes: use e.g. modes: C major`)
+    if (!modes) throw new Error(t('render.modes.none', { value }))
     const shared = SHARED_KEYS[language]
     const others = [...block.fields].filter(([key]) => key !== 'modes')
     const refused = others.find(([key]) => key !== 'columns' && !shared.includes(key))
     if (refused || block.head) {
         throw new Error(
-            `"${refused?.[0] ?? block.head}" can't be used with modes: only ${shared.join(', ')}, columns`
+            t('render.modes.refused', {
+                key: refused?.[0] ?? block.head ?? '',
+                allowed: `${shared.join(', ')}, columns`
+            })
         )
     }
     // Every mode by its own name (C ionian, A aeolian), so their characteristic notes show.
@@ -1047,7 +1089,10 @@ function headerOf(language: DiagramLanguage, part: string | undefined): BlockSou
     if (!others.length) return block.fields.size ? block : null
     if (!block.fields.has('columns')) return null
     throw new Error(
-        `"${others[0]}" can't be shared: move it to a diagram. Shared settings: ${shared.join(', ')}, columns`
+        t('render.row.notShared', {
+            key: others[0]!,
+            allowed: `${shared.join(', ')}, columns`
+        })
     )
 }
 
@@ -1077,7 +1122,7 @@ function columnsOf(header: BlockSource | null): number | null {
     if (text === undefined) return null
     const n = Number(text)
     if (!Number.isInteger(n) || n < 1 || n > 12) {
-        throw new Error(`columns must be a whole number from 1 to 12, got "${text}"`)
+        throw new Error(t('render.row.columns', { text }))
     }
     return n
 }
@@ -1096,11 +1141,11 @@ function renderRow(
     const header = headerOf(language, parts[0])
     const diagrams = header ? parts.slice(1) : parts
     if (header && !diagrams.length) {
-        throw new Error('Add a diagram after the shared settings: a "---" line, then the diagram')
+        throw new Error(t('render.row.needsDiagram'))
     }
     if (header) checkShared(header)
     if (diagrams.length > MAX_DIAGRAMS) {
-        throw new Error(`At most ${MAX_DIAGRAMS} diagrams per block, found ${diagrams.length}`)
+        throw new Error(t('render.row.max', { max: MAX_DIAGRAMS, found: diagrams.length }))
     }
     const columns = columnsOf(header)
     const shared = [...(header?.fields ?? [])].filter(([key]) => key !== 'columns')
@@ -1111,7 +1156,7 @@ function renderRow(
         try {
             const block = filled(parseBlockSource(part))
             if (block.fields.has('columns')) {
-                throw new Error('"columns" goes in the shared settings, before the first "---"')
+                throw new Error(t('render.row.columnsShared'))
             }
             const directive = [
                 'positions',
@@ -1122,18 +1167,16 @@ function renderRow(
                 'progression'
             ].find((key) => block.fields.has(key))
             if (directive) {
-                throw new Error(`"${directive}" draws its own row: use it in a block of its own`)
+                throw new Error(t('render.row.ownRow', { key: directive }))
             }
             if (block.fields.has('exercise') || shared.some(([key]) => key === 'exercise')) {
-                throw new Error(
-                    'exercise draws a tab under one diagram: use it in a block of its own'
-                )
+                throw new Error(t('render.row.exercise'))
             }
             // The diagram's own keys win over the shared ones.
             const fields = new Map([...shared, ...block.fields])
             cell.appendChild(DIAGRAMS[language](doc, { head: block.head, fields }, options))
         } catch (e) {
-            let message = `diagram ${i + 1}: ${messageOf(e)}`
+            let message = t('render.row.diagram', { n: i + 1, message: messageOf(e) })
             // A first part meant as shared settings but holding another key draws as a diagram.
             // (An exercise's own message says what to do.)
             if (
@@ -1142,7 +1185,9 @@ function renderRow(
                 sharesSomething(language, part) &&
                 !/^\s*exercise\s*:/im.test(part)
             ) {
-                message += ` (shared settings before the first "---" may only hold: ${SHARED_KEYS[language].join(', ')}, columns)`
+                message += t('render.row.sharedHint', {
+                    allowed: `${SHARED_KEYS[language].join(', ')}, columns`
+                })
             }
             errors.push(message)
             cell.classList.add('mn-error')

@@ -5,6 +5,7 @@
  * (choosing the other instrument redraws every diagram for it). No volume: the app's setting.
  */
 import { accessibleName, html, uniqueId } from '../render/dom.js'
+import { currentLanguage, translatorFor, withLanguage, type Translator } from '../i18n/translate.js'
 import {
     DEFAULT_SEQUENCE,
     sequenceOf,
@@ -84,9 +85,9 @@ export interface GroupOptions {
 }
 
 /** The name the bar gives a diagram: its title, else its accessible name. */
-function nameOf(diagram: Element): string {
+function nameOf(diagram: Element, tr: Translator): string {
     const title = diagram.querySelector('.mn-title')?.textContent?.trim()
-    return title || accessibleName(diagram) || 'Diagram'
+    return title || accessibleName(diagram) || tr('playback.diagram')
 }
 
 /** Whether a click's target is a note: a `data-midi` element, or a mark's hit area (#69). */
@@ -109,6 +110,9 @@ export function diagramGroup(
     options: PlayOptions,
     how: GroupOptions
 ): { group: DiagramGroup; items: readonly Item[]; api: GroupApi; bind: (ui: GroupUi) => void } {
+    // The block's language, kept for what runs later (clicks redraw diagrams and set texts).
+    const language = currentLanguage()
+    const tr = translatorFor(language)
     const items: Item[] = diagrams.map(({ diagram, data }) => {
         const wrap = html(doc, 'div', 'mn-playable')
         diagram.parentNode?.insertBefore(wrap, diagram)
@@ -127,8 +131,8 @@ export function diagramGroup(
             shown: diagram,
             other: undefined,
             caption,
-            name: nameOf(diagram),
-            spoken: accessibleName(diagram) ?? nameOf(diagram)
+            name: nameOf(diagram, tr),
+            spoken: accessibleName(diagram) ?? nameOf(diagram, tr)
         }
     })
     // Rows often repeat a title (C's voicings): the bar adds the place to tell them apart.
@@ -136,7 +140,7 @@ export function diagramGroup(
     for (const item of items) counts.set(item.name, (counts.get(item.name) ?? 0) + 1)
     items.forEach((item, i) => {
         if ((counts.get(item.name) ?? 0) <= 1) return
-        const place = ` (${i + 1} of ${items.length})`
+        const place = ` ${tr('playback.place', { n: i + 1, total: items.length })}`
         item.name += place
         item.spoken += place
     })
@@ -401,7 +405,9 @@ export function diagramGroup(
         if (item.diagram.getAttribute('data-mn-redraw') === 'no') return
         const sound = soundOf(item)
         if (sound !== item.data.sound)
-            item.other ??= redrawFor(doc, item.diagram, item.data, options.hand)
+            item.other ??= withLanguage(language, () =>
+                redrawFor(doc, item.diagram, item.data, options.hand)
+            )
         const next = sound === item.data.sound ? item.diagram : (item.other ?? item.diagram)
         // Only while the host leaves the drawing in its wrapper.
         if (next !== item.shown && item.shown.parentNode === item.wrap) {
@@ -425,7 +431,12 @@ export function diagramGroup(
         wrap.setAttribute('role', 'button')
         // Named by a hidden text, not aria-label: Obsidian shows a tooltip for any element with
         // one, and this one covers the whole drawing.
-        const label = html(doc, 'span', 'mn-playable-name', `Play ${item.spoken}`)
+        const label = html(
+            doc,
+            'span',
+            'mn-playable-name',
+            tr('playback.playItem', { name: item.spoken })
+        )
         label.id = uniqueId()
         label.hidden = true
         wrap.prepend(label)
@@ -530,6 +541,7 @@ export function blockBarFor(
     diagrams: { diagram: Element; data: DiagramData }[],
     options: PlayOptions
 ): () => void {
+    const tr = translatorFor(currentLanguage())
     const {
         group,
         items,
@@ -539,7 +551,7 @@ export function blockBarFor(
         bar: true
     })
     const several = items.length > 1
-    const bar = playBar(doc, 'mn-block-bar', 'Playback')
+    const bar = playBar(doc, 'mn-block-bar', tr('playback.bar'))
     placeBar(block, items[items.length - 1]!.wrap, bar)
 
     const toggle = html(doc, 'button', 'mn-play-toggle')
@@ -547,25 +559,40 @@ export function blockBarFor(
     toggle.addEventListener('click', () => (made.busy ? made.stop() : made.playSelected()))
     bar.appendChild(toggle)
     if (several) {
-        const all = iconButton(doc, 'mn-play-all', 'Play all in turn', 'all')
+        const all = iconButton(doc, 'mn-play-all', tr('playback.playAll'), 'all')
         all.addEventListener('click', () => (made.inTurn ? made.stop() : made.playAll()))
         bar.appendChild(all)
     }
     const name = several ? html(doc, 'span', 'mn-play-name') : null
     if (name) bar.appendChild(name)
     bar.appendChild(
-        pressedButton(doc, 'mn-play-loop', 'Loop', 'loop', false, (on) => (made.loop = on))
+        pressedButton(
+            doc,
+            'mn-play-loop',
+            tr('playback.loop'),
+            'loop',
+            false,
+            (on) => (made.loop = on)
+        )
     )
     // The speed of the selected diagram, when it plays several notes: BPM for a scale or a list,
     // the strum's spread for a chord.
     const tempo = items.some((i) => i.data.kind === 'scale' && i.data.pitches.length > 1)
-        ? valueSlider(doc, 'Tempo (BPM)', 'BPM', 20, 240, made.bpm, (n) => (made.bpm = n))
+        ? valueSlider(
+              doc,
+              tr('playback.tempo'),
+              tr('playback.unit.bpm'),
+              20,
+              240,
+              made.bpm,
+              (n) => (made.bpm = n)
+          )
         : null
     const strum = items.some((i) => i.data.kind === 'chord' && i.data.pitches.length > 1)
         ? valueSlider(
               doc,
-              'Strum (ms between strings)',
-              'ms',
+              tr('playback.strum'),
+              tr('playback.unit.ms'),
               0,
               200,
               made.strumOf(made.sound),
@@ -577,10 +604,10 @@ export function blockBarFor(
     const sound = choice(
         doc,
         'mn-play-sound',
-        'Sound',
+        tr('playback.sound'),
         ['guitar', 'piano'] as const,
         made.sound,
-        { guitar: 'Guitar', piano: 'Piano' },
+        { guitar: tr('playback.guitar'), piano: tr('playback.piano') },
         (value) => group.setSound(value === 'piano' ? 'piano' : 'guitar')
     )
     bar.appendChild(sound)
@@ -598,11 +625,11 @@ export function blockBarFor(
         changed() {
             const busy = made.busy
             toggle.replaceChildren(icon(doc, busy ? 'stop' : 'play'))
-            toggle.setAttribute('aria-label', busy ? 'Stop' : 'Play')
-            toggle.title = busy ? 'Stop' : 'Play'
+            toggle.setAttribute('aria-label', busy ? tr('playback.stop') : tr('playback.play'))
+            toggle.title = busy ? tr('playback.stop') : tr('playback.play')
             const item = made.selected
             if (name) name.textContent = item.name
-            bar.setAttribute('aria-label', `Play ${item.spoken}`)
+            bar.setAttribute('aria-label', tr('playback.playItem', { name: item.spoken }))
             const several = item.data.pitches.length > 1
             if (tempo) tempo.field.hidden = !(several && item.data.kind === 'scale')
             if (strum) {

@@ -137,6 +137,9 @@ export {
 } from './keyboard/piano-chord.js'
 export { standardScaleFingering, scaleFingers, type ScaleHand } from './keyboard/scale-fingering.js'
 export { renderFretboard, type FretboardOptions } from './fretboard/fretboard.js'
+// Translations (#136): the language of the library's own texts.
+export { languageOf, LANGUAGES_OF_TEXTS, type Language } from './i18n/language.js'
+export { withLanguage } from './i18n/translate.js'
 export {
     NAMINGS,
     parseNaming,

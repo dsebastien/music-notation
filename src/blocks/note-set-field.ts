@@ -18,6 +18,7 @@ import {
     type NoteSet,
     type NoteSetMember
 } from '../theory/note-set.js'
+import { t } from '../i18n/translate.js'
 
 const LABELS = new Set<NoteLabel>(['notes', 'degrees', 'intervals', 'none'])
 
@@ -26,7 +27,7 @@ export function chordField(block: BlockSource): string | undefined {
     const chord = block.fields.get('chord')
     const arpeggio = block.fields.get('arpeggio')
     if (chord !== undefined && arpeggio !== undefined) {
-        throw new Error('Use chord or arpeggio, not both')
+        throw new Error(t('blocks.noteSet.chordOrArpeggio'))
     }
     return chord ?? arpeggio
 }
@@ -43,29 +44,33 @@ export function noteSetOf(block: BlockSource): NoteSet {
     // An empty `root:` line is no root, like other empty keys.
     const root = block.fields.get('root')?.trim() || undefined
     if (root !== undefined) {
-        if (scale !== undefined) throw rootNotForList('a scale')
-        if (chord !== undefined) throw rootNotForList('a chord')
+        if (scale !== undefined) throw rootNotForList('scale')
+        if (chord !== undefined) throw rootNotForList('chord')
         if (rootNameOf(root) === null) {
-            throw new Error(`Invalid root "${root}": use a note name, e.g. root: C`)
+            throw new Error(t('blocks.noteSet.invalidRoot', { root }))
         }
-        if (notes !== undefined) return orFail(listNoteSet(notes, root), `Invalid notes "${notes}"`)
+        if (notes !== undefined)
+            return orFail(listNoteSet(notes, root), t('blocks.noteSet.invalidNotes', { notes }))
         if (block.head) {
             const list = listNoteSet(block.head, root)
             if (list) return list
-            if (scaleNoteSet(block.head)) throw rootNotForList('a scale')
-            if (chordNoteSet(block.head)) throw rootNotForList('a chord')
-            throw new Error(`"${block.head}" is not a list of notes: use e.g. notes: C Eb G`)
+            if (scaleNoteSet(block.head)) throw rootNotForList('scale')
+            if (chordNoteSet(block.head)) throw rootNotForList('chord')
+            throw new Error(t('blocks.noteSet.notAList', { head: block.head }))
         }
-        throw new Error('Add the notes for the root: e.g. notes: C Eb G')
+        throw new Error(t('blocks.noteSet.addNotesForRoot'))
     }
     if (scale !== undefined) {
-        if (isScaleWithoutRoot(scale)) throw new Error(`Add a root note: C ${scale.trim()}`)
-        return orFail(scaleNoteSet(scale), `Unknown scale "${scale}"`)
+        if (isScaleWithoutRoot(scale))
+            throw new Error(t('blocks.noteSet.addRoot', { scale: scale.trim() }))
+        return orFail(scaleNoteSet(scale), t('blocks.noteSet.unknownScale', { scale }))
     }
-    if (chord !== undefined) return orFail(chordNoteSet(chord), `Unknown chord "${chord}"`)
-    if (notes !== undefined) return orFail(listNoteSet(notes), `Invalid notes "${notes}"`)
+    if (chord !== undefined)
+        return orFail(chordNoteSet(chord), t('blocks.noteSet.unknownChord', { chord }))
+    if (notes !== undefined)
+        return orFail(listNoteSet(notes), t('blocks.noteSet.invalidNotes', { notes }))
     if (block.head && isScaleWithoutRoot(block.head)) {
-        throw new Error(`Add a root note: C ${block.head.trim()}`)
+        throw new Error(t('blocks.noteSet.addRoot', { scale: block.head.trim() }))
     }
     if (block.head) {
         // Exact notes ("C4", "E5") before chords: tonal reads them as quartal or power chords.
@@ -75,23 +80,30 @@ export function noteSetOf(block: BlockSource): NoteSet {
             (exact?.pitches ? exact : null) ??
             chordNoteSet(block.head) ??
             exact
-        return orFail(set, `"${block.head}" is not a scale, chord or list of notes`)
+        return orFail(set, t('blocks.noteSet.notAScaleChordOrList', { head: block.head }))
     }
-    throw new Error('Add "scale:", "chord:" or "notes:"')
+    throw new Error(t('blocks.noteSet.addSource'))
 }
 
-const rootNotForList = (what: string) =>
-    new Error(`root only applies to lists of notes (notes: C E G): ${what} has its own root`)
+const rootNotForList = (what: 'scale' | 'chord') =>
+    new Error(
+        t(
+            what === 'scale'
+                ? 'blocks.noteSet.rootListsOnlyScale'
+                : 'blocks.noteSet.rootListsOnlyChord'
+        )
+    )
 
 /** `labels:`; `fingers` only where fingering was given (piano chords). */
 export function labelField(block: BlockSource, fallback: NoteLabel, fingers = false): NoteLabel {
     const value = block.fields.get('labels')?.toLowerCase()
     if (value === undefined) return fallback
     if (!LABELS.has(value as NoteLabel) && !(fingers && value === 'fingers')) {
-        const choices = fingers
-            ? 'notes, degrees, intervals, fingers or none'
-            : 'notes, degrees, intervals or none'
-        throw new Error(`Unknown labels "${value}": use ${choices}`)
+        throw new Error(
+            t(fingers ? 'blocks.noteSet.unknownLabelsFingers' : 'blocks.noteSet.unknownLabels', {
+                value
+            })
+        )
     }
     return value as NoteLabel
 }
@@ -118,9 +130,7 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
         }
     } else if (highlight.toLowerCase() !== 'none' && highlight !== '') {
         if (set.members.every((m) => m.interval === null)) {
-            throw new Error(
-                'highlight needs a scale, a chord or a root: a list of notes has no intervals (add e.g. root: C)'
-            )
+            throw new Error(t('blocks.noteSet.highlightNeedsIntervals'))
         }
         const labels = highlight
             .replace(/♭/g, 'b')
@@ -133,7 +143,7 @@ export function marksOf(block: BlockSource, set: NoteSet): NoteMarks {
                     m.interval !== null && intervalLabel(m.interval) === label.replace(/^1$/, 'R')
             )
             if (!hits.length) {
-                throw new Error(`"${label}" isn't in ${set.title}: use its intervals (R, b3, 5…)`)
+                throw new Error(t('blocks.noteSet.notInSet', { label, title: set.title }))
             }
             picked.push(...hits)
         }

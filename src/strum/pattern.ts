@@ -11,6 +11,7 @@
  * - a chord line above a pattern line (each chord starts on the slot below it), or `[G]` in the
  *   pattern; a line of counts (`1 & 2 & 3 & 4 &`) is skipped.
  */
+import { t } from '../i18n/translate.js'
 import { readChord, suggestChords } from '../theory/chord-name.js'
 
 export type Stroke = 'down' | 'up' | 'mute' | 'rest'
@@ -87,21 +88,17 @@ const STROKES: Record<string, Stroke> = {
     '↑': 'up'
 }
 const RESTS = new Set(['-', '.', '_'])
-const HELP =
-    'write D or ↓ (down), U or ↑ (up), X (muted), - (no strum), > after a strum for an accent, (U) for a ghost strum, [G] for a chord change'
-
-const BOTH = 'A strum is either accented (D>) or a ghost strum ((D)), not both'
 
 /** "4/4", "6/8", "C" (common time), "cut" (2/2). Throws a message for the user. */
 export function parseTime(text: string): { beatsPerBar: number; beatUnit: number } {
-    const t = text.trim().toLowerCase()
-    if (t === 'c' || t === 'common') return { beatsPerBar: 4, beatUnit: 4 }
-    if (t === 'cut' || t === '¢') return { beatsPerBar: 2, beatUnit: 2 }
-    const m = /^(\d{1,2})\s*\/\s*(\d{1,2})$/.exec(t)
+    const word = text.trim().toLowerCase()
+    if (word === 'c' || word === 'common') return { beatsPerBar: 4, beatUnit: 4 }
+    if (word === 'cut' || word === '¢') return { beatsPerBar: 2, beatUnit: 2 }
+    const m = /^(\d{1,2})\s*\/\s*(\d{1,2})$/.exec(word)
     const beats = m ? Number(m[1]) : NaN
     const unit = m ? Number(m[2]) : NaN
     if (!(beats >= 1 && beats <= 16) || ![2, 4, 8, 16].includes(unit))
-        throw new Error(`Invalid time "${text}": use e.g. time: 4/4, 3/4 or 6/8`)
+        throw new Error(t('strum.time.invalid', { text }))
     return { beatsPerBar: beats, beatUnit: unit }
 }
 
@@ -118,30 +115,27 @@ export const isCompound = (beatsPerBar: number, beatUnit: number) =>
  * straight) is null. Throws a message.
  */
 export function parseSwing(text: string): number | null {
-    const t = text.trim().toLowerCase()
-    if (['yes', 'on', 'true', 'swing', 'swung', 'shuffle', 'triplet', 'triplets'].includes(t))
+    const word = text.trim().toLowerCase()
+    if (['yes', 'on', 'true', 'swing', 'swung', 'shuffle', 'triplet', 'triplets'].includes(word))
         return 2 / 3
-    if (['no', 'off', 'false', 'straight', 'none'].includes(t)) return null
-    const m = /^(\d{2}(?:\.\d+)?)\s*%?$/.exec(t)
+    if (['no', 'off', 'false', 'straight', 'none'].includes(word)) return null
+    const m = /^(\d{2}(?:\.\d+)?)\s*%?$/.exec(word)
     const n = m ? Number(m[1]) : NaN
-    if (!(n >= 50 && n <= 75))
-        throw new Error(
-            `Invalid swing "${text}": write swing: yes (a triplet swing, a shuffle), no, or a percentage from 50 (straight) to 75, e.g. swing: 60%`
-        )
+    if (!(n >= 50 && n <= 75)) throw new Error(t('strum.swing.invalid', { text }))
     return n === 50 ? null : n / 100
 }
 
 /** "8ths", "eighths", "8"; "16ths", "sixteenths", "16"; "triplets". Throws a message. */
 export function parseSubdivision(text: string): Subdivision {
-    const t = text
+    const word = text
         .trim()
         .toLowerCase()
         .replace(/\s+notes?$/, '')
-    if (['8ths', '8th', '8', '1/8', 'eighths', 'eighth', 'eights'].includes(t)) return '8ths'
-    if (['16ths', '16th', '16', '1/16', 'sixteenths', 'sixteenth'].includes(t)) return '16ths'
-    if (['triplets', 'triplet', '8th triplets', 'eighth triplets', '3'].includes(t))
+    if (['8ths', '8th', '8', '1/8', 'eighths', 'eighth', 'eights'].includes(word)) return '8ths'
+    if (['16ths', '16th', '16', '1/16', 'sixteenths', 'sixteenth'].includes(word)) return '16ths'
+    if (['triplets', 'triplet', '8th triplets', 'eighth triplets', '3'].includes(word))
         return 'triplets'
-    throw new Error(`Invalid subdivision "${text}": use 8ths, 16ths or triplets`)
+    throw new Error(t('strum.subdivision.invalid', { text }))
 }
 
 /** Slots in one beat of the time signature. Throws when the subdivision can't divide the beat. */
@@ -149,13 +143,12 @@ export function slotsPerBeatOf(subdivision: Subdivision, beatUnit: number): numb
     if (subdivision === 'triplets') {
         if (beatUnit !== 4)
             throw new Error(
-                `Triplets need a quarter-note beat (time: 4/4, 3/4…); for ${beatUnit === 8 ? 'a 6/8 feel use time: 6/8 with 8ths' : 'this time use 8ths or 16ths'}`
+                t(beatUnit === 8 ? 'strum.triplets.quarterBeat68' : 'strum.triplets.quarterBeat')
             )
         return 3
     }
     const n = (subdivision === '8ths' ? 8 : 16) / beatUnit
-    if (n < 1)
-        throw new Error(`8ths are longer than a beat of x/${beatUnit}: use subdivision: 16ths`)
+    if (n < 1) throw new Error(t('strum.subdivision.tooLong', { unit: beatUnit }))
     return n
 }
 
@@ -185,8 +178,11 @@ function chordOf(written: string): string {
     if (!chord)
         throw new Error(
             text
-                ? `Didn't recognize the chord "${text}": try ${suggestChords(text)}`
-                : 'Empty chord "[]": write the chord inside, e.g. [G]'
+                ? t('strum.chord.notRecognizedTry', {
+                      chord: text,
+                      suggestions: suggestChords(text)
+                  })
+                : t('strum.chord.empty')
         )
     // Words ("A Minor") are shown as their symbol, which fits above a slot.
     return /\s/.test(text) ? chord.symbol : text
@@ -212,14 +208,14 @@ function readLine(line: string, lineIndex: number): Segment[] {
         }
         if (c === '[') {
             const end = line.indexOf(']', i)
-            if (end < 0) throw new Error(`Missing "]" after "${line.slice(i)}": write e.g. [G]`)
+            if (end < 0) throw new Error(t('strum.line.bracketMissing', { text: line.slice(i) }))
             chordNext = chordOf(line.slice(i + 1, end))
             i = end
             previous = null
             continue
         }
         if (c === '|') {
-            if (ghost) throw new Error('A bar line inside ( ): close the ghost strums first')
+            if (ghost) throw new Error(t('strum.line.barInGhost'))
             if (units.length) segments.push({ units: [], line: lineIndex })
             previous = null
             glued = false
@@ -227,33 +223,34 @@ function readLine(line: string, lineIndex: number): Segment[] {
         }
         if (c === '>') {
             if (previous && previous.stroke !== 'rest' && !previous.accent) {
-                if (previous.ghost) throw new Error(BOTH)
+                if (previous.ghost) throw new Error(t('strum.line.accentAndGhost'))
                 previous.accent = true
             } else accentNext = true
             continue
         }
         if (c === '(') {
-            if (ghost) throw new Error("Ghost strums can't be nested: write (U), not ((U))")
+            if (ghost) throw new Error(t('strum.line.ghostNested'))
             ghost = true
             previous = null
             continue
         }
         if (c === ')') {
-            if (!ghost) throw new Error('")" without "(": write a ghost strum as (U)')
+            if (!ghost) throw new Error(t('strum.line.parenUnopened'))
             ghost = false
             continue
         }
         const stroke = STROKES[lower] ?? (RESTS.has(c) ? 'rest' : null)
-        if (!stroke) throw new Error(`Didn't understand "${c}" in "${line.trim()}": ${HELP}`)
+        if (!stroke)
+            throw new Error(
+                t('strum.line.notUnderstood', { char: c, line: line.trim(), help: t('strum.help') })
+            )
         const isRest = stroke === 'rest'
         if (isRest && (accentNext || ghost)) {
             throw new Error(
-                accentNext
-                    ? 'An accent needs a strum: write D> or U>'
-                    : 'Write ghost strums as (D) or (U), without rests inside'
+                t(accentNext ? 'strum.line.accentNeedsStrum' : 'strum.line.ghostNoRests')
             )
         }
-        if (accentNext && ghost) throw new Error(BOTH)
+        if (accentNext && ghost) throw new Error(t('strum.line.accentAndGhost'))
         const unit: Unit = {
             stroke,
             accent: !isRest && accentNext,
@@ -268,10 +265,9 @@ function readLine(line: string, lineIndex: number): Segment[] {
         units.push(unit)
         previous = unit
     }
-    if (ghost) throw new Error(`Missing ")" in "${line.trim()}": write a ghost strum as (U)`)
-    if (accentNext) throw new Error('An accent needs a strum: write D> or U>')
-    if (chordNext)
-        throw new Error(`The chord [${chordNext}] ends the pattern: put it before a strum or a -`)
+    if (ghost) throw new Error(t('strum.line.parenUnclosed', { line: line.trim() }))
+    if (accentNext) throw new Error(t('strum.line.accentNeedsStrum'))
+    if (chordNext) throw new Error(t('strum.line.chordEndsPattern', { chord: chordNext }))
     return segments.filter((s) => s.units.length)
 }
 
@@ -392,7 +388,10 @@ function timeFor(slots: number, beatsPerBar: number, beatUnit: number, slotsPerB
 const barsAndSlots = (slots: number, perBar: number) => {
     const bars = Math.floor(slots / perBar)
     const rest = slots % perBar
-    return `${bars} bar${bars === 1 ? '' : 's'} and ${rest} slot${rest === 1 ? '' : 's'}`
+    return t('strum.count.barsAndSlots', {
+        bars: t(bars === 1 ? 'strum.count.bar.one' : 'strum.count.bar.other', { n: bars }),
+        slots: t(rest === 1 ? 'strum.count.slot.one' : 'strum.count.slot.other', { n: rest })
+    })
 }
 
 /** Units as written: a space before each one written at a token's start (`D DU UDU`). */
@@ -414,7 +413,15 @@ function spillError(
     const perBar = beatsPerBar * perBeat
     const time = timeFor(slots, beatsPerBar, beatUnit, perBeat)
     return new Error(
-        `${beatsPerBar}/${beatUnit} in ${subdivision} has ${perBar} slots a bar, but "${asWritten(units)}" takes ${slots} (${barsAndSlots(slots, perBar)}): put a | where each bar ends${time ? `, or write ${time}` : ''}`
+        t('strum.count.spill', {
+            time: `${beatsPerBar}/${beatUnit}`,
+            subdivision,
+            perBar,
+            written: asWritten(units),
+            slots,
+            count: barsAndSlots(slots, perBar),
+            orTime: time ? t('strum.count.spillOrTime', { time }) : ''
+        })
     )
 }
 
@@ -437,8 +444,27 @@ function countError(
             return false
         }
     })
+    const items = [...(time ? [time] : []), ...fits.map((f) => `subdivision: ${f}`)]
     return new Error(
-        `${beatsPerBar}/${beatUnit} in ${subdivision} has ${perBar} slots a bar, but "${units.map(symbolOf).join(' ')}" has ${n}: fill each bar with - (no strum)${[...(time ? [time] : []), ...fits.map((f) => `subdivision: ${f}`)].map((w, i, all) => `${i ? (i === all.length - 1 ? ' or ' : ', ') : ' or write '}${w}`).join('')}`
+        t('strum.count.mismatch', {
+            time: `${beatsPerBar}/${beatUnit}`,
+            subdivision,
+            perBar,
+            written: units.map(symbolOf).join(' '),
+            n,
+            alternatives: items
+                .map((item, i) =>
+                    t(
+                        i === 0
+                            ? 'strum.count.alternative.first'
+                            : i === items.length - 1
+                              ? 'strum.count.alternative.last'
+                              : 'strum.count.alternative.next',
+                        { item }
+                    )
+                )
+                .join('')
+        })
     )
 }
 
@@ -452,10 +478,7 @@ export function parseStrum(source: string): StrumPattern {
         const m = FIELD.exec(line.trim())
         if (m) {
             const key = m[1]!.toLowerCase()
-            if (!KEYS.includes(key))
-                throw new Error(
-                    `Unknown key "${m[1]}": use time, subdivision, swing, chord, tempo, tuning, title or pattern`
-                )
+            if (!KEYS.includes(key)) throw new Error(t('strum.key.unknown', { key: m[1]! }))
             if (key === 'pattern') lines.push(m[2]!)
             else fields.set(key === 'bpm' ? 'tempo' : key, m[2]!.trim())
             continue
@@ -474,17 +497,17 @@ export function parseStrum(source: string): StrumPattern {
     const swingText = fields.get('swing')
     const swing = swingText ? parseSwing(swingText) : null
     if (swing !== null) {
-        if (subdivision === 'triplets')
-            throw new Error(
-                'Triplets and swing are two ways to write a shuffle: keep subdivision: triplets (D - U on each beat), or write 8ths with swing: yes'
-            )
+        if (subdivision === 'triplets') throw new Error(t('strum.swing.withTriplets'))
         if (compound)
             throw new Error(
-                `${beatsPerBar}/${beatUnit} already has three ${beatUnit === 8 ? '8ths' : '16ths'} a beat: remove swing: (it swings 8ths or 16ths in 4/4, 3/4, 2/4…)`
+                t('strum.swing.compound', {
+                    time: `${beatsPerBar}/${beatUnit}`,
+                    unit: beatUnit === 8 ? '8ths' : '16ths'
+                })
             )
         if (slotsPerBeat % 2)
             throw new Error(
-                `Swing plays pairs of slots inside a beat, and a beat of ${beatsPerBar}/${beatUnit} in ${subdivision} has one slot: write subdivision: 16ths, or time: 4/4`
+                t('strum.swing.oneSlot', { time: `${beatsPerBar}/${beatUnit}`, subdivision })
             )
     }
 
@@ -494,7 +517,7 @@ export function parseStrum(source: string): StrumPattern {
         tempo = Number(tempoText.replace(/\s*bpm$/i, ''))
         if (!Number.isFinite(tempo) || tempo < MIN_TEMPO || tempo > MAX_TEMPO)
             throw new Error(
-                `Invalid tempo "${tempoText}": use beats a minute from ${MIN_TEMPO} to ${MAX_TEMPO}, e.g. tempo: 90`
+                t('strum.tempo.invalid', { text: tempoText, min: MIN_TEMPO, max: MAX_TEMPO })
             )
     }
     const chordText = fields.get('chord')
@@ -510,9 +533,8 @@ export function parseStrum(source: string): StrumPattern {
     })
     for (const line of above.keys())
         if (!segments.some((s) => s.line === line))
-            throw new Error('A chord line needs a pattern line under it, e.g. D - D U - U D U')
-    if (!segments.length)
-        throw new Error('Write a strumming pattern, e.g. D - D U - U D U (or D DU UDU)')
+            throw new Error(t('strum.pattern.chordLineAlone'))
+    if (!segments.length) throw new Error(t('strum.pattern.missing'))
 
     // Each segment (a line, or a part between bar lines) is placed on its own.
     const placed: (Placed & { line: number; start: number })[] = []
@@ -527,10 +549,7 @@ export function parseStrum(source: string): StrumPattern {
         if (total > perBar * MAX_STRUM_BARS) break
     }
     const bars = total / perBar
-    if (bars > MAX_STRUM_BARS)
-        throw new Error(
-            `At most ${MAX_STRUM_BARS} bars in one pattern: split it into several blocks`
-        )
+    if (bars > MAX_STRUM_BARS) throw new Error(t('strum.bars.tooMany', { max: MAX_STRUM_BARS }))
     const slots: StrumSlot[] = Array.from({ length: bars * perBar }, () => ({
         stroke: 'rest',
         accent: false,
@@ -556,10 +575,7 @@ export function parseStrum(source: string): StrumPattern {
         for (const { chord: written, column } of chords) {
             const name = chordOf(written)
             const under = units.find((u) => u.unit.column >= column)
-            if (!under)
-                throw new Error(
-                    `The chord ${name} is past the end of its pattern line: move it over a strum`
-                )
+            if (!under) throw new Error(t('strum.chord.pastEnd', { chord: name }))
             // Over the gap a rest fills: the chord starts on that rest.
             const slot = under.unit.column > column && under.gap ? under.slot - 1 : under.slot
             if (!slots[slot]!.chord) slots[slot]!.chord = name
@@ -577,7 +593,7 @@ export function parseStrum(source: string): StrumPattern {
             .slice(p.start, last + 1)
             .map((s) => symbolOf(s))
             .join(' ')
-        note = `Read as ${read}, then ${empty} beat${empty === 1 ? '' : 's'} with no strum: write a symbol for every slot (- for no strum) to place the strums yourself.`
+        note = t(empty === 1 ? 'strum.note.one' : 'strum.note.other', { read, n: empty })
         break
     }
 

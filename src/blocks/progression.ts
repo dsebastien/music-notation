@@ -45,6 +45,7 @@ import { Note } from 'tonal'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { PROGRESSION_STRUMS, progressionPitches } from '../playback/progression.js'
 import { MAX_TEMPO, MIN_TEMPO, parseStrum, parseTime } from '../strum/pattern.js'
+import { t } from '../i18n/translate.js'
 
 /** More chords than this in one block is an error, so a page stays quick to draw. */
 const MAX_CHORDS = 32
@@ -99,7 +100,33 @@ const yes = (text: string | undefined, key: string, fallback: boolean): boolean 
     const value = text.trim().toLowerCase()
     if (['yes', 'true', 'on'].includes(value)) return true
     if (['no', 'false', 'off'].includes(value)) return false
-    throw new Error(`${key} must be yes or no, got "${text}"`)
+    throw new Error(t('blocks.progression.yesNo', { key, text }))
+}
+
+/** A chord's function as the `functions` row shows it. */
+const functionLabel = (fn: string): string => {
+    switch (fn) {
+        case 'tonic':
+            return t('blocks.function.tonic')
+        case 'subdominant':
+            return t('blocks.function.subdominant')
+        case 'dominant':
+            return t('blocks.function.dominant')
+        case 'secondary dominant':
+            return t('blocks.function.secondaryDominant')
+        case 'neapolitan':
+            return t('blocks.function.neapolitan')
+        case 'borrowed':
+            return t('blocks.function.borrowed')
+        case 'chromatic':
+            return t('blocks.function.chromatic')
+        case 'tonicization':
+            return t('blocks.function.tonicization')
+        case 'passing':
+            return t('blocks.function.passing')
+        default:
+            return fn
+    }
 }
 
 const field = (block: BlockSource, name: string) => {
@@ -113,12 +140,10 @@ function keyOf(text: string): MusicalKey {
     const mode =
         key?.mode === 'ionian' ? 'major' : key?.mode === 'aeolian' ? 'minor' : (key?.mode ?? null)
     if (key && mode !== 'major' && mode !== 'minor') {
-        throw new Error(
-            `Progression keys are major or minor: write key: ${key.tonic} major or key: ${key.tonic} minor, got "${text}"`
-        )
+        throw new Error(t('blocks.progression.majorMinorKeys', { tonic: key.tonic, text }))
     }
     if (!key || (mode !== 'major' && mode !== 'minor')) {
-        throw new Error(`Unknown key "${text}": use e.g. key: G, key: Em or key: F# minor`)
+        throw new Error(t('blocks.progression.unknownKey', { text }))
     }
     const read: MusicalKey = { tonic: key.tonic, mode, name: `${key.tonic} ${mode}` }
     const problem = keyProblem(read)
@@ -136,10 +161,7 @@ function transposed(key: MusicalKey, semitones: number): MusicalKey {
     return { tonic: moved.tonic, mode: key.mode, name: `${moved.tonic} ${key.mode}` }
 }
 
-const unread = (token: string) =>
-    new Error(
-        `Didn't read "${token}": write roman numerals (I V vi IV, bVII, V7, V/V, I6, V65), Nashville numbers (1 5 6m 4) or chords (G D Em C)`
-    )
+const unread = (token: string) => new Error(t('blocks.progression.unread', { token }))
 
 const isNashville = (token: string) => /^[b#♭♯]?[1-7]/.test(token)
 
@@ -187,19 +209,17 @@ const chordsText = (block: BlockSource): string | undefined =>
 function harmonizedSectionOf(block: BlockSource, kindText: string): Section {
     const kind = KIND_WORDS[kindText.toLowerCase()]
     if (!kind || !HARMONIZE_KINDS.includes(kind)) {
-        throw new Error(`harmonize: write triads, sevenths, sus or power, got "${kindText}"`)
+        throw new Error(t('blocks.progression.harmonizeKind', { kind: kindText }))
     }
     const written = chordsText(block)
     if (written) {
-        throw new Error(
-            `harmonize draws the chords of the scale: leave out the chords (${written})`
-        )
+        throw new Error(t('blocks.progression.harmonizeNoChords', { written }))
     }
     const keyText = field(block, 'key')
-    if (!keyText) throw new Error('Add the scale: e.g. key: A harmonic minor')
+    if (!keyText) throw new Error(t('blocks.progression.addScale'))
     const shift = Number(field(block, 'transpose') ?? 0)
     if (!Number.isInteger(shift)) {
-        throw new Error(`transpose must be a whole number of semitones, e.g. transpose: -2`)
+        throw new Error(t('blocks.progression.transposeWhole'))
     }
     let scale = readHarmonyScale(keyText)
     if ('error' in scale) throw new Error(scale.error)
@@ -231,7 +251,9 @@ function harmonizedSectionOf(block: BlockSource, kindText: string): Section {
         nashville: c.nashville,
         function: c.function
     }))
-    const left = harmonized.skipped.map((s) => `degree ${s.degree} (${s.note}), ${s.reason}`)
+    const left = harmonized.skipped.map((s) =>
+        t('blocks.progression.leftOutDegree', { degree: s.degree, note: s.note, reason: s.reason })
+    )
     return {
         key: harmonized.key,
         others: [],
@@ -239,7 +261,7 @@ function harmonizedSectionOf(block: BlockSource, kindText: string): Section {
         blues: false,
         block,
         name: harmonized.name,
-        ...(left.length ? { note: `Left out: ${left.join('; ')}` } : {})
+        ...(left.length ? { note: t('blocks.progression.leftOut', { list: left.join('; ') }) } : {})
     }
 }
 
@@ -251,7 +273,7 @@ function harmonizeText(block: BlockSource): string | undefined {
     if (!block.fields.has('harmonize')) return undefined
     const text = field(block, 'harmonize')
     if (text === undefined) {
-        throw new Error('harmonize: write triads, sevenths, sus or power, got nothing')
+        throw new Error(t('blocks.progression.harmonizeNothing'))
     }
     return text.toLowerCase() === 'none' ? undefined : text
 }
@@ -262,12 +284,12 @@ function sectionOf(block: BlockSource): Section {
     if (kindText) return harmonizedSectionOf(block, kindText)
     const text = chordsText(block)
     if (!text) {
-        throw new Error('Add the chords: e.g. I V vi IV with key: G, 1 5 6m 4, or G D Em C')
+        throw new Error(t('blocks.progression.addChords'))
     }
     const tokens = progressionTokens(text)
     const shift = Number(field(block, 'transpose') ?? 0)
     if (!Number.isInteger(shift)) {
-        throw new Error(`transpose must be a whole number of semitones, e.g. transpose: -2`)
+        throw new Error(t('blocks.progression.transposeWhole'))
     }
     const keyText = field(block, 'key')
     const names = tokens.every((t) => /^[A-G]/.test(t))
@@ -281,7 +303,7 @@ function sectionOf(block: BlockSource): Section {
         // A mode the chords play in (Dm C G: D dorian) names their numerals from its tonic.
         key = found.modal ?? { tonic: found.tonic, mode: found.mode, name: found.name }
         if (!found.clear) others = found.candidates.slice(1, 3).map((c) => c.name)
-    } else throw new Error('Add the key: e.g. key: G or key: E minor')
+    } else throw new Error(t('blocks.progression.addKey'))
     const to = transposed(key, shift)
     // Chord names move by the interval between the keys, so they keep their letters in it.
     const move = { from: key.tonic, to: to.tonic }
@@ -362,7 +384,8 @@ function guitarVoicings(
     voicings: VoicingLookup | undefined
 ) {
     const tuning = tuningText ? parseTuning(tuningText) : null
-    if (tuningText && !tuning) throw new Error(`Unknown tuning "${tuningText}"`)
+    if (tuningText && !tuning)
+        throw new Error(t('blocks.progression.unknownTuning', { text: tuningText }))
     const steps = smoothProgression(symbols, {
         ...(tuning ? { tuning } : {}),
         ...(voicings ? { voicings } : {})
@@ -427,7 +450,11 @@ function playSettingsOf(fields: Map<string, string>): [string, string][] {
         const tempo = Number(tempoText)
         if (!Number.isFinite(tempo) || tempo < MIN_TEMPO || tempo > MAX_TEMPO)
             throw new Error(
-                `tempo: write beats a minute from ${MIN_TEMPO} to ${MAX_TEMPO}, got "${tempoText}"`
+                t('blocks.progression.tempo', {
+                    min: MIN_TEMPO,
+                    max: MAX_TEMPO,
+                    text: tempoText
+                })
             )
         settings.push(['data-mn-tempo', String(Math.round(tempo))])
     }
@@ -439,7 +466,9 @@ function playSettingsOf(fields: Map<string, string>): [string, string][] {
                 parseStrum(`${time ? `time: ${time}\n` : ''}${strum}`)
             } catch (e) {
                 throw new Error(
-                    `strum: write beats, bar, arpeggio or a strumming pattern (D DU UDU): ${e instanceof Error ? e.message : String(e)}`,
+                    t('blocks.progression.strum', {
+                        reason: e instanceof Error ? e.message : String(e)
+                    }),
                     { cause: e }
                 )
             }
@@ -461,20 +490,24 @@ function renderSection(
     const { block, chords } = section
     const el = html(doc, 'div', 'mn-progression-section')
     // The key, so numerals can be read (and a found key checked).
-    const others = section.others.length ? ` (or ${section.others.join(', ')})` : ''
-    const blues = section.blues ? ' (blues)' : ''
+    const others = section.others.length
+        ? ` ${t('blocks.progression.orKeys', { list: section.others.join(', ') })}`
+        : ''
+    const blues = section.blues ? ` ${t('blocks.progression.blues')}` : ''
     el.appendChild(
         html(
             doc,
             'div',
             'mn-progression-key',
-            shown(`Key: ${section.name ?? section.key.name}${blues}${others}`)
+            shown(
+                `${t('blocks.progression.key', { name: section.name ?? section.key.name })}${blues}${others}`
+            )
         )
     )
     if (section.note) el.appendChild(html(doc, 'div', 'mn-progression-note', shown(section.note)))
     const instrument = (field(block, 'instrument') ?? options.instrument ?? 'guitar').toLowerCase()
     if (!['guitar', 'piano', 'keyboard'].includes(instrument)) {
-        throw new Error(`Unknown instrument "${instrument}": use guitar or piano`)
+        throw new Error(t('blocks.progression.unknownInstrument', { instrument }))
     }
     const piano = instrument !== 'guitar'
     const diagrams = yes(field(block, 'diagrams'), 'diagrams', true)
@@ -488,13 +521,13 @@ function renderSection(
         (chords.every((c) => isNashville(c.written)) ? 'nashville' : 'roman')
     ).toLowerCase()
     if (!['roman', 'nashville', 'none'].includes(style)) {
-        throw new Error(`numerals: use roman, nashville or none, got "${style}"`)
+        throw new Error(t('blocks.progression.numerals', { style }))
     }
-    if (led && !piano) throw new Error('voice-leading is for piano: add instrument: piano')
+    if (led && !piano) throw new Error(t('blocks.progression.voiceLeadingPiano'))
     // Piano voicings (#16) for every chord: a style, an octave, hands.
     const pianoKeys = (['voicing', 'octave', 'hands'] as const).filter((k) => field(block, k))
     if (pianoKeys.length && !piano) {
-        throw new Error(`${pianoKeys[0]} is for piano chords: add instrument: piano`)
+        throw new Error(t('blocks.progression.pianoOnly', { key: pianoKeys[0]! }))
     }
     // A value that can't be read is the block's mistake, not each chord's.
     const pianoOptions = pianoKeys.length ? pianoOptionsOf((key) => field(block, key)) : {}
@@ -516,8 +549,8 @@ function renderSection(
         if (other) {
             throw new Error(
                 other === 'hands'
-                    ? 'voice-leading goes with hands: left+right (a left-hand bass under each chord), not left or right alone'
-                    : `Use voice-leading or ${other}, not both`
+                    ? t('blocks.progression.voiceLeadingHands')
+                    : t('blocks.progression.voiceLeadingOrKey', { key: other })
             )
         }
     }
@@ -618,7 +651,9 @@ function renderSection(
             }
         } else cell.appendChild(html(doc, 'div', 'mn-progression-name', shown(chord.symbol)))
         if (functions) {
-            cell.appendChild(html(doc, 'div', 'mn-progression-function', chord.function))
+            cell.appendChild(
+                html(doc, 'div', 'mn-progression-function', functionLabel(chord.function))
+            )
         }
         // What the block's play bar sounds for this chord (#46): the diagram's notes, else the
         // strum's guitar voicing (a piano voicing on piano).
@@ -660,7 +695,7 @@ export function renderProgression(
         [...first.fields.keys()].every((k) => SHARED.includes(k))
     const shared = sharedOnly ? first.fields : new Map<string, string>()
     const own = sharedOnly ? blocks.slice(1) : blocks
-    if (!own.length) throw new Error('Add the chords after the shared settings, after a "---" line')
+    if (!own.length) throw new Error(t('blocks.progression.addChordsAfterShared'))
     const merged = own.map((b) => ({ head: b.head, fields: new Map([...shared, ...b.fields]) }))
     // Counted before any chord is read: finding the key of hundreds of chords takes a while.
     const count = merged.reduce(
@@ -670,7 +705,7 @@ export function renderProgression(
         0
     )
     if (count > MAX_CHORDS)
-        throw new Error(`At most ${MAX_CHORDS} chords per block, found ${count}`)
+        throw new Error(t('blocks.progression.maxChords', { max: MAX_CHORDS, count }))
     const sections = merged.map(sectionOf)
     const el = html(doc, 'div', 'mn-progression')
     // Played in time from its bar (#46): one chord a bar, every section in turn.

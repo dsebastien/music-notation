@@ -9,6 +9,8 @@
  * lowest and highest roots take the octave's first and last fingers.
  */
 
+import { t } from '../i18n/translate.js'
+
 export type ScaleHand = 'right' | 'left'
 
 /** Fingers from the root up to the root above, by the tonic's pitch class (C = 0). */
@@ -177,7 +179,7 @@ export function parseFingerList(text: string): string[] {
     const fingers = text.split(/[\s,-]+/).filter(Boolean)
     const wrong = fingers.find((f) => !/^[1-5]$/.test(f))
     if (wrong !== undefined) {
-        throw new Error(`fingering: fingers go from 1 (thumb) to 5 (little finger), got "${wrong}"`)
+        throw new Error(t('keyboard.fingering.finger', { text: wrong }))
     }
     return fingers
 }
@@ -195,12 +197,11 @@ export function isBothHandsFingering(text: string): boolean {
 }
 
 /** The message for `fingering: auto` on something other than a scale. */
-export const AUTO_FINGERING_NEEDS_SCALE =
-    'fingering: auto goes with a major or minor scale (scale: G major): write one finger per note, e.g. fingering: 1 2 3 4 5'
+export const autoFingeringNeedsScale = (): string => t('keyboard.fingering.autoNeedsScale')
 
 /** The message for `fingering: auto` on a scale without a standard fingering. */
 export const autoFingeringUnknown = (scale: string): string =>
-    `fingering: auto knows the major, natural minor, harmonic minor and melodic minor scales: write the fingers for ${scale}, root to root, e.g. fingering: 1 2 3 1 2 3 4 5`
+    t('keyboard.fingering.autoUnknown', { scale })
 
 export function autoFingeringHand(text: string): ScaleHand | null {
     const m = /^(auto)?[\s:(,-]*(?:(left|right)(?:[\s-]*hand)?)?\)?$/.exec(

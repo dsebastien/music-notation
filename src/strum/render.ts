@@ -5,6 +5,7 @@
  * colors, like the other diagrams. Each slot is a `g[data-mn-beat]` (its index from 0), so a page
  * can light the strum that plays.
  */
+import { t } from '../i18n/translate.js'
 import { shown } from '../theory/naming.js'
 import { html, svg, svgLabel, svgLine, svgRoot } from '../render/dom.js'
 import { parseTuning } from '../fretboard/tuning.js'
@@ -43,9 +44,11 @@ function swingLabel(pattern: StrumPattern): string | null {
     const swing = pattern.swing
     if (!swing) return null
     const triplet = Math.abs(swing - 2 / 3) < 0.001
-    const amount = triplet ? '' : ` ${Math.round(swing * 100)}%`
+    const percent = Math.round(swing * 100)
     // Swing plays pairs of slots: 8ths, or 16ths.
-    return `${pattern.subdivision === '16ths' ? '16th swing' : 'Swing'}${amount}`
+    if (pattern.subdivision === '16ths')
+        return triplet ? t('strum.feel.swing16') : t('strum.feel.swing16Percent', { percent })
+    return triplet ? t('strum.feel.swing') : t('strum.feel.swingPercent', { percent })
 }
 
 /** A down or up arrow centered on x, between top and bottom. */
@@ -141,7 +144,13 @@ export function renderStrum(
         totalWidth,
         totalHeight,
         'mn-strum',
-        `${title ? `${title}: s` : 'S'}trumming pattern ${written}, ${time}, ${pattern.subdivision}${feel ? `, ${feel.toLowerCase()}` : ''}`
+        t(title ? 'strum.name.titled' : 'strum.name', {
+            title: title ?? '',
+            written,
+            time,
+            subdivision: pattern.subdivision,
+            feel: feel ? t('strum.name.feel', { feel: feel.toLowerCase() }) : ''
+        })
     )
     root.setAttribute('data-mn-strum', written)
     root.setAttribute('data-mn-time', time)
@@ -251,10 +260,8 @@ export function renderStrumBlock(doc: Document, source: string, options: RenderO
     const pattern = parseStrum(source)
     const tuning = pattern.tuning ? parseTuning(pattern.tuning) : undefined
     if (tuning === null)
-        throw new Error(
-            `Unknown tuning "${pattern.tuning}": use e.g. tuning: standard, drop d, ukulele or E2 A2 D3 G3 B3 E4`
-        )
-    if (tuning && tuning.length > 12) throw new Error('At most 12 strings')
+        throw new Error(t('strum.tuning.unknown', { tuning: pattern.tuning ?? '' }))
+    if (tuning && tuning.length > 12) throw new Error(t('strum.tuning.tooManyStrings'))
     // The app's bpm counts quarters: the same speed in the beat the pattern counts.
     const bpm = countedTempoOf(
         typeof options.play === 'object' ? options.play.bpm : undefined,

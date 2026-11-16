@@ -5,6 +5,7 @@
  * muted strums a percussive chuck; in time (swung when asked), with a count-in of clicks, looped
  * without a gap. Plays through any NotePlayer (the light synthesizer or an app's soundfont).
  */
+import { t } from '../i18n/translate.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import { readChord } from '../theory/chord-name.js'
@@ -460,11 +461,11 @@ export function playStrum(
             : typeof given === 'string'
               ? parseTuning(given)
               : [...given]
-    if (!tuning) throw new Error(`Unknown tuning "${String(given)}"`)
+    if (!tuning) throw new Error(t('strum.tuning.unknownGiven', { tuning: String(given) }))
     // The chord given here takes the place of the pattern's `chord:`.
     const chord = options.chord
     if (typeof chord === 'string' && !readChord(chord))
-        throw new Error(`Didn't recognize the chord "${chord}"`)
+        throw new Error(t('strum.chord.notRecognized', { chord }))
     const fixed = Array.isArray(chord) ? [...(chord as readonly number[])] : null
     const score = scoreOf(
         chord === undefined ? parsed : { ...parsed, chord: fixed ? GIVEN : (chord as string) },

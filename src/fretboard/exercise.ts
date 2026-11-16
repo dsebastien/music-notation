@@ -14,6 +14,7 @@
  *   sounds), its frets are counted from the capo, and `\capo` tells alphaTab, which adds the capo
  *   to every string: the tab shows the frets a player reads and sounds the scale.
  */
+import { t } from '../i18n/translate.js'
 import { chordNoteSet, scaleNoteSet, type NoteSet } from '../theory/note-set.js'
 import { noteOf } from '../theory/pitch.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
@@ -77,7 +78,7 @@ export function parseDirection(text: string): ExerciseDirection {
     const value = text.trim().toLowerCase().replace(/\s+/g, ' ')
     if (value === 'up' || value === 'down') return value
     if (['up-down', 'up down', 'up and down', 'updown', 'both'].includes(value)) return 'both'
-    throw new Error(`exercise: use up, down or up-down, got "${text}"`)
+    throw new Error(t('fretboard.exercise.direction', { text }))
 }
 
 /** Reads `rhythm:`: 8ths, triplets or 16ths. */
@@ -86,7 +87,7 @@ export function parseRhythm(text: string): ExerciseRhythm {
     if (['8ths', '8th', '8', 'eighths', 'eighth'].includes(value)) return '8ths'
     if (['triplets', 'triplet', '8th triplets'].includes(value)) return 'triplets'
     if (['16ths', '16th', '16', 'sixteenths', 'sixteenth'].includes(value)) return '16ths'
-    throw new Error(`rhythm: use 8ths, triplets or 16ths, got "${text}"`)
+    throw new Error(t('fretboard.exercise.rhythm', { text }))
 }
 
 const tempoOf = (tempo: number | undefined) =>
@@ -165,12 +166,12 @@ const NAMED: Record<PositionSystem, string> = { 'box': 'box', 'caged': 'CAGED', 
 function setOf(notes: ExerciseNotes): NoteSet {
     if ('scale' in notes && typeof notes.scale === 'string') {
         const set = scaleNoteSet(notes.scale)
-        if (!set) throw new Error(`Unknown scale "${notes.scale}"`)
+        if (!set) throw new Error(t('fretboard.exercise.scale', { text: notes.scale }))
         return set
     }
     if ('arpeggio' in notes && typeof notes.arpeggio === 'string') {
         const set = chordNoteSet(notes.arpeggio)
-        if (!set) throw new Error(`Unknown chord "${notes.arpeggio}"`)
+        if (!set) throw new Error(t('fretboard.exercise.chord', { text: notes.arpeggio }))
         return set
     }
     return notes as NoteSet
@@ -188,17 +189,13 @@ export function exercisePosition(
     options: { frets?: [number, number]; numbering?: Numbering } = {}
 ): Cell[] {
     if (set.root === null || set.list) {
-        throw new Error(
-            'An exercise needs a scale or an arpeggio: e.g. scale: A minor or arpeggio: Am7'
-        )
+        throw new Error(t('fretboard.exercise.needsSet'))
     }
     const arpeggio = isArpeggio(set)
     const system: PositionSystem =
         at.system === 'box' && (arpeggio || set.members.length !== 5) ? 'caged' : at.system
     if (arpeggio && system === '3nps') {
-        throw new Error(
-            'Arpeggios use CAGED shapes: position 1 to 5, or shape: E, D, C, A or G (not 3nps)'
-        )
+        throw new Error(t('fretboard.exercise.arpeggioCaged'))
     }
     const cells = scalePosition(set, tuning, system, at.n, {
         ...(options.frets ? { within: options.frets } : {}),
@@ -207,7 +204,11 @@ export function exercisePosition(
     if (!cells?.length) {
         const count = positionCount(set, system)
         throw new Error(
-            `${set.title} has ${count} ${NAMED[system]} positions: use position 1 to ${count}`
+            t('fretboard.exercise.positions', {
+                title: set.title,
+                count,
+                system: NAMED[system]
+            })
         )
     }
     return cells
@@ -223,10 +224,11 @@ export function exerciseTab(notes: ExerciseNotes, options: ExerciseOptions = {})
         typeof options.tuning === 'string'
             ? parseTuning(options.tuning)
             : (options.tuning ?? STANDARD_TUNING)
-    if (!tuning || tuning.length < 2) throw new Error(`Unknown tuning "${String(options.tuning)}"`)
+    if (!tuning || tuning.length < 2)
+        throw new Error(t('fretboard.exercise.tuning', { text: String(options.tuning) }))
     const capo = options.capo ?? 0
     if (!Number.isInteger(capo) || capo < 0 || capo > 12) {
-        throw new Error(`capo: use a fret from 1 to 12 (0 for none), got ${String(options.capo)}`)
+        throw new Error(t('fretboard.exercise.capo', { text: String(options.capo) }))
     }
     // From the capo, as if it were the nut: the strings sound `capo` semitones higher.
     const sounding = capo ? capoTuning(tuning, capo) : tuning

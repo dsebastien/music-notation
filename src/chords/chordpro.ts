@@ -4,6 +4,7 @@
  * chords used row (`{diagrams}`). Unknown directives are ignored.
  */
 import { findDefinition, parseDefinition, type ChordDefinition } from './defines.js'
+import { t } from '../i18n/translate.js'
 
 export type { ChordDefinition } from './defines.js'
 
@@ -198,7 +199,10 @@ export function parseChordPro(source: string): Song {
             } else if (key === 'diagrams') {
                 const placement = DIAGRAMS.get(value.toLowerCase())
                 if (placement) song.diagrams = placement
-                else song.warnings.push(`{diagrams: ${value}}: use on, off, top or bottom`)
+                else
+                    song.warnings.push(
+                        t('chords.directive.diagrams', { at: `{diagrams: ${value}}` })
+                    )
             } else if (key === 'instrument') {
                 // Other instruments (ukulele, banjo) aren't drawn: the chart keeps its default
                 // instrument, quietly (notes written for other tools still draw).

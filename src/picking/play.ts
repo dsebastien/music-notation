@@ -4,6 +4,7 @@
  * stressed; in time (swung when asked), over one chord or one chord a bar, with a count-in, a
  * metronome click and a loop (`runPasses`, the timing of strumming patterns and progressions).
  */
+import { t } from '../i18n/translate.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { parseTuning } from '../fretboard/tuning.js'
 import type { VoicingLookup } from '../voicings/index.js'
@@ -242,7 +243,7 @@ export function playPicking(
             : typeof given === 'string'
               ? parseTuning(given)
               : [...given]
-    if (!tuning) throw new Error(`Unknown tuning "${String(given)}"`)
+    if (!tuning) throw new Error(t('strum.tuning.unknownGiven', { tuning: String(given) }))
     const score = pickingScore(parsed, {
         ...(options.chord !== undefined ? { chord: options.chord } : {}),
         ...(options.chords ? { chords: options.chords } : {}),

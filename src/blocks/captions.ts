@@ -1,5 +1,6 @@
 /** The `caption:` key of diagram blocks (#53, #52). */
 import type { BlockSource } from './block-source.js'
+import { t } from '../i18n/translate.js'
 
 type Caption = 'fingering' | 'formula'
 
@@ -17,13 +18,13 @@ export function captionsOf(block: BlockSource, fingering = true): Caption[] {
     const words = text.split(/[\s,]+/).filter(Boolean)
     const known = words.every((w) => w === 'fingering' || w === 'formula')
     if (known && !fingering && words.includes('fingering')) {
-        throw new Error('caption: fingering is for chord blocks: use formula or none here')
+        throw new Error(t('blocks.caption.fingeringChordOnly'))
     }
     if (!known) {
         throw new Error(
             fingering
-                ? `caption: use fingering (the fingering in words), formula (notes and intervals), fingering, formula (both) or none, got "${written}"`
-                : `caption: use formula (notes and intervals) or none, got "${written}"`
+                ? t('blocks.caption.useAll', { written: written ?? '' })
+                : t('blocks.caption.useFormula', { written: written ?? '' })
         )
     }
     return (['fingering', 'formula'] as const).filter((c) => words.includes(c))

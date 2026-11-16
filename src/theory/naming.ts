@@ -8,12 +8,18 @@
  */
 import { parseChord } from './chord-symbol.js'
 import { midiOf } from './pitch.js'
+import { currentLanguage, t } from '../i18n/translate.js'
 
 export type Naming = 'letters' | 'solfege' | 'german'
 export const NAMINGS: readonly Naming[] = ['letters', 'solfege', 'german']
 
-const NAMING_ERROR = 'naming: write letters, solfege or german'
-const DIRECTIVE_ERROR = 'naming: write {naming: letters}, {naming: solfege} or {naming: german}'
+const namingError = () => t('theory.naming.write')
+const directiveError = () =>
+    t('theory.naming.writeDirective', {
+        letters: '{naming: letters}',
+        solfege: '{naming: solfege}',
+        german: '{naming: german}'
+    })
 
 const plain = (text: string) => text.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 
@@ -21,7 +27,7 @@ const plain = (text: string) => text.trim().toLowerCase().normalize('NFD').repla
 export function parseNaming(text: string): Naming {
     const value = plain(text)
     if ((NAMINGS as readonly string[]).includes(value)) return value as Naming
-    throw new Error(NAMING_ERROR)
+    throw new Error(namingError())
 }
 
 /** A naming given by an app (any value): a valid one, else null. */
@@ -295,7 +301,7 @@ export function lettersInBlock(language: string, text: string): BlockReading {
         else {
             const naming = namingOf(own[1]!)
             if (naming) result.naming = naming
-            else result.warning = DIRECTIVE_ERROR
+            else result.warning = directiveError()
         }
     }
     const naming = result.naming ?? 'letters'
@@ -472,14 +478,22 @@ export function shownText(text: string, naming: Naming): string {
         .map((part, i) => {
             if (!/^[A-G]/.test(part)) return part
             const next = word(i, 1)
-            if (next === 'shape') return part
+            // A CAGED shape keeps its letter: "E shape", "forme E".
+            if (next === 'shape' || word(i, -1) === 'forme') return part
             const octave = OCTAVE.exec(part)
             if (octave) {
                 const amongNotes = [word(i, -1), next].some((w) => w !== null && OCTAVE.test(w))
                 if (amongNotes || !/^[5679]$/.test(octave[2]!))
                     return `${noteInNaming(octave[1]!, naming)}${octave[2]}`
             }
-            if (part === 'A' && next && /^[a-z]/.test(next) && !AFTER_A_NOTE.has(next)) return part
+            if (
+                part === 'A' &&
+                currentLanguage() === 'en' &&
+                next &&
+                /^[a-z]/.test(next) &&
+                !AFTER_A_NOTE.has(next)
+            )
+                return part
             if (parseChord(part)) return chordInNaming(part, naming)
             // Two chords of one cell (D♯m/E♭m).
             const both = part.split('/')

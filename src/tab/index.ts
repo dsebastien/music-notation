@@ -7,6 +7,8 @@
  */
 import type * as AT from '@coderline/alphatab'
 import { html } from '../render/dom.js'
+import { languageOf, type Language } from '../i18n/language.js'
+import { t, translator, translatorFor, withLanguage, type Translator } from '../i18n/translate.js'
 import { textTabToAlphaTex } from '../convert/text-tab.js'
 import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/player.js'
 import { chooseEngine, engineOf, type Engine } from '../playback/engine.js'
@@ -67,7 +69,8 @@ async function loadSounds(
     doc: Document,
     assets: TabAssets,
     sounds: Sounds,
-    add = false
+    add = false,
+    tr: Translator = translator()
 ): Promise<'instruments' | 'whole'> {
     const win = doc.defaultView
     const made = local(doc)
@@ -82,7 +85,7 @@ async function loadSounds(
             } catch {
                 files = null
             }
-            if (!files) throw new Error(`Couldn't load the soundfont (${assets.soundFont})`)
+            if (!files) throw new Error(tr('tab.sound.loadFailed', { url: assets.soundFont }))
         } else files = [assets.soundFont]
     }
     const all = files
@@ -142,6 +145,12 @@ export interface TabOptions {
     player?: boolean
     /** Called once alphaTab's API exists (before the score is drawn). */
     onApi?: (api: AT.AlphaTabApi) => void
+    /**
+     * The language of the bar's texts and of the messages the block shows (#136): `'en'` (the
+     * default) or `'fr'`; `'fr-BE'` and the like read as French, anything else as English. Read
+     * when the block is drawn. The block's syntax and alphaTab's own messages stay as they are.
+     */
+    language?: Language | (string & {})
     /**
      * The Tab / Score / Both control in the player bar (default true; Music Practice #83): a click
      * draws the block again in that view, without changing its text. Shown when the score has a
@@ -241,7 +250,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
         if (key === 'staves') {
             const v = value.toLowerCase()
             if (v !== 'tab' && v !== 'score' && v !== 'both') {
-                throw new Error(`staves: use tab, score or both, got "${value}"`)
+                throw new Error(t('tab.source.staves', { value }))
             }
             out.staves = v
             out.stavesWritten = true
@@ -255,18 +264,18 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
         } else if (key === 'engine') {
             const engine = engineOf(value)
             if (!engine) {
-                throw new Error(`engine: use generaluser, sonivox or light, got "${value}"`)
+                throw new Error(t('playback.engine.invalid', { value }))
             }
             out.engine = engine
         } else if (key === 'layout') {
             const v = value.toLowerCase()
             if (v !== 'page' && v !== 'line') {
-                throw new Error(`layout: use page or line, got "${value}"`)
+                throw new Error(t('tab.source.layout', { value }))
             }
             out.layout = v
         } else if (key === 'names') {
             const names = namesOf(value)
-            if (names === null) throw new Error(`names: use on or off, got "${value}"`)
+            if (names === null) throw new Error(t('tab.source.names', { value }))
             out.names = names
         } else {
             const tracks = value
@@ -274,7 +283,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
                 .filter(Boolean)
                 .map(Number)
             if (!tracks.length || tracks.some((t) => !Number.isInteger(t) || t < 1)) {
-                throw new Error(`tracks: use track numbers from 1, got "${value}"`)
+                throw new Error(t('tab.source.tracks', { value }))
             }
             out.tracks = tracks
         }
@@ -283,8 +292,7 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
     out.texLine = i
     // Only the end is trimmed: columns in alphaTab's messages stay right.
     out.tex = lines.slice(i).join('\n').trimEnd()
-    if (!out.file && !out.tex)
-        throw new Error('Write the music in alphaTex, or give a file: [[Song.gp]]')
+    if (!out.file && !out.tex) throw new Error(t('tab.source.empty', { example: '[[Song.gp]]' }))
     // A tab pasted from the web (e|---0---|) isn't alphaTex: drawn from its conversion (#71).
     const converted = out.file ? null : textTabToAlphaTex(out.tex)
     if (converted !== null) {
@@ -298,7 +306,24 @@ export function parseTabSource(language: 'tab' | 'score', source: string): TabSo
  * alphaTab's message for a mistake, with the first diagnostic's place in the block when known;
  * no place for alphaTex the block doesn't show (`lineOffset` null: a converted text tab).
  */
-function messageOf(error: unknown, lineOffset: number | null): string {
+function messageOf(error: unknown, lineOffset: number | null, tr: Translator): string {
+    return diagnosis(error, lineOffset, tr).message
+}
+
+/** Where in the block a mistake is: the same numbers the message shows, whatever its language. */
+export interface TabErrorPlace {
+    /** The block's line, from 1. */
+    line?: number
+    /** The column, as the message shows it. */
+    column?: number
+}
+
+/** The message of a mistake and its place (none when the message shows none). */
+function diagnosis(
+    error: unknown,
+    lineOffset: number | null,
+    tr: Translator
+): { message: string } & TabErrorPlace {
     const cause = (error as { cause?: unknown } | null)?.cause ?? error
     for (const kind of ['lexerDiagnostics', 'parserDiagnostics', 'semanticDiagnostics']) {
         const items = (cause as Record<string, { items?: unknown } | undefined> | null)?.[kind]
@@ -312,14 +337,19 @@ function messageOf(error: unknown, lineOffset: number | null): string {
             }[]
         ).find((d) => d.severity === 2 && d.message)
         if (first) {
-            const at =
-                first.start && lineOffset !== null
-                    ? `line ${first.start.line + lineOffset}, column ${first.start.col}: `
-                    : ''
-            return `${at}${first.message}`
+            if (first.start && lineOffset !== null) {
+                const line = first.start.line + lineOffset
+                const column = first.start.col
+                return {
+                    message: `${tr('tab.error.at', { line, column })}${first.message}`,
+                    line,
+                    column
+                }
+            }
+            return { message: first.message! }
         }
     }
-    return error instanceof Error ? error.message : String(error)
+    return { message: error instanceof Error ? error.message : String(error) }
 }
 
 /** The staves alphaTab can draw for a staff (the part of `AT.model.Staff` read and set here). */
@@ -482,7 +512,7 @@ const local = (doc: Document) => {
 export interface TabResult {
     el: HTMLElement
     /** Resolves once drawn (or failed, or removed), with the message shown when it failed. */
-    ready: Promise<{ ok: boolean; error: string | null }>
+    ready: Promise<{ ok: boolean; error: string | null } & TabErrorPlace>
     /** The alphaTab API, for exports and playback. */
     api: AT.AlphaTabApi | null
     /**
@@ -518,7 +548,9 @@ function playerBar(
     speed: () => number
     destroy: () => void
 } {
-    const bar = playBar(doc, 'mn-tab-bar', 'Playback')
+    // Kept: the Play button's title changes with the player's state, after the draw.
+    const tr = translator()
+    const bar = playBar(doc, 'mn-tab-bar', tr('playback.bar'))
     const state = { loop: false, metronome: false, countIn: false, speed: 1 }
     const level = () => volumeOf(volume)
     /** Says on the Play button why playback can't happen; the score stays. */
@@ -554,7 +586,7 @@ function playerBar(
             })
             api.updateSettings()
             const sounds = api.score ? soundsOfScore(api.score) : { programs: [], drums: false }
-            loadSounds(api, doc, assets, sounds).then(
+            loadSounds(api, doc, assets, sounds, false, tr).then(
                 () => {
                     loaded = true
                     settle()
@@ -581,7 +613,7 @@ function playerBar(
     const live = (apply: () => void) => {
         if (api.player) apply()
     }
-    const play = iconButton(doc, 'mn-play-toggle', 'Play', 'play')
+    const play = iconButton(doc, 'mn-play-toggle', tr('playback.play'), 'play')
     play.addEventListener('click', () => {
         void start().then((ok) => {
             if (ok) api.playPause()
@@ -589,10 +621,10 @@ function playerBar(
     })
     cant = (message) => {
         play.disabled = true
-        play.title = `Can't play: ${message}`
+        play.title = tr('tab.player.cantPlay', { message })
         play.setAttribute('aria-label', play.title)
     }
-    const stop = iconButton(doc, 'mn-tab-stop', 'Stop', 'stop')
+    const stop = iconButton(doc, 'mn-tab-stop', tr('playback.stop'), 'stop')
     stop.addEventListener('click', () => live(() => api.stop()))
     const toggles = () =>
         live(() => {
@@ -600,18 +632,32 @@ function playerBar(
             api.metronomeVolume = state.metronome ? 1 : 0
             api.countInVolume = state.countIn ? 1 : 0
         })
-    const loop = pressedButton(doc, 'mn-tab-loop', 'Loop', 'loop', false, (on) => {
+    const loop = pressedButton(doc, 'mn-tab-loop', tr('playback.loop'), 'loop', false, (on) => {
         state.loop = on
         toggles()
     })
-    const metronome = pressedButton(doc, 'mn-tab-click', 'Metronome', 'click', false, (on) => {
-        state.metronome = on
-        toggles()
-    })
-    const countIn = pressedButton(doc, 'mn-tab-count', 'Count-in', 'count', false, (on) => {
-        state.countIn = on
-        toggles()
-    })
+    const metronome = pressedButton(
+        doc,
+        'mn-tab-click',
+        tr('tab.player.metronome'),
+        'click',
+        false,
+        (on) => {
+            state.metronome = on
+            toggles()
+        }
+    )
+    const countIn = pressedButton(
+        doc,
+        'mn-tab-count',
+        tr('playback.countIn'),
+        'count',
+        false,
+        (on) => {
+            state.countIn = on
+            toggles()
+        }
+    )
     // The tempo where the music is (#114): the score's, then each tempo change as it plays.
     let tempoNow: number | null = api.score?.tempo ?? null
     const speed = tempoControl(doc, {
@@ -635,7 +681,7 @@ function playerBar(
         // PlayerState.Playing (the module's enum, compared by value).
         const playing = Number(e.state) === Number(alphaTab.synth.PlayerState.Playing)
         play.replaceChildren(icon(doc, playing ? 'pause' : 'play'))
-        play.title = playing ? 'Pause' : 'Play'
+        play.title = playing ? tr('tab.player.pause') : tr('playback.play')
         play.setAttribute('aria-label', play.title)
     })
     api.playerPositionChanged.on((e) => {
@@ -671,10 +717,12 @@ function hasTablature(score: { tracks: { staves: StaffView[] }[] }, tracks: numb
     )
 }
 
-const VIEWS: { staves: Staves; label: string; what: string }[] = [
-    { staves: 'tab', label: 'Tab', what: 'tablature' },
-    { staves: 'score', label: 'Score', what: 'standard notation' },
-    { staves: 'both', label: 'Both', what: 'standard notation and tablature' }
+type ViewLabel = 'tab.view.tab' | 'tab.view.score' | 'tab.view.both'
+type ViewWhat = 'tab.view.whatTab' | 'tab.view.whatScore' | 'tab.view.whatBoth'
+const VIEWS: { staves: Staves; label: ViewLabel; what: ViewWhat }[] = [
+    { staves: 'tab', label: 'tab.view.tab', what: 'tab.view.whatTab' },
+    { staves: 'score', label: 'tab.view.score', what: 'tab.view.whatScore' },
+    { staves: 'both', label: 'tab.view.both', what: 'tab.view.whatBoth' }
 ]
 
 /**
@@ -689,22 +737,23 @@ function viewControl(
     choose: (staves: Staves) => void,
     keep?: (staves: Staves) => void
 ): HTMLElement {
+    // Kept: the Keep button's title is written again at each click, after the draw.
+    const tr = translator()
     const group = html(doc, 'span', 'mn-tab-views')
     group.setAttribute('role', 'group')
-    group.setAttribute('aria-label', 'View')
+    group.setAttribute('aria-label', tr('tab.view.group'))
     let current = own.staves
-    const keepButton = keep ? html(doc, 'button', 'mn-tab-keep', 'Keep this view') : null
+    const keepButton = keep ? html(doc, 'button', 'mn-tab-keep', tr('tab.view.keep')) : null
     const buttons = VIEWS.map(({ staves, label, what }) => {
-        const b = html(doc, 'button', 'mn-tab-view', label)
+        const b = html(doc, 'button', 'mn-tab-view', tr(label))
         b.type = 'button'
         b.dataset['staves'] = staves
-        const mine =
+        b.title =
             staves !== own.staves
-                ? ''
+                ? tr('tab.view.drawAs', { what: tr(what) })
                 : own.written
-                  ? ` (this block's staves: line)`
-                  : ' (the default: the block has no staves: line)'
-        b.title = `Draw as ${what}${mine}`
+                  ? tr('tab.view.drawAsWritten', { what: tr(what) })
+                  : tr('tab.view.drawAsDefault', { what: tr(what) })
         b.addEventListener('click', () => {
             if (staves === current) return
             current = staves
@@ -722,7 +771,7 @@ function viewControl(
         }
         if (keepButton) {
             keepButton.hidden = current === own.staves
-            keepButton.title = `Write staves: ${current} at the top of the block`
+            keepButton.title = tr('tab.view.keepTitle', { staves: current })
         }
     }
     if (keepButton && keep) {
@@ -746,6 +795,9 @@ export function renderTab(
     options: TabOptions
 ): TabResult {
     const doc = host.ownerDocument
+    // The block's language (the API's default is English), kept for what runs after the draw.
+    const lang: Language = languageOf(options.language) ?? 'en'
+    const tr = translatorFor(lang)
     const el = html(doc, 'div', `mn-block mn-block-${language} mn-tab`)
     host.appendChild(el)
     let api: AT.AlphaTabApi | null = null
@@ -754,18 +806,18 @@ export function renderTab(
     let unbar = (): void => {}
     let gone = false
     let settled = false
-    let settle: (result: { ok: boolean; error: string | null }) => void = () => {}
-    const ready = new Promise<{ ok: boolean; error: string | null }>((resolve) => {
+    let settle: (result: { ok: boolean; error: string | null } & TabErrorPlace) => void = () => {}
+    const ready = new Promise<{ ok: boolean; error: string | null } & TabErrorPlace>((resolve) => {
         settle = (result) => {
             if (settled) return
             settled = true
             resolve(result)
         }
     })
-    const fail = (message: string) => {
+    const fail = (message: string, place: TabErrorPlace = {}) => {
         el.replaceChildren(html(doc, 'div', 'mn-error-message', `${language}: ${message}`))
         el.classList.add('mn-error')
-        settle({ ok: false, error: message })
+        settle({ ok: false, error: message, ...place })
     }
     if (!source.trim()) {
         el.classList.add('mn-empty')
@@ -774,7 +826,7 @@ export function renderTab(
         void (async () => {
             // The caller may still be placing `el` on the page: colors are read once it's there.
             await Promise.resolve()
-            const parsed = parseTabSource(language, source)
+            const parsed = withLanguage(lang, () => parseTabSource(language, source))
             // The block's own view, and the one drawn (the view control changes it, #83).
             const own = {
                 staves: parsed.stavesWritten
@@ -858,218 +910,233 @@ export function renderTab(
             })
             hideCredit(current, surface)
             let bar: ReturnType<typeof playerBar> | null = null
-            current.renderFinished.on(() => {
-                if (settled || gone) return
-                if (options.player !== false) {
-                    const wish = parsed.engine ?? engineOf(options.engine)
-                    if (parsed.engine) el.setAttribute('data-mn-engine', parsed.engine)
-                    bar = playerBar(
-                        doc,
-                        current,
-                        at,
-                        engineAssets(assets, wish),
-                        options.volume,
-                        options
-                    )
-                    unbar = bar.destroy
-                    speedOf = bar.speed
-                    el.appendChild(bar.bar)
-                    // Drums and piano have one view only: no control then.
-                    if (options.views !== false && tablature)
+            current.renderFinished.on(() =>
+                withLanguage(lang, () => {
+                    if (settled || gone) return
+                    if (options.player !== false) {
+                        const wish = parsed.engine ?? engineOf(options.engine)
+                        if (parsed.engine) el.setAttribute('data-mn-engine', parsed.engine)
+                        bar = playerBar(
+                            doc,
+                            current,
+                            at,
+                            engineAssets(assets, wish),
+                            options.volume,
+                            options
+                        )
+                        unbar = bar.destroy
+                        speedOf = bar.speed
+                        el.appendChild(bar.bar)
+                        // Drums and piano have one view only: no control then.
+                        if (options.views !== false && tablature)
+                            bar.bar.appendChild(
+                                viewControl(
+                                    doc,
+                                    own,
+                                    (staves) => {
+                                        // Drawn again from the loaded score: the player, its song
+                                        // and soundfont stay (only the staves change, not the sound).
+                                        view = staves
+                                        const score = current.score
+                                        if (gone || !score) return
+                                        const all = score.tracks.flatMap((t) => t.staves)
+                                        all.forEach((staff, i) => Object.assign(staff, written[i]))
+                                        chooseStaves(staves, score)
+                                        current.render()
+                                    },
+                                    options.onKeepView
+                                )
+                            )
+                        // Note names (#112): on and off while reading. The score is drawn again from
+                        // the one loaded, as for the views: the player and its song stay.
                         bar.bar.appendChild(
-                            viewControl(
+                            pressedButton(
                                 doc,
-                                own,
-                                (staves) => {
-                                    // Drawn again from the loaded score: the player, its song
-                                    // and soundfont stay (only the staves change, not the sound).
-                                    view = staves
+                                'mn-tab-names',
+                                tr('tab.names'),
+                                'names',
+                                named,
+                                (on) => {
+                                    named = on
                                     const score = current.score
                                     if (gone || !score) return
-                                    const all = score.tracks.flatMap((t) => t.staves)
-                                    all.forEach((staff, i) => Object.assign(staff, written[i]))
-                                    chooseStaves(staves, score)
+                                    unname?.()
+                                    unname = on ? nameNotes(score, naming) : null
                                     current.render()
-                                },
-                                options.onKeepView
+                                }
                             )
                         )
-                    // Note names (#112): on and off while reading. The score is drawn again from
-                    // the one loaded, as for the views: the player and its song stay.
-                    bar.bar.appendChild(
-                        pressedButton(doc, 'mn-tab-names', 'Note names', 'names', named, (on) => {
-                            named = on
-                            const score = current.score
-                            if (gone || !score) return
-                            unname?.()
-                            unname = on ? nameNotes(score, naming) : null
-                            current.render()
-                        })
-                    )
-                    // Follow the music (#97). Three cases, one button. In full screen the score
-                    // follows by default: only its own area scrolls there (alphaTab does it).
-                    // On one line (`layout: line`) it follows by default too: only its own area
-                    // scrolls, sideways. Else it is off until the reader asks (the page never
-                    // moves by itself, #89), and then the nearest scroll area or the page moves
-                    // by the smallest step that shows the system that plays (`followScroll`).
-                    let full: FullScreen | null = null
-                    /** Full screen lets the score follow now (not after a scroll by hand there). */
-                    let fullFollows = false
-                    /** The reader's choice in full screen: on unless turned off there. */
-                    let fullWish = true
-                    const inFull = () => full?.active() ?? false
-                    const followButton = iconButton(
-                        doc,
-                        'mn-tab-follow',
-                        'Follow the music',
-                        'follow'
-                    )
-                    const showFollow = () => {
-                        const on = inFull() ? fullWish : follow.on()
-                        const paused = inFull() ? fullWish && !fullFollows : on && !follow.active()
-                        followButton.setAttribute('aria-pressed', String(on))
-                        followButton.classList.toggle('mn-on', on)
-                        followButton.classList.toggle('mn-follow-paused', paused)
-                        followButton.title = paused
-                            ? 'Follow the music (paused while you scroll: Play or click to follow again)'
-                            : 'Follow the music'
-                    }
-                    /** What alphaTab scrolls by itself: its own area only, never the page. */
-                    const applyScroll = () => {
-                        const along = line ? at.ScrollMode.Continuous : at.ScrollMode.OffScreen
-                        const mode = inFull()
-                            ? fullFollows && fullWish
-                                ? along
-                                : at.ScrollMode.Off
-                            : line && follow.active()
-                              ? along
-                              : at.ScrollMode.Off
-                        if (current.settings.player.scrollMode !== mode) {
-                            current.settings.player.scrollMode = mode
+                        // Follow the music (#97). Three cases, one button. In full screen the score
+                        // follows by default: only its own area scrolls there (alphaTab does it).
+                        // On one line (`layout: line`) it follows by default too: only its own area
+                        // scrolls, sideways. Else it is off until the reader asks (the page never
+                        // moves by itself, #89), and then the nearest scroll area or the page moves
+                        // by the smallest step that shows the system that plays (`followScroll`).
+                        let full: FullScreen | null = null
+                        /** Full screen lets the score follow now (not after a scroll by hand there). */
+                        let fullFollows = false
+                        /** The reader's choice in full screen: on unless turned off there. */
+                        let fullWish = true
+                        const inFull = () => full?.active() ?? false
+                        const followButton = iconButton(
+                            doc,
+                            'mn-tab-follow',
+                            tr('tab.follow'),
+                            'follow'
+                        )
+                        const showFollow = () => {
+                            const on = inFull() ? fullWish : follow.on()
+                            const paused = inFull()
+                                ? fullWish && !fullFollows
+                                : on && !follow.active()
+                            followButton.setAttribute('aria-pressed', String(on))
+                            followButton.classList.toggle('mn-on', on)
+                            followButton.classList.toggle('mn-follow-paused', paused)
+                            followButton.title = paused ? tr('tab.followPaused') : tr('tab.follow')
+                        }
+                        /** What alphaTab scrolls by itself: its own area only, never the page. */
+                        const applyScroll = () => {
+                            const along = line ? at.ScrollMode.Continuous : at.ScrollMode.OffScreen
+                            const mode = inFull()
+                                ? fullFollows && fullWish
+                                    ? along
+                                    : at.ScrollMode.Off
+                                : line && follow.active()
+                                  ? along
+                                  : at.ScrollMode.Off
+                            if (current.settings.player.scrollMode !== mode) {
+                                current.settings.player.scrollMode = mode
+                                current.updateSettings()
+                            }
+                            showFollow()
+                        }
+                        const follow = followScroll(el, { on: line, changed: applyScroll })
+                        if (line) {
+                            // Room before the bar that plays, so the cursor isn't on the edge.
+                            current.settings.player.scrollOffsetX = -24
+                            current.settings.player.scrollMode = at.ScrollMode.Continuous
                             current.updateSettings()
                         }
-                        showFollow()
-                    }
-                    const follow = followScroll(el, { on: line, changed: applyScroll })
-                    if (line) {
-                        // Room before the bar that plays, so the cursor isn't on the edge.
-                        current.settings.player.scrollOffsetX = -24
-                        current.settings.player.scrollMode = at.ScrollMode.Continuous
-                        current.updateSettings()
-                    }
-                    followButton.addEventListener('click', () => {
-                        if (!inFull()) return follow.press()
-                        // Paused by a scroll in full screen: follows again. Else on or off there.
-                        if (fullWish && !fullFollows) full?.playing()
-                        else fullWish = !fullWish
-                        applyScroll()
-                    })
-                    current.playerStateChanged.on((e) => {
-                        if (Number(e.state) === Number(at.synth?.PlayerState.Playing))
-                            follow.playing()
-                    })
-                    const shown = bar
-                    current.playerPositionChanged.on(() => {
-                        if (line || inFull() || !follow.active()) return
-                        const cursor = surface.querySelector('.at-cursor-bar')
-                        if (!cursor) return
-                        const { top, bottom } = cursor.getBoundingClientRect()
-                        // The bar stays at the bottom of the view, over the music.
-                        follow.show({ top, bottom }, shown.bar.offsetHeight + 12)
-                    })
-                    showFollow()
-                    bar.bar.appendChild(followButton)
-                    {
-                        const off = unbar
-                        unbar = () => {
-                            follow.destroy()
-                            off()
-                        }
-                    }
-                    if (options.fullScreen !== false) {
-                        // In full screen the score follows the music: only its own area scrolls
-                        // there. Out of it, the page never moves (#89).
-                        // The score uses the screen there: its last line stretched, and larger
-                        // while it fits (a short score stayed small at the left).
-                        let page: { scale: number; fill: number } | null = null
-                        const fit = scoreFit(
-                            (scale, stretch) => {
-                                const display = current.settings.display as
-                                    typeof current.settings.display | undefined
-                                // Nothing to draw again once the block is gone.
-                                if (gone || !display) return
-                                page ??= {
-                                    scale: display.scale,
-                                    fill: display.lastSystemFillThreshold
-                                }
-                                display.scale = stretch ? scale : page.scale
-                                display.lastSystemFillThreshold = stretch ? 0 : page.fill
-                                current.updateSettings()
-                                current.render()
-                            },
-                            () => surface.scrollHeight <= surface.clientHeight + 1
-                        )
-                        const control = fullScreenControl(
-                            doc,
-                            el,
-                            surface,
-                            (on) => {
-                                fullFollows = on
-                                applyScroll()
-                            },
-                            { changed: (on) => (on ? fit.enter() : fit.leave()) }
-                        )
-                        full = control
-                        // Once the drawing is in the page (alphaTab sets its area's size last).
-                        current.postRenderFinished.on(() => {
-                            // alphaTab 1.9.0 gives its drawing area the wrong height at a scale
-                            // above 1 (half of it at 2), and the area hides the rest: it gets the
-                            // height of its parts.
-                            const area = surface.querySelector<HTMLElement>('.at-surface')
-                            if (area && control.active()) {
-                                const bottom = Math.max(
-                                    0,
-                                    ...[...area.children].map((part) => {
-                                        const p = part as HTMLElement
-                                        return p.offsetTop + p.offsetHeight
-                                    })
-                                )
-                                if (bottom > area.offsetHeight) area.style.height = `${bottom}px`
-                            }
-                            fit.drawn()
+                        followButton.addEventListener('click', () => {
+                            if (!inFull()) return follow.press()
+                            // Paused by a scroll in full screen: follows again. Else on or off there.
+                            if (fullWish && !fullFollows) full?.playing()
+                            else fullWish = !fullWish
+                            applyScroll()
                         })
                         current.playerStateChanged.on((e) => {
-                            if (Number(e.state) === Number(at.synth.PlayerState.Playing))
-                                control.playing()
+                            if (Number(e.state) === Number(at.synth?.PlayerState.Playing))
+                                follow.playing()
                         })
-                        // Drawn again at its own width after full screen: its height is its own.
-                        current.renderFinished.on(() => control.drawn())
-                        bar.bar.appendChild(control.button)
-                        const off = unbar
-                        unbar = () => {
-                            control.destroy()
-                            off()
+                        const shown = bar
+                        current.playerPositionChanged.on(() => {
+                            if (line || inFull() || !follow.active()) return
+                            const cursor = surface.querySelector('.at-cursor-bar')
+                            if (!cursor) return
+                            const { top, bottom } = cursor.getBoundingClientRect()
+                            // The bar stays at the bottom of the view, over the music.
+                            follow.show({ top, bottom }, shown.bar.offsetHeight + 12)
+                        })
+                        showFollow()
+                        bar.bar.appendChild(followButton)
+                        {
+                            const off = unbar
+                            unbar = () => {
+                                follow.destroy()
+                                off()
+                            }
                         }
+                        if (options.fullScreen !== false) {
+                            // In full screen the score follows the music: only its own area scrolls
+                            // there. Out of it, the page never moves (#89).
+                            // The score uses the screen there: its last line stretched, and larger
+                            // while it fits (a short score stayed small at the left).
+                            let page: { scale: number; fill: number } | null = null
+                            const fit = scoreFit(
+                                (scale, stretch) => {
+                                    const display = current.settings.display as
+                                        typeof current.settings.display | undefined
+                                    // Nothing to draw again once the block is gone.
+                                    if (gone || !display) return
+                                    page ??= {
+                                        scale: display.scale,
+                                        fill: display.lastSystemFillThreshold
+                                    }
+                                    display.scale = stretch ? scale : page.scale
+                                    display.lastSystemFillThreshold = stretch ? 0 : page.fill
+                                    current.updateSettings()
+                                    current.render()
+                                },
+                                () => surface.scrollHeight <= surface.clientHeight + 1
+                            )
+                            const control = fullScreenControl(
+                                doc,
+                                el,
+                                surface,
+                                (on) => {
+                                    fullFollows = on
+                                    applyScroll()
+                                },
+                                { changed: (on) => (on ? fit.enter() : fit.leave()) }
+                            )
+                            full = control
+                            // Once the drawing is in the page (alphaTab sets its area's size last).
+                            current.postRenderFinished.on(() => {
+                                // alphaTab 1.9.0 gives its drawing area the wrong height at a scale
+                                // above 1 (half of it at 2), and the area hides the rest: it gets the
+                                // height of its parts.
+                                const area = surface.querySelector<HTMLElement>('.at-surface')
+                                if (area && control.active()) {
+                                    const bottom = Math.max(
+                                        0,
+                                        ...[...area.children].map((part) => {
+                                            const p = part as HTMLElement
+                                            return p.offsetTop + p.offsetHeight
+                                        })
+                                    )
+                                    if (bottom > area.offsetHeight)
+                                        area.style.height = `${bottom}px`
+                                }
+                                fit.drawn()
+                            })
+                            current.playerStateChanged.on((e) => {
+                                if (Number(e.state) === Number(at.synth.PlayerState.Playing))
+                                    control.playing()
+                            })
+                            // Drawn again at its own width after full screen: its height is its own.
+                            current.renderFinished.on(() => control.drawn())
+                            bar.bar.appendChild(control.button)
+                            const off = unbar
+                            unbar = () => {
+                                control.destroy()
+                                off()
+                            }
+                        }
+                        // Touch screens have no hover: a tap on the score shows the bar.
+                        el.addEventListener('pointerdown', (event) => {
+                            if (
+                                event.pointerType !== 'touch' ||
+                                bar?.bar.contains(event.target as Node)
+                            )
+                                return
+                            el.classList.toggle('mn-play-open')
+                        })
                     }
-                    // Touch screens have no hover: a tap on the score shows the bar.
-                    el.addEventListener('pointerdown', (event) => {
-                        if (
-                            event.pointerType !== 'touch' ||
-                            bar?.bar.contains(event.target as Node)
-                        )
-                            return
-                        el.classList.toggle('mn-play-open')
-                    })
-                }
-                settle({ ok: true, error: null })
-            })
+                    settle({ ok: true, error: null })
+                })
+            )
             current.error.on((e: Error) => {
-                const message = parsed.fromText
-                    ? `Couldn't draw this text tab: ${messageOf(e, null)}`
-                    : messageOf(e, parsed.texLine)
+                const found = parsed.fromText ? null : diagnosis(e, parsed.texLine, tr)
+                const message = found
+                    ? found.message
+                    : tr('tab.error.textTab', { message: messageOf(e, null, tr) })
+                const place: TabErrorPlace = {
+                    ...(found?.line !== undefined ? { line: found.line } : {}),
+                    ...(found?.column !== undefined ? { column: found.column } : {})
+                }
                 // Drawn already: only playback failed (the soundfont, the audio); the score stays.
                 if (settled) bar?.failed(message)
-                else fail(message)
+                else fail(message, place)
             })
             // All tracks unless the block names some.
             const tracks = parsed.tracks?.map((t) => t - 1)
@@ -1079,17 +1146,17 @@ export function renderTab(
                     bytes = options.resolveFile ? await options.resolveFile(parsed.file) : null
                 } catch (e) {
                     throw new Error(
-                        `Couldn't read "${parsed.file}": ${e instanceof Error ? e.message : String(e)}`,
+                        tr('tab.error.fileRead', {
+                            file: parsed.file,
+                            message: e instanceof Error ? e.message : String(e)
+                        }),
                         { cause: e }
                     )
                 }
                 if (gone) return
-                if (!bytes) throw new Error(`Couldn't find the file "${parsed.file}"`)
+                if (!bytes) throw new Error(tr('tab.error.fileMissing', { file: parsed.file }))
                 const loaded = current.load(made.bytes(bytes), tracks)
-                if (!loaded)
-                    throw new Error(
-                        `Couldn't read "${parsed.file}": not a score file alphaTab knows`
-                    )
+                if (!loaded) throw new Error(tr('tab.error.fileUnknown', { file: parsed.file }))
             } else {
                 current.tex(parsed.tex, tracks ?? 'all')
             }
