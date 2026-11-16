@@ -431,6 +431,14 @@
     position: relative;
 }
 
+/* A block scrolls sideways when a row of diagrams is wider than it (`.mn-block`), which makes it
+   the scroll box of its bar: the bar then never stays at the bottom of the screen (#122). A tab
+   or a score is drawn at the block's width, so nothing of it scrolls there: the page, or the
+   app's pane, is the scroll box of its bar. */
+.mn-block.mn-tab {
+    overflow: visible;
+}
+
 .mn-tab .mn-play.mn-play-static.mn-tab-bar {
     bottom: 6px;
 }
