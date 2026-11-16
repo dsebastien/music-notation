@@ -1057,9 +1057,25 @@ The volume is not on the bar. It is a setting of the app: in Music Practice, Set
 
 Choosing the other sound also stops what is playing, then redraws every diagram of the block for that instrument, with the same notes. A piano chord becomes a guitar chord diagram you can play, the easiest grip of that chord (C is x32010), with the same labels; a scale or a list becomes a fretboard. A title's "right hand" or "left hand" is dropped on guitar. A guitar chord or a fretboard becomes a keyboard with those exact keys. A keyboard becomes a fretboard, frets 0 to 12 (up to 24 for high notes); notes below the low E or past fret 24 are left out. The title and the root come along, and so do note, degree and interval labels; finger numbers turn into note names. Choose the diagram's own instrument to get its drawing back. A click on a note plays it on either drawing.
 
-Each dot and circle can be clicked anywhere in its string's lane, a little above and below it, so you don't have to hit it exactly. On touch screens, chord diagrams and fretboards are drawn a third larger, so each string is easier to tap. They still fit the page. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments.
+Each dot and circle can be clicked anywhere in its string's lane, a little above and below it, so you don't have to hit it exactly. On touch screens, chord diagrams and fretboards are drawn a third larger, so each string is easier to tap. They still fit the page. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments. A block can ask for another engine: see [sound engine](#sound-engine).
 
 While it plays, each note lights up on the drawing when you hear it: the dot, the key, or the string's mark. A strummed chord lights its strings from the low one up. A clicked note lights only the dot or key you clicked. Stop or a new sound turns every light off.
+
+## Sound engine
+
+`engine: light` asks for the engine that plays the block: `generaluser` (GeneralUser GS samples), `sonivox` (alphaTab's small General MIDI bank) or `light` (the light synthesizer). Hear them side by side on [Sounds](sounds.md).
+
+```text
+Am
+engine: light
+```
+
+The line works in `chord`, `keyboard`, `fretboard`, `strum`, `picking`, `progression` and `circle` blocks, and at the top of `tab` and `score` blocks. In a chart, write it as a directive: `{engine: light}`. A wrong value shows `engine: use generaluser, sonivox or light, got "loud"`.
+
+It's a wish. When the page or the app can't give that engine, the next one plays, in the order `generaluser`, `sonivox`, `light`, and nothing breaks: the note stays portable. The block's wish comes before the page's or the app's choice. Use it for a demo, or to compare sounds.
+
+- Tabs and scores can't play through the light synthesizer. With `engine: light`, they play the best sound there is: `generaluser` when the page has the instrument files, else `sonivox`.
+- On a web page, `sonivox` needs alphaTab, which only pages with a `tab` or `score` block load. A diagram with `engine: sonivox` on a page without one falls back.
 
 ## Tabs and scores
 
@@ -1096,6 +1112,7 @@ staves: both
 | `staves` | `tab`, `score` or `both`. `tab` blocks show tablature and `score` blocks notation by default.             |
 | `file`   | A Guitar Pro (3–8), MusicXML or Capella file instead of alphaTex: `file: [[Song.gp]]` (the app finds it). |
 | `tracks` | The tracks to show, from 1: `tracks: 1 3`.                                                                |
+| `engine` | The sound engine you wish for: `generaluser`, `sonivox` or `light`. See [sound engine](#sound-engine).    |
 
 These keys go on the first lines, and the alphaTex follows. Drums have no tablature: in a `tab` block, drum tracks (`\instrument percussion`, or drums in a file) and other tracks without strings show notation, and stringed tracks keep tablature only. `staves: both` adds tablature under the notation of stringed tracks. Under the music, a player bar: play / pause, stop, loop, metronome, count-in, the tempo, the time, the view: **Tab**, **Score** or **Both** (when a track has tablature), and **Full screen**. The view drawn is lit; a click draws the music again in another view, without changing the block (write `staves:` to keep it; the Music Practice plugin has **Keep this view** to write it). The tempo shows the BPM the music plays at, with the speed in percent next to it, dim ("− 60 BPM + · 71 %"): − and + step by 1 BPM, you can type a number (Enter) or step with the Up and Down arrow keys, the unit button switches to percent (− and + then step by 5%), and a click on the dim value goes back to 100%. Its range is 25 to 150% of the written tempo. When the score changes tempo, the BPM follows the bar that plays; a score without a tempo shows percent only. While the music plays, a line follows the beat and the notes that sound light up, in the player bar's accent color. The sound loads at the first Play, so a page full of tabs stays light. If it can't load, the music stays and Play says why. A mistake in the alphaTex shows its line and column. alphaTab plays every note forte when no dynamic is written; that "f" isn't drawn unless the music has a dynamic (`{dy p}`, or `{dy f}` to show the forte).
 
@@ -1144,7 +1161,7 @@ Supported:
 
 Other directives are ignored.
 
-With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. The chord that plays lights up in the lyrics.
+With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. `{engine: light}` asks for a [sound engine](#sound-engine). The chord that plays lights up in the lyrics.
 
 ### How long each chord lasts
 

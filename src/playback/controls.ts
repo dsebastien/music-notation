@@ -143,6 +143,8 @@ export function playerFor(win: Window, options: PlayOptions, el?: Element | null
     if (engines) {
         const chosen = chooseEngine(engineWish(el) ?? engineOf(options.engine), (engine) => {
             const given = engines[engine]
+            // The light synthesizer is the library's own: there even when the host names none.
+            if (given === undefined && engine === 'light') return lightFor(win)
             try {
                 return typeof given === 'function' ? given(win) : given
             } catch {

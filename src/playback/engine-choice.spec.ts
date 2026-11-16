@@ -78,6 +78,17 @@ describe('the engine a block plays through (#124)', () => {
         expect(played).toEqual(['light', 'sonivox'])
     })
 
+    it("the light synthesizer is the library's own: a wish for it needs nothing from the host", () => {
+        const { played, engines } = hostWith(['generaluser', 'sonivox'])
+        const h = host()
+        renderBlock('chord', 'engine: light\nA x02220', h, { play: { engines } })
+        play(h)
+        const k = host()
+        renderBlock('chord', 'A x02220', k, { play: { engines, engine: 'light' } })
+        play(k)
+        expect(played).toEqual([])
+    })
+
     it('without any engine of the host, the light synthesizer plays (no error)', () => {
         const h = host()
         renderBlock('chord', 'A x02220', h, { play: { engines: {} } })
