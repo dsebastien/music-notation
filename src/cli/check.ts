@@ -164,13 +164,20 @@ async function walk(dir: string): Promise<string[]> {
 
 const isMarkdown = (path: string) => /\.(md|markdown)$/i.test(path)
 
-/** The files an argument names: a file, a folder (its Markdown files), or a glob. */
+/** A path with `/` between its parts on every system (Node reads it on Windows too, #123). */
+const slashed = (path: string) => path.replace(/\\/g, '/')
+
+/**
+ * The files an argument names: a file, a folder (its Markdown files), or a glob. Paths use `/` on
+ * every system, as the report prints them (#123).
+ */
 export async function expand(arg: string, cwd: string): Promise<string[]> {
-    const pattern = arg.replace(/\\/g, '/')
+    const pattern = slashed(arg)
     // A file or folder of that name first: "Song {live}.md" and "Draft [1].md" aren't globs.
     const path = resolve(cwd, arg)
     const info = await stat(path).catch(() => null)
-    if (info) return info.isDirectory() ? (await walk(path)).filter(isMarkdown) : [path]
+    if (info)
+        return (info.isDirectory() ? (await walk(path)).filter(isMarkdown) : [path]).map(slashed)
     if (!GLOB.test(pattern)) throw new Error(`${arg}: no such file or folder`)
     // The folder before the first wildcard is where the search starts.
     const segments = pattern.split('/')
@@ -179,7 +186,7 @@ export async function expand(arg: string, cwd: string): Promise<string[]> {
     const matcher = globToRegExp(segments.slice(first).join('/'))
     const baseInfo = await stat(base).catch(() => null)
     if (!baseInfo?.isDirectory()) return []
-    return (await walk(base)).filter((f) => matcher.test(relative(base, f).replace(/\\/g, '/')))
+    return (await walk(base)).filter((f) => matcher.test(slashed(relative(base, f)))).map(slashed)
 }
 
 export const USAGE = `Usage: music-notation check [options] <files, folders or globs...>

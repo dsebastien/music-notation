@@ -296,6 +296,48 @@
     opacity: 0.85;
 }
 
+/* The tab and score bar's tempo (#114): − 60 BPM + · 70 %. The value is a small field to type in;
+   the unit switches BPM and percent; the other unit, dim, goes back to 100 % on a click. */
+.mn-tempo {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    white-space: nowrap;
+}
+
+.mn-play .mn-tempo button {
+    min-width: 0;
+    padding: 0 4px;
+    font: inherit;
+    line-height: 1.4;
+}
+
+.mn-play .mn-tempo-value {
+    width: 3.5ch;
+    padding: 0 2px;
+    border: 1px solid var(--mn-faint);
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.mn-play .mn-tempo-unit {
+    font-size: 0.9em;
+}
+
+.mn-play .mn-tempo-other {
+    opacity: 0.7;
+    font-variant-numeric: tabular-nums;
+}
+
+.mn-play .mn-tempo-other:disabled {
+    cursor: default;
+    opacity: 0.55;
+}
+
 /* What Copy as image says (#11): "Copied", or what to do when the browser refuses. */
 .mn-play-said {
     font-size: 0.85em;

@@ -12,6 +12,7 @@ import {
     type AlphaTabModule,
     type TabResult
 } from './index.js'
+import type { TempoUnit } from './tempo.js'
 import { alphaTabLoader } from './load.js'
 import { pageInstruments } from './instruments.js'
 import { injectStyles } from '../styles.js'
@@ -46,6 +47,21 @@ const pageVolume = (): number | undefined => {
     if (!play || typeof play !== 'object' || !('volume' in play)) return undefined
     const volume: unknown = play.volume
     return typeof volume === 'number' && Number.isFinite(volume) ? volume : undefined
+}
+
+/**
+ * The page's `play: { tempoUnit }` (#114): the unit the tab bars' tempo shows first, `'bpm'` or
+ * `'percent'`; a reader's switch on a bar is kept for the next tabs drawn on the page.
+ */
+let tempoUnit: TempoUnit | undefined
+const pageTempoUnit = (): TempoUnit | undefined => {
+    if (tempoUnit) return tempoUnit
+    const options: unknown = window.musicNotationOptions
+    if (!options || typeof options !== 'object' || !('play' in options)) return undefined
+    const play: unknown = options.play
+    if (!play || typeof play !== 'object' || !('tempoUnit' in play)) return undefined
+    const unit: unknown = play.tempoUnit
+    return unit === 'bpm' || unit === 'percent' ? unit : undefined
 }
 
 const SELECTOR = 'pre > code.language-tab, pre > code.language-score'
@@ -110,7 +126,9 @@ function renderAllTabs(doc: Document): void {
                     alphaTab,
                     assets,
                     volume: () => pageVolume() ?? DEFAULT_VOLUME,
-                    fullScreen: pageFullScreen(window.musicNotationOptions)
+                    fullScreen: pageFullScreen(window.musicNotationOptions),
+                    ...(pageTempoUnit() ? { tempoUnit: pageTempoUnit()! } : {}),
+                    onTempoUnit: (unit) => (tempoUnit = unit)
                 })
                 drawn.set(pre, { result, source, holder })
                 void result.ready.then(({ ok }) => {

@@ -347,6 +347,11 @@ describe('renderTab', () => {
             'Loop',
             'Metronome',
             'Count-in',
+            // The tempo (#114).
+            'Slower',
+            'Show the speed in percent',
+            'Faster',
+            'Back to 100 %',
             'Tab',
             'Score',
             'Both',
@@ -379,9 +384,12 @@ describe('renderTab', () => {
         const result = renderTab('tab', ':4 3.3', h, { alphaTab: fakeAlphaTab(), assets })
         await result.ready
         expect(result.speed()).toBe(1)
-        const speed = h.querySelector<HTMLInputElement>('.mn-tab-bar input[aria-label="Speed"]')!
+        // The tempo control (#114), in percent here.
+        const unit = h.querySelector<HTMLButtonElement>('.mn-tab-bar .mn-tempo-unit')!
+        if (unit.textContent === 'BPM') unit.click()
+        const speed = h.querySelector<HTMLInputElement>('.mn-tab-bar .mn-tempo-value')!
         speed.value = '125'
-        speed.dispatchEvent(new Event('input'))
+        speed.dispatchEvent(new Event('change'))
         // The player starts at the first Play: alphaTab's playbackSpeed is still 1.
         expect(result.speed()).toBe(1.25)
         result.destroy()
@@ -783,8 +791,12 @@ describe('the tab and score bar looks and works like the other bars (#82)', () =
         expect(iconOf('Count-in')).toContain('mn-play-icon-count')
         expect(iconOf('Metronome')).toContain('mn-play-icon-click')
         expect(iconOf('Loop')).toContain('mn-play-icon-loop')
-        // The speed shows its value, as the other bars' sliders do.
-        expect(bar.querySelector('.mn-play-value')?.textContent).toBe('100 %')
+        // The tempo shows in BPM, with the speed in percent next to it (#114).
+        expect(bar.querySelector<HTMLInputElement>('.mn-tempo-value')?.value).toBe(
+            String(Math.round(result.api!.score!.tempo))
+        )
+        expect(bar.querySelector('.mn-tempo-unit')?.textContent).toBe('BPM')
+        expect(bar.querySelector('.mn-tempo-other')?.textContent).toBe('· 100 %')
         // No volume on the bar: it is the app's.
         expect(bar.querySelector('input[aria-label="Volume"]')).toBeNull()
         result.destroy()
