@@ -4,6 +4,8 @@
  * from the computed style, so the image needs no stylesheet; HTML text becomes SVG text (never a
  * `<foreignObject>`: a canvas that draws one is tainted, and `toBlob` throws).
  */
+import { languageOf } from '../i18n/language.js'
+import { t, withLanguage } from '../i18n/translate.js'
 import { accessibleName, SVG_NS } from '../render/dom.js'
 
 /** The colors of the image: the page's, or the library's for a light or a dark theme. */
@@ -16,6 +18,8 @@ export interface SvgExportOptions {
     background?: string
     /** Room around what is drawn, in CSS pixels; 8 by default. */
     padding?: number
+    /** The language of the image's title (#136): `en` or `fr`; by default the one in progress. */
+    language?: string
 }
 
 export interface PngExportOptions extends Omit<SvgExportOptions, 'background'> {
@@ -552,7 +556,7 @@ export function composeSvg(
         role: 'img'
     })
     const title = node(doc, 'title', {})
-    title.textContent = c.names.length ? c.names.join(', ') : 'Music notation'
+    title.textContent = c.names.length ? c.names.join(', ') : t('export.image.title')
     out.appendChild(title)
     if (background && paints(background))
         out.appendChild(node(doc, 'rect', { x: 0, y: 0, width, height, fill: background }))
@@ -638,7 +642,9 @@ const serialize = (el: Element): string => {
  */
 export function toSvgString(el: Element, options: SvgExportOptions = {}): string {
     return staged(el, options.theme ?? 'inherit', (copy, measure) =>
-        serialize(composeSvg(copy, measure, options.background, options.padding).svg)
+        withLanguage(languageOf(options.language), () =>
+            serialize(composeSvg(copy, measure, options.background, options.padding).svg)
+        )
     )
 }
 
@@ -671,7 +677,9 @@ export async function toPng(el: Element, options: PngExportOptions = {}): Promis
     const theme = options.theme ?? 'inherit'
     const background = options.background ?? backgroundOf(el, theme)
     const { text, width, height } = staged(el, theme, (copy, measure) => {
-        const made = composeSvg(copy, measure, background, options.padding)
+        const made = withLanguage(languageOf(options.language), () =>
+            composeSvg(copy, measure, background, options.padding)
+        )
         return { text: serialize(made.svg), width: made.width, height: made.height }
     })
     const scale = fitScale(width, height, options.scale)

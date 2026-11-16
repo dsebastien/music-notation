@@ -5,6 +5,7 @@
  * bar lines. Each slot is a `g[data-mn-beat]` with its notes (`data-mn-notes`: string:fret:midi),
  * so a page can play it and light the slot that sounds.
  */
+import { t } from '../i18n/translate.js'
 import { shown } from '../theory/naming.js'
 import { svg, svgLabel, svgLine, svgRoot } from '../render/dom.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
@@ -72,7 +73,13 @@ export function renderPicking(
         totalWidth,
         totalHeight,
         'mn-picking',
-        `${title ? `${title}: p` : 'P'}icking pattern ${written}, ${time}, ${pattern.subdivision}${chordsText ? `, over ${chordsText}` : ''}`
+        t(title ? 'picking.name.titled' : 'picking.name', {
+            title: title ?? '',
+            written,
+            time,
+            subdivision: pattern.subdivision,
+            over: chordsText ? t('picking.name.over', { chords: chordsText }) : ''
+        })
     )
     root.setAttribute('data-mn-picking', written)
     root.setAttribute('data-mn-time', time)
@@ -198,10 +205,8 @@ export function renderPickingBlock(doc: Document, source: string, options: Rende
     const first = parsePicking(source, 12)
     const tuning = first.tuning ? parseTuning(first.tuning) : null
     if (first.tuning && !tuning)
-        throw new Error(
-            `Unknown tuning "${first.tuning}": use e.g. tuning: standard, drop d, open g or E2 A2 D3 G3 B3 E4`
-        )
-    if (tuning && tuning.length > 12) throw new Error('At most 12 strings')
+        throw new Error(t('picking.tuning.unknown', { tuning: first.tuning }))
+    if (tuning && tuning.length > 12) throw new Error(t('strum.tuning.tooManyStrings'))
     const pattern = parsePicking(source, tuning?.length ?? 6)
     const bpm = countedTempoOf(
         typeof options.play === 'object' ? options.play.bpm : undefined,

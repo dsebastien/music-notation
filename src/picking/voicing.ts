@@ -4,6 +4,7 @@
  * the thumb on its bass (the lowest string it sounds) or on the alternate bass (the chord's fifth
  * on a string next to the bass), the fingers i m a on strings 3 2 1.
  */
+import { t } from '../i18n/translate.js'
 import { STANDARD_TUNING } from '../chord/guitar.js'
 import { generateVoicings } from '../chord/generate.js'
 import { readChord } from '../theory/chord-name.js'
@@ -33,7 +34,7 @@ export function pickingFrets(
     const standard = sameTuning(tuning, STANDARD_TUNING)
     if (!chord) return standard ? [...E_MINOR] : tuning.map(() => 0)
     const read = readChord(chord)
-    if (!read) throw new Error(`Didn't recognize the chord "${chord}"`)
+    if (!read) throw new Error(t('strum.chord.notRecognized', { chord }))
     if (voicings && standard) {
         try {
             const found = voicings(read.symbol, 0)
@@ -44,7 +45,7 @@ export function pickingFrets(
     }
     const generated = generateVoicings(read.symbol, { tuning: [...tuning] })[0]
     if (generated) return [...generated.frets]
-    throw new Error(`No playable voicing of ${chord} for this tuning`)
+    throw new Error(t('picking.voicing.none', { chord }))
 }
 
 /** Strings the fingers play by default (counted from the highest, 1). */
