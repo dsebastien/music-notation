@@ -1023,7 +1023,7 @@ The texts a block shows or announces can be in French. English is the default, a
 
 What the language changes:
 
-- The bars under the blocks: Play, Pause, Stop, Loop, Count-in, Metronome, the tempo, Copy as image, Full screen, Follow the music and Note names.
+- The bars under the blocks: Play, Pause, Stop, Loop, Count-in, Metronome, the tempo, Copy as image, Full screen, Follow the music, Note names and a chart's Simplify.
 - The view switches (Tab / Score / Both, Guitar / Piano) and the playback choices (On the beats, Once a bar, Arpeggio).
 - The labels of sliders and menus, and their values.
 - What screen readers read: the names of buttons and diagrams ("Play G chord diagram"), the tooltips, and the descriptions of diagrams.
@@ -1297,12 +1297,13 @@ Supported:
 - Sections: verse, chorus, bridge (`{start_of_verse}`, `{sov}`, `{soc}`, `{sob}`…), with an optional label (`{start_of_verse: Verse 2}`); tab and grid sections are shown as written.
 - Comments: `{comment}` (`{c}`), and lines starting with `#` are skipped.
 - `{transpose: 2}`: chords and key move by that many semitones, spelled for the new key. With `{key}`, chords keep their role in the new key: in G moved down to F#, C becomes B and D/F# becomes C#/E#. Without `{key}`, the key the chords are likeliest in is used, so every chord moves the same way: C F G7 Bb up 1 is Db Gb Ab7 Cb.
+- `{simplify}` and `{capo: auto}` (not part of ChordPro, guitar charts only): easier chords and the best capo. See [easier charts](#easier-charts).
 - Long lyric lines wrap on narrow screens.
 - Chord shapes and the chords used row: see below.
 
 Other directives are ignored.
 
-With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. `{engine: light}` asks for a [sound engine](#sound-engine), and `{guitar: nylon}` chooses the [guitar that plays](#which-guitar-plays). The chord that plays lights up in the lyrics.
+With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), under the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. `{engine: light}` asks for a [sound engine](#sound-engine), and `{guitar: nylon}` chooses the [guitar that plays](#which-guitar-plays). The chord that plays lights up in the lyrics. On a guitar chart with at least one chord that has an easier one, the bar also has **Simplify**: see [the Simplify switch](#the-simplify-switch).
 
 ### How long each chord lasts
 
@@ -1356,7 +1357,7 @@ With the bar's strum on **On the beats**, each beat strums the chord that sounds
 - Shapes: a chord's `{define}` first, then the voicing database (the same shape a `chord` block draws for that symbol).
 - Guitar diagrams by default. Piano diagrams with `{instrument: piano}` (not part of ChordPro). Other instruments (`{instrument: ukulele}`) are ignored: the chart draws guitar diagrams.
 - `{transpose}` changes the names in the row. A defined shape with no open string moves with the chord; a shape with open strings is replaced by the database's shape for the new chord. Keyboard keys move with the root.
-- With `{capo: 2}`, guitar diagrams show the shapes you play (the names above the lyrics), with the capo drawn; `{chord}` diagrams too. The chart's top line already says "Capo 2", so a row on top doesn't repeat it; a row at the bottom says it again, since the top line is far away. A piano has no capo: piano diagrams show the chord that sounds, titled "G (sounds A)".
+- With `{capo: 2}`, guitar diagrams show the shapes you play (the names above the lyrics), with the capo drawn; `{chord}` diagrams too. With `{capo: auto}`, they show the shapes for the capo the chart found. The chart's top line already says "Capo 2", so a row on top doesn't repeat it; a row at the bottom says it again, since the top line is far away. A piano has no capo: piano diagrams show the chord that sounds, titled "G (sounds A)".
 - Chords the chart can't draw are listed under the row, with what to write.
 - `N.C.`, `%` and other text in brackets that isn't a chord is skipped.
 
@@ -1374,6 +1375,49 @@ With the bar's strum on **On the beats**, each beat strums the chord that sounds
 `{chord: Am}` draws one chord where it is written: the chart's own `{define}` for it, else the database. `{chord: Bes base-fret 1 frets 1 1 3 3 3 1}` draws that shape without defining it for the rest of the song. As in ChordPro, the name is transposed only when written in brackets: `{chord: [Am]}`.
 
 A `{define}` or `{chord}` with a mistake shows a message at the top of the chart (what to write instead); the rest of the chart still draws. A `{chord}` the chart can't draw (`{chord: Gzz}`) shows what to write where it is. Both count as mistakes for checks.
+
+### Easier charts
+
+Two directives make a guitar chart easier to play: `{simplify}` swaps hard chords for easier ones of the same family, and `{capo: auto}` finds the capo that turns the most chords into open shapes. Neither is part of ChordPro. A piano chart ignores both and is drawn as written: the difficulty the chart measures is a guitar's.
+
+`{simplify}` draws an easier chord where there is one:
+
+```text
+{simplify}
+[Cmaj9]Hello [G5]world [Am7]again [E9]and [F#]end
+```
+
+This draws Cmaj7, G, Am7, E7 and F#. A chord changes only when a plainer chord of its family is easier to play than the chord itself. The family, the nearest first: the chord without its bass (D/F# becomes D), its seventh chord (Cmaj9 becomes Cmaj7, E9 becomes E7), the minor 7th of a half-diminished chord (Bm7b5 becomes Bm7), then its major or minor chord. A chord without a third goes to its major chord (G5 becomes G). Am7, F#, Dsus4 and C/G stay as they are: nothing plainer is easier. "Easier" is the difficulty of the easiest shape the library finds for the chord, the first one `generateVoicings` gives (see [JavaScript API](api.md#renderers-and-theory)).
+
+- `{simplify: yes}` works too, and `{simplify: no}` turns it off. The last one wins. Another value shows a message at the top of the chart: `{simplify: maybe}: use yes or no`.
+- The easier chords are everywhere: above the lyrics, in the chords used row and in what the bar plays.
+- The chart's line under the title says "Easier chords" (in French: "Accords simplifiés"), when at least one chord changed.
+- A chord the song gives a `{define}` keeps its name and its shape: its author gave it that shape.
+- With `{transpose}`, the chord made easier is the one shown: with `{transpose: 2}`, Bbmaj9 shows as Cmaj9, so the chart draws Cmaj7.
+
+`{capo: auto}` says the chords are written as they sound, without a capo, and lets the chart find the capo:
+
+```text
+{capo: auto}
+[Bb]One [Eb]two [F]three [Gm]four
+```
+
+This draws G, C, D and Em, and the chart's line says "Capo 3". From there it's the same as a written `{capo: 3}`: the diagrams show the shapes behind the capo, and the bar plays the chords as they sound. A D E F#m gives G C D Em with a capo on 2. When no capo does better, as for G C D Em, nothing changes.
+
+- The chart tries the frets 0 to 7 and takes the one with the most open shapes. Between two frets with as many, it takes the easier shapes, each fret of the capo counting as half a point of difficulty, so a capo near the nut wins over easier shapes far up the neck. Then the lower fret.
+- A number means what it always meant: with `{capo: 2}`, the chords written are the shapes you play. The last `{capo}` wins.
+
+The two go together: with `{simplify}` and `{capo: auto}`, the capo is found for the easier chords. Both work with `{transpose}`: G C D Em with `{transpose: 2}` sounds A D E F#m, so `{capo: auto}` puts a capo on 2 and draws G C D Em, and the chart's line says "Capo 2" and "Transposed +2". The source never changes: the chart draws a copy of the song with other chord names.
+
+### The Simplify switch
+
+On the bar of a guitar chart, **Simplify** shows the easier chords without changing the source. It's there only when at least one chord of the chart has an easier one.
+
+- A click draws the easier chords above the lyrics and in the chords used row at once, and the switch reads **Simplified**. A second click brings the chords as written back.
+- It stops what plays. What the bar is set to stays: the tempo, the loop, the sound. The next Play plays the chords now shown.
+- A chart with `{simplify}` starts with the switch on: a click shows the chords as written.
+- Nothing is stored and the source doesn't change. A chart drawn again starts as its source says.
+- In French, the switch reads **Simplifier** and **Simplifié**.
 
 ## Strumming patterns
 
