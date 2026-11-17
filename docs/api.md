@@ -1,6 +1,6 @@
 ---
 title: JavaScript API
-nav_order: 7
+nav_order: 8
 ---
 
 # JavaScript API
@@ -179,7 +179,7 @@ await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
 
 ## Styles
 
-`injectStyles(document)` adds the stylesheet once; or ship `@dsebastien/music-notation/music-notation.css`. Colors use CSS variables (`--mn-accent`, `--mn-root`, `--mn-fg`, `--mn-muted`…) that default to Obsidian's theme variables, with fallbacks elsewhere. Override them on `.mn-block`.
+`injectStyles(document)` adds the stylesheet once; or ship `@dsebastien/music-notation/music-notation.css`. Colors use CSS variables (`--mn-accent`, `--mn-root`, `--mn-fg`, `--mn-muted`…) that default to Obsidian's theme variables, with fallbacks elsewhere. To change them, set the theme variables on `:root`, or set the library's own on `.mn-block, .mn-svg, .mn-chart` with a selector stronger than the stylesheet's: each drawing sets them again, so a value on `.mn-block` alone doesn't reach it. See [Websites and apps](websites-and-apps.md#light-and-dark).
 
 On touch screens (`@media (pointer: coarse)`), the stylesheet draws chord diagrams and fretboards a third larger (`zoom: 1.34`), so each string's lane is at least 24 px wide. Keyboards with a pick layer (`data-mn-pick`) are drawn 1.72 times larger, so a black key is at least 24 px wide; keyboards that only play keep their size. `max-width: 100%` keeps them inside the page: on a narrow phone, a wide range shrinks to fit, and a smaller range gives larger keys. It is CSS only, with no inline style, so a strict Content Security Policy doesn't block it.
 

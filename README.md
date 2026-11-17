@@ -224,6 +224,8 @@ Add this to your site's `publish.js`. It loads the bundle only on pages that hav
 
 The bundle renders every block, now and as you navigate, and hides a block's source only once it rendered.
 
+The same bundles work on any other website, and the package in an app: see [Websites and apps](https://dsebastien.github.io/music-notation/websites-and-apps.html).
+
 ## Credits and licenses
 
 MIT. Built on [tonal](https://github.com/tonaljs/tonal) (MIT) for music theory and [chords-db](https://github.com/tombatossals/chords-db) (MIT) for guitar voicings. The `check` command bundles [linkedom](https://github.com/WebReflection/linkedom) (ISC) for the DOM in Node. Tabs and scores use [alphaTab](https://alphatab.net) (MPL-2.0), which the app passes in. The tab bundle loads it from jsDelivr.

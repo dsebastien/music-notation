@@ -5,6 +5,8 @@ nav_order: 6
 
 # Obsidian Publish
 
+For another website, or an app, see [Websites and apps](websites-and-apps.md).
+
 Obsidian Publish shows code blocks as code. To draw them, add this to your site's `publish.js` (create the file at the root of your vault and publish it):
 
 ```js
