@@ -89,4 +89,4 @@ The function gets the block's element, so it can tell the page's own blocks from
 
 - Every block is drawn, including blocks on pages you navigate to later. A block's source is hidden only after it was drawn; a block with a mistake keeps its source and shows what's wrong.
 - Pin `VERSION`: a new version never changes your site until you change it.
-- Custom domains need jsDelivr allowed if your site sets a Content Security Policy.
+- If your site sets a Content Security Policy (on a custom domain), allow jsDelivr (`https://cdn.jsdelivr.net`), and allow inline styles too (`style-src 'unsafe-inline'`): the bundles add the library's stylesheet as a `<style>` element, and when the policy blocks it, the blocks are drawn without their styles. Or link the stylesheet file instead: `publish.js` can add the `<link>` the same way it adds the bundles. See [Websites and apps](websites-and-apps.md#load-the-bundles), which also says what tabs and scores need.
