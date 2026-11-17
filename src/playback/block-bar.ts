@@ -20,6 +20,7 @@ import {
     clamp,
     dataOf,
     lightFor,
+    toned,
     playerFor,
     redrawFor,
     rootOf,
@@ -277,7 +278,7 @@ export function diagramGroup(
         try {
             return run(playerFor(here, options, item.wrap))
         } catch {
-            return run(lightFor(here))
+            return run(toned(lightFor(here), options, item.wrap))
         }
     }
 

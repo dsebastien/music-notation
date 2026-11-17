@@ -17,7 +17,7 @@ import {
 import type { ProgressionSettings } from './progression.js'
 import { strumVoicing } from '../strum/voicing.js'
 import { isCompound, type Stroke } from '../strum/pattern.js'
-import { lightFor, playerFor, type PlayOptions } from './controls.js'
+import { lightFor, playerFor, toned, type PlayOptions } from './controls.js'
 import { choice, icon, playBar, pressedButton, valueSlider, volumeOf } from './bar-parts.js'
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
@@ -106,7 +106,7 @@ export function barPlayer(wrap: Element, win: Window, options: PlayOptions): Not
             try {
                 return chosen.play(events, given)
             } catch {
-                return lightFor(here).play(events, opts)
+                return toned(lightFor(here), options, wrap).play(events, opts)
             }
         }
     }

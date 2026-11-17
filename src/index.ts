@@ -80,6 +80,14 @@ export {
     pageEngine,
     type Engine
 } from './playback/engine.js'
+export {
+    DEFAULT_GUITAR_TONE,
+    GUITAR_PROGRAMS,
+    GUITAR_TONES,
+    guitarToneOf,
+    pageGuitar,
+    type GuitarTone
+} from './playback/guitar-tone.js'
 export { volumeChanged } from './playback/live-volume.js'
 export { attachCopy } from './playback/copy-image.js'
 export {

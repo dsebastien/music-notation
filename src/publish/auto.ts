@@ -61,6 +61,8 @@ function pagePlay(options: unknown): false | PlayOptions {
     if (given === false) return false
     const folder = api.pageInstruments(options)
     const engine = api.pageEngine(options)
+    // The page's guitar (#103): `play: { guitar: 'nylon' }`; a block's `guitar:` line comes first.
+    const guitar = api.pageGuitar(options)
     let sampled: NotePlayer | null = null
     const out: PlayOptions = {
         engines: {
@@ -77,7 +79,8 @@ function pagePlay(options: unknown): false | PlayOptions {
                 window.musicNotationSonivoxPlayer ??
                 (folder ? null : window.musicNotationSoundfontPlayer)
         },
-        ...(engine ? { engine } : {})
+        ...(engine ? { engine } : {}),
+        ...(guitar ? { guitar } : {})
     }
     if (given && typeof given === 'object') {
         const read = (key: string) => {

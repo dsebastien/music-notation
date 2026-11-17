@@ -52,6 +52,7 @@ export const enPlay = {
 
     // playback/engine.ts, tab/index.ts: the `engine:` line
     'playback.engine.invalid': 'engine: use generaluser, sonivox or light, got "{value}"',
+    'playback.guitar.invalid': 'guitar: use steel, nylon, clean or overdrive, got "{value}"',
 
     // tab/index.ts: the lines at the top of a tab or score block
     'tab.source.staves': 'staves: use tab, score or both, got "{value}"',

@@ -24,6 +24,7 @@ import {
 import { midiOf, nameOf } from '../theory/pitch.js'
 import { DEFAULT_STRUM, lightPlayer, type NotePlayer, type PlayKind, type Sound } from './player.js'
 import { chooseEngine, engineOf, engineWish, type Engine } from './engine.js'
+import { guitarToneOf, guitarWish, type GuitarTone } from './guitar-tone.js'
 import { strumBarFor } from './strum-bar.js'
 import { progressionBarFor } from './progression-bar.js'
 import { pickingBarFor } from './picking-bar.js'
@@ -53,6 +54,12 @@ export interface PlayOptions {
     engine?: Engine
     /** Guitar or piano; by default the diagram's (piano for keyboards and piano chords). */
     sound?: Sound
+    /**
+     * Which guitar plays the guitar sound (#103): `steel` (a steel-string acoustic, the default),
+     * `nylon`, `clean` (an electric) or `overdrive`. A function is read at each play, so a setting
+     * changed in the app is heard at the next Play. A block's `guitar:` line comes first.
+     */
+    guitar?: GuitarTone | (() => GuitarTone | null | undefined)
     /**
      * 0 to 1, 0.8 by default. The bars have no volume (#58): it is the app's setting. A function
      * is read at each play (and each pass of a loop), so a setting changed in the app applies at
@@ -146,6 +153,56 @@ export function lightFor(win: Window): NotePlayer {
  * fallback order; the light synthesizer when it has none.
  */
 export function playerFor(win: Window, options: PlayOptions, el?: Element | null): NotePlayer {
+    return toned(enginePlayerFor(win, options, el), options, el)
+}
+
+/**
+ * `player` playing the guitar an element asks for (#103); `player` itself when nothing names a
+ * guitar, so an app that names none gets exactly the player it gave.
+ */
+export function toned(player: NotePlayer, options: PlayOptions, el?: Element | null): NotePlayer {
+    const tone = guitarFor(options, el)
+    return tone ? withGuitar(player, tone) : player
+}
+
+/** The guitar that plays for an element: its block's `guitar:` line, else the app's or page's. */
+export function guitarFor(options: PlayOptions, el?: Element | null): GuitarTone | null {
+    const wish = guitarWish(el)
+    if (wish) return wish
+    try {
+        return guitarToneOf(
+            typeof options.guitar === 'function' ? options.guitar() : options.guitar
+        )
+    } catch {
+        return null
+    }
+}
+
+/** A player's twins that play a guitar: one per player and guitar, so a bar meets the same one. */
+const guitarPlayers = new WeakMap<NotePlayer, Map<GuitarTone, NotePlayer>>()
+
+/** `player`, with `guitar` given to each play that doesn't name one. */
+function withGuitar(player: NotePlayer, guitar: GuitarTone): NotePlayer {
+    let twins = guitarPlayers.get(player)
+    if (!twins) {
+        twins = new Map<GuitarTone, NotePlayer>()
+        guitarPlayers.set(player, twins)
+    }
+    let twin = twins.get(guitar)
+    if (!twin) {
+        twin = {
+            get reportsStart() {
+                return player.reportsStart
+            },
+            play: (events, options) =>
+                player.play(events, options.guitar ? options : { ...options, guitar })
+        }
+        twins.set(guitar, twin)
+    }
+    return twin
+}
+
+function enginePlayerFor(win: Window, options: PlayOptions, el?: Element | null): NotePlayer {
     const engines = options.engines
     if (engines) {
         const chosen = chooseEngine(engineWish(el) ?? engineOf(options.engine), (engine) => {

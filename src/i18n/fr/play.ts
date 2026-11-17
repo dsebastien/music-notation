@@ -52,6 +52,8 @@ export const frPlay = {
 
     // playback/engine.ts, tab/index.ts: the `engine:` line
     'playback.engine.invalid': 'engine: utilisez generaluser, sonivox ou light, reçu « {value} »',
+    'playback.guitar.invalid':
+        'guitar: utilisez steel, nylon, clean ou overdrive, reçu « {value} »',
 
     // tab/index.ts: the lines at the top of a tab or score block
     'tab.source.staves': 'staves: utilisez tab, score ou both, reçu « {value} »',
