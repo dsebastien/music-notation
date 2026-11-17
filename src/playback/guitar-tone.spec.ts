@@ -224,7 +224,10 @@ describe('the light synthesizer plays each guitar (#103)', () => {
         // Never louder than a plain string at its loudest.
         const peak = (wave: Float32Array) => wave.reduce((max, v) => Math.max(max, Math.abs(v)), 0)
         expect(peak(driven)).toBeLessThanOrEqual(peak(plain))
-        expect(peak(driven)).toBeLessThanOrEqual(0.3)
+        expect(peak(driven)).toBeLessThanOrEqual(0.18)
+        // And as loud as a plain string when it starts (within 2 dB), not louder.
+        const start = (wave: Float32Array) => rms(wave, 0, rate / 10)
+        expect(Math.abs(20 * Math.log10(start(driven) / start(plain)))).toBeLessThan(2)
     })
 
     it('without drive a string is the one it always was', () => {
@@ -239,7 +242,7 @@ describe('the light synthesizer plays each guitar (#103)', () => {
             const wave = pluckedString(52, rate, 2, seeded(), { damping })
             return rms(wave, rate, rate + 2000)
         }
-        expect(of(1.75)).toBeLessThan(of(1))
+        expect(of(2.5)).toBeLessThan(of(1))
         expect(of(0.65)).toBeGreaterThan(of(1))
     })
 })

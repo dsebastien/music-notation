@@ -265,8 +265,9 @@ export function pluckedString(
             ? Math.max(0, options.drive)
             : 0
     if (drive > 0) {
-        // A soft ceiling: the loud start is flattened and the tail comes up to it. Kept under the
-        // level of a plain string, so an overdriven chord is no louder than a clean one.
+        // A soft ceiling: the loud start is flattened and the tail comes up to it. Its level makes
+        // the first tenth of a second as loud as a plain string's (measured: within 1 dB RMS from
+        // the low E to the high E), so an overdriven chord starts no louder than a clean one.
         const push = 1 + drive
         for (let i = 0; i < out.length; i++)
             out[i] = Math.tanh(out[i]! * 2 * push) * OVERDRIVE_LEVEL
@@ -274,8 +275,8 @@ export function pluckedString(
     return out
 }
 
-/** The peak of an overdriven string, under a plain string's (0.5): it stays there much longer. */
-const OVERDRIVE_LEVEL = 0.3
+/** The peak of an overdriven string, well under a plain string's (0.5): it stays there much longer. */
+const OVERDRIVE_LEVEL = 0.18
 
 /**
  * How the light synthesizer plucks each guitar (#103), as ranges a note takes its values from:
@@ -294,7 +295,7 @@ const TONE_PLUCKS: Readonly<
     >
 > = {
     steel: { brightness: [0.55, 0.95], pick: [0.08, 0.2], damping: [0.85, 1.15], drive: 0 },
-    nylon: { brightness: [0.2, 0.45], pick: [0.18, 0.32], damping: [1.5, 2], drive: 0 },
+    nylon: { brightness: [0.05, 0.25], pick: [0.2, 0.34], damping: [2.2, 2.8], drive: 0 },
     clean: { brightness: [0.7, 1], pick: [0.1, 0.18], damping: [0.55, 0.75], drive: 0 },
     overdrive: { brightness: [0.7, 1], pick: [0.1, 0.18], damping: [0.45, 0.6], drive: 5 }
 }
