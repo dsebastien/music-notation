@@ -35,10 +35,22 @@ Load them from a script that your pages load (a file of your site, or your page 
 ```
 
 - Each bundle works alone. A site without tabs or scores can leave out the tab bundle.
-- Both bundles add the library's stylesheet to the page, as a `<style>` element. There is no stylesheet to link.
+- Both bundles add the library's stylesheet to the page, as a `<style>` element. You don't have to link a stylesheet, unless your site has a strict Content Security Policy (below).
 - The loader of [Obsidian Publish](publish.md) downloads each bundle only on the pages that have its blocks. It works on any site. It watches `document.body`, so load it with `defer` or at the end of the page.
 - Pin `VERSION`: a release never changes your site until you change it.
 - If your site sets a Content Security Policy, allow `https://cdn.jsdelivr.net`: the bundles come from there, and so do alphaTab and its files for tabs. Also allow inline styles (`style-src 'unsafe-inline'`). When the policy blocks the bundles' `<style>` element, the blocks are drawn without their styles.
+
+To keep inline styles blocked, link the stylesheet file instead: `music-notation.css`, in the same `dist` folder as the bundles. The bundles add no `<style>` element when the page already has an element with the id `music-notation-styles`. Add these lines to the loader, right after the `CDN` line, so they run before the bundles load, and allow `https://cdn.jsdelivr.net` in `style-src`:
+
+```js
+const link = document.createElement('link')
+link.id = 'music-notation-styles'
+link.rel = 'stylesheet'
+link.href = `${CDN}/music-notation.css`
+document.head.appendChild(link)
+```
+
+The stylesheet then comes from the same `VERSION` as the bundles. This covers every block of the main bundle. Tabs and scores still need `'unsafe-inline'`: alphaTab adds styles of its own, its music font among them.
 
 ### What the page must have
 
