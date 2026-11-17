@@ -18,7 +18,8 @@ import type { ProgressionSettings } from './progression.js'
 import { strumVoicing } from '../strum/voicing.js'
 import { isCompound, type Stroke } from '../strum/pattern.js'
 import { lightFor, playerFor, toned, type PlayOptions } from './controls.js'
-import { choice, icon, playBar, pressedButton, valueSlider, volumeOf } from './bar-parts.js'
+import { icon, playBar, pressedButton, valueSlider, volumeOf } from './bar-parts.js'
+import { soundMenu } from './sound-menu.js'
 import type { NoteEvent, NotePlayer, PlayHandle } from './player.js'
 import { followNotes, sawStart, startsReported, START_WAIT } from './follow.js'
 import { handToApp } from './app-bar.js'
@@ -292,15 +293,14 @@ export function timedBarFor(
         ).field
     )
     bar.appendChild(
-        choice(
+        soundMenu(
             doc,
-            'mn-play-sound',
-            tr('playback.sound'),
-            ['guitar', 'piano'] as const,
-            settings.sound,
-            { guitar: tr('playback.guitar'), piano: tr('playback.piano') },
-            (value) => (settings.sound = value === 'piano' ? 'piano' : 'guitar')
-        )
+            tr,
+            options,
+            () => [wrap],
+            () => settings.sound,
+            (value) => (settings.sound = value)
+        ).el
     )
     // The whole block (#11), drawn without the bar.
     if (options.copy !== false)

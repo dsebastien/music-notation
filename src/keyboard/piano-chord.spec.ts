@@ -409,7 +409,7 @@ describe('piano chord blocks', () => {
         const result = renderBlock('chord', 'C\ninstrument: piano\ninversion: 1\noctave: 3', h)
         attachPlayback(result.el)
         const select = h.querySelector('select')!
-        select.value = 'guitar'
+        select.value = 'steel'
         select.dispatchEvent(new Event('change'))
         // A guitar grip of C/E: the third in the bass.
         const grip = h.querySelector('.mn-guitar-chord')!

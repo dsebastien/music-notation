@@ -153,7 +153,7 @@ describe('circle block', () => {
         toggle.click()
         expect(calls[2]!.map((e) => e.midi).slice(0, 8)).toEqual([60, 62, 64, 65, 67, 69, 71, 72])
         const sound = h.querySelector('.mn-play-sound') as HTMLSelectElement
-        sound.value = 'guitar'
+        sound.value = 'steel'
         sound.dispatchEvent(new Event('change'))
         expect(h.querySelector('svg.mn-circle')).not.toBeNull()
         expect(h.querySelector('.mn-fretboard')).toBeNull()

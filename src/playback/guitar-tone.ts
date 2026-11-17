@@ -1,8 +1,9 @@
 /**
  * Which guitar plays the diagrams (#103): a steel-string acoustic (the default), a nylon-string
  * classical guitar, a clean electric or an overdriven electric. The reader's side chooses (a
- * page's or an app's `guitar`); a block may say `guitar:`. It changes the guitar sound only: a
- * piano stays a piano, and tabs and scores keep the instruments their tracks name.
+ * page's or an app's `guitar`); a block may say `guitar:`; the reader may choose another one in a
+ * play bar's Sound menu. It changes the guitar sound only: a piano stays a piano, and tabs and
+ * scores keep the instruments their tracks name.
  */
 
 import { t } from '../i18n/translate.js'
@@ -66,6 +67,22 @@ export function blockGuitar(
 /** The guitar of the block an element is in (`data-mn-guitar`, set from its `guitar:` line). */
 export function guitarWish(el: Element | null | undefined): GuitarTone | null {
     return guitarToneOf(el?.closest('[data-mn-guitar]')?.getAttribute('data-mn-guitar'))
+}
+
+/** Where a play bar keeps the guitar its reader chose in the Sound menu. */
+const CHOICE = 'data-mn-guitar-choice'
+
+/** The guitar a reader chose on a play bar of the block an element is in; null without one. */
+export function guitarChoice(el: Element | null | undefined): GuitarTone | null {
+    return guitarToneOf(el?.closest(`[${CHOICE}]`)?.getAttribute(CHOICE))
+}
+
+/**
+ * Keeps the guitar a reader chose on a play bar: on the block an element is in, so every bar and
+ * diagram of the block plays it, else on the element itself. It lasts as long as the drawing.
+ */
+export function chooseGuitar(el: Element, guitar: GuitarTone): void {
+    ;(el.closest('.mn-block') ?? el).setAttribute(CHOICE, guitar)
 }
 
 /** A page's guitar (`play: { guitar }` in `window.musicNotationOptions`), when it names one. */

@@ -112,7 +112,7 @@ describe('one bar per block, below it (#58)', () => {
                 .map((i) => i.getAttribute('aria-label'))
         ).toEqual(['Strum (ms between strings)'])
         expect(bar.querySelector('input[aria-label="Volume"]')).toBeNull()
-        expect((bar.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('guitar')
+        expect((bar.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('steel')
         h.remove()
     })
 
@@ -386,7 +386,8 @@ describe('play all in turn (#58)', () => {
 describe('the sound switch redraws the whole block', () => {
     const choose = (h: Element, value: 'guitar' | 'piano') => {
         const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
-        select.value = value
+        // The menu lists the four guitars (#103): the steel string is the default one.
+        select.value = value === 'guitar' ? 'steel' : value
         select.dispatchEvent(new Event('change'))
     }
 
