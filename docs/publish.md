@@ -11,7 +11,7 @@ Obsidian Publish shows code blocks as code. To draw them, add this to your site'
 
 ```js
 ;(() => {
-    const VERSION = '0.23.1'
+    const VERSION = '0.24.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     const selector = (languages) => languages.map((l) => `pre > code.language-${l}`).join(', ')
     const BLOCKS = selector([

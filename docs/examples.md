@@ -1101,6 +1101,100 @@ A chart with its chord diagrams on top, two shapes from `{define}` (Cadd9 and Ds
 [Em]One more night, [Dsus4]then [D]home
 {end_of_chorus}</code></pre></div>
 
+## Four guitars
+
+A `guitar:` line chooses the guitar for the whole block, so each block below plays one guitar. See [which guitar plays](blocks.md#which-guitar-plays).
+
+The steel-string acoustic, the default, strumming the four chords of pop in G: the bright sound to compare the other guitars with.
+
+````markdown
+```progression
+I V vi IV
+key: G
+tempo: 90
+strum: D - D U - U D U
+guitar: steel
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">I V vi IV
+key: G
+tempo: 90
+strum: D - D U - U D U
+guitar: steel</code></pre></div>
+
+The classical guitar, picking a 3/4 arpeggio with the thumb and three fingers. Next to the steel string, each note is darker and fades sooner.
+
+````markdown
+```picking
+p i m a m i
+time: 3/4
+chords: Am Dm E7 Am
+tempo: 80
+guitar: nylon
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-picking">p i m a m i
+time: 3/4
+chords: Am Dm E7 Am
+tempo: 80
+guitar: nylon</code></pre></div>
+
+The same classical guitar in a chord chart, where the guitar is a directive: `{guitar: nylon}`.
+
+````markdown
+```chords
+{title: Evening Lamps}
+{artist: Practice Example}
+{key: Am}
+{tempo: 80}
+{guitar: nylon}
+
+[Am7]Lamps along the [Dm7]water, [G7]boats asleep in [Cmaj7]rows
+[Fmaj7]One more song be[E7]fore the evening [Am7]goes
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Evening Lamps}
+{artist: Practice Example}
+{key: Am}
+{tempo: 80}
+{guitar: nylon}
+
+[Am7]Lamps along the [Dm7]water, [G7]boats asleep in [Cmaj7]rows
+[Fmaj7]One more song be[E7]fore the evening [Am7]goes</code></pre></div>
+
+The clean electric guitar on an A minor seventh arpeggio, one shape. It plays from the root up and back down, and each note rings longer than on the acoustic guitars.
+
+````markdown
+```fretboard
+arpeggio: Am7
+position: 1
+guitar: clean
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-fretboard">arpeggio: Am7
+position: 1
+guitar: clean</code></pre></div>
+
+The overdriven electric guitar on power chords, one strum a bar. Each chord keeps its level while it rings, where an acoustic strum fades.
+
+````markdown
+```progression
+E5 G5 A5 E5
+tempo: 100
+strum: bar
+guitar: overdrive
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-progression">E5 G5 A5 E5
+tempo: 100
+strum: bar
+guitar: overdrive</code></pre></div>
+
 ## Mistakes
 
 A block with a mistake explains what to write instead:
