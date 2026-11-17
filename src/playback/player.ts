@@ -4,6 +4,8 @@
  * Apps can pass another NotePlayer (a soundfont one) for realistic sound.
  */
 
+import { DEFAULT_GUITAR_TONE, type GuitarTone } from './guitar-tone.js'
+
 export type Sound = 'guitar' | 'piano'
 
 export interface NoteEvent {
@@ -36,7 +38,17 @@ export interface NotePlayer {
      */
     play(
         events: NoteEvent[],
-        options: { sound: Sound; volume: number; onEnd?: () => void; onStart?: () => void }
+        options: {
+            sound: Sound
+            volume: number
+            onEnd?: () => void
+            onStart?: () => void
+            /**
+             * Which guitar plays when `sound` is guitar (#103): steel-string by default. A player
+             * that doesn't know it plays its own guitar.
+             */
+            guitar?: GuitarTone
+        }
     ): PlayHandle
     /**
      * True when `play` calls `onStart`: the bar then waits for it before it lights notes.
@@ -191,6 +203,12 @@ export interface PluckOptions {
     pick?: number
     /** How fast the string loses its energy, times the usual (1 by default). */
     damping?: number
+    /**
+     * How hard an amplifier is driven (0, the default: not at all). The string's wave is pressed
+     * against a soft ceiling, which adds harmonics and holds the level while the string fades, as
+     * an overdriven amplifier does.
+     */
+    drive?: number
 }
 
 /**
@@ -242,7 +260,44 @@ export function pluckedString(
         out[i] = value * 0.5
         at = next
     }
+    const drive =
+        options.drive !== undefined && Number.isFinite(options.drive)
+            ? Math.max(0, options.drive)
+            : 0
+    if (drive > 0) {
+        // A soft ceiling: the loud start is flattened and the tail comes up to it. Its level makes
+        // the first tenth of a second as loud as a plain string's (measured: within 1 dB RMS from
+        // the low E to the high E), so an overdriven chord starts no louder than a clean one.
+        const push = 1 + drive
+        for (let i = 0; i < out.length; i++)
+            out[i] = Math.tanh(out[i]! * 2 * push) * OVERDRIVE_LEVEL
+    }
     return out
+}
+
+/** The peak of an overdriven string, well under a plain string's (0.5): it stays there much longer. */
+const OVERDRIVE_LEVEL = 0.18
+
+/**
+ * How the light synthesizer plucks each guitar (#103), as ranges a note takes its values from:
+ * a steel string is bright and rings; a nylon string is darker, plucked nearer the middle, and
+ * fades sooner; an electric guitar rings longest, and the overdriven one goes through `drive`.
+ */
+const TONE_PLUCKS: Readonly<
+    Record<
+        GuitarTone,
+        {
+            brightness: readonly [number, number]
+            pick: readonly [number, number]
+            damping: readonly [number, number]
+            drive: number
+        }
+    >
+> = {
+    steel: { brightness: [0.55, 0.95], pick: [0.08, 0.2], damping: [0.85, 1.15], drive: 0 },
+    nylon: { brightness: [0.05, 0.25], pick: [0.2, 0.34], damping: [2.2, 2.8], drive: 0 },
+    clean: { brightness: [0.7, 1], pick: [0.1, 0.18], damping: [0.55, 0.75], drive: 0 },
+    overdrive: { brightness: [0.7, 1], pick: [0.1, 0.18], damping: [0.45, 0.6], drive: 5 }
 }
 
 /** A simple piano tone: a few harmonics with a struck attack, the higher ones fading first. */
@@ -381,19 +436,21 @@ const pianoDecay = (midi: number) => Math.min(2.5, Math.max(0.35, Math.pow(2, (6
  * for tests.
  */
 export function lightPlayer(win: Window, random: () => number = Math.random): NotePlayer {
-    // A few buffers per string pitch: notes of any length reuse them.
-    const strings = new Map<number, AudioBuffer>()
+    // A few buffers per string pitch and guitar: notes of any length reuse them.
+    const strings = new Map<string, AudioBuffer>()
     const waves = new WeakMap<AudioContext, PeriodicWave>()
     /** A number between `lo` and `hi`, at random. */
     const between = (lo: number, hi: number) => lo + (hi - lo) * random()
-    const stringBuffer = (ctx: AudioContext, midi: number, pluck: number) => {
-        const key = midi * PLUCKS + pluck
+    const stringBuffer = (ctx: AudioContext, midi: number, pluck: number, tone: GuitarTone) => {
+        const key = `${tone}:${midi * PLUCKS + pluck}`
         let buffer = strings.get(key)
         if (!buffer) {
+            const ranges = TONE_PLUCKS[tone]
             const data = pluckedString(midi, ctx.sampleRate, STRING_SECONDS, random, {
-                brightness: between(0.55, 0.95),
-                pick: between(0.08, 0.2),
-                damping: between(0.85, 1.15)
+                brightness: between(ranges.brightness[0], ranges.brightness[1]),
+                pick: between(ranges.pick[0], ranges.pick[1]),
+                damping: between(ranges.damping[0], ranges.damping[1]),
+                ...(ranges.drive ? { drive: ranges.drive } : {})
             })
             buffer = ctx.createBuffer(1, data.length, ctx.sampleRate)
             buffer.getChannelData(0).set(data)
@@ -412,9 +469,10 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
     }
     return {
         reportsStart: true,
-        play(events, { sound, volume, onEnd, onStart }) {
+        play(events, { sound, volume, onEnd, onStart, guitar }) {
             const ctx = contextFor(win)
             if (!ctx || !events.length) return { stop() {} }
+            const tone = guitar ?? DEFAULT_GUITAR_TONE
             const resumed = ctx.resume()
             // Each note's pluck and variations, chosen (and buffers made) before the start time is
             // read, so the first notes aren't late.
@@ -427,8 +485,8 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
             // Strings only: a click has no string, and a muted note takes the first pluck.
             if (sound === 'guitar')
                 events.forEach((e, i) => {
-                    if (e.kind === 'muted') stringBuffer(ctx, e.midi, 0)
-                    else if (!e.kind) stringBuffer(ctx, e.midi, touches[i]!.pluck)
+                    if (e.kind === 'muted') stringBuffer(ctx, e.midi, 0, tone)
+                    else if (!e.kind) stringBuffer(ctx, e.midi, touches[i]!.pluck, tone)
                 })
             const gain = ctx.createGain()
             gain.gain.value = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
@@ -436,7 +494,9 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
             const start = ctx.currentTime + 0.05
             const sources = events.map((e, i) => {
                 if (e.kind)
-                    return percussive(ctx, gain, e, start, sound, (c, m) => stringBuffer(c, m, 0))
+                    return percussive(ctx, gain, e, start, sound, (c, m) =>
+                        stringBuffer(c, m, 0, tone)
+                    )
                 const touch = touches[i]!
                 const at = start + e.time
                 const end = at + e.duration
@@ -452,7 +512,7 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 let source: AudioScheduledSourceNode
                 if (sound === 'guitar') {
                     const buffer = ctx.createBufferSource()
-                    buffer.buffer = stringBuffer(ctx, e.midi, touch.pluck)
+                    buffer.buffer = stringBuffer(ctx, e.midi, touch.pluck, tone)
                     buffer.playbackRate.value = Math.pow(2, touch.cents / 1200)
                     source = buffer
                     env.gain.setValueAtTime(level, at)

@@ -208,8 +208,9 @@ describe('createSoundfontPlayer', () => {
         const tex = made[0]!.loaded as string
         const real = alphaTab
         const score = real.importer.ScoreLoader.loadAlphaTex(tex)
+        // The piano, the muted guitar, and every guitar a play may ask for (#103).
         expect(score.tracks.map((t) => t.playbackInfo.program).sort((a, b) => a - b)).toEqual([
-            0, 25, 28
+            0, 24, 25, 27, 28, 29
         ])
     })
     // Its cursor follows what plays, and alphaTab scrolls the page to its cursor unless told not
@@ -632,6 +633,30 @@ describe('soundfontPlayer', () => {
             [64, 100],
             [67, 127]
         ])
+    })
+
+    it('plays the guitar the play asks for, the steel-string one by default (#103)', () => {
+        type Event = { program?: number; constructor: { name: string } }
+        let played: { tracks: { events: Event[] }[] } | null = null
+        const api = {
+            masterVolume: 1,
+            playbackSpeed: 1,
+            player: { playOneTimeMidiFile: (midi: typeof played) => (played = midi), stop() {} }
+        }
+        const player = soundfontPlayer(alphaTab, () => api as never)
+        const programOf = (options: Parameters<typeof player.play>[1]) => {
+            player.play([{ midi: 60, time: 0, duration: 0.5 }], options).stop()
+            return played!.tracks
+                .flatMap((t) => t.events)
+                .filter((e) => e.constructor.name === 'ProgramChangeEvent')
+                .map((e) => e.program)
+        }
+        expect(programOf({ sound: 'guitar', volume: 1 })).toEqual([25])
+        expect(programOf({ sound: 'guitar', volume: 1, guitar: 'nylon' })).toEqual([24])
+        expect(programOf({ sound: 'guitar', volume: 1, guitar: 'clean' })).toEqual([27])
+        expect(programOf({ sound: 'guitar', volume: 1, guitar: 'overdrive' })).toEqual([29])
+        // A piano stays a piano.
+        expect(programOf({ sound: 'piano', volume: 1, guitar: 'nylon' })).toEqual([0])
     })
 
     it('lets the last notes ring: the song ends half a second after them (#59)', () => {

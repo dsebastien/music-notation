@@ -19,9 +19,10 @@ import {
     type Sound
 } from './player.js'
 import { readSoundfont, regionsFor, type Region, type SoundPreset } from './soundfont.js'
+import { DEFAULT_GUITAR_TONE, GUITAR_PROGRAMS, type GuitarTone } from './guitar-tone.js'
 
 /** General MIDI programs of the diagrams' sounds; the muted guitar plays a muted strum's strings. */
-const PROGRAMS: Record<Sound, number> = { guitar: 25, piano: 0 }
+const PIANO = 0
 const MUTED = 28
 /** The metronome click of a kit. */
 const CLICK_KEY = 33
@@ -34,7 +35,12 @@ interface Voice {
     loops: Map<number, { start: number; end: number }>
 }
 
-type Kind = 'guitar' | 'piano' | 'muted' | 'click'
+/** What a note plays through: a guitar (#103: one of the four), the piano, or a percussive sound. */
+type Kind = GuitarTone | 'piano' | 'muted' | 'click'
+
+/** The General MIDI program of a kind; none for the click, which is a key of the kit. */
+const programOf = (kind: Exclude<Kind, 'click'>): number =>
+    kind === 'muted' ? MUTED : kind === 'piano' ? PIANO : GUITAR_PROGRAMS[kind]
 
 /** Longest release a note keeps after its end, in seconds: a pad's 7 s tail is cut. */
 const LONGEST_RELEASE = 2.5
@@ -88,7 +94,7 @@ export function sampledPlayer(
             kind === 'click'
                 ? { programs: [], drums: false }
                 : {
-                      programs: [kind === 'muted' ? MUTED : PROGRAMS[kind]],
+                      programs: [programOf(kind)],
                       drums: false,
                       click: false
                   }
@@ -144,8 +150,14 @@ export function sampledPlayer(
         }
         return voice
     }
-    const kindOf = (e: NoteEvent, sound: Sound): Kind =>
-        e.kind === 'click' ? 'click' : e.kind === 'muted' && sound === 'guitar' ? 'muted' : sound
+    const kindOf = (e: NoteEvent, sound: Sound, guitar: GuitarTone): Kind =>
+        e.kind === 'click'
+            ? 'click'
+            : sound === 'piano'
+              ? 'piano'
+              : e.kind === 'muted'
+                ? 'muted'
+                : guitar
 
     /** Plays one region of a note; returns its source and when it is silent. */
     const sound = (
@@ -236,14 +248,24 @@ export function sampledPlayer(
     }
     return {
         reportsStart: true,
-        play(events, { sound: instrument, volume, onEnd, onStart }) {
+        play(events, { sound: instrument, volume, onEnd, onStart, guitar }) {
             const ctx = contextOf()
-            if (!ctx) return fallback.play(events, { sound: instrument, volume, onEnd, onStart })
+            const tone = guitar ?? DEFAULT_GUITAR_TONE
+            // The fallback plays the same guitar.
+            const same = guitar ? { guitar } : {}
+            if (!ctx)
+                return fallback.play(events, {
+                    sound: instrument,
+                    volume,
+                    ...(onEnd ? { onEnd } : {}),
+                    ...(onStart ? { onStart } : {}),
+                    ...same
+                })
             let stopped = false
             let handle: PlayHandle | null = null
             let level = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
             const resumed = 'resume' in ctx ? (ctx as AudioContext).resume() : Promise.resolve()
-            const kinds = [...new Set(events.map((e) => kindOf(e, instrument)))]
+            const kinds = [...new Set(events.map((e) => kindOf(e, instrument, tone)))]
             void Promise.all(kinds.map((kind) => voiceOf(kind, ctx))).then((loaded) => {
                 if (stopped) return
                 // One sound missing: the whole play through the fallback, so it sounds like one.
@@ -252,7 +274,8 @@ export function sampledPlayer(
                         sound: instrument,
                         volume: level,
                         ...(onEnd ? { onEnd } : {}),
-                        ...(onStart ? { onStart } : {})
+                        ...(onStart ? { onStart } : {}),
+                        ...same
                     })
                     if (!fallback.reportsStart) onStart?.()
                     return
@@ -265,7 +288,7 @@ export function sampledPlayer(
                 const sources: AudioBufferSourceNode[] = []
                 let tail = 0
                 for (const e of events) {
-                    const kind = kindOf(e, instrument)
+                    const kind = kindOf(e, instrument, tone)
                     const voice = byKind.get(kind)!
                     const velocity =
                         e.velocity === undefined || !Number.isFinite(e.velocity)

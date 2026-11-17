@@ -18,6 +18,7 @@ import { html } from './dom.js'
 import { attachPlayback } from '../playback/controls.js'
 import { attachCopy } from '../playback/copy-image.js'
 import { blockEngine } from '../playback/engine.js'
+import { blockGuitar } from '../playback/guitar-tone.js'
 import { attachPick, type PickLayer, type PickOptions } from './pick.js'
 import {
     lettersInBlock,
@@ -143,6 +144,10 @@ function drawBlock(
         const wish = blockEngine(text, language === 'chords')
         text = wish.source
         if (wish.engine) el.setAttribute('data-mn-engine', wish.engine)
+        // The block's guitar (#103): its `guitar:` line, kept and taken out the same way.
+        const tone = blockGuitar(text, language === 'chords')
+        text = tone.source
+        if (tone.guitar) el.setAttribute('data-mn-guitar', tone.guitar)
     } catch (e) {
         return failed(el, host, language, messageOf(e))
     }

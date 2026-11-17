@@ -124,6 +124,7 @@ function folder(lacking: string[] = [], guitar?: FixtureZone) {
             JSON.stringify({
                 programs: {
                     '0': { file: 'p000.sf3' },
+                    '24': { file: 'p024.sf3' },
                     '25': { file: 'p025.sf3' },
                     '28': { file: 'p028.sf3' }
                 },
@@ -141,6 +142,8 @@ function folder(lacking: string[] = [], guitar?: FixtureZone) {
             ],
             { loop: [2400, 4800], rate: 24000, key: 40 }
         ),
+        // The nylon guitar (#103): a plain preset of its own.
+        'p024.sf3': font(24, []),
         'p000.sf3': font(0, []),
         // The muted guitar: two points, not compressed.
         'p028.sf3': font(28, [], { data: [16384, amount(-16384)], compressed: false, rate: 22050 }),
@@ -271,6 +274,42 @@ describe('the sample player (#109)', () => {
         expect(down[0]).toBe('linear')
         expect(down[1]).toBeCloseTo(180)
         expect(down[2]).toBeCloseTo(13.25)
+    })
+
+    it('plays the guitar the play asks for from its own file (#103)', async () => {
+        const { ctx } = fakeContext()
+        const { source, asked } = folder()
+        const light = fallback()
+        const player = sampledPlayer(window, source, light.player, { context: () => ctx })
+        player.play(note, { sound: 'guitar', volume: 0.8, guitar: 'nylon' })
+        await wait()
+        // The nylon guitar only: the steel one is not read.
+        expect(asked).toEqual(['index.json', 'p024.sf3'])
+        player.play(note, { sound: 'guitar', volume: 0.8 })
+        await wait()
+        expect(asked).toEqual(['index.json', 'p024.sf3', 'p025.sf3'])
+        // A piano stays a piano, whatever the guitar.
+        player.play(note, { sound: 'piano', volume: 0.8, guitar: 'nylon' })
+        await wait()
+        expect(asked).toEqual(['index.json', 'p024.sf3', 'p025.sf3', 'p000.sf3'])
+        expect(light.plays).toHaveLength(0)
+    })
+
+    it('a guitar the folder lacks plays through the fallback, as that guitar (#103)', async () => {
+        const { ctx } = fakeContext()
+        const { source } = folder()
+        const guitars: unknown[] = []
+        const light: NotePlayer = {
+            play(_events, options) {
+                guitars.push(options.guitar)
+                return { stop() {} }
+            }
+        }
+        const player = sampledPlayer(window, source, light, { context: () => ctx })
+        // The folder of this spec has no overdriven guitar (program 29).
+        player.play(note, { sound: 'guitar', volume: 0.8, guitar: 'overdrive' })
+        await wait()
+        expect(guitars).toEqual(['overdrive'])
     })
 
     it('a muted strum plays the muted guitar, a click the kit click', async () => {

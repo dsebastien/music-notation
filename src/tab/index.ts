@@ -12,6 +12,12 @@ import { t, translator, translatorFor, withLanguage, type Translator } from '../
 import { textTabToAlphaTex } from '../convert/text-tab.js'
 import type { NoteEvent, NotePlayer, PlayHandle, Sound } from '../playback/player.js'
 import { chooseEngine, engineOf, type Engine } from '../playback/engine.js'
+import {
+    DEFAULT_GUITAR_TONE,
+    GUITAR_PROGRAMS,
+    GUITAR_TONES,
+    type GuitarTone
+} from '../playback/guitar-tone.js'
 import { icon, iconButton, playBar, pressedButton, volumeOf } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
 import { fullScreenControl, type FullScreen } from '../playback/full-screen.js'
@@ -1185,8 +1191,13 @@ export function renderTab(
     }
 }
 
-/** General MIDI programs for the diagrams' sounds. */
-const PROGRAMS: Record<Sound, number> = { guitar: 25, piano: 0 }
+/**
+ * General MIDI programs for the diagrams' sounds: the piano, and the guitar the play asks for
+ * (#103; the steel-string acoustic by default).
+ */
+const PIANO_PROGRAM = 0
+const programOf = (sound: Sound, guitar?: GuitarTone): number =>
+    sound === 'piano' ? PIANO_PROGRAM : GUITAR_PROGRAMS[guitar ?? DEFAULT_GUITAR_TONE]
 /**
  * Percussive notes (`NoteEvent.kind`): a muted string on GM program 28, Electric Guitar (muted),
  * on its own channel; a click on the percussion channel, GM key 33 (Metronome Click, the key
@@ -1213,7 +1224,7 @@ export function soundfontPlayer(
 ): NotePlayer {
     return {
         reportsStart: true,
-        play(events: NoteEvent[], { sound, volume, onEnd, onStart }) {
+        play(events: NoteEvent[], { sound, volume, onEnd, onStart, guitar }) {
             const current = api()
             const player = current?.player
             if (!current || !player) throw new Error('The soundfont player is not ready')
@@ -1222,7 +1233,7 @@ export function soundfontPlayer(
             // At 60 beats a minute, a quarter note (division ticks) lasts a second.
             const ticks = (seconds: number) => Math.round(seconds * midi.division)
             handler.addTempo(0, 60)
-            handler.addProgramChange(0, 0, 0, PROGRAMS[sound])
+            handler.addProgramChange(0, 0, 0, programOf(sound, guitar))
             if (sound === 'guitar' && events.some((e) => e.kind === 'muted'))
                 handler.addProgramChange(0, 0, MUTED.channel, MUTED.program)
             // The percussion channel takes the drum kit only once told (else it plays preset 0).
@@ -1308,13 +1319,14 @@ export function createSoundfontPlayer(
      * With instrument files (#108), a sound's files are read at its first use: a page of guitar
      * chords never reads the piano. The sounds the player has, and the ones being read.
      */
-    const have = new Set<Sound>()
-    const reading = new Map<Sound, Promise<boolean>>()
+    const have = new Set<number>()
+    const reading = new Map<number, Promise<boolean>>()
     /** The whole soundfont is in (no folder, or it lacked something): every sound is there. */
     let whole = !assets.instruments
-    const programsOf = (sound: Sound) =>
-        sound === 'guitar' ? [PROGRAMS.guitar, MUTED.program] : [PROGRAMS[sound]]
-    const start = (first: Sound = 'guitar') => {
+    /** A sound's programs, the one that names it first: a guitar comes with its muted strings. */
+    const programsOf = (sound: Sound, guitar?: GuitarTone) =>
+        sound === 'guitar' ? [programOf(sound, guitar), MUTED.program] : [programOf(sound)]
+    const start = (first: Sound = 'guitar', guitar?: GuitarTone) => {
         if (ready) return ready
         host = html(doc, 'div', 'mn-tab-hidden')
         host.setAttribute('aria-hidden', 'true')
@@ -1365,12 +1377,12 @@ export function createSoundfontPlayer(
             // sound at its first use (`sounding`). Else the whole soundfont.
             if (assets.instruments)
                 loadSounds(current, doc, assets, {
-                    programs: programsOf(first),
+                    programs: programsOf(first, guitar),
                     drums: false
                 }).then(
                     (kind) => {
                         if (kind === 'whole') whole = true
-                        else have.add(first)
+                        else for (const one of programsOf(first, guitar)) have.add(one)
                         loaded()
                     },
                     () => resolve(false)
@@ -1380,35 +1392,46 @@ export function createSoundfontPlayer(
         if (assets.soundFont instanceof Uint8Array && !assets.instruments)
             current.loadSoundFont(made.bytes(assets.soundFont), false)
         // The player needs a song loaded to be ready, and alphaTab loads only the soundfont presets
-        // its song uses: one rest per diagram sound (and the muted guitar of muted strums), else
-        // piano would play nothing.
+        // its song uses: one rest per diagram sound (each guitar, the piano, and the muted guitar
+        // of muted strums), else piano or another guitar would play nothing.
         current.tex(
-            `\\track "Guitar" \\instrument ${PROGRAMS.guitar} r \\track "Piano" \\instrument ${PROGRAMS.piano} r \\track "Muted" \\instrument ${MUTED.program} r`
+            [
+                ...GUITAR_TONES.map(
+                    (tone) => `\\track "Guitar ${tone}" \\instrument ${GUITAR_PROGRAMS[tone]} r`
+                ),
+                `\\track "Piano" \\instrument ${PIANO_PROGRAM} r`,
+                `\\track "Muted" \\instrument ${MUTED.program} r`
+            ].join(' ')
         )
         return ready
     }
-    /** The player started and `sound` is in it: its files are added when it is new. */
-    const sounding = async (sound: Sound): Promise<boolean> => {
-        if (!(await start(sound))) return false
-        if (whole || have.has(sound) || !api) return true
+    /** The player started and the sound is in it: its files are added when it is new. */
+    const sounding = async (sound: Sound, guitar?: GuitarTone): Promise<boolean> => {
+        if (!(await start(sound, guitar))) return false
+        const program = programOf(sound, guitar)
+        if (whole || have.has(program) || !api) return true
         const current = api
-        let more = reading.get(sound)
+        let more = reading.get(program)
         if (!more) {
+            // The muted guitar came with the first guitar: not read again with another one.
+            const programs = programsOf(sound, guitar).filter(
+                (one) => one === program || !have.has(MUTED.program)
+            )
             more = loadSounds(
                 current,
                 doc,
                 assets,
-                { programs: programsOf(sound), drums: false, click: false },
+                { programs, drums: false, click: false },
                 true
             ).then(
                 (kind) => {
                     if (kind === 'whole') whole = true
-                    else have.add(sound)
+                    else for (const one of programs) have.add(one)
                     return true
                 },
                 () => false
             )
-            reading.set(sound, more)
+            reading.set(program, more)
         }
         return more
     }
@@ -1421,7 +1444,7 @@ export function createSoundfontPlayer(
             let stopped = false
             // A volume changed while the soundfont loads is the one the notes start with (#85).
             let volume = options.volume
-            void sounding(options.sound).then((ok) => {
+            void sounding(options.sound, options.guitar).then((ok) => {
                 if (stopped) return
                 try {
                     if (ok) {

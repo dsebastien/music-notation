@@ -89,7 +89,10 @@ function fake(): { mod: AlphaTabModule; made: Made[] } {
 function folder(lacking: string[] = []): { source: InstrumentSource; asked: string[] } {
     const index = {
         programs: Object.fromEntries(
-            [0, 25, 28, 30].map((p) => [String(p), { file: `p${String(p).padStart(3, '0')}.sf3` }])
+            [0, 24, 25, 28, 29, 30].map((p) => [
+                String(p),
+                { file: `p${String(p).padStart(3, '0')}.sf3` }
+            ])
         ),
         drums: { file: 'drums.sf3' },
         click: { file: 'click.sf3' }
@@ -257,6 +260,33 @@ describe("the diagrams' player loads only its own sounds (#108)", () => {
         await tick()
         expect(asked.slice(4)).toEqual(['p000.sf3'])
         expect(made[0]!.loads.slice(3)).toEqual([['p000.sf3', true]])
+        expect(made[0]!.oneTime).toBe(3)
+        player.destroy()
+    })
+
+    it('another guitar is read at its first use, without the muted strings again (#103)', async () => {
+        const { mod, made } = fake()
+        const { source, asked } = folder()
+        const player = createSoundfontPlayer(
+            mod,
+            { scriptFile: null, font, soundFont: whole, instruments: source },
+            document
+        )
+        player.play(note, { sound: 'guitar', volume: 0.8, guitar: 'nylon' })
+        await tick()
+        await tick()
+        // The nylon guitar first: the steel one is never read.
+        expect(asked).toEqual(['index.json', 'p024.sf3', 'p028.sf3', 'click.sf3'])
+        player.play(note, { sound: 'guitar', volume: 0.8, guitar: 'overdrive' })
+        await tick()
+        await tick()
+        expect(asked.slice(4)).toEqual(['p029.sf3'])
+        expect(made[0]!.loads.slice(3)).toEqual([['p029.sf3', true]])
+        // The same guitar again reads nothing.
+        player.play(note, { sound: 'guitar', volume: 0.8, guitar: 'nylon' })
+        await tick()
+        await tick()
+        expect(asked.length).toBe(5)
         expect(made[0]!.oneTime).toBe(3)
         player.destroy()
     })
