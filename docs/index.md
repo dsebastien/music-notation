@@ -24,6 +24,7 @@ And there's more:
 - [Examples](examples.md): a gallery of chords, keyboards, fretboards, charts, strumming patterns, progressions and more, drawn live.
 - [Playground](playground.md): examples for every block, a Surprise me button, play bars, note names, and a link to share what you wrote.
 - [Obsidian Publish](publish.md): show the blocks on your Publish site.
+- [Websites and apps](websites-and-apps.md): show the blocks on any other website, or draw them in your own app.
 - [JavaScript API](api.md): render blocks from your own code.
 - [Check your notes](check.md): find the blocks with mistakes in your Markdown files, from the command line.
 

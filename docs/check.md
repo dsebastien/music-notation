@@ -1,6 +1,6 @@
 ---
 title: Check your notes
-nav_order: 8
+nav_order: 9
 ---
 
 # Check your notes
