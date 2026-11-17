@@ -499,11 +499,23 @@ function attachPlaybackIn(el: HTMLElement, options: PlayOptions): () => void {
         stops.push(blockBarFor(doc, win, block, diagrams, options))
     // Progressions and ChordPro charts (#46): one chord a bar, in time.
     for (const drawing of timed) {
-        const diagrams = byDrawing.get(drawing)
-        const group = diagrams?.length
-            ? diagramGroup(doc, win, diagrams, options, { bar: false }).group
-            : null
-        const bar = progressionBarFor(doc, win, drawing, options, group)
+        const groupOf = (diagrams: { diagram: Element; data: DiagramData }[] | undefined) =>
+            diagrams?.length
+                ? diagramGroup(doc, win, diagrams, options, { bar: false }).group
+                : null
+        let group = groupOf(byDrawing.get(drawing))
+        // A chart drawn again with other chords (#45) has other diagrams: a new group for them.
+        const regroup = () => {
+            group?.destroy()
+            group = groupOf(
+                [...drawing.querySelectorAll('svg[data-mn-pitches]')].flatMap((diagram) => {
+                    const data = diagram.hasAttribute('data-mn-pick') ? null : dataOf(diagram)
+                    return data ? [{ diagram, data }] : []
+                })
+            )
+            return group
+        }
+        const bar = progressionBarFor(doc, win, drawing, options, group, regroup)
         stops.push(() => {
             bar()
             group?.destroy()

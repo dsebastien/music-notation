@@ -6,7 +6,9 @@
  * one bar: its diagrams play on a click, on the sound it chose.
  */
 import { html } from '../render/dom.js'
-import { translator, type Translator } from '../i18n/translate.js'
+import { currentLanguage, translator, withLanguage, type Translator } from '../i18n/translate.js'
+import { namingOf, withNaming } from '../theory/naming.js'
+import { chartRedrawOf } from '../chords/chart.js'
 import { isCompound, parseStrum, parseTime, type StrumPattern } from '../strum/pattern.js'
 import { countedTempoOf, tempoOf } from '../strum/play.js'
 import type { PlayOptions } from './controls.js'
@@ -95,12 +97,19 @@ export function progressionBarFor(
     win: Window,
     drawing: Element,
     options: PlayOptions,
-    diagrams: DiagramGroup | null = null
+    diagrams: DiagramGroup | null = null,
+    /**
+     * Gives the group of the drawing's diagrams again, after the chart was drawn again (#45): the
+     * caller frees the old one.
+     */
+    regroup?: () => DiagramGroup | null
 ): () => void {
-    const { bars, marks } = barsFromDrawing(drawing)
+    let { bars, marks } = barsFromDrawing(drawing)
     if (!bars.length) return () => {}
     // Kept for the toggle, which changes its text on each press, after the draw.
     const tr = translator()
+    // What the chart is drawn again under, when its chords change (#45).
+    const language = currentLanguage()
     const time = drawing.getAttribute('data-mn-time')
     let beatsPerBar = 4
     let beatUnit = 4
@@ -153,7 +162,8 @@ export function progressionBarFor(
         show()
     }
     // One thing plays in the block: a diagram's click stops the progression, and back.
-    if (diagrams) {
+    const wire = () => {
+        if (!diagrams) return
         diagrams.onPlay = stop
         // Escape on one of its diagrams stops the progression too.
         diagrams.stopOthers = () => {
@@ -162,6 +172,7 @@ export function progressionBarFor(
             return was
         }
     }
+    wire()
     const start = () => {
         stop()
         if (!drawing.isConnected) return
@@ -273,6 +284,51 @@ export function progressionBarFor(
             }
         ).el
     )
+    // Easier chords (#45): a chart that has some draws them, or its own again, on a click. The
+    // chart's content changes; the chart element, its bar and what the bar is set to stay.
+    const redraw = chartRedrawOf(drawing)
+    if (redraw) {
+        const simplify = html(doc, 'button', 'mn-play-simplify')
+        simplify.type = 'button'
+        const shown = () => {
+            const on = drawing.hasAttribute('data-mn-simplified')
+            simplify.textContent = tr(on ? 'playback.simplified' : 'playback.simplify')
+            simplify.title = tr(on ? 'playback.simplified.hint' : 'playback.simplify.hint')
+            simplify.setAttribute('aria-pressed', String(on))
+            simplify.classList.toggle('mn-on', on)
+        }
+        simplify.addEventListener('click', () => {
+            stop()
+            diagrams?.stop()
+            const on = !drawing.hasAttribute('data-mn-simplified')
+            const naming = namingOf(
+                drawing.closest('[data-mn-naming]')?.getAttribute('data-mn-naming')
+            )
+            let next: HTMLElement
+            try {
+                next = withLanguage(language, () =>
+                    naming ? withNaming(naming, () => redraw(on)) : redraw(on)
+                )
+            } catch {
+                // The chart stays as it is.
+                return
+            }
+            for (const child of [...drawing.children]) if (child !== bar) child.remove()
+            bar.before(...next.children)
+            drawing.toggleAttribute('data-mn-simplified', next.hasAttribute('data-mn-simplified'))
+            // The bar plays the chords now shown, and their diagrams play on a click again.
+            ;({ bars, marks } = barsFromDrawing(drawing))
+            if (regroup) {
+                diagrams = regroup()
+                wire()
+                if (settings.sound !== (piano ? 'piano' : 'guitar'))
+                    diagrams?.setSound(settings.sound)
+            }
+            shown()
+        })
+        shown()
+        bar.appendChild(simplify)
+    }
     // The whole block (#11), drawn without the bar.
     if (options.copy !== false)
         bar.append(...copyImageButton(doc, win, () => drawing.closest('.mn-block') ?? drawing))

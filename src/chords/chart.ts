@@ -258,6 +258,18 @@ export function chartChords(
     }
 }
 
+/** How to draw a chart again with or without its easier chords: kept for its bar's switch. */
+const redraws = new WeakMap<Element, (simplify: boolean) => HTMLElement>()
+
+/**
+ * Draws a chart again with its easier chords (`true`) or as written (`false`), for the switch of
+ * its bar (#45); null for a chart that has no easier chord, and for an element that is no chart.
+ * The caller draws under the block's language and naming.
+ */
+export function chartRedrawOf(chart: Element): ((simplify: boolean) => HTMLElement) | null {
+    return redraws.get(chart) ?? null
+}
+
 export function renderChart(doc: Document, given: Song, options: ChartOptions = {}): HTMLElement {
     const instrument = given.instrument ?? (options.instrument === 'piano' ? 'piano' : 'guitar')
     // The easier song (#45): easier chords, and the shapes of the capo `{capo: auto}` finds.
@@ -287,6 +299,9 @@ export function renderChart(doc: Document, given: Song, options: ChartOptions = 
 
     const root = html(doc, 'div', 'mn-chart')
     if (plan.easier.length) root.setAttribute('data-mn-simplified', '')
+    // A chart with a chord that can be easier: its bar offers the switch.
+    if (plan.canSimplify)
+        redraws.set(root, (simplify) => renderChart(doc, given, { ...options, simplify }))
     // Played in time from its bar (#46): each chord above the lyrics a bar, in order.
     root.setAttribute('data-mn-progression-play', '')
     root.setAttribute('data-mn-sound', drawing.instrument === 'piano' ? 'piano' : 'guitar')
