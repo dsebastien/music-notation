@@ -28,6 +28,24 @@
         }
     ]
 
+    /** The four guitars (#103): the name a `guitar:` line takes, and what it is. */
+    var GUITARS = [
+        { tone: 'steel', name: 'Steel-string acoustic', note: 'guitar: steel, the default' },
+        { tone: 'nylon', name: 'Classical', note: 'guitar: nylon' },
+        { tone: 'clean', name: 'Clean electric', note: 'guitar: clean' },
+        { tone: 'overdrive', name: 'Overdriven electric', note: 'guitar: overdrive' }
+    ]
+
+    /** What each guitar plays: one row each, one column per guitar. */
+    var GUITAR_EXAMPLES = [
+        { title: 'An E minor chord, strummed', language: 'chord', source: 'Em' },
+        {
+            title: 'A strumming pattern on a power chord',
+            language: 'strum',
+            source: 'D DU UDU\nchord: A5\ntempo: 100'
+        }
+    ]
+
     /** A riff with held notes at the end: tabs play through alphaTab only. */
     var RIFF =
         '\\tempo 90\n.\n:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 0.6 | 0.6 3.6 5.6 3.6 :2 0.6 | :1 (0.6 2.5 2.4 1.3 0.2 0.1)'
@@ -58,6 +76,38 @@
         }
         row.appendChild(div)
         return div
+    }
+
+    /**
+     * The four guitars, one column each: every example with GeneralUser GS, then the chord with
+     * sonivox and with the light synthesizer. The guitar is the block's own `guitar:` line.
+     */
+    function guitars(api, sounds) {
+        var root = document.getElementById('mn-sounds-guitars')
+        if (!root) return
+        sounds.forEach(function (sound) {
+            sound.examples.forEach(function (example) {
+                var h = document.createElement('h3')
+                h.textContent = example.title + ': ' + sound.name
+                root.appendChild(h)
+                var row = document.createElement('div')
+                row.className = 'mn-sounds-row'
+                root.appendChild(row)
+                GUITARS.forEach(function (guitar) {
+                    var host = cell(row, guitar.name, guitar.note)
+                    api.renderBlock(
+                        example.language,
+                        example.source + '\nguitar: ' + guitar.tone,
+                        host,
+                        {
+                            voicings: api.lookupGuitarVoicing,
+                            play: { player: sound.player },
+                            copy: false
+                        }
+                    )
+                })
+            })
+        })
     }
 
     function start() {
@@ -120,6 +170,19 @@
                                 })
                             })
                         })
+                        guitars(api, [
+                            { name: 'GeneralUser GS', player: sampled, examples: GUITAR_EXAMPLES },
+                            {
+                                name: 'sonivox, through alphaTab',
+                                player: sonivox,
+                                examples: GUITAR_EXAMPLES.slice(0, 1)
+                            },
+                            {
+                                name: 'Light synthesizer',
+                                player: light,
+                                examples: GUITAR_EXAMPLES.slice(0, 1)
+                            }
+                        ])
                         if (!tabs) return
                         var row = document.createElement('div')
                         row.className = 'mn-sounds-row mn-sounds-tabs'
