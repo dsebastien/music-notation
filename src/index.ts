@@ -200,7 +200,14 @@ export {
     type Segment,
     type ChordDefinition
 } from './chords/chordpro.js'
-export { renderChart, chartChords, type ChartChords, type ChartOptions } from './chords/chart.js'
+export {
+    renderChart,
+    chartChords,
+    easierChart,
+    type ChartChords,
+    type ChartOptions,
+    type EasierChart
+} from './chords/chart.js'
 export { chordsUsed } from './chords/chart-diagrams.js'
 export { parseDefinition } from './chords/defines.js'
 export { parseChord, type ParsedChord } from './theory/chord-symbol.js'

@@ -6,7 +6,7 @@
 import type { Line, Song } from './chordpro.js'
 import { chordsUsed } from './chart-diagrams.js'
 import { findDefinition } from './defines.js'
-import { bestCapo, easierChord } from '../chord/simplify.js'
+import { bestCapo, easierChord, type CapoChoice } from '../chord/simplify.js'
 import { splitChordSymbol } from '../theory/pitch.js'
 import { transposeChord, transposeKey } from '../theory/transpose.js'
 
@@ -19,6 +19,11 @@ export interface EasierSong {
     canSimplify: boolean
     /** The capo `{capo: auto}` found; null when the song doesn't ask or no capo does better. */
     capo: number | null
+    /**
+     * What `{capo: auto}` found, with the shapes to play, also when it is no capo (fret 0); null
+     * when the song doesn't ask or none of its chords reads.
+     */
+    choice: CapoChoice | null
 }
 
 /** A written chord with the suffix (and the bass, when kept) of the easier chord shown for it. */
@@ -45,7 +50,7 @@ export function easierSong(
     semitones: number,
     options: { simplify: boolean; guitar: boolean }
 ): EasierSong {
-    const same: EasierSong = { song, easier: [], canSimplify: false, capo: null }
+    const same: EasierSong = { song, easier: [], canSimplify: false, capo: null, choice: null }
     if (!options.guitar) return same
     const names = chordsUsed(song)
     const found = names
@@ -88,8 +93,14 @@ export function easierSong(
         ? bestCapo(names.map((written) => shownOf(simplified(written)).trim()))
         : null
     if (!best || best.capo === 0) {
-        if (!simpler.size) return { ...same, canSimplify }
-        return { song: { ...song, sections: copy(simplified) }, easier, canSimplify, capo: null }
+        if (!simpler.size) return { ...same, canSimplify, choice: best }
+        return {
+            song: { ...song, sections: copy(simplified) },
+            easier,
+            canSimplify,
+            capo: null,
+            choice: best
+        }
     }
     const shapes = new Map(best.shapes.map((s) => [s.chord, s.shape]))
     // What the chart shows for a name: the capo's shape for the chord it sounds.
@@ -110,6 +121,7 @@ export function easierSong(
         },
         easier,
         canSimplify,
-        capo: best.capo
+        capo: best.capo,
+        choice: best
     }
 }

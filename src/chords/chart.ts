@@ -23,6 +23,7 @@ import {
 } from './chart-diagrams.js'
 import { t } from '../i18n/translate.js'
 import { easierSong } from './easier.js'
+import type { CapoChoice } from '../chord/simplify.js'
 
 export interface ChartOptions {
     /** Semitones added to the song's own `{transpose}`. */
@@ -178,6 +179,68 @@ function easierPlan(
         simplify: options.simplify ?? song.simplify ?? false,
         guitar
     })
+}
+
+/** What the easier version of a chart is (#45), for an app that shows it or writes it. */
+export interface EasierChart {
+    /** The chords made easier, as the chart shows them, in order of first appearance. */
+    easier: { from: string; to: string }[]
+    /**
+     * The best capo for the chart's chords (the easier ones when `simplify` is on), with the
+     * shapes to play; fret 0 when no capo does better; null when no capo was asked or no chord
+     * reads.
+     */
+    capo: CapoChoice | null
+    /**
+     * Each chord of the lyrics that changes, as the song writes it → as its easier version writes
+     * it: an easier chord with the song's own root, or a capo's shape.
+     */
+    renames: Map<string, string>
+    /**
+     * What the easier version's `{transpose}` and `{key}` are. They differ from the song's only
+     * with a capo above 0: its chords are written as shown, so the song's transposition is taken
+     * out of them and put into the key.
+     */
+    transpose: number
+    key: string | null
+}
+
+/**
+ * What `{simplify}` and `{capo: auto}` do to a song, as data (#45): the chart's own wishes by
+ * default, or `simplify` and `capo` (find the best capo) as given, so an app can show what each
+ * would change before it writes anything. Guitar charts only: nothing changes on a piano chart.
+ */
+export function easierChart(
+    given: Song,
+    options: {
+        simplify?: boolean
+        capo?: boolean
+        transpose?: number
+        instrument?: ChartInstrument
+    } = {}
+): EasierChart {
+    const instrument = given.instrument ?? (options.instrument === 'piano' ? 'piano' : 'guitar')
+    const asked: Song = { ...given, capoAuto: options.capo ?? given.capoAuto ?? false }
+    const plan = easierPlan(asked, options, instrument === 'guitar')
+    const renames = new Map<string, string>()
+    asked.sections.forEach((section, i) =>
+        section.lines.forEach((line, j) => {
+            const other = plan.song.sections[i]?.lines[j]
+            if (line.kind !== 'lyrics' || other?.kind !== 'lyrics') return
+            line.segments.forEach((segment, k) => {
+                const now = other.segments[k]?.chord
+                if (segment.chord !== null && now != null && now !== segment.chord)
+                    renames.set(segment.chord, now)
+            })
+        })
+    )
+    return {
+        easier: plan.easier,
+        capo: plan.choice,
+        renames,
+        transpose: plan.song.transpose,
+        key: plan.song.key
+    }
 }
 
 /** A song's time signature as beats a bar and beat unit (4/4 when none reads). */

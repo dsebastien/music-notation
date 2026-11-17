@@ -1,7 +1,7 @@
 /** Easier charts (#45): `{simplify}` and `{capo: auto}` in a ChordPro chart. */
 import { describe, expect, it } from 'bun:test'
 import { parseChordPro } from './chordpro.js'
-import { chartChords } from './chart.js'
+import { chartChords, easierChart } from './chart.js'
 import { renderBlock } from '../render/render-block.js'
 import { lookupGuitarVoicing } from '../voicings/index.js'
 
@@ -161,5 +161,82 @@ describe('{capo: auto} in a chart', () => {
         const piano = draw('{capo: auto}\n{instrument: piano}\n[A]One [D]two [E]three [F#m]four')
         expect(piano.chords).toEqual(['A', 'D', 'E', 'F#m'])
         expect(piano.meta).not.toContain('Capo')
+    })
+})
+
+describe('easierChart: the easier version as data, for an app', () => {
+    const song = (source: string) => parseChordPro(source)
+
+    it("says what the chart's own wishes change", () => {
+        const none = easierChart(song(SONG))
+        expect(none.easier).toEqual([])
+        expect(none.capo).toBeNull()
+        expect([...none.renames]).toEqual([])
+        const asked = easierChart(song(`{simplify}\n${SONG}`))
+        expect(asked.easier).toEqual([
+            { from: 'Cmaj9', to: 'Cmaj7' },
+            { from: 'G5', to: 'G' },
+            { from: 'E9', to: 'E7' }
+        ])
+        expect([...asked.renames]).toEqual([
+            ['Cmaj9', 'Cmaj7'],
+            ['G5', 'G'],
+            ['E9', 'E7']
+        ])
+    })
+
+    it('shows what each switch would change, whatever the chart asks', () => {
+        const easy = easierChart(song(SONG), { simplify: true })
+        expect(easy.easier.map((c) => c.to)).toEqual(['Cmaj7', 'G', 'E7'])
+        expect(easy.capo).toBeNull()
+        // Off for a chart that asks for it.
+        expect(easierChart(song(`{simplify}\n${SONG}`), { simplify: false }).easier).toEqual([])
+        const capo = easierChart(song('[A]One [D]two [E]three [F#m]four'), { capo: true })
+        expect(capo.capo!.capo).toBe(2)
+        expect(capo.capo!.shapes.map((s) => `${s.chord}:${s.shape}`)).toEqual([
+            'A:G',
+            'D:C',
+            'E:D',
+            'F#m:Em'
+        ])
+        expect([...capo.renames]).toEqual([
+            ['A', 'G'],
+            ['D', 'C'],
+            ['E', 'D'],
+            ['F#m', 'Em']
+        ])
+        expect(easierChart(song('{capo: auto}\n[A]One [D]two'), { capo: false }).capo).toBeNull()
+    })
+
+    it('gives fret 0 when no capo does better, and nothing to rename', () => {
+        const open = easierChart(song('[G]One [C]two [D]three [Em]four'), { capo: true })
+        expect(open.capo!.capo).toBe(0)
+        expect([...open.renames]).toEqual([])
+    })
+
+    it("with a capo, gives the easier version's transposition and key: the chords are as shown", () => {
+        const moved = easierChart(
+            song('{key: G}\n{transpose: 2}\n[G]One [C]two [D]three [Em]four'),
+            {
+                capo: true
+            }
+        )
+        expect(moved.capo!.capo).toBe(2)
+        // Written G sounds A, played as a G shape behind the capo: nothing to rename.
+        expect([...moved.renames]).toEqual([])
+        expect([moved.transpose, moved.key]).toEqual([0, 'A'])
+        // Without a capo above 0 the song's own stay.
+        const plain = easierChart(song('{key: G}\n{transpose: 2}\n[Gmaj9]One'), { simplify: true })
+        expect([plain.transpose, plain.key]).toEqual([2, 'G'])
+    })
+
+    it('changes nothing on a piano chart', () => {
+        const piano = easierChart(song(`{instrument: piano}\n${SONG}`), {
+            simplify: true,
+            capo: true
+        })
+        expect(piano.easier).toEqual([])
+        expect(piano.capo).toBeNull()
+        expect([...piano.renames]).toEqual([])
     })
 })
