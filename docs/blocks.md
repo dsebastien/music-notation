@@ -1382,12 +1382,21 @@ Two directives make a guitar chart easier to play: `{simplify}` swaps hard chord
 
 `{simplify}` draws an easier chord where there is one:
 
-```text
+````markdown
+```chords
 {simplify}
+{diagrams}
+
 [Cmaj9]Hello [G5]world [Am7]again [E9]and [F#]end
 ```
+````
 
-This draws Cmaj7, G, Am7, E7 and F#. A chord changes only when a plainer chord of its family is easier to play than the chord itself. The family, the nearest first: the chord without its bass (D/F# becomes D), its seventh chord (Cmaj9 becomes Cmaj7, E9 becomes E7), the minor 7th of a half-diminished chord (Bm7b5 becomes Bm7), then its major or minor chord. A chord without a third goes to its major chord (G5 becomes G). Am7, F#, Dsus4 and C/G stay as they are: nothing plainer is easier. "Easier" is the difficulty of the easiest shape the library finds for the chord, the first one `generateVoicings` gives (see [JavaScript API](api.md#renderers-and-theory)).
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{simplify}
+{diagrams}
+
+[Cmaj9]Hello [G5]world [Am7]again [E9]and [F#]end</code></pre></div>
+
+The result shows Cmaj7, G, Am7, E7 and F#, above the lyrics and in the chords used row, and the chart's line says "Easier chords". Its bar's switch reads **Simplified**: click it to see the chords as written (see [the Simplify switch](#the-simplify-switch)). A chord changes only when a plainer chord of its family is easier to play than the chord itself. The family, the nearest first: the chord without its bass (D/F# becomes D), its seventh chord (Cmaj9 becomes Cmaj7, E9 becomes E7), the minor 7th of a half-diminished chord (Bm7b5 becomes Bm7), then its major or minor chord. A chord without a third goes to its major chord (G5 becomes G). Am7, F#, Dsus4 and C/G stay as they are: nothing plainer is easier. "Easier" is the difficulty of the easiest shape the library finds for the chord, the first one `generateVoicings` gives (see [JavaScript API](api.md#renderers-and-theory)).
 
 - `{simplify: yes}` works too, and `{simplify: no}` turns it off. The last one wins. Another value shows a message at the top of the chart: `{simplify: maybe}: use yes or no`.
 - The easier chords are everywhere: above the lyrics, in the chords used row and in what the bar plays.
@@ -1397,12 +1406,21 @@ This draws Cmaj7, G, Am7, E7 and F#. A chord changes only when a plainer chord o
 
 `{capo: auto}` says the chords are written as they sound, without a capo, and lets the chart find the capo:
 
-```text
+````markdown
+```chords
 {capo: auto}
+{diagrams}
+
 [Bb]One [Eb]two [F]three [Gm]four
 ```
+````
 
-This draws G, C, D and Em, and the chart's line says "Capo 3". From there it's the same as a written `{capo: 3}`: the diagrams show the shapes behind the capo, and the bar plays the chords as they sound. A D E F#m gives G C D Em with a capo on 2. When no capo does better, as for G C D Em, nothing changes.
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{capo: auto}
+{diagrams}
+
+[Bb]One [Eb]two [F]three [Gm]four</code></pre></div>
+
+The result shows G, C, D and Em, the shapes to play, and the chart's line says "Capo 3". From there it's the same as a written `{capo: 3}`: the diagrams draw those shapes with the capo on the 3rd fret, and the bar plays the chords as they sound, Bb, Eb, F and Gm. A D E F#m gives G C D Em with a capo on 2. When no capo does better, as for G C D Em, nothing changes.
 
 - The chart tries the frets 0 to 7 and takes the one with the most open shapes. Between two frets with as many, it takes the easier shapes, each fret of the capo counting as half a point of difficulty, so a capo near the nut wins over easier shapes far up the neck. Then the lower fret.
 - A number means what it always meant: with `{capo: 2}`, the chords written are the shapes you play. The last `{capo}` wins.

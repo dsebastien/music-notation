@@ -1101,6 +1101,60 @@ A chart with its chord diagrams on top, two shapes from `{define}` (Cadd9 and Ds
 [Em]One more night, [Dsus4]then [D]home
 {end_of_chorus}</code></pre></div>
 
+## Easier charts
+
+`{simplify}` swaps hard chords for easier ones, and `{capo: auto}` finds the capo that gives the most open shapes. See [easier charts](blocks.md#easier-charts).
+
+A song in A with an A9. `{simplify}` turns the A9 into an A7, then `{capo: auto}` puts the capo on the 2nd fret: you play G7, C, D and Em, and the chart's line says "Capo 2" and "Easier chords".
+
+````markdown
+```chords
+{title: Easy Road}
+{artist: Practice Example}
+{key: A}
+{capo: auto}
+{simplify}
+{diagrams}
+
+[A9]Down the road at [D]morning, [E]dust upon the [F#m]shoes
+[A9]Nothing much to [D]carry, [E]nothing much to [F#m]lose
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Easy Road}
+{artist: Practice Example}
+{key: A}
+{capo: auto}
+{simplify}
+{diagrams}
+
+[A9]Down the road at [D]morning, [E]dust upon the [F#m]shoes
+[A9]Nothing much to [D]carry, [E]nothing much to [F#m]lose</code></pre></div>
+
+The same song without `{simplify}`: G9, C, D and Em, with the capo on 2, and the G9 is a barre chord. Click **Simplify** on its bar to get the open G7, and click again to get the G9 back.
+
+````markdown
+```chords
+{title: Easy Road}
+{artist: Practice Example}
+{key: A}
+{capo: auto}
+{diagrams}
+
+[A9]Down the road at [D]morning, [E]dust upon the [F#m]shoes
+[A9]Nothing much to [D]carry, [E]nothing much to [F#m]lose
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chords">{title: Easy Road}
+{artist: Practice Example}
+{key: A}
+{capo: auto}
+{diagrams}
+
+[A9]Down the road at [D]morning, [E]dust upon the [F#m]shoes
+[A9]Nothing much to [D]carry, [E]nothing much to [F#m]lose</code></pre></div>
+
 ## Four guitars
 
 A `guitar:` line chooses the guitar for the whole block, so each block below plays one guitar. See [which guitar plays](blocks.md#which-guitar-plays).
