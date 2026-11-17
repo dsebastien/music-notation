@@ -113,6 +113,17 @@ export {
     type ProgressionOptions
 } from './chord/transitions.js'
 export {
+    simplifyChord,
+    easierChord,
+    capoChoices,
+    bestCapo,
+    type EasierOptions,
+    type EasierChord,
+    type CapoOptions,
+    type CapoShape,
+    type CapoChoice
+} from './chord/simplify.js'
+export {
     fingeringInWords,
     type GuitarFingering,
     type PianoFingering
