@@ -30,7 +30,6 @@ import {
     type PlayOptions
 } from './controls.js'
 import {
-    choice,
     icon,
     iconButton,
     placeBar,
@@ -40,6 +39,7 @@ import {
     volumeOf
 } from './bar-parts.js'
 import { copyImageButton, diagramImage } from './copy-image.js'
+import { soundMenu } from './sound-menu.js'
 import { addFullScreen } from './full-screen.js'
 
 /** One playable diagram of a block. */
@@ -602,16 +602,15 @@ export function blockBarFor(
         : null
     if (tempo) bar.appendChild(tempo.field)
     if (strum) bar.appendChild(strum.field)
-    const sound = choice(
+    const sound = soundMenu(
         doc,
-        'mn-play-sound',
-        tr('playback.sound'),
-        ['guitar', 'piano'] as const,
-        made.sound,
-        { guitar: tr('playback.guitar'), piano: tr('playback.piano') },
-        (value) => group.setSound(value === 'piano' ? 'piano' : 'guitar')
+        tr,
+        options,
+        () => items.map((item) => item.wrap),
+        () => made.sound,
+        (value) => group.setSound(value)
     )
-    bar.appendChild(sound)
+    bar.appendChild(sound.el)
     // The selected diagram (the drawing shown, with its caption); the whole block with Shift or
     // with one diagram (#11).
     if (options.copy !== false)
@@ -637,7 +636,7 @@ export function blockBarFor(
                 strum.field.hidden = !(several && item.data.kind === 'chord')
                 strum.show(made.strumOf(made.sound))
             }
-            sound.value = made.sound
+            sound.show()
         }
     })
     return () => {

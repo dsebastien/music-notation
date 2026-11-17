@@ -24,7 +24,7 @@ import {
 import { midiOf, nameOf } from '../theory/pitch.js'
 import { DEFAULT_STRUM, lightPlayer, type NotePlayer, type PlayKind, type Sound } from './player.js'
 import { chooseEngine, engineOf, engineWish, type Engine } from './engine.js'
-import { guitarToneOf, guitarWish, type GuitarTone } from './guitar-tone.js'
+import { guitarChoice, guitarToneOf, guitarWish, type GuitarTone } from './guitar-tone.js'
 import { strumBarFor } from './strum-bar.js'
 import { progressionBarFor } from './progression-bar.js'
 import { pickingBarFor } from './picking-bar.js'
@@ -165,9 +165,12 @@ export function toned(player: NotePlayer, options: PlayOptions, el?: Element | n
     return tone ? withGuitar(player, tone) : player
 }
 
-/** The guitar that plays for an element: its block's `guitar:` line, else the app's or page's. */
+/**
+ * The guitar that plays for an element: the one its reader chose in a bar's Sound menu, else its
+ * block's `guitar:` line, else the app's or page's.
+ */
 export function guitarFor(options: PlayOptions, el?: Element | null): GuitarTone | null {
-    const wish = guitarWish(el)
+    const wish = guitarChoice(el) ?? guitarWish(el)
     if (wish) return wish
     try {
         return guitarToneOf(

@@ -12,6 +12,7 @@ import { countedTempoOf, tempoOf } from '../strum/play.js'
 import type { PlayOptions } from './controls.js'
 import type { DiagramGroup } from './block-bar.js'
 import { choice, icon, playBar, pressedButton, valueSlider, volumeOf } from './bar-parts.js'
+import { soundMenu } from './sound-menu.js'
 import { followNotes, START_WAIT } from './follow.js'
 import type { PlayHandle } from './player.js'
 import {
@@ -259,19 +260,18 @@ export function progressionBarFor(
         )
     )
     bar.appendChild(
-        choice(
+        soundMenu(
             doc,
-            'mn-play-sound',
-            tr('playback.sound'),
-            ['guitar', 'piano'] as const,
-            settings.sound,
-            { guitar: tr('playback.guitar'), piano: tr('playback.piano') },
+            tr,
+            options,
+            () => [drawing],
+            () => settings.sound,
             (value) => {
-                settings.sound = value === 'piano' ? 'piano' : 'guitar'
+                settings.sound = value
                 // The diagrams play on it too (not redrawn: the block chose their drawing).
                 diagrams?.setSound(settings.sound)
             }
-        )
+        ).el
     )
     // The whole block (#11), drawn without the bar.
     if (options.copy !== false)

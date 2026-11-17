@@ -110,7 +110,9 @@ describe("a block's guitar: line", () => {
         expect(result.el.getAttribute('data-mn-guitar')).toBe('nylon')
         expect(guitarWish(result.el.querySelector('.mn-playable'))).toBe('nylon')
         expect(h.querySelectorAll('.mn-playable')).toHaveLength(1)
-        expect(result.el.textContent).not.toContain('nylon')
+        // Not drawn: only the bar's Sound menu names it.
+        expect(result.el.querySelector('.mn-playable')?.textContent).not.toContain('nylon')
+        expect((result.el.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('nylon')
     })
 })
 

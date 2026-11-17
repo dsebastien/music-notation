@@ -87,7 +87,7 @@ describe('caption: fingering (#53)', () => {
         expect(host.querySelector('.mn-redrawn')).not.toBeNull()
         expect(caption.hidden).toBe(true)
         const sound = host.querySelector<HTMLSelectElement>('.mn-play select')!
-        sound.value = 'guitar'
+        sound.value = 'steel'
         sound.dispatchEvent(new Event('change'))
         expect(host.querySelector('figure.mn-captioned svg.mn-guitar-chord')).not.toBeNull()
         expect(caption.hidden).toBe(false)

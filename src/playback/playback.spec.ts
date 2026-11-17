@@ -150,7 +150,7 @@ describe('playback bar', () => {
                 l.getAttribute('aria-label')
             )
         ).toEqual(['Strum (ms between strings)'])
-        expect((bar.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('guitar')
+        expect((bar.querySelector('.mn-play-sound') as HTMLSelectElement).value).toBe('steel')
     })
 
     it('plays the chord, a scale, and a clicked note', () => {
@@ -285,7 +285,7 @@ describe('playback bar', () => {
         expect(strum.value).toBe('0')
         toggle.click()
         expect(new Set(calls[1]!.events.map((e) => e.time))).toEqual(new Set([0]))
-        select.value = 'guitar'
+        select.value = 'steel'
         select.dispatchEvent(new Event('change'))
         expect(strum.value).toBe('12')
         // The slider sets the strum of the sound chosen; each instrument keeps its own.
@@ -296,7 +296,7 @@ describe('playback bar', () => {
         expect(strum.value).toBe('0')
         strum.value = '25'
         strum.dispatchEvent(new Event('input'))
-        select.value = 'guitar'
+        select.value = 'steel'
         select.dispatchEvent(new Event('change'))
         expect(strum.value).toBe('30')
         select.value = 'piano'
@@ -340,7 +340,7 @@ describe('playback bar', () => {
             '20'
         )
         const pick = both.querySelector('.mn-play-sound') as HTMLSelectElement
-        pick.value = 'guitar'
+        pick.value = 'steel'
         pick.dispatchEvent(new Event('change'))
         ;(both.querySelector('.mn-play-toggle') as HTMLButtonElement).click()
         // On guitar, the chord is a grip: x32010 strums five strings.
@@ -511,7 +511,8 @@ describe('choosing the other instrument redraws the diagram', () => {
     const host = () => document.body.appendChild(document.createElement('div'))
     const choose = (h: HTMLElement, value: 'guitar' | 'piano') => {
         const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
-        select.value = value
+        // The menu lists the four guitars (#103): the steel string is the default one.
+        select.value = value === 'guitar' ? 'steel' : value
         select.dispatchEvent(new Event('change'))
     }
     const lit = (h: HTMLElement) =>
@@ -964,7 +965,7 @@ describe('following the notes (#41)', () => {
         const select = h.querySelector('.mn-play-sound') as HTMLSelectElement
         select.value = 'piano'
         select.dispatchEvent(new Event('change'))
-        select.value = 'guitar'
+        select.value = 'steel'
         select.dispatchEvent(new Event('change'))
         expect(lit(h)).toEqual([])
         h.remove()
