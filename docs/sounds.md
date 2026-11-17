@@ -39,6 +39,8 @@ Each sound has an engine, with a name you can write:
 
 The library tries them in this order, always: `generaluser`, then `sonivox`, then `light`. It skips an engine the page doesn't have. So no network, or a missing file, never means silence: the next engine plays.
 
+Each engine plays the guitar a page or a block chooses (`play: { guitar: 'nylon' }`, or a [`guitar:` line](blocks.md#which-guitar-plays)). `generaluser` reads that guitar's own file at its first use, so a page that plays only nylon chords never reads the steel-string guitar. `sonivox` plays the guitar's General MIDI program. The light synthesizer plucks each guitar its own way: nylon is darker and fades sooner, the electric guitars ring longer, and the overdriven one keeps its level while the string fades. The guitars play without effects (no amplifier, cabinet or reverb): the overdriven guitar is the soundfont's overdriven guitar sample, or the light synthesizer's version of it.
+
 In a listening test, GeneralUser GS sounded better than sonivox. So this guide plays it on every page: its page options name the sounds package's `generaluser` folder on jsDelivr, pinned to a version.
 
 ```js

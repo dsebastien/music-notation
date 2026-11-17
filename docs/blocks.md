@@ -1077,7 +1077,7 @@ Apps that turn playback on (Music Practice does, and Obsidian Publish pages thro
 
 In a block with several diagrams (`---`, `voicings:`, `positions: all`, modes, both hands), the diagram you clicked last is the selected one. It has a light outline, and the bar shows its name. At the start, the first diagram is selected. The bar has:
 
-- **Play / stop**: plays the selected diagram. a guitar chord strums from the low string up (about 12 ms between strings), then rings. A piano chord is struck as a block. A keyboard with `chord:` lights the voicing it plays, not the chord's notes in every octave: root position from the lowest root, a slash chord's bass at the bottom, or its fingered keys (`chord: G7` lights and plays G4 B4 D5 F5); when the range is too narrow for every chord tone, it lights and plays every chord note in it. A scale, mode or arpeggio starts on its tonic: it goes up to the highest note drawn, down to the lowest, and back up to the tonic, so every note drawn plays. A list without a root goes from the lowest note up and back down. The run swells a little going up and eases coming down; the first note and the tonics lean a little, and with a chord over a scale, its notes are slightly louder than the passing notes. A list of notes with exact keys (`notes: C4 E4 G4`, or a list with a `fingering`) plays in the order written, then back: `notes: G F E D C` with `fingering: 5 4 3 2 1` plays G down to C and back up to G.
+- **Play / stop**: plays the selected diagram. A guitar chord strums from the low string up (about 12 ms between strings), then rings. A piano chord is struck as a block. A keyboard with `chord:` lights the voicing it plays, not the chord's notes in every octave: root position from the lowest root, a slash chord's bass at the bottom, or its fingered keys (`chord: G7` lights and plays G4 B4 D5 F5); when the range is too narrow for every chord tone, it lights and plays every chord note in it. A scale, mode or arpeggio starts on its tonic: it goes up to the highest note drawn, down to the lowest, and back up to the tonic, so every note drawn plays. A list without a root goes from the lowest note up and back down. The run swells a little going up and eases coming down; the first note and the tonics lean a little, and with a chord over a scale, its notes are slightly louder than the passing notes. A list of notes with exact keys (`notes: C4 E4 G4`, or a list with a `fingering`) plays in the order written, then back: `notes: G F E D C` with `fingering: 5 4 3 2 1` plays G down to C and back up to G.
 - **Play all in turn** (blocks with several diagrams): each diagram once, from the first, with a pause of one beat between two diagrams. The selection follows the diagram that plays. With Loop on, it starts again after the last one.
 - **Loop**: plays the selected diagram again and again, or the whole row with Play all in turn.
 - **Speed**, when the selected diagram plays several notes: the tempo of a scale ("90 BPM"), or the time between two strings of a strum ("12 ms"; 12 ms on guitar and 0 on piano by default; once you move it, it stays when you change the sound). The value shows next to the slider.
@@ -1089,7 +1089,7 @@ The volume is not on the bar. It is a setting of the app: in Music Practice, Set
 
 Choosing the other sound also stops what is playing, then redraws every diagram of the block for that instrument, with the same notes. A piano chord becomes a guitar chord diagram you can play, the easiest grip of that chord (C is x32010), with the same labels; a scale or a list becomes a fretboard. A title's "right hand" or "left hand" is dropped on guitar. A guitar chord or a fretboard becomes a keyboard with those exact keys. A keyboard becomes a fretboard, frets 0 to 12 (up to 24 for high notes); notes below the low E or past fret 24 are left out. The title and the root come along, and so do note, degree and interval labels; finger numbers turn into note names. Choose the diagram's own instrument to get its drawing back. A click on a note plays it on either drawing.
 
-Each dot and circle can be clicked anywhere in its string's lane, a little above and below it, so you don't have to hit it exactly. On touch screens, chord diagrams and fretboards are drawn a third larger, so each string is easier to tap. They still fit the page. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments. A block can ask for another engine: see [sound engine](#sound-engine).
+Each dot and circle can be clicked anywhere in its string's lane, a little above and below it, so you don't have to hit it exactly. On touch screens, chord diagrams and fretboards are drawn a third larger, so each string is easier to tap. They still fit the page. On web pages, the sound is a small synthesizer computed in the browser (nothing to download), or the soundfont once a page with tabs has loaded it. Music Practice plays a soundfont of recorded instruments. A block can ask for another engine: see [sound engine](#sound-engine). It can also choose the guitar: see [which guitar plays](#which-guitar-plays).
 
 While it plays, each note lights up on the drawing when you hear it: the dot, the key, or the string's mark. A strummed chord lights its strings from the low one up. A clicked note lights only the dot or key you clicked. Stop or a new sound turns every light off.
 
@@ -1108,6 +1108,21 @@ It's a wish. When the page or the app can't give that engine, the next one plays
 
 - Tabs and scores can't play through the light synthesizer. With `engine: light`, they play the best sound there is: `generaluser` when the page has the instrument files, else `sonivox`.
 - On a web page, `sonivox` needs alphaTab, which only pages with a `tab` or `score` block load. A diagram with `engine: sonivox` on a page without one falls back.
+
+## Which guitar plays
+
+`guitar: nylon` chooses which guitar plays the block's guitar sound: `steel` (a steel-string acoustic, the default), `nylon` (a classical guitar), `clean` (a clean electric guitar) or `overdrive` (an overdriven electric guitar).
+
+```text
+Am
+guitar: nylon
+```
+
+The line works in `chord`, `keyboard`, `fretboard`, `strum`, `picking`, `progression` and `circle` blocks. In a chart, write it as a directive: `{guitar: nylon}`. The line isn't drawn. Other words work too, in any case: `acoustic` (steel), `classical` (nylon), `electric` (clean) and `overdriven` (overdrive). A wrong value shows `guitar: use steel, nylon, clean or overdrive, got "banjo"`.
+
+- It changes the guitar sound only. A keyboard or a piano chord still plays the piano: there, the line matters once the reader switches the bar's sound to guitar. The bar's **Sound** still offers guitar and piano.
+- Tabs and scores keep their own instruments: their tracks name them (alphaTex `\instrument`), so `tab` and `score` blocks don't read the line.
+- A page chooses for all its blocks with `play: { guitar: 'nylon' }` in `window.musicNotationOptions` (see [Publish](publish.md)). The block's line comes before the page's or the app's choice.
 
 ## Tabs and scores
 
@@ -1238,7 +1253,7 @@ Supported:
 
 Other directives are ignored.
 
-With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. `{engine: light}` asks for a [sound engine](#sound-engine). The chord that plays lights up in the lyrics.
+With playback on, a chart has the same bar as a [progression](#play-a-progression-in-time), above the song. Each chord above the lyrics plays for one bar, in order, at the song's `{tempo}` and `{time}`. Bar lines in a line change that (see [how long each chord lasts](#how-long-each-chord-lasts)). A chord defined with `{define}` plays that shape, and with `{capo}` each shape sounds where the capo puts it. A chord the chart can't read (N.C.) is skipped, except a bar of N.C. between bar lines, which is a bar of silence. A piano chart (`{instrument: piano}`) plays on piano. `{engine: light}` asks for a [sound engine](#sound-engine), and `{guitar: nylon}` chooses the [guitar that plays](#which-guitar-plays). The chord that plays lights up in the lyrics.
 
 ### How long each chord lasts
 
