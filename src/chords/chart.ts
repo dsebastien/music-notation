@@ -22,6 +22,7 @@ import {
     type ChordDrawing
 } from './chart-diagrams.js'
 import { t } from '../i18n/translate.js'
+import { easierSong } from './easier.js'
 
 export interface ChartOptions {
     /** Semitones added to the song's own `{transpose}`. */
@@ -39,6 +40,11 @@ export interface ChartOptions {
     orientation?: LayoutDefaults['orientation']
     /** Left-handed guitar diagrams. */
     hand?: Hand
+    /**
+     * Easier chords (#45): `true` draws them, `false` draws the chords as written; by default the
+     * song's own `{simplify}`.
+     */
+    simplify?: boolean
 }
 
 const PLACEMENTS = new Set(['top', 'bottom', 'off'])
@@ -161,6 +167,19 @@ function transposerOf(song: Song, extra: number | undefined) {
     }
 }
 
+/** The song a chart draws and plays (#45): easier chords and the best capo's shapes, when asked. */
+function easierPlan(
+    song: Song,
+    options: { transpose?: number; simplify?: boolean },
+    guitar: boolean
+) {
+    const written = transposerOf(song, options.transpose)
+    return easierSong(song, written.chord, written.semitones, {
+        simplify: options.simplify ?? song.simplify ?? false,
+        guitar
+    })
+}
+
 /** A song's time signature as beats a bar and beat unit (4/4 when none reads). */
 function meterOf(song: Song): { beatsPerBar: number; beatUnit: number; perPulse: number } {
     let beatsPerBar = 4
@@ -185,11 +204,17 @@ export interface ChartChords {
 
 /**
  * The chords a chart plays in time, as its play bar plays them (#75): transposed like the chart
- * (`transpose` adds to the song's own), a bar each, or as its bar lines say. A chord that doesn't
+ * (`transpose` adds to the song's own), easier like the chart (`simplify`, by default the song's
+ * `{simplify}`; the shapes of `{capo: auto}`; guitar charts), a bar each, or as its bar lines say. A chord that doesn't
  * read (N.C.) is left out; `{define}` names play. Pass `chords` and the meter to
  * `playProgression`.
  */
-export function chartChords(song: Song, options: { transpose?: number } = {}): ChartChords {
+export function chartChords(
+    given: Song,
+    options: { transpose?: number; simplify?: boolean; instrument?: ChartInstrument } = {}
+): ChartChords {
+    const instrument = given.instrument ?? (options.instrument === 'piano' ? 'piano' : 'guitar')
+    const { song } = easierPlan(given, options, instrument === 'guitar')
     const { chord } = transposerOf(song, options.transpose)
     const { beatsPerBar, beatUnit, perPulse } = meterOf(song)
     const playable = (written: string) => {
@@ -233,11 +258,17 @@ export function chartChords(song: Song, options: { transpose?: number } = {}): C
     }
 }
 
-export function renderChart(doc: Document, song: Song, options: ChartOptions = {}): HTMLElement {
+export function renderChart(doc: Document, given: Song, options: ChartOptions = {}): HTMLElement {
+    const instrument = given.instrument ?? (options.instrument === 'piano' ? 'piano' : 'guitar')
+    // The easier song (#45): easier chords, and the shapes of the capo `{capo: auto}` finds.
+    const plan = easierPlan(given, options, instrument === 'guitar')
+    const song = plan.song
     const { semitones, key, spelling, chord } = transposerOf(song, options.transpose)
+    // What the chart says of its transposition: the song's, also when a capo's shapes hold it.
+    const transposed = transposerOf(given, options.transpose).semitones
     const meter = meterOf(song)
     const drawing: ChordDrawing = {
-        instrument: song.instrument ?? (options.instrument === 'piano' ? 'piano' : 'guitar'),
+        instrument,
         ...(options.voicings ? { voicings: options.voicings } : {}),
         ...(options.orientation ? { orientation: options.orientation } : {}),
         ...(options.hand ? { hand: options.hand } : {})
@@ -255,6 +286,7 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         })
 
     const root = html(doc, 'div', 'mn-chart')
+    if (plan.easier.length) root.setAttribute('data-mn-simplified', '')
     // Played in time from its bar (#46): each chord above the lyrics a bar, in order.
     root.setAttribute('data-mn-progression-play', '')
     root.setAttribute('data-mn-sound', drawing.instrument === 'piano' ? 'piano' : 'guitar')
@@ -313,9 +345,10 @@ export function renderChart(doc: Document, song: Song, options: ChartOptions = {
         song.capo ? t('chords.chart.capo', { capo: song.capo }) : null,
         song.tempo ? t('chords.chart.tempo', { bpm: song.tempo }) : null,
         song.time ? song.time : null,
-        semitones % 12
-            ? t('chords.chart.transposed', { amount: `${semitones > 0 ? '+' : ''}${semitones}` })
-            : null
+        transposed % 12
+            ? t('chords.chart.transposed', { amount: `${transposed > 0 ? '+' : ''}${transposed}` })
+            : null,
+        plan.easier.length ? t('chords.chart.simplified') : null
     ].filter((m): m is string => m !== null)
     if (meta.length) root.appendChild(html(doc, 'div', 'mn-chart-meta', meta.join(' · ')))
     // Directives the chart couldn't read: what to write instead, and the rest still draws.

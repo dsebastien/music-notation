@@ -43,6 +43,10 @@ export interface Song {
     diagrams: 'top' | 'bottom' | 'off' | null
     /** `{instrument: piano}` (not part of ChordPro): which diagrams the chart draws. */
     instrument: 'guitar' | 'piano' | null
+    /** `{simplify}` (not part of ChordPro, #45): the chart draws easier chords where it finds some. */
+    simplify?: boolean
+    /** `{capo: auto}` (#45): the chords are as they sound, and the chart finds the best capo. */
+    capoAuto?: boolean
     /** Directives the chart couldn't read, each with what to write instead. */
     warnings: string[]
 }
@@ -120,6 +124,19 @@ function parseDirective(line: string): { name: string; value: string } | null {
     return { name: m[0].toLowerCase(), value: rest.replace(/^\s*:?/, '').trim() }
 }
 
+/** What a directive that is a switch says: `{simplify}` alone is on. */
+const SWITCHES = new Map<string, boolean>([
+    ['', true],
+    ['yes', true],
+    ['on', true],
+    ['true', true],
+    ['1', true],
+    ['no', false],
+    ['off', false],
+    ['false', false],
+    ['0', false]
+])
+
 export function parseChordPro(source: string): Song {
     const song: Song = {
         title: null,
@@ -134,6 +151,8 @@ export function parseChordPro(source: string): Song {
         definitions: [],
         diagrams: null,
         instrument: null,
+        simplify: false,
+        capoAuto: false,
         warnings: []
     }
     let section: Section = { kind: 'none', label: null, lines: [] }
@@ -168,8 +187,17 @@ export function parseChordPro(source: string): Song {
             ) {
                 song[key] = value || null
             } else if (key === 'capo') {
+                // `auto` (#45): the chords are as they sound, the chart finds the capo.
+                song.capoAuto = value.trim().toLowerCase() === 'auto'
                 const capo = Number(value)
                 song.capo = Number.isInteger(capo) && capo > 0 ? capo : null
+            } else if (key === 'simplify') {
+                const wish = SWITCHES.get(value.trim().toLowerCase())
+                if (wish !== undefined) song.simplify = wish
+                else
+                    song.warnings.push(
+                        t('chords.directive.simplify', { at: `{simplify: ${value}}` })
+                    )
             } else if (key === 'transpose') {
                 const semitones = Number(value)
                 if (Number.isInteger(semitones)) song.transpose = semitones
