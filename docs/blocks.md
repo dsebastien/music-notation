@@ -1111,12 +1111,57 @@ It's a wish. When the page or the app can't give that engine, the next one plays
 
 ## Which guitar plays
 
-`guitar: nylon` chooses which guitar plays the block's guitar sound: `steel` (a steel-string acoustic, the default), `nylon` (a classical guitar), `clean` (a clean electric guitar) or `overdrive` (an overdriven electric guitar).
+`guitar: nylon` chooses which guitar plays the block's guitar sound: `steel` (a steel-string acoustic, the default), `nylon` (a classical guitar), `clean` (a clean electric guitar) or `overdrive` (an overdriven electric guitar). Play these four one after the other: the same open Am on the two acoustic guitars, the same A5 power chord on the two electric ones.
 
-```text
-Am
+````markdown
+```chord
+Am x02210 x02310
+title: Am (steel)
+guitar: steel
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">Am x02210 x02310
+title: Am (steel)
+guitar: steel</code></pre></div>
+
+````markdown
+```chord
+Am x02210 x02310
+title: Am (nylon)
 guitar: nylon
 ```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">Am x02210 x02310
+title: Am (nylon)
+guitar: nylon</code></pre></div>
+
+````markdown
+```chord
+A5 577xxx 134xxx
+title: A5 (clean)
+guitar: clean
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A5 577xxx 134xxx
+title: A5 (clean)
+guitar: clean</code></pre></div>
+
+````markdown
+```chord
+A5 577xxx 134xxx
+title: A5 (overdrive)
+guitar: overdrive
+```
+````
+
+<div class="mn-live" markdown="0"><pre><code class="language-chord">A5 577xxx 134xxx
+title: A5 (overdrive)
+guitar: overdrive</code></pre></div>
+
+More music on each guitar: [four guitars](examples.md#four-guitars).
 
 The line works in `chord`, `keyboard`, `fretboard`, `strum`, `picking`, `progression` and `circle` blocks. In a chart, write it as a directive: `{guitar: nylon}`. The line isn't drawn. Other words work too, in any case: `acoustic` (steel), `classical` (nylon), `electric` (clean) and `overdriven` (overdrive). A wrong value shows `guitar: use steel, nylon, clean or overdrive, got "banjo"`.
 
