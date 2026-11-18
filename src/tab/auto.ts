@@ -22,6 +22,7 @@ import { injectStyles } from '../styles.js'
 import { lightPlayer, type NotePlayer } from '../playback/player.js'
 import { DEFAULT_VOLUME } from '../playback/bar-parts.js'
 import { pageFullScreen } from '../playback/full-screen.js'
+import { pageEffects } from '../playback/effects.js'
 
 declare global {
     interface Window {
@@ -151,6 +152,8 @@ function renderAllTabs(doc: Document): void {
                     alphaTab,
                     assets,
                     volume: () => pageVolume() ?? DEFAULT_VOLUME,
+                    // The page's room (#103): `play: { reverb, dry }`, read at each start.
+                    effects: () => pageEffects(window.musicNotationOptions),
                     language: pageLanguage(window.musicNotationOptions, doc),
                     ...(engine ? { engine } : {}),
                     ...(naming ? { naming } : {}),

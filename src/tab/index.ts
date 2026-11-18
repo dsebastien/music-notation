@@ -20,6 +20,8 @@ import {
 } from '../playback/guitar-tone.js'
 import { icon, iconButton, playBar, pressedButton, volumeOf } from '../playback/bar-parts.js'
 import { followVolume } from '../playback/live-volume.js'
+import type { PlayEffects } from '../playback/effects.js'
+import { throughRoom } from './room.js'
 import { fullScreenControl, type FullScreen } from '../playback/full-screen.js'
 import { followScroll } from './follow-scroll.js'
 import { nameNotes, namesOf } from './note-names.js'
@@ -175,6 +177,11 @@ export interface TabOptions {
      * #85); 0.8 by default. The bar has no volume of its own (#82).
      */
     volume?: number | (() => number)
+    /**
+     * The room and the limiter this tab's sound goes through (#103): the page's or the app's
+     * choice (`reverb`, `dry`), read each time the tab starts to play. The light room by default.
+     */
+    effects?: PlayEffects | (() => PlayEffects | null | undefined)
     /**
      * The Full screen button at the end of the player bar (default true; #113): the block fills
      * the screen, the score is drawn again at that width and scrolls in an area of its own, where
@@ -885,6 +892,21 @@ export function renderTab(
             }
             const current = new at.AlphaTabApi(surface, settings)
             api = current
+            // Its sound goes through the room and the limiter (#103); a score has its own tracks,
+            // so no amplifier.
+            const roomWindow = host.ownerDocument.defaultView
+            if (roomWindow)
+                throughRoom(
+                    current,
+                    (state) => Number(state) === Number(at.synth.PlayerState.Playing),
+                    {
+                        effects: () =>
+                            typeof options.effects === 'function'
+                                ? options.effects()
+                                : options.effects
+                    },
+                    roomWindow
+                )
             // What may scroll when the score follows the music: the score's own area, which
             // scrolls only in full screen (#113), never the page (alphaTab's default, and it
             // keeps the first element it finds). Set here, not in the settings above: those go
@@ -1350,6 +1372,16 @@ export function createSoundfontPlayer(
             }
         })
         const current = api
+        // Its sound goes through the room and the limiter, and an electric guitar's amplifier
+        // when one is asked for (#103): what the play in progress asked.
+        const view = doc.defaultView
+        if (view)
+            room = throughRoom(
+                current,
+                (state) => Number(state) === Number(alphaTab.synth.PlayerState.Playing),
+                { effects: () => asked.effects, guitar: () => asked.guitar },
+                view
+            )
         // Ready once the soundfont is in and the player has its song (alphaTab loads the presets
         // then; playing before that is silent, and the song loading later cuts it). A player that
         // never says it's ready plays anyway after a few seconds.
@@ -1436,6 +1468,13 @@ export function createSoundfontPlayer(
         return more
     }
     const inner = soundfontPlayer(alphaTab, () => api)
+    /** The hook that sends this player's sound through the room (#103), once it has started. */
+    let room: { look: () => void; stop: () => void } | null = null
+    /** What the play in progress asked for, read when alphaTab starts its output (#103). */
+    const asked: { effects: PlayEffects | undefined; guitar: GuitarTone | null } = {
+        effects: undefined,
+        guitar: null
+    }
     return {
         // Its notes start once the soundfont is in: `onStart` says when (the fallback's too).
         reportsStart: true,
@@ -1448,7 +1487,13 @@ export function createSoundfontPlayer(
                 if (stopped) return
                 try {
                     if (ok) {
+                        asked.effects = options.effects
+                        asked.guitar =
+                            options.sound === 'guitar' ? (options.guitar ?? 'steel') : null
                         handle = inner.play(events, { ...options, volume })
+                        // alphaTab starts these notes without a state change: look for its
+                        // output node now.
+                        room?.look()
                         return
                     }
                 } catch {

@@ -13,6 +13,7 @@ import { instrumentSounds, type InstrumentSource } from '../tab/instruments.js'
 import {
     contextFor,
     lengthOf,
+    sendOut,
     type NoteEvent,
     type NotePlayer,
     type PlayHandle,
@@ -248,11 +249,11 @@ export function sampledPlayer(
     }
     return {
         reportsStart: true,
-        play(events, { sound: instrument, volume, onEnd, onStart, guitar }) {
+        play(events, { sound: instrument, volume, onEnd, onStart, guitar, effects }) {
             const ctx = contextOf()
             const tone = guitar ?? DEFAULT_GUITAR_TONE
-            // The fallback plays the same guitar.
-            const same = guitar ? { guitar } : {}
+            // The fallback plays the same guitar, in the same room.
+            const same = { ...(guitar ? { guitar } : {}), ...(effects ? { effects } : {}) }
             if (!ctx)
                 return fallback.play(events, {
                     sound: instrument,
@@ -283,7 +284,7 @@ export function sampledPlayer(
                 const byKind = new Map(kinds.map((kind, i) => [kind, loaded[i]!]))
                 const master = ctx.createGain()
                 master.gain.value = level
-                master.connect(ctx.destination)
+                sendOut(ctx, master, instrument === 'guitar' ? tone : null, effects)
                 const start = ctx.currentTime + 0.05
                 const sources: AudioBufferSourceNode[] = []
                 let tail = 0

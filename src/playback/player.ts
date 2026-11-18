@@ -5,6 +5,7 @@
  */
 
 import { DEFAULT_GUITAR_TONE, type GuitarTone } from './guitar-tone.js'
+import { ampFor, outputFor, type PlayEffects } from './effects.js'
 
 export type Sound = 'guitar' | 'piano'
 
@@ -48,6 +49,11 @@ export interface NotePlayer {
              * that doesn't know it plays its own guitar.
              */
             guitar?: GuitarTone
+            /**
+             * The room, the limiter and the amplifier after the notes (#103): the light room by
+             * default. A player that doesn't know them plays as it always did.
+             */
+            effects?: PlayEffects
         }
     ): PlayHandle
     /**
@@ -430,6 +436,30 @@ export const releaseOf = (sound: Sound, duration: number): number =>
 const pianoDecay = (midi: number) => Math.min(2.5, Math.max(0.35, Math.pow(2, (60 - midi) / 24)))
 
 /**
+ * Sends a play's notes on (#103): through an electric guitar's amplifier when one is asked for
+ * (`clean` and `overdrive` only), then to the context's room and limiter, or straight to the
+ * output for `dry`.
+ */
+export function sendOut(
+    ctx: BaseAudioContext,
+    from: AudioNode,
+    guitar: GuitarTone | null,
+    effects: PlayEffects | undefined
+): void {
+    const out = outputFor(ctx, effects)
+    const amp =
+        !effects?.dry && (guitar === 'clean' || guitar === 'overdrive')
+            ? ampFor(ctx, effects?.amp)
+            : null
+    if (!amp) {
+        from.connect(out)
+        return
+    }
+    from.connect(amp.input)
+    amp.output.connect(out)
+}
+
+/**
  * The light synthesizer: computed sound, a few KB, no download. No two notes sound quite the
  * same: each guitar note takes one of a few plucks of its string (brightness, pick position,
  * decay), and every note varies a little in pitch (a few cents) and level. `random` (0–1) is
@@ -469,7 +499,7 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
     }
     return {
         reportsStart: true,
-        play(events, { sound, volume, onEnd, onStart, guitar }) {
+        play(events, { sound, volume, onEnd, onStart, guitar, effects }) {
             const ctx = contextFor(win)
             if (!ctx || !events.length) return { stop() {} }
             const tone = guitar ?? DEFAULT_GUITAR_TONE
@@ -490,7 +520,7 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 })
             const gain = ctx.createGain()
             gain.gain.value = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
-            gain.connect(ctx.destination)
+            sendOut(ctx, gain, sound === 'guitar' ? tone : null, effects)
             const start = ctx.currentTime + 0.05
             const sources = events.map((e, i) => {
                 if (e.kind)

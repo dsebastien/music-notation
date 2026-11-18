@@ -88,6 +88,13 @@ export {
     pageGuitar,
     type GuitarTone
 } from './playback/guitar-tone.js'
+export {
+    DEFAULT_REVERB,
+    pageEffects,
+    outputFor,
+    type PlayEffects,
+    type AmpOptions
+} from './playback/effects.js'
 export { volumeChanged } from './playback/live-volume.js'
 export { attachCopy } from './playback/copy-image.js'
 export {
