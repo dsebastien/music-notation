@@ -24,7 +24,7 @@ Load them from a script that your pages load (a file of your site, or your page 
 
 ```js
 ;(() => {
-    const VERSION = '0.25.0'
+    const VERSION = '0.26.0'
     const CDN = `https://cdn.jsdelivr.net/npm/@dsebastien/music-notation@${VERSION}/dist`
     for (const file of ['music-notation.publish.min.js', 'music-notation.tab.min.js']) {
         const script = document.createElement('script')
