@@ -25,7 +25,7 @@ import { midiOf, nameOf } from '../theory/pitch.js'
 import { DEFAULT_STRUM, lightPlayer, type NotePlayer, type PlayKind, type Sound } from './player.js'
 import { chooseEngine, engineOf, engineWish, type Engine } from './engine.js'
 import { guitarChoice, guitarToneOf, guitarWish, type GuitarTone } from './guitar-tone.js'
-import type { AmpOptions, PlayEffects } from './effects.js'
+import { roomSeconds, type AmpOptions, type PlayEffects } from './effects.js'
 import { strumBarFor } from './strum-bar.js'
 import { progressionBarFor } from './progression-bar.js'
 import { pickingBarFor } from './picking-bar.js'
@@ -63,10 +63,15 @@ export interface PlayOptions {
     guitar?: GuitarTone | (() => GuitarTone | null | undefined)
     /**
      * The room's level (#103), 0 (none) to 1: every block plays in a small room, light by default
-     * (0.16). A function is read at each play, so a setting changed in the app is heard at the
+     * (0.25). A function is read at each play, so a setting changed in the app is heard at the
      * next Play. The level is the page's: the last play sets it for everything that sounds.
      */
     reverb?: number | (() => number | null | undefined)
+    /**
+     * How long the room rings (#103), in seconds, 0.2 (a small room) to 3 (a hall); 1.2 by
+     * default. A function is read at each play. Like the level, it is the page's.
+     */
+    room?: number | (() => number | null | undefined)
     /**
      * No room and no limiter (#103): the notes go straight to the output, as they did before the
      * room, for a host that adds its own effects. A function is read at each play.
@@ -199,10 +204,14 @@ export function effectsOf(options: PlayOptions): PlayEffects | null {
         }
     }
     const reverb = read(options.reverb)
+    const room = read(options.room)
     const amp = read(options.amp)
     const effects: PlayEffects = {
         ...(typeof reverb === 'number' && Number.isFinite(reverb)
             ? { reverb: Math.round(Math.min(1, Math.max(0, reverb)) * 100) / 100 }
+            : {}),
+        ...(typeof room === 'number' && Number.isFinite(room)
+            ? { room: Math.round(roomSeconds(room) * 100) / 100 }
             : {}),
         ...(read(options.dry) === true ? { dry: true } : {}),
         ...(amp &&

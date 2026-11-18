@@ -12,6 +12,8 @@
 export interface PlayEffects {
     /** The room's level, 0 (none) to 1; the light room by default. */
     reverb?: number
+    /** How long the room rings, in seconds (0.2 to 3): a small room to a hall. */
+    room?: number
     /** No room and no limiter: the notes go straight to the output, for hosts with their own. */
     dry?: boolean
     /** An amplifier for the electric guitars (clean, overdrive); none by default. */
@@ -27,10 +29,23 @@ export interface AmpOptions {
 }
 
 /** The room's level when nothing says another: a light room. */
-export const DEFAULT_REVERB = 0.16
+export const DEFAULT_REVERB = 0.25
 
-/** How long the room rings (seconds to fall by 60 dB): a small, damped room. */
-export const ROOM_SECONDS = 0.7
+/**
+ * How long the room rings (seconds to fall by 60 dB). A guitar's notes ring for seconds
+ * themselves: a room shorter than about a second hides under them and is not heard.
+ */
+export const ROOM_SECONDS = 1.2
+
+/** The shortest and the longest room (seconds). */
+export const ROOM_RANGE = [0.2, 3] as const
+
+/** A room's length from an option: within the range, the default when it isn't a number. */
+export function roomSeconds(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value)
+        ? Math.min(ROOM_RANGE[1], Math.max(ROOM_RANGE[0], value))
+        : ROOM_SECONDS
+}
 
 /** A room level from an option: 0 to 1, the default when it isn't a number. */
 export function reverbLevel(value: unknown): number {
@@ -40,9 +55,9 @@ export function reverbLevel(value: unknown): number {
 }
 
 /**
- * A page's effects (`play: { reverb, dry, amp }` in `window.musicNotationOptions`): `reverb` a
- * number from 0 to 1, `dry: true`, `amp: { drive, cabinet }`. A function in place of `reverb` or
- * `amp` is called. Null when the page names none.
+ * A page's effects (`play: { reverb, room, dry, amp }` in `window.musicNotationOptions`): `reverb`
+ * a number from 0 to 1, `room` its length in seconds, `dry: true`, `amp: { drive, cabinet }`. A
+ * function in place of a value is called. Null when the page names none.
  */
 export function pageEffects(options: unknown): PlayEffects | null {
     if (!options || typeof options !== 'object' || !('play' in options)) return null
@@ -58,6 +73,7 @@ export function pageEffects(options: unknown): PlayEffects | null {
         }
     }
     const reverb = read('reverb')
+    const room = read('room')
     const amp = read('amp')
     const drive = amp && typeof amp === 'object' ? (amp as Record<string, unknown>)['drive'] : null
     const cabinet = amp && typeof amp === 'object' && (amp as Record<string, unknown>)['cabinet']
@@ -65,6 +81,7 @@ export function pageEffects(options: unknown): PlayEffects | null {
         ...(typeof reverb === 'number' && Number.isFinite(reverb)
             ? { reverb: Math.min(1, Math.max(0, reverb)) }
             : {}),
+        ...(typeof room === 'number' && Number.isFinite(room) ? { room: roomSeconds(room) } : {}),
         ...(read('dry') === true ? { dry: true } : {}),
         ...(cabinet === true || (typeof drive === 'number' && Number.isFinite(drive))
             ? {
@@ -92,20 +109,16 @@ function seeded(seed: number): () => number {
     }
 }
 
-/** Early reflections: when (ms) and how strong, for the left and the right side. */
-const REFLECTIONS: readonly (readonly [number, number, number])[] = [
-    [11, 0.5, 0.32],
-    [17, 0.28, 0.46],
-    [23, 0.38, 0.22],
-    [31, 0.18, 0.3],
-    [43, 0.22, 0.14]
-]
+/** The tail's brightness (Hz): where its highs end when it starts, and when it has rung out. */
+const ROOM_BRIGHT = [9000, 2400] as const
 
 /**
- * The impulse response of a small room, left and right: a few early reflections, then a diffuse
- * tail that falls by 60 dB in `seconds` and gets darker as it falls (walls take the highs first).
- * The two sides differ, so the room has width. Each side has an energy of 1: a sound through it
- * comes out about as loud as it went in, and the wet level is the gain after it.
+ * The impulse response of a room, left and right: after 12 ms (the notes themselves come first),
+ * a diffuse tail that falls by 60 dB in `seconds` and gets darker as it falls (walls take the
+ * highs first; the brightness is in Hz, so the room sounds the same at every sample rate). The
+ * two sides differ, so the room has width. Each side has an energy of 1: a sound through it comes
+ * out about as loud as it went in, and the wet level is the gain after it. (A first version had
+ * five early reflections too: at the level of the tail's own points, they changed nothing.)
  */
 export function roomImpulse(
     sampleRate: number,
@@ -115,18 +128,25 @@ export function roomImpulse(
     const make = (side: 0 | 1): Float32Array => {
         const random = seeded(side ? 0x51ed270b : 0x2545f491)
         const data = new Float32Array(length)
-        const start = Math.round(sampleRate * 0.008)
+        const start = Math.min(length, Math.round(sampleRate * 0.012))
+        // The last tenth fades to nothing: an impulse cut at -60 dB ends on a small step.
+        const fade = Math.max(1, Math.round(length * 0.1))
+        // The level and the brightness fall by the same share at each point: two products, no
+        // power per point (a room of 1.2 s is 115,000 points, made while a play waits).
+        const fall = Math.pow(10, -3 / (sampleRate * seconds))
+        const darker = Math.pow(ROOM_BRIGHT[1] / ROOM_BRIGHT[0], 1 / (sampleRate * seconds))
+        let level = Math.pow(fall, start)
+        let cutoff = ROOM_BRIGHT[0] * Math.pow(darker, start)
+        let keep = 0
         let low = 0
         for (let i = start; i < length; i++) {
-            const t = i / sampleRate
             // A one-pole low-pass that closes with time: from bright to dull.
-            const keep = 0.25 + 0.6 * (t / seconds)
+            if ((i - start) % 64 === 0)
+                keep = Math.exp((-2 * Math.PI * Math.min(cutoff, sampleRate * 0.45)) / sampleRate)
             low = keep * low + (1 - keep) * (random() * 2 - 1)
-            data[i] = low * Math.pow(10, (-3 * t) / seconds)
-        }
-        for (const [ms, left, right] of REFLECTIONS) {
-            const at = Math.round((sampleRate * ms) / 1000)
-            if (at < length) data[at] = data[at]! + (side ? right : left)
+            data[i] = low * level * (i > length - fade ? (length - i) / fade : 1)
+            level *= fall
+            cutoff *= darker
         }
         let energy = 0
         for (let i = 0; i < length; i++) energy += data[i]! * data[i]!
@@ -137,8 +157,19 @@ export function roomImpulse(
     return [make(0), make(1)]
 }
 
-/** The limiter: nothing below the threshold, a hard ratio above it, fast enough for a strum. */
-export const LIMITER = { threshold: -3, knee: 0, ratio: 20, attack: 0.003, release: 0.1 } as const
+/**
+ * The limiter: nothing below the threshold, a hard ratio above it. The threshold is above an
+ * ordinary strum (a six-string chord of the recorded guitars peaks near -1.6 dB): the limiter
+ * works on an accented strum and on plays that add up, and leaves the rest as it was. At -3 dB
+ * it turned every strum down a little, and the room with it.
+ */
+export const LIMITER = {
+    threshold: -1.5,
+    knee: 0,
+    ratio: 20,
+    attack: 0.002,
+    release: 0.15
+} as const
 
 /**
  * The gain that takes back the limiter's make-up gain. A Web Audio compressor raises its output
@@ -153,9 +184,37 @@ export function limiterTrim(
     return Math.pow(10, (fullScaleDb * 0.6) / 20)
 }
 
+/** Where the ceiling starts to bend, and the highest level its curve is drawn for. */
+export const CEILING = { knee: 0.9, range: 2 } as const
+
+/**
+ * The ceiling after the limiter: a level under the knee comes out as it is, a higher one bends
+ * toward 1 and never passes it. The limiter needs a few milliseconds to act: this takes the
+ * first peak of a hard strum, which went out above full scale and was cut flat by the speakers.
+ * The curve is for an input divided by `CEILING.range` (a wave shaper reads -1 to 1).
+ */
+export function ceilingCurve(points = 4097): Float32Array {
+    const { knee, range } = CEILING
+    const curve = new Float32Array(points)
+    for (let i = 0; i < points; i++) {
+        const level = ((i / (points - 1)) * 2 - 1) * range
+        const size = Math.abs(level)
+        curve[i] =
+            Math.sign(level) *
+            (size <= knee ? size : knee + (1 - knee) * Math.tanh((size - knee) / (1 - knee)))
+    }
+    return curve
+}
+
+/** The room's sound below this (Hz) is left out: a room's low end is mud under a guitar. */
+export const ROOM_LOW_CUT = 180
+
 interface Chain {
     input: GainNode
     wet: GainNode
+    room: ConvolverNode
+    /** The length of the room in the convolver now. */
+    seconds: number
 }
 
 const chains = new WeakMap<BaseAudioContext, Chain>()
@@ -166,17 +225,33 @@ const canBuild = (ctx: BaseAudioContext): boolean =>
     typeof ctx.createDynamicsCompressor === 'function' &&
     typeof ctx.createBuffer === 'function'
 
-function build(ctx: BaseAudioContext): Chain {
-    const input = ctx.createGain()
-    const wet = ctx.createGain()
-    const room = ctx.createConvolver()
-    const [left, right] = roomImpulse(ctx.sampleRate)
+/** The last rooms made, by sample rate and length: a page's players share them. */
+const rooms = new Map<string, [Float32Array, Float32Array]>()
+
+function roomBuffer(ctx: BaseAudioContext, seconds: number): AudioBuffer {
+    const key = `${ctx.sampleRate}:${seconds}`
+    let sides = rooms.get(key)
+    if (!sides) {
+        sides = roomImpulse(ctx.sampleRate, seconds)
+        if (rooms.size >= 3) rooms.delete(rooms.keys().next().value as string)
+        rooms.set(key, sides)
+    }
+    const [left, right] = sides
     const impulse = ctx.createBuffer(2, left.length, ctx.sampleRate)
     impulse.getChannelData(0).set(left)
     impulse.getChannelData(1).set(right)
+    return impulse
+}
+
+function build(ctx: BaseAudioContext, speakers: AudioNode, seconds: number): Chain {
+    const input = ctx.createGain()
+    const wet = ctx.createGain()
+    // Silent until a play names its level: the first one glides up, it doesn't jump.
+    wet.gain.value = 0
+    const room = ctx.createConvolver()
     // Our impulse has its own level: the browser's normalization would change it.
     room.normalize = false
-    room.buffer = impulse
+    room.buffer = roomBuffer(ctx, seconds)
     const limiter = ctx.createDynamicsCompressor()
     limiter.threshold.value = LIMITER.threshold
     limiter.knee.value = LIMITER.knee
@@ -187,28 +262,56 @@ function build(ctx: BaseAudioContext): Chain {
     trim.gain.value = limiterTrim()
     input.connect(limiter)
     input.connect(room)
-    room.connect(wet)
+    if (typeof ctx.createBiquadFilter === 'function') {
+        const lowCut = ctx.createBiquadFilter()
+        lowCut.type = 'highpass'
+        lowCut.frequency.value = ROOM_LOW_CUT
+        lowCut.Q.value = 0.7
+        room.connect(lowCut)
+        lowCut.connect(wet)
+    } else room.connect(wet)
     wet.connect(limiter)
     limiter.connect(trim)
-    trim.connect(ctx.destination)
-    return { input, wet }
+    if (typeof ctx.createWaveShaper === 'function') {
+        const ceiling = ctx.createWaveShaper()
+        ceiling.curve = ceilingCurve() as Float32Array<ArrayBuffer>
+        // The curve's input is the level divided by its range.
+        trim.gain.value = limiterTrim() / CEILING.range
+        trim.connect(ceiling)
+        ceiling.connect(speakers)
+    } else trim.connect(speakers)
+    return { input, wet, room, seconds }
 }
 
 /**
  * Where a player sends its notes: the context's chain (the room at the level asked, then the
  * limiter), or the output itself for `dry` and for a context that can't build the chain. The
- * room's level is the context's: the last play that names one sets it for what sounds.
+ * room's level and length are the context's: the last play that names them sets them for what
+ * sounds. `speakers` is the context's output, for a caller that keeps it under another name
+ * (alphaTab's context, see `src/tab/room.ts`).
  */
-export function outputFor(ctx: BaseAudioContext, effects?: PlayEffects): AudioNode {
-    if (effects?.dry || !canBuild(ctx)) return ctx.destination
+export function outputFor(
+    ctx: BaseAudioContext,
+    effects?: PlayEffects,
+    speakers: AudioNode = ctx.destination
+): AudioNode {
+    if (effects?.dry || !canBuild(ctx)) return speakers
+    const seconds = roomSeconds(effects?.room)
     let chain = chains.get(ctx)
     if (!chain) {
         try {
-            chain = build(ctx)
+            chain = build(ctx, speakers, seconds)
         } catch {
-            return ctx.destination
+            return speakers
         }
         chains.set(ctx, chain)
+    } else if (chain.seconds !== seconds) {
+        try {
+            chain.room.buffer = roomBuffer(ctx, seconds)
+            chain.seconds = seconds
+        } catch {
+            // The room stays as long as it was.
+        }
     }
     const level = reverbLevel(effects?.reverb)
     // A short glide: a level that jumps while notes ring clicks.
@@ -218,9 +321,12 @@ export function outputFor(ctx: BaseAudioContext, effects?: PlayEffects): AudioNo
     return chain.input
 }
 
+/** How hard the amplifier's curve bends at a drive of 0 to 1. */
+export const driveAmount = (drive: number): number => 1 + 14 * Math.min(1, Math.max(0, drive))
+
 /** The curve of a driven amplifier: a soft ceiling, steeper with more drive. */
-export function driveCurve(drive: number, points = 1024): Float32Array {
-    const amount = 1 + 24 * Math.min(1, Math.max(0, drive))
+export function driveCurve(drive: number, points = 2048): Float32Array {
+    const amount = driveAmount(drive)
     const curve = new Float32Array(points)
     const ceiling = Math.tanh(amount)
     for (let i = 0; i < points; i++) {
@@ -230,10 +336,36 @@ export function driveCurve(drive: number, points = 1024): Float32Array {
     return curve
 }
 
+/** The level of a strummed guitar the drive is matched for (a wave's peak). */
+export const DRIVE_REFERENCE = 0.2
+
 /**
- * An electric guitar's amplifier between a play and the chain: a drive (a wave shaper, level
- * matched so more drive is not simply louder) and a cabinet (no deep bass, a peak in the mids, no
- * fizz). Null when the options ask for neither, or the context can't build it.
+ * The gain after the drive that keeps a strum as loud as it went in: a wave at the reference
+ * level through the curve, its level in over its level out. The curve raises quiet sound by its
+ * slope (up to 15 times): a fixed gain made a driven strum 10 to 12 dB louder.
+ */
+export function driveLevel(drive: number, reference = DRIVE_REFERENCE): number {
+    const amount = driveAmount(drive)
+    const ceiling = Math.tanh(amount)
+    let before = 0
+    let after = 0
+    for (let i = 0; i < 256; i++) {
+        const x = reference * Math.sin((2 * Math.PI * i) / 256)
+        const y = Math.tanh(amount * x) / ceiling
+        before += x * x
+        after += y * y
+    }
+    return after > 0 ? Math.sqrt(before / after) : 1
+}
+
+/** The cabinet's filters raise a guitar's level by about this (dB): taken back after them. */
+export const CABINET_TRIM_DB = -2
+
+/**
+ * An electric guitar's amplifier between a play and the chain: a drive (the deep bass left out,
+ * then a wave shaper, level matched so more drive is not simply louder) and a cabinet (no deep
+ * bass, a peak in the mids, no fizz, level matched too). Null when the options ask for neither,
+ * or the context can't build it.
  */
 export function ampFor(
     ctx: BaseAudioContext,
@@ -246,31 +378,36 @@ export function ampFor(
         return null
     const input = ctx.createGain()
     let last: AudioNode = input
+    const filter = (type: BiquadFilterType, frequency: number, q: number, gain = 0) => {
+        const node = ctx.createBiquadFilter()
+        node.type = type
+        node.frequency.value = frequency
+        node.Q.value = q
+        node.gain.value = gain
+        last.connect(node)
+        last = node
+    }
     if (drive) {
+        // A driven low string turns to mud: amplifiers cut the deep bass before the drive.
+        filter('highpass', 120, 0.7)
         const shaper = ctx.createWaveShaper()
         shaper.curve = driveCurve(drive) as Float32Array<ArrayBuffer>
         shaper.oversample = '4x'
         const level = ctx.createGain()
-        // A driven signal is denser: taken down so the drive changes the tone, not the level.
-        level.gain.value = 1 / (1 + 1.5 * drive)
+        level.gain.value = driveLevel(drive)
         last.connect(shaper)
         shaper.connect(level)
         last = level
     }
     if (cabinet) {
-        const filter = (type: BiquadFilterType, frequency: number, q: number, gain = 0) => {
-            const node = ctx.createBiquadFilter()
-            node.type = type
-            node.frequency.value = frequency
-            node.Q.value = q
-            node.gain.value = gain
-            last.connect(node)
-            last = node
-        }
         filter('highpass', 90, 0.7)
         filter('peaking', 2200, 1, 4)
         filter('lowpass', 4800, 0.7)
         filter('lowpass', 6500, 0.7)
+        const level = ctx.createGain()
+        level.gain.value = Math.pow(10, CABINET_TRIM_DB / 20)
+        last.connect(level)
+        last = level
     }
     return { input, output: last }
 }

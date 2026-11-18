@@ -1,13 +1,21 @@
 /**
  * alphaTab's sound through the library's room and limiter (#103). alphaTab has no reverb of its
  * own and gives no place to plug one in: each time it starts to play, it makes an output node and
- * connects it to the speakers. This takes that node and connects it to the chain instead.
+ * connects it to its context's `destination`.
  *
- * The node is in a field alphaTab keeps to itself, and its name differs between alphaTab's builds
- * (the minified one shortens it). So the node is found by what it is: the one audio node the
- * output holds besides its `source` (a public field, like `context`). When nothing is found
- * (another alphaTab, another output), nothing is changed: the sound stays as it was.
- * `room.spec.ts` fails when the alphaTab in use no longer has those public fields.
+ * So the context gets a `destination` of its own (a property on the object, over the browser's):
+ * at each start alphaTab reads it and connects its node to what it gets, the chain's entry for
+ * this play, or the speakers for `dry`. The node never sounds outside the chain. A first version
+ * moved the node after alphaTab had connected it: the first 20 ms of each play went out
+ * directly, then jumped into the limiter (which is 6 ms late).
+ *
+ * When the property can't be set, or the context was made too late for the first play, the node
+ * is moved as before. It is in a field alphaTab keeps to itself, and its name differs between
+ * alphaTab's builds (the minified one shortens it). So the node is found by what it is: the one
+ * audio node the output holds besides its `source` (a public field, like `context`). When nothing
+ * is found (another alphaTab, another output), nothing is changed: the sound stays as it was.
+ * `room.spec.ts` fails when the alphaTab in use no longer has those public fields, or no longer
+ * connects to its context's `destination`.
  */
 import type * as AT from '@coderline/alphatab'
 import { ampFor, outputFor, type PlayEffects } from '../playback/effects.js'
@@ -52,11 +60,27 @@ export function outputNodeOf(player: unknown): { ctx: BaseAudioContext; node: Au
     return null
 }
 
+/** alphaTab's context, when it has one already (it makes it when its player opens). */
+export function contextOf(player: unknown): BaseAudioContext | null {
+    return (player as { output?: OutputLike } | null | undefined)?.output?.context ?? null
+}
+
+/** A context whose `destination` is ours: its speakers, and who answers for it now. */
+interface Taken {
+    speakers: AudioNode
+    owner: object | null
+    entry: ((speakers: AudioNode) => AudioNode) | null
+    /** How many times alphaTab asked for the destination: once per node it connects. */
+    asked: number
+}
+
+const taken = new WeakMap<BaseAudioContext, Taken>()
+
 /**
  * Sends what alphaTab plays through the room and the limiter, from now on: at each start, its
  * new output node goes to the chain (through an electric guitar's amplifier when one is asked for
- * and one guitar plays). `dry` leaves alphaTab's own connection. `look` does it now, for a play
- * alphaTab starts without saying so (the one-time plays of the diagrams' player); `stop` ends it.
+ * and one guitar plays). `dry` gives it the speakers. `look` checks it now, for a play alphaTab
+ * starts without saying so (the one-time plays of the diagrams' player); `stop` ends it.
  */
 export function throughRoom(
     api: AT.AlphaTabApi,
@@ -65,12 +89,12 @@ export function throughRoom(
     win: Pick<Window, 'setTimeout' | 'clearTimeout'>
 ): { look: () => void; stop: () => void } {
     const routed = new WeakSet<AudioNode>()
+    const self = {}
     let timers: number[] = []
     let alive = true
-    const route = () => {
-        if (!alive) return
-        const found = outputNodeOf(api.player)
-        if (!found || routed.has(found.node)) return
+    let mine: Taken | null = null
+    /** Where this play's sound goes: the chain's entry, an amplifier before it, or the speakers. */
+    const entryFor = (ctx: BaseAudioContext, speakers: AudioNode): AudioNode => {
         let effects: PlayEffects | undefined
         let guitar: GuitarTone | null = null
         try {
@@ -79,20 +103,66 @@ export function throughRoom(
         } catch {
             effects = undefined
         }
-        if (effects?.dry) return
+        if (effects?.dry) return speakers
+        const out = outputFor(ctx, effects, speakers)
+        if (out === speakers) return speakers
+        const amp = guitar === 'clean' || guitar === 'overdrive' ? ampFor(ctx, effects?.amp) : null
+        if (!amp) return out
+        amp.output.connect(out)
+        return amp.input
+    }
+    /** Gives alphaTab's context a `destination` that is the chain; true when it has one. */
+    const take = (): boolean => {
+        const ctx = contextOf(api.player)
+        if (!ctx) return false
+        const entry = (speakers: AudioNode) => entryFor(ctx, speakers)
+        const had = taken.get(ctx)
+        if (had) {
+            // A context two players share: the last one to play answers for it.
+            had.owner = self
+            had.entry = entry
+            mine = had
+            return true
+        }
         try {
-            const out = outputFor(found.ctx, effects)
-            // No chain in this context: alphaTab's own connection stays.
-            if (out === found.ctx.destination) return
-            const amp =
-                guitar === 'clean' || guitar === 'overdrive'
-                    ? ampFor(found.ctx, effects?.amp)
-                    : null
+            const holder: Taken = { speakers: ctx.destination, owner: self, entry, asked: 0 }
+            Object.defineProperty(ctx, 'destination', {
+                configurable: true,
+                get: () => {
+                    holder.asked++
+                    try {
+                        return holder.entry ? holder.entry(holder.speakers) : holder.speakers
+                    } catch {
+                        return holder.speakers
+                    }
+                }
+            })
+            taken.set(ctx, holder)
+            mine = holder
+            return true
+        } catch {
+            return false
+        }
+    }
+    /**
+     * The older way, for a node alphaTab connected to the speakers itself: the play in progress
+     * when the context was taken (`since`: what alphaTab had asked by then), or a context that
+     * can't be taken.
+     */
+    const route = (since: number | null) => {
+        if (!alive) return
+        const found = outputNodeOf(api.player)
+        if (!found || routed.has(found.node)) return
+        const holder = taken.get(found.ctx)
+        // alphaTab asked for the destination since: this node is in the chain already.
+        if (holder && (since === null || holder.asked > since)) return
+        try {
+            const speakers = holder ? holder.speakers : found.ctx.destination
+            const entry = entryFor(found.ctx, speakers)
+            // Dry, or no chain in this context: alphaTab's own connection stays.
+            if (entry === speakers) return
             found.node.disconnect()
-            if (amp) {
-                found.node.connect(amp.input)
-                amp.output.connect(out)
-            } else found.node.connect(out)
+            found.node.connect(entry)
             routed.add(found.node)
         } catch {
             // The node keeps what it had, or is silent until alphaTab makes the next one.
@@ -101,8 +171,20 @@ export function throughRoom(
     const look = () => {
         if (!alive) return
         for (const id of timers) win.clearTimeout(id)
-        timers = LOOKS.map((ms) => win.setTimeout(route, ms))
+        timers = []
+        // Taken before this play: alphaTab connects its node to the chain itself.
+        const before = contextOf(api.player)
+        if (before && taken.has(before) && take()) return
+        const since = take() ? (mine?.asked ?? 0) : null
+        timers = LOOKS.map((ms) => win.setTimeout(() => route(since), ms))
     }
+    take()
+    // alphaTab makes its context when its player opens, before it says it is ready.
+    const ready = (api as { playerReady?: { on?: (f: () => void) => void } }).playerReady
+    if (typeof ready?.on === 'function')
+        ready.on(() => {
+            if (alive) take()
+        })
     api.playerStateChanged.on((e) => {
         if (alive && playing(e.state)) look()
     })
@@ -112,6 +194,11 @@ export function throughRoom(
             alive = false
             for (const id of timers) win.clearTimeout(id)
             timers = []
+            // The context sounds as alphaTab made it again.
+            if (mine && mine.owner === self) {
+                mine.owner = null
+                mine.entry = null
+            }
         }
     }
 }
