@@ -63,7 +63,7 @@ export interface PlayOptions {
     guitar?: GuitarTone | (() => GuitarTone | null | undefined)
     /**
      * The room's level (#103), 0 (none) to 1: every block plays in a small room, light by default
-     * (0.12). A function is read at each play, so a setting changed in the app is heard at the
+     * (0.125, the room 18 dB under the notes). A function is read at each play, so a setting changed in the app is heard at the
      * next Play. The level is the page's: the last play sets it for everything that sounds.
      */
     reverb?: number | (() => number | null | undefined)
@@ -189,8 +189,9 @@ export function toned(player: NotePlayer, options: PlayOptions, el?: Element | n
 }
 
 /**
- * The effects a host asks for (#103): its room level, `dry`, an amplifier; null when it names
- * none, so the players use their defaults and an app that names nothing gets its own player.
+ * The effects a host asks for (#103): its room level (to the thousandth: the default is 0.125)
+ * and length, `dry`, an amplifier; null when it names none, so the players use their defaults and
+ * an app that names nothing gets its own player.
  */
 export function effectsOf(options: PlayOptions): PlayEffects | null {
     const read = <T>(value: T | (() => T | null | undefined) | undefined): T | null => {
@@ -208,7 +209,7 @@ export function effectsOf(options: PlayOptions): PlayEffects | null {
     const amp = read(options.amp)
     const effects: PlayEffects = {
         ...(typeof reverb === 'number' && Number.isFinite(reverb)
-            ? { reverb: Math.round(Math.min(1, Math.max(0, reverb)) * 100) / 100 }
+            ? { reverb: Math.round(Math.min(1, Math.max(0, reverb)) * 1000) / 1000 }
             : {}),
         ...(typeof room === 'number' && Number.isFinite(room)
             ? { room: Math.round(roomSeconds(room) * 100) / 100 }

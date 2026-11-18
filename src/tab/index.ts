@@ -179,7 +179,8 @@ export interface TabOptions {
     volume?: number | (() => number)
     /**
      * The room and the ceiling this tab's sound goes through (#103): the page's or the app's
-     * choice (`reverb`, `dry`), read each time the tab starts to play. The light room by default.
+     * choice (`reverb`, `room`, `dry`), read each time the tab starts to play. The light room by
+     * default.
      */
     effects?: PlayEffects | (() => PlayEffects | null | undefined)
     /**

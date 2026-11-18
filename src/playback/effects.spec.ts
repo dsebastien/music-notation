@@ -463,7 +463,9 @@ describe("a page's and an app's effects (#103)", () => {
         const player: NotePlayer = { play: () => ({ stop() {} }) }
         expect(effectsOf({})).toBeNull()
         expect(playerFor(window, { player })).toBe(player)
-        expect(effectsOf({ reverb: 0.333, dry: true })).toEqual({ reverb: 0.33, dry: true })
+        expect(effectsOf({ reverb: 0.3333, dry: true })).toEqual({ reverb: 0.333, dry: true })
+        // The default itself comes through as it is.
+        expect(effectsOf({ reverb: 0.125 })).toEqual({ reverb: 0.125 })
         expect(effectsOf({ reverb: () => null })).toBeNull()
         expect(effectsOf({ room: 1.777 })).toEqual({ room: 1.78 })
         expect(effectsOf({ room: () => 0 })).toEqual({ room: 0.2 })
