@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            import { outputFor, roomImpulse } from '/fx-effects.js'
+            const ctx = new AudioContext()
+            const out = {}
+            const time = (f) => {
+                const t = performance.now()
+                f()
+                return +(performance.now() - t).toFixed(1)
+            }
+            out['first chain (1.2 s)'] = time(() => outputFor(ctx))
+            out['same again'] = time(() => outputFor(ctx))
+            out['room 2 s'] = time(() => outputFor(ctx, { room: 2 }))
+            out['room 3 s'] = time(() => outputFor(ctx, { room: 3 }))
+            out['back to 1.2 s (kept)'] = time(() => outputFor(ctx, { room: 1.2 }))
+            out['impulse alone 3 s'] = time(() => roomImpulse(48000, 3))
+            out.rate = ctx.sampleRate
+            // Can a context get a destination of its own? (alphaTab's route)
+            const real = ctx.destination
+            const g = ctx.createGain()
+            Object.defineProperty(ctx, 'destination', { configurable: true, get: () => g })
+            out.shadow = ctx.destination === g && real !== g
+            window.__fx = out
+        </script>
+    </body>
+</html>

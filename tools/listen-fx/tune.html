@@ -1,0 +1,234 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>tune</title>
+    </head>
+    <body>
+        <script type="module">
+            const db = (x) => +(20 * Math.log10(Math.max(x, 1e-9))).toFixed(2)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), r: b.subarray(n), n }
+            }
+            const rms = (d, a = 0, b = d.length) => {
+                let s = 0
+                for (let i = a; i < b; i++) s += d[i] * d[i]
+                return Math.sqrt(s / Math.max(1, b - a))
+            }
+            const peak = (d) => {
+                let p = 0
+                for (let i = 0; i < d.length; i++) p = Math.max(p, Math.abs(d[i]))
+                return p
+            }
+            const RATE = 48000
+            function softClip(knee = 0.8, range = 2) {
+                const n = 4097,
+                    c = new Float32Array(n)
+                for (let i = 0; i < n; i++) {
+                    const u = ((i / (n - 1)) * 2 - 1) * range,
+                        a = Math.abs(u)
+                    c[i] =
+                        Math.sign(u) *
+                        (a <= knee ? a : knee + (1 - knee) * Math.tanh((a - knee) / (1 - knee)))
+                }
+                return { curve: c, range }
+            }
+            async function render(take, make, extra = 0, gain = 1, twice = 0) {
+                const ctx = new OfflineAudioContext(2, take.n + RATE * extra, RATE)
+                const buf = ctx.createBuffer(2, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                buf.getChannelData(1).set(take.r)
+                const bus = ctx.createGain()
+                bus.gain.value = gain
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.connect(bus)
+                src.start(0)
+                if (twice) {
+                    const s2 = ctx.createBufferSource()
+                    s2.buffer = buf
+                    s2.connect(bus)
+                    s2.start(twice)
+                }
+                make(ctx, bus).connect(ctx.destination)
+                const out = await ctx.startRendering()
+                return out.getChannelData(0)
+            }
+            const trimOf = (th, ratio, knee) => {
+                // Chrome's make-up gain, taken back (knee 0 only exact)
+                const full = th * (1 - 1 / ratio)
+                return Math.pow(10, (full * 0.6) / 20)
+            }
+            const limiter = (p) => (ctx, from) => {
+                let last = from
+                if (p.comp) {
+                    const c = ctx.createDynamicsCompressor()
+                    c.threshold.value = p.comp[0]
+                    c.knee.value = p.comp[1]
+                    c.ratio.value = p.comp[2]
+                    c.attack.value = p.comp[3]
+                    c.release.value = p.comp[4]
+                    const t = ctx.createGain()
+                    t.gain.value = trimOf(p.comp[0], p.comp[2])
+                    last.connect(c)
+                    c.connect(t)
+                    last = t
+                }
+                if (p.clip) {
+                    const { curve, range } = softClip(p.clip, 2)
+                    const pre = ctx.createGain()
+                    pre.gain.value = 1 / range
+                    const w = ctx.createWaveShaper()
+                    w.curve = curve
+                    last.connect(pre)
+                    pre.connect(w)
+                    last = w
+                }
+                return last
+            }
+            // The swing of the gain: out/in per 20 ms window (dB), over the windows that sound.
+            function swing(inp, out, delay = 0) {
+                const w = RATE * 0.02
+                let lo = 99,
+                    hi = -99
+                for (let i = 0; i + w < inp.length; i += w) {
+                    const a = rms(inp, i, i + w)
+                    if (a < 0.02) continue
+                    const g = db(rms(out, i + delay, i + delay + w) / a)
+                    lo = Math.min(lo, g)
+                    hi = Math.max(hi, g)
+                }
+                return [lo, hi]
+            }
+            const out = {}
+            const takes = {}
+            for (const n of [
+                'pub-1-dry',
+                'pub-5-dry',
+                'pub-7-dry',
+                'pub-10-dry',
+                'pub-16-dry',
+                'pub-18-dry'
+            ])
+                takes[n] = await load(n)
+            const cands = {
+                'A now -3/0/20/3ms/100ms': { comp: [-3, 0, 20, 0.003, 0.1] },
+                'B -1.5/0/20/2ms/150ms': { comp: [-1.5, 0, 20, 0.002, 0.15] },
+                'C -1/0/20/1ms/200ms': { comp: [-1, 0, 20, 0.001, 0.2] },
+                'D -2/0/12/1ms/250ms': { comp: [-2, 0, 12, 0.001, 0.25] },
+                'E clip .8 only': { clip: 0.8 },
+                'F C+clip .9': { comp: [-1, 0, 20, 0.001, 0.2], clip: 0.9 },
+                'G -1.5/0/20/1ms/250ms+clip .9': { comp: [-1.5, 0, 20, 0.001, 0.25], clip: 0.9 }
+            }
+            out.limiter = {}
+            for (const [name, p] of Object.entries(cands)) {
+                const row = {}
+                for (const [label, take, gain, twice] of [
+                    ['steel strum (.83)', 'pub-1-dry', 1, 0],
+                    ['loud strum (1.12)', 'pub-10-dry', 1, 0],
+                    ['two loud at once', 'pub-10-dry', 1, 0.2],
+                    ['steel at 0.5', 'pub-1-dry', 0.5, 0]
+                ]) {
+                    const t = takes[take]
+                    const raw = await render(t, (c, f) => f, 0, gain, twice)
+                    const o = await render(t, limiter(p), 0, gain, twice)
+                    const delay = p.comp ? Math.round(RATE * 0.006) : 0
+                    row[label] =
+                        `in ${peak(raw).toFixed(2)} out ${peak(o).toFixed(3)} rms ${(db(rms(o)) - db(rms(raw))).toFixed(2)} dB swing ${swing(raw, o, delay).join('..')}`
+                }
+                out.limiter[name] = row
+            }
+            // The amplifier: level in and out.
+            function driveCurve(a, points = 2048) {
+                const c = new Float32Array(points),
+                    top = Math.tanh(a)
+                for (let i = 0; i < points; i++) {
+                    const x = (i / (points - 1)) * 2 - 1
+                    c[i] = Math.tanh(a * x) / top
+                }
+                return c
+            }
+            function levelFor(a, ref) {
+                let i2 = 0,
+                    o2 = 0
+                const top = Math.tanh(a)
+                for (let k = 0; k < 256; k++) {
+                    const x = ref * Math.sin((2 * Math.PI * k) / 256)
+                    const y = Math.tanh(a * x) / top
+                    i2 += x * x
+                    o2 += y * y
+                }
+                return Math.sqrt(i2 / o2)
+            }
+            const amp = (p) => (ctx, from) => {
+                let last = from
+                const f = (type, hz, q, g = 0) => {
+                    const n = ctx.createBiquadFilter()
+                    n.type = type
+                    n.frequency.value = hz
+                    n.Q.value = q
+                    n.gain.value = g
+                    last.connect(n)
+                    last = n
+                }
+                if (p.drive) {
+                    const a = 1 + p.k * p.drive
+                    if (p.tight) f('highpass', p.tight, 0.7)
+                    const w = ctx.createWaveShaper()
+                    w.curve = driveCurve(a)
+                    w.oversample = '4x'
+                    const g = ctx.createGain()
+                    g.gain.value = p.old ? 1 / (1 + 1.5 * p.drive) : levelFor(a, p.ref)
+                    last.connect(w)
+                    w.connect(g)
+                    last = g
+                }
+                if (p.cab) {
+                    f('highpass', 90, 0.7)
+                    f('peaking', 2200, 1, p.peak ?? 4)
+                    f('lowpass', 4800, 0.7)
+                    f('lowpass', 6500, 0.7)
+                    if (p.trim) {
+                        const g = ctx.createGain()
+                        g.gain.value = Math.pow(10, p.trim / 20)
+                        last.connect(g)
+                        last = g
+                    }
+                }
+                return last
+            }
+            out.amp = {}
+            for (const [name, p] of Object.entries({
+                'old drive .5': { drive: 0.5, k: 24, old: 1 },
+                'old drive 1': { drive: 1, k: 24, old: 1 },
+                'new .25 (k14 ref.25)': { drive: 0.25, k: 14, ref: 0.25, tight: 120 },
+                'new .5': { drive: 0.5, k: 14, ref: 0.25, tight: 120 },
+                'new 1': { drive: 1, k: 14, ref: 0.25, tight: 120 },
+                'new .5 ref.15': { drive: 0.5, k: 14, ref: 0.15, tight: 120 },
+                'new 1 ref.15': { drive: 1, k: 14, ref: 0.15, tight: 120 },
+                'cab': { cab: 1 },
+                'cab + new .5 ref.15': { cab: 1, drive: 0.5, k: 14, ref: 0.15, tight: 120 }
+            })) {
+                const row = {}
+                for (const [label, take] of [
+                    ['clean rec', 'pub-5-dry'],
+                    ['overdrive rec', 'pub-7-dry'],
+                    ['clean light', 'pub-16-dry'],
+                    ['overdrive light', 'pub-18-dry']
+                ]) {
+                    const t = takes[take]
+                    const raw = await render(t, (c, f) => f)
+                    const o = await render(t, amp(p))
+                    row[label] =
+                        `rms ${(db(rms(o)) - db(rms(raw))).toFixed(1)} dB, peak ${peak(raw).toFixed(2)} -> ${peak(o).toFixed(2)}`
+                }
+                out.amp[name] = row
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>
