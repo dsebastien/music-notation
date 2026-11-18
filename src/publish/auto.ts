@@ -107,6 +107,14 @@ function pagePlay(options: unknown): false | PlayOptions {
                 ...(piano !== undefined ? { piano } : {})
             }
         }
+        // The room and the amplifier (#103): `play: { reverb: 0.2, room: 1.5 }`, `play: { dry: true }`,
+        // `play: { amp: { cabinet: true, drive: 0.3 } }`. Read at each play, so a page's script
+        // may change them.
+        const now = () => api.pageEffects(options)
+        out.dry = () => now()?.dry === true
+        out.reverb = () => now()?.reverb
+        out.room = () => now()?.room
+        out.amp = () => now()?.amp
         const sound = (given as Record<string, unknown>)['sound']
         if (sound === 'guitar' || sound === 'piano') out.sound = sound
     }

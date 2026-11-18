@@ -45,7 +45,7 @@ Each sound has an engine, with a name you can write:
 
 The library tries them in this order, always: `generaluser`, then `sonivox`, then `light`. It skips an engine the page doesn't have. So no network, or a missing file, never means silence: the next engine plays.
 
-Each engine plays the guitar a page, a block or the reader chooses (`play: { guitar: 'nylon' }`, a [`guitar:` line](blocks.md#which-guitar-plays), or the bar's Sound menu). `generaluser` reads that guitar's own file at its first use, so a page that plays only nylon chords never reads the steel-string guitar. `sonivox` plays the guitar's General MIDI program, and the light synthesizer plucks each guitar its own way: compare all three in the [guitar grid above](#the-four-guitars). The guitars play without effects (no amplifier, cabinet or reverb): the overdriven guitar is the soundfont's overdriven guitar sample, or the light synthesizer's version of it. Hear each guitar on chords, patterns, an arpeggio and a chart in [four guitars](examples.md#four-guitars).
+Each engine plays the guitar a page, a block or the reader chooses (`play: { guitar: 'nylon' }`, a [`guitar:` line](blocks.md#which-guitar-plays), or the bar's Sound menu). `generaluser` reads that guitar's own file at its first use, so a page that plays only nylon chords never reads the steel-string guitar. `sonivox` plays the guitar's General MIDI program, and the light synthesizer plucks each guitar its own way: compare all three in the [guitar grid above](#the-four-guitars). The overdriven guitar is the soundfont's overdriven guitar sample, or the light synthesizer's version of it. Every guitar plays in a light room by default, and a page can turn on an amplifier for the two electric guitars: see [the room and the amplifier](#the-room-and-the-amplifier). Hear each guitar on chords, patterns, an arpeggio and a chart in [four guitars](examples.md#four-guitars).
 
 In a listening test, GeneralUser GS sounded better than sonivox. So this guide plays it on every page: its page options name the sounds package's `generaluser` folder on jsDelivr, pinned to a version.
 
@@ -95,5 +95,32 @@ Two cases fall back on purpose:
 Why a page option and a block line? The library keeps two choices apart. What the music is belongs to the note. Which engine plays it belongs to the reader's side, the page or the app, because that depends on the network and the device. The music stays the same.
 
 On an Obsidian Publish site, the page options go at the top of `publish.js`: see [Obsidian Publish](publish.md). The sounds package has a guide of its own: [music-notation-sounds](https://dsebastien.github.io/music-notation-sounds/).
+
+## The room and the amplifier
+
+Every block plays in a small room, light by default, and through a soft ceiling on the way to the speakers. It's the same for the three things that make sound: the light synthesizer, the sample player and alphaTab (tabs, scores, and the diagrams on pages with tabs). A page has one room, so its blocks sound like they're in one place.
+
+```js
+window.musicNotationOptions = {
+    play: {
+        // The room's level, 0 (off) to 1; 0.125 by default.
+        reverb: 0.35,
+        // How long the room rings, in seconds, 0.2 to 3; 1.2 by default.
+        room: 2,
+        // An amplifier for the clean and overdriven guitars; off by default.
+        amp: { drive: 0.4, cabinet: true }
+    }
+}
+```
+
+- `reverb` is how loud the room is against the notes: 0.125 is 18 dB under them, 0.35 is 9 dB under, 1 is as loud as the notes.
+- `room` goes from a small room (0.2 s) to a hall (3 s). A value outside that range is taken as the nearest end.
+- `amp` is for the two electric guitars only. `drive` (0 to 1) is matched in level: more drive changes the tone, not the loudness. `cabinet: true` gives a speaker cabinet's sound: less deep bass and less fizz, more mids. The steel and nylon guitars, the piano, tabs and scores never go through it.
+- `dry: true` leaves out the room, the ceiling and the amplifier: the notes go straight to the speakers. Use it when your site or app adds effects of its own.
+- The level and the length of the room are the page's: the last play that names them sets them for everything that sounds. A function in place of a value is read at each play and at each pass of a loop.
+
+The ceiling lets everything under 0.9 of full scale through unchanged. Louder sound, like an accented strum on six strings or several blocks playing at once, bends toward full scale and never goes past it. Without the ceiling, the speakers would cut it flat. It isn't a compressor: it never turns the sound down afterwards.
+
+It can't help with a volume above 100% after the page. If the browser's volume is boosted in the system mixer, or an app's volume is past 100%, loud sound is cut flat on its way to the speakers, with or without the room. That sounds like noise on the loud notes. Put the browser back at 100%, and turn the speakers up instead.
 
 <script src="{{ '/assets/js/sounds.js' | relative_url }}"></script>

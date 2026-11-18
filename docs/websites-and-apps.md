@@ -95,6 +95,9 @@ window.musicNotationOptions = {
 | `play`                             | `false` turns playback off. `{ volume, bpm, strum, sound, tempoUnit }` sets its defaults.                                                                            |
 | `play.instruments`                 | The URL of a folder of instrument files, so GeneralUser GS plays, one small file per instrument.                                                                     |
 | `play.engine`                      | The engine to try first: `'generaluser'`, `'sonivox'` or `'light'`.                                                                                                  |
+| `play.reverb`, `play.room`         | The room every block plays in: its level, 0 (off) to 1 (0.125 by default), and how long it rings, 0.2 to 3 seconds (1.2 by default).                                 |
+| `play.amp`                         | An amplifier for the two electric guitars, `{ drive, cabinet }`. Off by default.                                                                                     |
+| `play.dry`                         | `true` leaves out the room, the ceiling and the amplifier.                                                                                                           |
 | `copy: false`, `fullScreen: false` | Leave out the **Copy as image** and **Full screen** buttons.                                                                                                         |
 | `tab: { names: true }`             | The name of every note on the tabs and scores that have no `names:` line.                                                                                            |
 | `properties`                       | A function that returns the page's properties, so empty blocks draw from them.                                                                                       |
@@ -222,3 +225,4 @@ renderBlock('chord', 'Am', container, {
 - A block plays through the first engine your app has, in this order: the block's `engine:` line, `play.engine`, then `generaluser`, `sonivox` and `light`. See [Sound engine](blocks.md#sound-engine).
 - `renderTab` takes `engine` and `assets.instruments` in its options. A score never plays through the light synthesizer.
 - The bars have no volume control: the volume is your app's setting, `play.volume`. See [Render a block](api.md#render-a-block) for `volumeChanged()`.
+- Every player plays in the library's room, light by default, and through its ceiling. `play.reverb`, `play.room`, `play.dry` and `play.amp` set them, each a value or a function read at each play, so a setting changed in your app is heard at the next Play. `renderTab` takes the room's options as `effects`. A player of your own sends its notes to `outputFor(ctx, effects)` to share the room. See [the room and the amplifier](sounds.md#the-room-and-the-amplifier).

@@ -25,6 +25,7 @@ import { midiOf, nameOf } from '../theory/pitch.js'
 import { DEFAULT_STRUM, lightPlayer, type NotePlayer, type PlayKind, type Sound } from './player.js'
 import { chooseEngine, engineOf, engineWish, type Engine } from './engine.js'
 import { guitarChoice, guitarToneOf, guitarWish, type GuitarTone } from './guitar-tone.js'
+import { roomSeconds, type AmpOptions, type PlayEffects } from './effects.js'
 import { strumBarFor } from './strum-bar.js'
 import { progressionBarFor } from './progression-bar.js'
 import { pickingBarFor } from './picking-bar.js'
@@ -60,6 +61,27 @@ export interface PlayOptions {
      * changed in the app is heard at the next Play. A block's `guitar:` line comes first.
      */
     guitar?: GuitarTone | (() => GuitarTone | null | undefined)
+    /**
+     * The room's level (#103), 0 (none) to 1: every block plays in a small room, light by default
+     * (0.125, the room 18 dB under the notes). A function is read at each play, so a setting changed in the app is heard at the
+     * next Play. The level is the page's: the last play sets it for everything that sounds.
+     */
+    reverb?: number | (() => number | null | undefined)
+    /**
+     * How long the room rings (#103), in seconds, 0.2 (a small room) to 3 (a hall); 1.2 by
+     * default. A function is read at each play. Like the level, it is the page's.
+     */
+    room?: number | (() => number | null | undefined)
+    /**
+     * No room and no ceiling (#103): the notes go straight to the output, as they did before the
+     * room, for a host that adds its own effects. A function is read at each play.
+     */
+    dry?: boolean | (() => boolean | null | undefined)
+    /**
+     * An amplifier for the electric guitars (`clean`, `overdrive`): `drive` 0 to 1, `cabinet` a
+     * speaker's sound. None by default. A function is read at each play.
+     */
+    amp?: AmpOptions | (() => AmpOptions | null | undefined)
     /**
      * 0 to 1, 0.8 by default. The bars have no volume (#58): it is the app's setting. A function
      * is read at each play (and each pass of a loop), so a setting changed in the app applies at
@@ -162,7 +184,51 @@ export function playerFor(win: Window, options: PlayOptions, el?: Element | null
  */
 export function toned(player: NotePlayer, options: PlayOptions, el?: Element | null): NotePlayer {
     const tone = guitarFor(options, el)
-    return tone ? withGuitar(player, tone) : player
+    const effects = effectsOf(options)
+    return tone || effects ? withPlay(player, tone, effects) : player
+}
+
+/**
+ * The effects a host asks for (#103): its room level (to the thousandth: the default is 0.125)
+ * and length, `dry`, an amplifier; null when it names none, so the players use their defaults and
+ * an app that names nothing gets its own player.
+ */
+export function effectsOf(options: PlayOptions): PlayEffects | null {
+    const read = <T>(value: T | (() => T | null | undefined) | undefined): T | null => {
+        try {
+            return (
+                (typeof value === 'function' ? (value as () => T | null | undefined)() : value) ??
+                null
+            )
+        } catch {
+            return null
+        }
+    }
+    const reverb = read(options.reverb)
+    const room = read(options.room)
+    const amp = read(options.amp)
+    const effects: PlayEffects = {
+        ...(typeof reverb === 'number' && Number.isFinite(reverb)
+            ? { reverb: Math.round(Math.min(1, Math.max(0, reverb)) * 1000) / 1000 }
+            : {}),
+        ...(typeof room === 'number' && Number.isFinite(room)
+            ? { room: Math.round(roomSeconds(room) * 100) / 100 }
+            : {}),
+        ...(read(options.dry) === true ? { dry: true } : {}),
+        ...(amp &&
+        typeof amp === 'object' &&
+        (amp.cabinet === true || typeof amp.drive === 'number')
+            ? {
+                  amp: {
+                      ...(amp.cabinet === true ? { cabinet: true } : {}),
+                      ...(typeof amp.drive === 'number' && Number.isFinite(amp.drive)
+                          ? { drive: Math.round(Math.min(1, Math.max(0, amp.drive)) * 100) / 100 }
+                          : {})
+                  }
+              }
+            : {})
+    }
+    return Object.keys(effects).length ? effects : null
 }
 
 /**
@@ -181,26 +247,40 @@ export function guitarFor(options: PlayOptions, el?: Element | null): GuitarTone
     }
 }
 
-/** A player's twins that play a guitar: one per player and guitar, so a bar meets the same one. */
-const guitarPlayers = new WeakMap<NotePlayer, Map<GuitarTone, NotePlayer>>()
+/**
+ * A player's twins that play a guitar or with effects: one per player, guitar and effects, so a
+ * bar meets the same one. The last 32 are kept (a level changed with a slider makes many).
+ */
+const twinPlayers = new WeakMap<NotePlayer, Map<string, NotePlayer>>()
+const TWINS_KEPT = 32
 
-/** `player`, with `guitar` given to each play that doesn't name one. */
-function withGuitar(player: NotePlayer, guitar: GuitarTone): NotePlayer {
-    let twins = guitarPlayers.get(player)
+/** `player`, with `guitar` and `effects` given to each play that doesn't name its own. */
+function withPlay(
+    player: NotePlayer,
+    guitar: GuitarTone | null,
+    effects: PlayEffects | null
+): NotePlayer {
+    let twins = twinPlayers.get(player)
     if (!twins) {
-        twins = new Map<GuitarTone, NotePlayer>()
-        guitarPlayers.set(player, twins)
+        twins = new Map<string, NotePlayer>()
+        twinPlayers.set(player, twins)
     }
-    let twin = twins.get(guitar)
+    const key = `${guitar ?? ''}|${effects ? JSON.stringify(effects) : ''}`
+    let twin = twins.get(key)
     if (!twin) {
         twin = {
             get reportsStart() {
                 return player.reportsStart
             },
             play: (events, options) =>
-                player.play(events, options.guitar ? options : { ...options, guitar })
+                player.play(events, {
+                    ...options,
+                    ...(guitar && !options.guitar ? { guitar } : {}),
+                    ...(effects && !options.effects ? { effects } : {})
+                })
         }
-        twins.set(guitar, twin)
+        if (twins.size >= TWINS_KEPT) twins.delete(twins.keys().next().value!)
+        twins.set(key, twin)
     }
     return twin
 }
