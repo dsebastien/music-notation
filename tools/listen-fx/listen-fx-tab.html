@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Effects: listen (with a tab: as in Obsidian)</title>
+        <link rel="stylesheet" href="/dist/music-notation.css" />
+        <style>
+            body {
+                font-family: system-ui, sans-serif;
+                max-width: 1100px;
+                margin: 0 auto 4rem;
+                padding: 0 1rem;
+            }
+            h2 {
+                margin-top: 2.5rem;
+                border-top: 2px solid #ccc;
+                padding-top: 1rem;
+            }
+            h3 {
+                margin: 1.5rem 0 0.3rem;
+            }
+            #fx-bar {
+                position: sticky;
+                top: 0;
+                z-index: 10;
+                background: #fff8d6;
+                border: 1px solid #d6c66a;
+                border-radius: 8px;
+                padding: 0.6rem 0.8rem;
+                margin: 1rem 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.4rem 1rem;
+                align-items: center;
+                font-size: 14px;
+            }
+            #fx-bar .sep {
+                flex-basis: 100%;
+                height: 0;
+            }
+            #fx-now {
+                margin-left: auto;
+                font-weight: 600;
+            }
+            .row {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            .row > * {
+                flex: 0 1 auto;
+            }
+        </style>
+        <script src="/fx-controls.js"></script>
+        <script src="/dist/music-notation.publish.min.js"></script>
+        <script src="/dist/music-notation.tab.min.js"></script>
+    </head>
+    <body>
+        <h1>Effects: listen (with a tab: as in Obsidian)</h1>
+        <p>
+            This page has a tab, so alphaTab plays everything: the diagrams and the tab. This is how
+            Music Practice sounds in Obsidian, and a web page with tabs.
+        </p>
+        <ol>
+            <li>
+                Play a block with the yellow bar as it is: that is the proposed default (a light
+                room, and a limiter).
+            </li>
+            <li>Tick <b>Dry</b>, press Play again: that is the sound of today.</li>
+            <li>
+                Move <b>Room</b> and press Play again, until the room is right. Tell me the number.
+            </li>
+            <li>
+                On the clean and overdriven guitars, try <b>Cabinet</b> and <b>Drive</b>. Tell me
+                what must become the default for each guitar, if anything.
+            </li>
+        </ol>
+        <h2>GeneralUser GS (recorded instruments), through alphaTab</h2>
+        <h3>Steel-string acoustic</h3>
+        <div class="row">
+            <pre><code class="language-chord">Em 022000
+---
+A x02220
+---
+G 320003
+engine: generaluser
+guitar: steel</code></pre>
+            <pre><code class="language-strum">chord: Em
+tempo: 110
+D DU UDU
+engine: generaluser
+guitar: steel</code></pre>
+        </div>
+        <h3>Nylon (classical)</h3>
+        <div class="row">
+            <pre><code class="language-chord">Em 022000
+---
+Am x02210
+---
+C x32010
+engine: generaluser
+guitar: nylon</code></pre>
+            <pre><code class="language-strum">chord: Am
+tempo: 110
+D DU UDU
+engine: generaluser
+guitar: nylon</code></pre>
+        </div>
+        <h3>Clean electric</h3>
+        <div class="row">
+            <pre><code class="language-chord">Em 022000
+---
+A5 x022xx
+---
+G 320003
+engine: generaluser
+guitar: clean</code></pre>
+            <pre><code class="language-strum">chord: Em
+tempo: 110
+D DU UDU
+engine: generaluser
+guitar: clean</code></pre>
+        </div>
+        <h3>Overdriven electric</h3>
+        <div class="row">
+            <pre><code class="language-chord">E5 022xxx
+---
+A5 x022xx
+---
+G5 355xxx
+engine: generaluser
+guitar: overdrive</code></pre>
+            <pre><code class="language-strum">chord: E5
+tempo: 110
+D D DU D
+engine: generaluser
+guitar: overdrive</code></pre>
+        </div>
+        <h3>A progression in time (steel), and the piano</h3>
+        <div class="row">
+            <pre><code class="language-progression">key: G
+I V vi IV
+tempo: 96
+engine: generaluser</code></pre>
+            <pre><code class="language-keyboard">chord: Cmaj7
+engine: generaluser</code></pre>
+        </div>
+        <h3>A loud one: six strings, strummed hard (the limiter's case)</h3>
+        <div class="row">
+            <pre><code class="language-strum">chord: E
+tempo: 150
+D>D>D>D> D>D>D>D>
+engine: generaluser
+guitar: steel</code></pre>
+        </div>
+        <h2>The built-in small soundfont, through alphaTab</h2>
+        <h3>Steel-string acoustic</h3>
+        <div class="row">
+            <pre><code class="language-chord">Em 022000
+---
+A x02220
+---
+G 320003
+engine: sonivox
+guitar: steel</code></pre>
+            <pre><code class="language-strum">chord: Em
+tempo: 110
+D DU UDU
+engine: sonivox
+guitar: steel</code></pre>
+        </div>
+        <h3>Nylon (classical)</h3>
+        <div class="row">
+            <pre><code class="language-chord">Em 022000
+---
+Am x02210
+---
+C x32010
+engine: sonivox
+guitar: nylon</code></pre>
+            <pre><code class="language-strum">chord: Am
+tempo: 110
+D DU UDU
+engine: sonivox
+guitar: nylon</code></pre>
+        </div>
+        <h3>Clean electric</h3>
+        <div class="row">
+            <pre><code class="language-chord">Em 022000
+---
+A5 x022xx
+---
+G 320003
+engine: sonivox
+guitar: clean</code></pre>
+            <pre><code class="language-strum">chord: Em
+tempo: 110
+D DU UDU
+engine: sonivox
+guitar: clean</code></pre>
+        </div>
+        <h3>Overdriven electric</h3>
+        <div class="row">
+            <pre><code class="language-chord">E5 022xxx
+---
+A5 x022xx
+---
+G5 355xxx
+engine: sonivox
+guitar: overdrive</code></pre>
+            <pre><code class="language-strum">chord: E5
+tempo: 110
+D D DU D
+engine: sonivox
+guitar: overdrive</code></pre>
+        </div>
+        <h3>A progression in time (steel), and the piano</h3>
+        <div class="row">
+            <pre><code class="language-progression">key: G
+I V vi IV
+tempo: 96
+engine: sonivox</code></pre>
+            <pre><code class="language-keyboard">chord: Cmaj7
+engine: sonivox</code></pre>
+        </div>
+        <h3>A loud one: six strings, strummed hard (the limiter's case)</h3>
+        <div class="row">
+            <pre><code class="language-strum">chord: E
+tempo: 150
+D>D>D>D> D>D>D>D>
+engine: sonivox
+guitar: steel</code></pre>
+        </div>
+        <h2>A tab (alphaTab plays it, as in Obsidian)</h2>
+        <pre><code class="language-tab">\title "Riff"
+\tempo 110
+.
+\track "Overdrive" \instrument 29
+0.6.8 0.6.8 3.6.8 0.6.8 5.6.8 0.6.8 3.6.8 0.6.8 | (2.5 2.4 0.6).2 (2.5 2.4 0.6).2 |
+\track "Clean" \instrument 27
+r.1 | (0.1 0.2 1.3 2.4 2.5 0.6).1 |</code></pre>
+    </body>
+</html>

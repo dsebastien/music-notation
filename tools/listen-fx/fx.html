@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>effects measures</title>
+    </head>
+    <body>
+        <h1>Effects measures</h1>
+        <script type="module">
+            import { outputFor, DEFAULT_REVERB } from '/fx-effects.js'
+            const RATE = 48000
+            const db = (x) => 20 * Math.log10(Math.max(x, 1e-12))
+            const rms = (d, from = 0, to = d.length) => {
+                let s = 0
+                for (let i = from; i < to; i++) s += d[i] * d[i]
+                return Math.sqrt(s / Math.max(1, to - from))
+            }
+            const peak = (d, from = 0, to = d.length) => {
+                let p = 0
+                for (let i = from; i < to; i++) p = Math.max(p, Math.abs(d[i]))
+                return p
+            }
+            // A burst of a few sines (a chord), `seconds` long, at a peak level, then silence.
+            async function render(effects, level, seconds = 1, total = 2.5) {
+                const ctx = new OfflineAudioContext(2, RATE * total, RATE)
+                const out = effects === 'raw' ? ctx.destination : outputFor(ctx, effects)
+                const bus = ctx.createGain()
+                const freqs = [110, 164.8, 220, 277.2, 329.6, 440]
+                bus.gain.value = level / freqs.length
+                for (const f of freqs) {
+                    const o = ctx.createOscillator()
+                    o.frequency.value = f
+                    o.connect(bus)
+                    o.start(0)
+                    o.stop(seconds)
+                }
+                bus.connect(out)
+                const buffer = await ctx.startRendering()
+                return buffer.getChannelData(0)
+            }
+            const out = {}
+            const half = RATE * 0.5,
+                end = RATE * 1
+            for (const [name, effects] of [
+                ['raw', 'raw'],
+                ['dry option', { dry: true }],
+                ['chain, reverb 0', { reverb: 0 }],
+                ['chain, default', undefined],
+                ['chain, reverb 0.4', { reverb: 0.4 }]
+            ]) {
+                const quiet = await render(effects, 0.25)
+                const loud = await render(effects, 2.5)
+                out[name] = {
+                    'quiet: rms dB (0.5-1 s)': +db(rms(quiet, half, end)).toFixed(2),
+                    'quiet: tail rms dB (1.05-1.4 s)': +db(
+                        rms(quiet, RATE * 1.05, RATE * 1.4)
+                    ).toFixed(1),
+                    'loud (peak 2.5 in): peak out': +peak(loud, half, end).toFixed(3),
+                    'loud: first 20 ms peak': +peak(loud, 0, RATE * 0.02).toFixed(3)
+                }
+            }
+            out.defaultReverb = DEFAULT_REVERB
+            window.__fx = out
+        </script>
+    </body>
+</html>
