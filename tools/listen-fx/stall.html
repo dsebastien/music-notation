@@ -1,0 +1,230 @@
+<!doctype html>
+<html>
+    <body>
+        <button id="go">Start</button>
+        <pre id="log"></pre>
+        <script type="module">
+            // Which part of the chain makes the browser miss its audio deadlines? (#103)
+            // A quiet chord through one variant of the chain at a time, on the real output; the browser's own
+            // count of what it could not deliver (AudioContext.playbackStats) per variant, in turns.
+            import {
+                roomImpulse,
+                limiterTrim,
+                LIMITER,
+                CEILING,
+                ceilingCurve,
+                ROOM_LOW_CUT
+            } from '/fx-effects.js'
+            const q = new URLSearchParams(location.search)
+            const SECONDS = Number(q.get('s') ?? 4),
+                ROUNDS = Number(q.get('rounds') ?? 3),
+                LEVEL = Number(q.get('vol') ?? 0.004)
+            const only = q.get('only')?.split(',')
+            const variants = {
+                'dry': (ctx, bus) => {
+                    bus.connect(ctx.destination)
+                    return []
+                },
+                'compressor': (ctx, bus) => {
+                    const c = ctx.createDynamicsCompressor()
+                    c.threshold.value = LIMITER.threshold
+                    c.knee.value = 0
+                    c.ratio.value = 20
+                    c.attack.value = LIMITER.attack
+                    c.release.value = LIMITER.release
+                    bus.connect(c)
+                    c.connect(ctx.destination)
+                    return [c]
+                },
+                'shaper': (ctx, bus) => {
+                    const w = ctx.createWaveShaper()
+                    w.curve = ceilingCurve()
+                    bus.connect(w)
+                    w.connect(ctx.destination)
+                    return [w]
+                },
+                'convolver 1.2 s stereo': (ctx, bus) => conv(ctx, bus, 1.2, 2),
+                'convolver 1.2 s mono': (ctx, bus) => conv(ctx, bus, 1.2, 1),
+                'convolver 0.15 s stereo': (ctx, bus) => conv(ctx, bus, 0.15, 2),
+                'convolver 3 s stereo': (ctx, bus) => conv(ctx, bus, 3, 2),
+                'delay lines 8+4 stereo': (ctx, bus) => algo(ctx, bus, 8, 4),
+                'delay lines 6+2 stereo': (ctx, bus) => algo(ctx, bus, 6, 2),
+                'limiter and ceiling': (ctx, bus) => {
+                    const c = ctx.createDynamicsCompressor()
+                    c.threshold.value = LIMITER.threshold
+                    c.knee.value = 0
+                    c.ratio.value = 20
+                    const w = ctx.createWaveShaper()
+                    w.curve = ceilingCurve()
+                    bus.connect(c)
+                    c.connect(w)
+                    w.connect(ctx.destination)
+                    return [c, w]
+                },
+                'full chain': (ctx, bus) => {
+                    const made = conv(ctx, bus, 1.2, 2, false)
+                    const c = ctx.createDynamicsCompressor()
+                    c.threshold.value = LIMITER.threshold
+                    c.knee.value = 0
+                    c.ratio.value = 20
+                    c.attack.value = LIMITER.attack
+                    c.release.value = LIMITER.release
+                    const t = ctx.createGain()
+                    t.gain.value = limiterTrim() / CEILING.range
+                    const w = ctx.createWaveShaper()
+                    w.curve = ceilingCurve()
+                    bus.connect(c)
+                    made[made.length - 1].connect(c)
+                    c.connect(t)
+                    t.connect(w)
+                    w.connect(ctx.destination)
+                    return [...made, c, t, w]
+                }
+            }
+            // A room from delay lines (no convolver): parallel combs with a low-pass in each loop, then
+            // all-passes in a row, one such network per side.
+            const COMBS = [25.3, 26.9, 28.9, 30.7, 32.2, 33.8, 35.3, 36.7],
+                ALLPASS = [12.6, 10.0, 7.7, 5.1]
+            function algo(ctx, bus, combs, passes, seconds = 1.2, level = 0.12) {
+                const made = []
+                const mk = (n) => {
+                    made.push(n)
+                    return n
+                }
+                const pre = mk(ctx.createBiquadFilter())
+                pre.type = 'highpass'
+                pre.frequency.value = ROOM_LOW_CUT
+                bus.connect(pre)
+                bus.connect(ctx.destination)
+                const merger = mk(ctx.createChannelMerger(2))
+                for (const side of [0, 1]) {
+                    const sum = mk(ctx.createGain())
+                    let power = 0
+                    for (const ms of COMBS.slice(0, combs)) {
+                        const t = (ms + side * 0.52) / 1000,
+                            g = Math.pow(10, (-3 * t) / seconds)
+                        const d = mk(ctx.createDelay(0.1))
+                        d.delayTime.value = t
+                        const damp = mk(ctx.createBiquadFilter())
+                        damp.type = 'lowpass'
+                        damp.frequency.value = 5000
+                        damp.Q.value = 0.5
+                        const fb = mk(ctx.createGain())
+                        fb.gain.value = g
+                        pre.connect(d)
+                        d.connect(damp)
+                        damp.connect(fb)
+                        fb.connect(d)
+                        d.connect(sum)
+                        power += 1 / (1 - g * g)
+                    }
+                    sum.gain.value = level / Math.sqrt(power)
+                    let last = sum
+                    for (const ms of ALLPASS.slice(0, passes)) {
+                        const inp = mk(ctx.createGain()),
+                            d = mk(ctx.createDelay(0.05)),
+                            fb = mk(ctx.createGain()),
+                            ff = mk(ctx.createGain()),
+                            out = mk(ctx.createGain())
+                        d.delayTime.value = (ms + side * 0.52) / 1000
+                        fb.gain.value = 0.5
+                        ff.gain.value = -0.5
+                        last.connect(inp)
+                        inp.connect(d)
+                        d.connect(fb)
+                        fb.connect(inp)
+                        inp.connect(ff)
+                        ff.connect(out)
+                        d.connect(out)
+                        last = out
+                    }
+                    last.connect(merger, 0, side)
+                }
+                merger.connect(ctx.destination)
+                return made
+            }
+            function conv(ctx, bus, seconds, channels, out = true) {
+                const c = ctx.createConvolver()
+                c.normalize = false
+                const [l, r] = roomImpulse(ctx.sampleRate, seconds)
+                const b = ctx.createBuffer(channels, l.length, ctx.sampleRate)
+                b.getChannelData(0).set(l)
+                if (channels > 1) b.getChannelData(1).set(r)
+                c.buffer = b
+                const f = ctx.createBiquadFilter()
+                f.type = 'highpass'
+                f.frequency.value = ROOM_LOW_CUT
+                const w = ctx.createGain()
+                w.gain.value = 0.12
+                bus.connect(c)
+                c.connect(f)
+                f.connect(w)
+                if (out) {
+                    bus.connect(ctx.destination)
+                    w.connect(ctx.destination)
+                }
+                return [c, f, w]
+            }
+            const log = (t) => {
+                document.getElementById('log').textContent += t + '\n'
+            }
+            const stats = (ctx) => {
+                const s = ctx.playbackStats
+                return s
+                    ? {
+                          events: s.underrunEvents ?? s.fallbackFramesEvents ?? 0,
+                          ms: Math.round(
+                              (s.underrunDuration ?? s.fallbackFramesDuration ?? 0) * 1000
+                          )
+                      }
+                    : null
+            }
+            async function run() {
+                const ctx = new AudioContext()
+                await ctx.resume()
+                const result = {
+                    rate: ctx.sampleRate,
+                    base: ctx.baseLatency,
+                    out: ctx.outputLatency,
+                    hasStats: !!ctx.playbackStats,
+                    rows: {}
+                }
+                const bus = ctx.createGain()
+                bus.gain.value = LEVEL
+                for (const f of [110, 164.8, 220, 277.2, 329.6, 440]) {
+                    const o = ctx.createOscillator()
+                    o.type = 'sawtooth'
+                    o.frequency.value = f
+                    o.connect(bus)
+                    o.start()
+                }
+                const names = Object.keys(variants).filter((n) => !only || only.includes(n))
+                for (const n of names) result.rows[n] = { events: 0, ms: 0, seconds: 0 }
+                for (let round = 0; round < ROUNDS; round++)
+                    for (const n of names) {
+                        const made = variants[n](ctx, bus) ?? []
+                        await new Promise((r) => setTimeout(r, 400)) // the convolver's start is not counted
+                        const a = stats(ctx)
+                        await new Promise((r) => setTimeout(r, SECONDS * 1000))
+                        const b = stats(ctx)
+                        if (a && b) {
+                            result.rows[n].events += b.events - a.events
+                            result.rows[n].ms += b.ms - a.ms
+                            result.rows[n].seconds += SECONDS
+                        }
+                        bus.disconnect()
+                        for (const node of made) node.disconnect()
+                        log(
+                            `${round} ${n}: ${b ? b.events - a.events : '?'} dropouts, ${b ? b.ms - a.ms : '?'} ms`
+                        )
+                        await new Promise((r) => setTimeout(r, 200))
+                    }
+                result.out2 = ctx.outputLatency
+                await ctx.close()
+                window.__fx = result
+            }
+            document.getElementById('go').addEventListener('click', run)
+            if (q.get('auto')) run()
+        </script>
+    </body>
+</html>

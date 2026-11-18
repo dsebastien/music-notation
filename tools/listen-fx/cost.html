@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // What each reverb costs the audio thread (#103): the time to render 40 s offline, as a share of
+            // real time. (Chromium runs every stage of a convolver on the thread that renders.)
+            import { roomImpulse, ROOM_LOW_CUT, ceilingCurve, LIMITER } from '/fx-effects.js'
+            const RATE = 48000,
+                SECONDS = 40
+            const COMBS = [25.3, 26.9, 28.9, 30.7, 32.2, 33.8, 35.3, 36.7],
+                ALLPASS = [12.6, 10.0, 7.7, 5.1]
+            function conv(ctx, bus, seconds, channels) {
+                const c = ctx.createConvolver()
+                c.normalize = false
+                const [l, r] = roomImpulse(RATE, seconds)
+                const b = ctx.createBuffer(channels, l.length, RATE)
+                b.getChannelData(0).set(l)
+                if (channels > 1) b.getChannelData(1).set(r)
+                c.buffer = b
+                const f = ctx.createBiquadFilter()
+                f.type = 'highpass'
+                f.frequency.value = ROOM_LOW_CUT
+                bus.connect(c)
+                c.connect(f)
+                f.connect(ctx.destination)
+                bus.connect(ctx.destination)
+            }
+            function algo(ctx, bus, combs, passes, sides = 2, seconds = 1.2) {
+                const pre = ctx.createBiquadFilter()
+                pre.type = 'highpass'
+                pre.frequency.value = ROOM_LOW_CUT
+                bus.connect(pre)
+                bus.connect(ctx.destination)
+                const merger = ctx.createChannelMerger(2)
+                for (let side = 0; side < sides; side++) {
+                    const sum = ctx.createGain()
+                    sum.gain.value = 0.05
+                    for (const ms of COMBS.slice(0, combs)) {
+                        const t = (ms + side * 0.52) / 1000,
+                            g = Math.pow(10, (-3 * t) / seconds)
+                        const d = ctx.createDelay(0.1)
+                        d.delayTime.value = t
+                        const damp = ctx.createBiquadFilter()
+                        damp.type = 'lowpass'
+                        damp.frequency.value = 5000
+                        damp.Q.value = 0.5
+                        const fb = ctx.createGain()
+                        fb.gain.value = g
+                        pre.connect(d)
+                        d.connect(damp)
+                        damp.connect(fb)
+                        fb.connect(d)
+                        d.connect(sum)
+                    }
+                    let last = sum
+                    for (const ms of ALLPASS.slice(0, passes)) {
+                        const inp = ctx.createGain(),
+                            d = ctx.createDelay(0.05),
+                            fb = ctx.createGain(),
+                            ff = ctx.createGain(),
+                            out = ctx.createGain()
+                        d.delayTime.value = (ms + side * 0.52) / 1000
+                        fb.gain.value = 0.5
+                        ff.gain.value = -0.5
+                        last.connect(inp)
+                        inp.connect(d)
+                        d.connect(fb)
+                        fb.connect(inp)
+                        inp.connect(ff)
+                        ff.connect(out)
+                        d.connect(out)
+                        last = out
+                    }
+                    last.connect(merger, 0, side)
+                    if (sides === 1) last.connect(merger, 0, 1)
+                }
+                merger.connect(ctx.destination)
+            }
+            const variants = {
+                'dry (6 voices)': (ctx, bus) => bus.connect(ctx.destination),
+                'convolver 0.15 s stereo': (ctx, bus) => conv(ctx, bus, 0.15, 2),
+                'convolver 0.6 s stereo': (ctx, bus) => conv(ctx, bus, 0.6, 2),
+                'convolver 1.2 s mono': (ctx, bus) => conv(ctx, bus, 1.2, 1),
+                'convolver 1.2 s stereo': (ctx, bus) => conv(ctx, bus, 1.2, 2),
+                'convolver 3 s stereo': (ctx, bus) => conv(ctx, bus, 3, 2),
+                'delay lines 8+4 x2 sides': (ctx, bus) => algo(ctx, bus, 8, 4, 2),
+                'delay lines 6+2 x2 sides': (ctx, bus) => algo(ctx, bus, 6, 2, 2),
+                'delay lines 8+4, one side': (ctx, bus) => algo(ctx, bus, 8, 4, 1),
+                'compressor': (ctx, bus) => {
+                    const c = ctx.createDynamicsCompressor()
+                    c.threshold.value = LIMITER.threshold
+                    bus.connect(c)
+                    c.connect(ctx.destination)
+                },
+                'ceiling (wave shaper)': (ctx, bus) => {
+                    const w = ctx.createWaveShaper()
+                    w.curve = ceilingCurve()
+                    bus.connect(w)
+                    w.connect(ctx.destination)
+                }
+            }
+            const out = {}
+            for (const [name, make] of Object.entries(variants)) {
+                let best = Infinity
+                for (let pass = 0; pass < 2; pass++) {
+                    const ctx = new OfflineAudioContext(2, RATE * SECONDS, RATE)
+                    const bus = ctx.createGain()
+                    bus.gain.value = 0.05
+                    for (const f of [110, 164.8, 220, 277.2, 329.6, 440]) {
+                        const o = ctx.createOscillator()
+                        o.type = 'sawtooth'
+                        o.frequency.value = f
+                        o.connect(bus)
+                        o.start()
+                    }
+                    make(ctx, bus)
+                    const t = performance.now()
+                    await ctx.startRendering()
+                    best = Math.min(best, performance.now() - t)
+                }
+                out[name] = +(best / (SECONDS * 10)).toFixed(2) // % of real time
+            }
+            const base = out['dry (6 voices)']
+            window.__fx = Object.fromEntries(
+                Object.entries(out).map(([k, v]) => [
+                    k,
+                    `${v} % of one core (${(v - base).toFixed(2)} % more than dry)`
+                ])
+            )
+        </script>
+    </body>
+</html>

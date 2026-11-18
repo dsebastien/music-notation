@@ -28,3 +28,10 @@ The third pass (2026-11-18, "a noise with the chain on, louder with more room") 
 - `hiss.html`, `hiss2.html`: the room's highs against its mids and against the dry sound's, between the strums and right after an attack.
 - `startup.html`: the compressor's first moments (it starts turned down).
 - `steps-bar.ts`: the bar's live controls reach what sounds, on both pages.
+
+The fourth pass (2026-11-18, "still noise") measures after the page, which the earlier passes never did:
+
+- `rec.sh <file> <seconds>`: records what is sent to the headphones (the sink's monitor, `parec`; the sink's name is in the script: change it). `clip.py <folder>` says how much of each capture (`dry.f32`, `level0.f32`, `room012.f32`, `room03.f32`) is above full scale, and `an.py <folder>` compares them with the dry one. What they found on the author's machine: Chrome at 124% in the system mixer (everything above half scale cut flat), and gaps of silence on the Bluetooth output.
+- The yellow bar's last line counts the browser's own dropouts (`AudioContext.playbackStats`). `?vol=0.03` in a listening page's address plays softly.
+- `stall.html` (`?auto=1&rounds=4&s=3&only=dry,full chain`; with `MN_SOUND=1` the driver does not mute Chrome, so the real output is used): a quiet chord through one part of the chain at a time, and the browser's dropout count for each. Run it with the machine busy.
+- `cost.html`: what each reverb costs the audio thread (an offline render against real time).

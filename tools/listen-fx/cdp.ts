@@ -9,7 +9,7 @@ const chrome = Bun.spawn(
         `--remote-debugging-port=${port}`,
         '--autoplay-policy=no-user-gesture-required',
         '--no-first-run',
-        '--mute-audio',
+        ...(process.env.MN_SOUND ? [] : ['--mute-audio']),
         `--user-data-dir=/tmp/mn-harness-profile-${port}`,
         '--window-size=1200,900',
         'about:blank'

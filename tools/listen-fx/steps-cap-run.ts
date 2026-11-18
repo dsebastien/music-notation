@@ -16,7 +16,7 @@ export default async (page: any) => {
             return m ? Number(m.split('=')[1]) : d
         }
         return page.eval(
-            `(() => { const s = (id, prop, v, ev) => { const e = document.getElementById(id); e[prop] = v; e.dispatchEvent(new Event(ev)) }; s('fx-dry', 'checked', ${has('dry')}, 'change'); s('fx-reverb', 'value', '${num('room', 0.25)}', 'input'); s('fx-room', 'value', '${num('secs', 1.2)}', 'input'); s('fx-cabinet', 'checked', ${has('cab')}, 'change'); s('fx-drive', 'value', '${num('drive', 0)}', 'input'); return document.getElementById('fx-now').textContent })()`
+            `(() => { const s = (id, prop, v, ev) => { const e = document.getElementById(id); e[prop] = v; e.dispatchEvent(new Event(ev)) }; s('fx-dry', 'checked', ${has('dry')}, 'change'); s('fx-reverb', 'value', '${num('room', 0.125)}', 'input'); s('fx-room', 'value', '${num('secs', 1.2)}', 'input'); s('fx-cabinet', 'checked', ${has('cab')}, 'change'); s('fx-drive', 'value', '${num('drive', 0)}', 'input'); return document.getElementById('fx-now').textContent })()`
         )
     }
     // A first play of each, not recorded: files load, the contexts start.

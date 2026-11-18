@@ -42,6 +42,12 @@
                 flex-basis: 100%;
                 font-weight: 600;
             }
+            #fx-drop {
+                flex-basis: 100%;
+                font-weight: 600;
+                padding: 0.1rem 0.3rem;
+                border-radius: 4px;
+            }
             #fx-bar button {
                 font: inherit;
                 padding: 0.15rem 0.6rem;
@@ -67,33 +73,33 @@
             player, and the light synthesizer through its own code. This is how a web page without
             tabs sounds.
         </p>
+        <p>
+            <b>Before you listen:</b> put Google Chrome at 100% in the system's volume mixer. It is
+            at 124% (+5.6 dB) on this machine: everything louder than half scale is cut flat before
+            it reaches the headphones, with or without the effects. The last line of the yellow bar
+            counts what the browser could not play in time: each one is a click or a gap. It must
+            stay at 0.
+        </p>
         <ol>
             <li>Turn <b>Loop</b> on in the bar of a strumming pattern and press Play.</li>
             <li>
-                First, put <b>Level</b> at 0 (Dry not ticked): the room is off and only the limiter
-                is left. Is there a noise? Tell me yes or no: it tells me which part makes it.
+                Tick and untick <b>Dry</b> (it applies at the next pass): Dry is the sound of today,
+                without the room and the ceiling. Is there still a noise without Dry? Does the
+                dropout counter move?
             </li>
             <li>
-                Press <b>The room of this morning</b>, then <b>The new room</b>, while it plays: is
-                the noise gone, or less?
+                Move <b>Level</b> while it plays: 0 is off, 0.125 is the proposed default (the room
+                18 dB under the notes), 0.35 is a lot. Tell me the number you like.
             </li>
             <li>
-                Move <b>Level</b>, <b>Length</b>, <b>Tone</b> and <b>Width</b> while it plays, and
-                try <b>Soft start</b> off. If a noise is left, find what removes it. Tell me the
-                numbers you like (they are at the bottom of the bar).
-            </li>
-            <li>
-                <b>Dry</b> is the sound of today (no room, no limiter, no amplifier), at the next
-                pass of the loop.
+                <b>Length</b>, <b>Tone</b>, <b>Width</b> and <b>Soft start</b> also change at once
+                (with a small click). Tell me the numbers you like, or leave them.
             </li>
             <li>
                 On the clean and overdriven guitars, try <b>Cabinet</b> and <b>Drive</b> (next
                 pass). Tell me what must become the default for each guitar, if anything.
             </li>
-            <li>
-                The loud strum at the end of each part is the limiter's case: it must not crackle or
-                pump.
-            </li>
+            <li>The loud strum at the end of each part must not crackle.</li>
         </ol>
         <h2>GeneralUser GS (recorded instruments)</h2>
         <h3>Steel-string acoustic</h3>
