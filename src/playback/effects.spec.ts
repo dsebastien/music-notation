@@ -5,16 +5,15 @@ import {
     CEILING,
     DEFAULT_REVERB,
     DRIVE_REFERENCE,
-    LIMITER,
-    LIMITER_WAKE,
+    ROOM_BAND,
     ROOM_SECONDS,
     ROOM_SHAPE,
+    ROOM_WIDE_FROM,
     ampFor,
     ceilingCurve,
     driveAmount,
     driveCurve,
     driveLevel,
-    limiterTrim,
     outputFor,
     pageEffects,
     reverbLevel,
@@ -29,6 +28,22 @@ const energy = (data: Float32Array, from = 0, to = data.length) => {
     let sum = 0
     for (let i = from; i < to; i++) sum += data[i]! * data[i]!
     return sum
+}
+
+/** The power gain of an impulse over a band, at `count` pitches (a direct transform). */
+const bandGain = (data: Float32Array, rate: number, from: number, to: number, count = 40) => {
+    let sum = 0
+    for (let k = 0; k < count; k++) {
+        const turn = (2 * Math.PI * from * Math.pow(to / from, (k + 0.5) / count)) / rate
+        let re = 0
+        let im = 0
+        for (let i = 0; i < data.length; i++) {
+            re += data[i]! * Math.cos(turn * i)
+            im -= data[i]! * Math.sin(turn * i)
+        }
+        sum += re * re + im * im
+    }
+    return sum / count
 }
 
 /** A context that records what is made and what is connected to what. */
@@ -82,9 +97,9 @@ function fakeContext(without: string[] = []) {
 }
 
 describe('the room (#103)', () => {
-    it('is light by default, and its level is a number from 0 to 1', () => {
-        expect(DEFAULT_REVERB).toBeGreaterThan(0.05)
-        expect(DEFAULT_REVERB).toBeLessThan(0.3)
+    it('is light by default (18 dB under the notes), and its level is a number from 0 to 1', () => {
+        // Sébastien heard a room 8.6 dB under a strum as noise. The default is far under that.
+        expect(20 * Math.log10(DEFAULT_REVERB)).toBeCloseTo(-18, 0)
         expect(reverbLevel(undefined)).toBe(DEFAULT_REVERB)
         expect(reverbLevel('loud')).toBe(DEFAULT_REVERB)
         expect(reverbLevel(Number.NaN)).toBe(DEFAULT_REVERB)
@@ -92,6 +107,25 @@ describe('the room (#103)', () => {
         expect(reverbLevel(0.4)).toBe(0.4)
         expect(reverbLevel(3)).toBe(1)
         expect(reverbLevel(-1)).toBe(0)
+    })
+
+    it('is as loud as what goes into it where a guitar sounds: the level is the real share', () => {
+        // With an energy of 1 over all frequencies, a dark room was 11 dB louder than its number.
+        for (const [rate, seconds, shape] of [
+            [48000, ROOM_SECONDS, {}],
+            [44100, ROOM_SECONDS, {}],
+            [48000, 0.5, {}],
+            [48000, ROOM_SECONDS, { bright: 9000, dark: 1800 }]
+        ] as const) {
+            const [left, right] = roomImpulse(rate, seconds, shape)
+            for (const side of [left, right]) {
+                const db = 10 * Math.log10(bandGain(side, rate, ROOM_BAND[0], ROOM_BAND[1], 120))
+                expect(Math.abs(db)).toBeLessThan(1.5)
+            }
+        }
+        // And darker than that band above it.
+        const [left] = roomImpulse(48000)
+        expect(bandGain(left, 48000, 4000, 8000)).toBeLessThan(0.1)
     })
 
     it('rings for more than a second by default, and for 0.2 to 3 seconds when asked', () => {
@@ -105,12 +139,10 @@ describe('the room (#103)', () => {
         expect(roomSeconds(60)).toBe(3)
     })
 
-    it('has a generated impulse: two sides that differ, each with an energy of 1', () => {
+    it('has a generated impulse: two sides of the same length that differ', () => {
         const [left, right] = roomImpulse(48000)
         expect(left).toHaveLength(Math.round(48000 * ROOM_SECONDS))
         expect(right).toHaveLength(left.length)
-        expect(energy(left)).toBeCloseTo(1, 5)
-        expect(energy(right)).toBeCloseTo(1, 5)
         let same = 0
         for (let i = 0; i < left.length; i++) if (left[i] === right[i]) same++
         expect(same / left.length).toBeLessThan(0.05)
@@ -129,7 +161,7 @@ describe('the room (#103)', () => {
         expect(Math.abs(left[left.length - 1]!)).toBeLessThan(1e-6)
     })
 
-    it('is darker than a guitar, comes up softly, and has half of its sound in the middle', () => {
+    it('is darker than a guitar, comes up softly, and is the same on both sides in the lows', () => {
         const rate = 48000
         const highs = (data: Float32Array) => {
             let jumps = 0
@@ -144,24 +176,39 @@ describe('the room (#103)', () => {
         // Heard as noise by Sébastien: as bright as the guitar, at full level from its first
         // instant, nothing in common between the two sides.
         expect(ROOM_SHAPE.bright).toBeLessThanOrEqual(5000)
-        expect(ROOM_SHAPE.rise).toBeGreaterThanOrEqual(0.03)
+        expect(ROOM_SHAPE.rise).toBeGreaterThanOrEqual(0.01)
+        // Not long either: the tail's loudest moment must not come as an echo.
+        expect(ROOM_SHAPE.rise).toBeLessThanOrEqual(0.03)
         expect(ROOM_SHAPE.width).toBeLessThanOrEqual(0.6)
         const [left, right] = roomImpulse(rate)
         const [bright] = roomImpulse(rate, ROOM_SECONDS, { bright: 9000, dark: 1800 })
         expect(highs(bright)).toBeGreaterThan(3 * highs(left))
-        // The first 20 ms of the tail hold little: it comes up.
+        // The first 8 ms of the tail hold little: it comes up.
         const early = (data: Float32Array) =>
-            energy(data, Math.round(rate * 0.012), Math.round(rate * 0.032))
+            energy(data, Math.round(rate * 0.012), Math.round(rate * 0.02))
         const [sudden] = roomImpulse(rate, ROOM_SECONDS, { rise: 0 })
-        expect(early(sudden)).toBeGreaterThan(5 * early(left))
-        // Width: 0.5 is half in common, 0 the same on both sides, 1 nothing in common.
-        expect(alike(left, right)).toBeCloseTo(Math.cos(Math.PI / 4), 1)
+        expect(early(sudden)).toBeGreaterThan(3 * early(left))
+        // Width: more in common than apart, the same on both sides at 0, little in common at 1.
+        expect(alike(left, right)).toBeGreaterThan(0.7)
         const [same, too] = roomImpulse(rate, ROOM_SECONDS, { width: 0 })
         expect(alike(same, too)).toBeCloseTo(1, 5)
         const [one, other] = roomImpulse(rate, ROOM_SECONDS, { width: 1 })
-        expect(Math.abs(alike(one, other))).toBeLessThan(0.05)
-        for (const side of [left, right, bright, sudden, same, one, other])
-            expect(energy(side)).toBeCloseTo(1, 5)
+        expect(alike(one, other)).toBeLessThan(0.4)
+        // The lows are the same in both ears: what sets the sides apart starts above them.
+        const lows = (data: Float32Array) => {
+            const out = new Float32Array(data.length)
+            const keep = Math.exp((-2 * Math.PI * (ROOM_WIDE_FROM / 3)) / rate)
+            let low = 0
+            let lower = 0
+            for (let i = 0; i < data.length; i++) {
+                low = keep * low + (1 - keep) * data[i]!
+                lower = keep * lower + (1 - keep) * low
+                out[i] = lower
+            }
+            return out
+        }
+        expect(alike(lows(one), lows(other))).toBeGreaterThan(0.6)
+        expect(alike(lows(left), lows(right))).toBeGreaterThan(0.9)
     })
 
     it('gets darker as it falls, the same at every sample rate', () => {
@@ -186,54 +233,10 @@ describe('the room (#103)', () => {
     })
 })
 
-describe('the limiter (#103)', () => {
-    it('leaves a level under its threshold alone and takes back its make-up gain', () => {
-        expect(LIMITER.threshold).toBe(-1.5)
-        expect(LIMITER.knee).toBe(0)
-        // A full-scale input comes out at -1.425 dB; the compressor adds 0.6 of that back.
-        expect(20 * Math.log10(limiterTrim())).toBeCloseTo(-0.855, 2)
-        expect(limiterTrim(0, 20)).toBe(1)
-    })
-
-    it('is above an ordinary strum, so only accents and plays that add up are turned down', () => {
-        // A six-string strum of the recorded steel guitar peaks at 0.83 (-1.6 dB).
-        expect(Math.pow(10, LIMITER.threshold / 20)).toBeGreaterThan(0.83)
-        expect(LIMITER.threshold).toBeLessThan(0)
-    })
-
-    it('is slow, and lets go fast in its first moments so the first notes are not turned down', () => {
-        expect(LIMITER.attack).toBeGreaterThanOrEqual(0.005)
-        expect(LIMITER.release).toBeGreaterThanOrEqual(0.3)
-        // A context without schedules: the limiter's own release at once.
-        const plain = fakeContext()
-        outputFor(plain.ctx)
-        const release = (made: { name: string }[]) =>
-            (made.find((n) => n.name.startsWith('limiter')) as unknown as { release: Schedule })
-                .release
-        interface Schedule {
-            value: number
-            setValueAtTime?: (value: number, at: number) => void
-        }
-        expect(release(plain.made).value).toBe(LIMITER.release)
-        // With schedules: fast first, the limiter's release after its first moments.
-        const asked: [number, number][] = []
-        const timed = fakeContext()
-        const make = (timed.ctx as unknown as { createDynamicsCompressor: () => object })
-            .createDynamicsCompressor
-        ;(
-            timed.ctx as unknown as { createDynamicsCompressor: () => object }
-        ).createDynamicsCompressor = () => {
-            const node = make() as { release: Schedule }
-            node.release.setValueAtTime = (value, at) => asked.push([value, at])
-            return node
-        }
-        outputFor(timed.ctx)
-        expect(release(timed.made).value).toBe(LIMITER_WAKE.release)
-        expect(asked).toEqual([[LIMITER.release, LIMITER_WAKE.seconds]])
-        expect(LIMITER_WAKE.release).toBeLessThan(0.1)
-    })
-
-    it('has a ceiling after it: as it is under the knee, never above 1', () => {
+describe('the ceiling (#103)', () => {
+    it('leaves a level under its knee as it is, and never lets one above 1', () => {
+        // Above an ordinary strum of the recorded guitars (0.83): only accents and sums bend.
+        expect(CEILING.knee).toBeGreaterThan(0.83)
         const curve = ceilingCurve()
         const at = (level: number) =>
             curve[Math.round(((level / CEILING.range + 1) / 2) * (curve.length - 1))]!
@@ -252,45 +255,50 @@ describe('the limiter (#103)', () => {
 })
 
 describe('the chain of a context (#103)', () => {
-    it('is built once: the notes and the room both go to the limiter, then out', () => {
-        const { ctx, links } = fakeContext()
+    it('is built once: the notes and the room meet, then the ceiling, then out', () => {
+        const { ctx, links, made } = fakeContext()
         const first = outputFor(ctx) as unknown as { name: string }
         expect(first.name).toBe('gain1')
-        // The room goes through its low cut; after the limiter, the ceiling.
+        // The room goes through its low cut. No compressor: nothing is late, nothing pumps.
         expect(links).toEqual([
-            ['gain1', 'limiter4'],
+            ['gain1', 'gain4'],
             ['gain1', 'convolver3'],
-            ['convolver3', 'filter6'],
-            ['filter6', 'gain2'],
-            ['gain2', 'limiter4'],
-            ['limiter4', 'gain5'],
-            ['gain5', 'shaper7'],
-            ['shaper7', 'destination']
+            ['convolver3', 'filter5'],
+            ['filter5', 'gain2'],
+            ['gain2', 'gain4'],
+            ['gain4', 'shaper6'],
+            ['shaper6', 'destination']
         ])
+        expect(made.some((n) => n.name.startsWith('limiter'))).toBe(false)
+        // The ceiling's curve reads a level divided by its range.
+        expect(made.find((n) => n.name === 'gain4')!.gain.value).toBe(1 / CEILING.range)
         expect(outputFor(ctx)).toBe(first as unknown as AudioNode)
-        expect(links).toHaveLength(8)
+        expect(links).toHaveLength(7)
     })
 
     it('ends where the caller says, for a context that keeps its speakers elsewhere', () => {
         const { ctx, links } = fakeContext()
         const speakers = { name: 'speakers' } as unknown as AudioNode
         outputFor(ctx, undefined, speakers)
-        expect(links[links.length - 1]).toEqual(['shaper7', 'speakers'])
+        expect(links[links.length - 1]).toEqual(['shaper6', 'speakers'])
         expect(outputFor(fakeContext().ctx, { dry: true }, speakers)).toBe(speakers)
         expect(outputFor(fakeContext(['createConvolver']).ctx, undefined, speakers)).toBe(speakers)
     })
 
-    it('still works without filters or a wave shaper: the room and the limiter alone', () => {
-        const { ctx, links } = fakeContext(['createBiquadFilter', 'createWaveShaper'])
+    it('still works without filters or a wave shaper: the notes and the room alone', () => {
+        const { ctx, links, made } = fakeContext(['createBiquadFilter', 'createWaveShaper'])
         outputFor(ctx)
         expect(links).toEqual([
-            ['gain1', 'limiter4'],
+            ['gain1', 'gain4'],
             ['gain1', 'convolver3'],
             ['convolver3', 'gain2'],
-            ['gain2', 'limiter4'],
-            ['limiter4', 'gain5'],
-            ['gain5', 'destination']
+            ['gain2', 'gain4'],
+            ['gain4', 'destination']
         ])
+        expect(made.find((n) => n.name === 'gain4')!.gain.value).toBe(1)
+        // A context with no compressor builds the chain too: it has none.
+        const bare = fakeContext(['createDynamicsCompressor'])
+        expect((outputFor(bare.ctx) as unknown as { name: string }).name).toBe('gain1')
     })
 
     it("takes the last play's level and length of room, a new room only when it changes", () => {
@@ -317,8 +325,6 @@ describe('the chain of a context (#103)', () => {
         expect(links).toEqual([])
         const old = fakeContext(['createConvolver'])
         expect(outputFor(old.ctx)).toBe(old.ctx.destination)
-        const older = fakeContext(['createDynamicsCompressor'])
-        expect(outputFor(older.ctx)).toBe(older.ctx.destination)
     })
 })
 

@@ -178,7 +178,7 @@ export interface TabOptions {
      */
     volume?: number | (() => number)
     /**
-     * The room and the limiter this tab's sound goes through (#103): the page's or the app's
+     * The room and the ceiling this tab's sound goes through (#103): the page's or the app's
      * choice (`reverb`, `dry`), read each time the tab starts to play. The light room by default.
      */
     effects?: PlayEffects | (() => PlayEffects | null | undefined)
@@ -892,7 +892,7 @@ export function renderTab(
             }
             const current = new at.AlphaTabApi(surface, settings)
             api = current
-            // Its sound goes through the room and the limiter (#103); a score has its own tracks,
+            // Its sound goes through the room and the ceiling (#103); a score has its own tracks,
             // so no amplifier.
             const roomWindow = host.ownerDocument.defaultView
             if (roomWindow)
@@ -1372,7 +1372,7 @@ export function createSoundfontPlayer(
             }
         })
         const current = api
-        // Its sound goes through the room and the limiter, and an electric guitar's amplifier
+        // Its sound goes through the room and the ceiling, and an electric guitar's amplifier
         // when one is asked for (#103): what the play in progress asked.
         const view = doc.defaultView
         if (view)

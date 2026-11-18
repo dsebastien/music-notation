@@ -1,5 +1,5 @@
 /**
- * What comes after the instruments (#103): a small room and a limiter on the way to the speakers,
+ * What comes after the instruments (#103): a small room and a ceiling on the way to the speakers,
  * and for the electric guitars an optional amplifier (a drive and a speaker cabinet). Built from
  * Web Audio nodes and a generated impulse response: no file, a few KB of code.
  *
@@ -14,7 +14,7 @@ export interface PlayEffects {
     reverb?: number
     /** How long the room rings, in seconds (0.2 to 3): a small room to a hall. */
     room?: number
-    /** No room and no limiter: the notes go straight to the output, for hosts with their own. */
+    /** No room and no ceiling: the notes go straight to the output, for hosts with their own. */
     dry?: boolean
     /** An amplifier for the electric guitars (clean, overdrive); none by default. */
     amp?: AmpOptions
@@ -28,8 +28,12 @@ export interface AmpOptions {
     cabinet?: boolean
 }
 
-/** The room's level when nothing says another: a light room. */
-export const DEFAULT_REVERB = 0.12
+/**
+ * The room's level when nothing says another: a light room, 18 dB under the notes. The level is
+ * how loud the room is against what plays in it, where a guitar sounds (`ROOM_BAND`): 0.125 is
+ * 18 dB under, 0.35 is 9 dB under, 1 as loud as the notes.
+ */
+export const DEFAULT_REVERB = 0.125
 
 /**
  * How long the room rings (seconds to fall by 60 dB). A guitar's notes ring for seconds
@@ -128,13 +132,24 @@ export interface RoomShape {
  * slope), the tail was heard as noise: every attack came back as a hiss until the next strum.
  *
  * Rise: a real room starts with a few echoes and gets dense later; a tail of noise at full level
- * from its first instant put a burst of noise right after each attack.
+ * from its first instant put a burst of noise right after each attack. Not long: at 50 ms the
+ * tail's loudest moment came 60 ms after the note, a small echo.
  *
  * Width: with nothing in common between the two sides, the room was a cloud of noise around the
  * head, apart from the guitar in the middle (and the hardest sound there is for the codec of
  * wireless headphones). Half in common: the room is around the guitar.
  */
-export const ROOM_SHAPE: Readonly<RoomShape> = { bright: 4000, dark: 800, rise: 0.05, width: 0.5 }
+export const ROOM_SHAPE: Readonly<RoomShape> = { bright: 4000, dark: 800, rise: 0.02, width: 0.5 }
+
+/**
+ * Where a guitar sounds (Hz): the room is as loud there as what goes into it. With an energy of 1
+ * over all frequencies, a dark room had all of it in this band: 11 dB more than its number said
+ * (the default was 8.6 dB under a recorded strum, not the 18 dB meant).
+ */
+export const ROOM_BAND = [300, 3000] as const
+
+/** Under this (Hz) the two sides are the same: lows that differ between the ears feel wrong. */
+export const ROOM_WIDE_FROM = 400
 
 /** How steep the tail's highs fall: low-passes in a row (6 dB an octave each). */
 const ROOM_SLOPE = 3
@@ -144,9 +159,8 @@ const ROOM_SLOPE = 3
  * a diffuse tail that comes up, falls by 60 dB in `seconds` and gets darker as it falls (walls
  * take the highs first; the brightness is in Hz, so the room sounds the same at every sample
  * rate). `shape` changes the library's room (`ROOM_SHAPE`), for a host that tunes its own. The
- * two sides differ, so the room has width. Each side has an energy of 1: a sound through it comes
- * out about as loud as it went in, and the wet level is the gain after it. (A first version had
- * five early reflections too: at the level of the tail's own points, they changed nothing.)
+ * two sides differ above `ROOM_WIDE_FROM`, so the room has width. A sound of the guitar's band
+ * (`ROOM_BAND`) through it comes out as loud as it went in: the level is the gain after it.
  */
 export function roomImpulse(
     sampleRate: number,
@@ -155,97 +169,96 @@ export function roomImpulse(
 ): [Float32Array, Float32Array] {
     const { bright, dark, rise: riseSeconds, width } = { ...ROOM_SHAPE, ...shape }
     const length = Math.max(1, Math.round(sampleRate * seconds))
+    const start = Math.min(length, Math.round(sampleRate * 0.012))
+    // The last tenth fades to nothing: an impulse cut at -60 dB ends on a small step.
+    const fade = Math.max(1, Math.round(length * 0.1))
+    // The level and the brightness fall by the same share at each point: two products, no
+    // power per point (a room of 1.2 s is 115,000 points, made while a play waits).
+    const fall = Math.pow(10, -3 / (sampleRate * seconds))
+    const darker = Math.pow(dark / bright, 1 / (sampleRate * seconds))
+    const rise = Math.max(1, Math.round(sampleRate * Math.max(0, riseSeconds)))
+    const keepAt = (cutoff: number) =>
+        Math.exp((-2 * Math.PI * Math.min(cutoff, sampleRate * 0.45)) / sampleRate)
+    const shapeAt = (i: number) =>
+        (i - start < rise ? (i - start) / rise : 1) * (i > length - fade ? (length - i) / fade : 1)
     const make = (seed: number): Float32Array => {
         const random = seeded(seed)
         const data = new Float32Array(length)
-        const start = Math.min(length, Math.round(sampleRate * 0.012))
-        // The last tenth fades to nothing: an impulse cut at -60 dB ends on a small step.
-        const fade = Math.max(1, Math.round(length * 0.1))
-        // The level and the brightness fall by the same share at each point: two products, no
-        // power per point (a room of 1.2 s is 115,000 points, made while a play waits).
-        const fall = Math.pow(10, -3 / (sampleRate * seconds))
-        const darker = Math.pow(dark / bright, 1 / (sampleRate * seconds))
         let level = Math.pow(fall, start)
         let cutoff = bright * Math.pow(darker, start)
         let keep = 0
         const lows = new Float64Array(ROOM_SLOPE)
-        const rise = Math.max(1, Math.round(sampleRate * Math.max(0, riseSeconds)))
         for (let i = start; i < length; i++) {
             // Low-passes that close with time: from bright to dull.
-            if ((i - start) % 64 === 0)
-                keep = Math.exp((-2 * Math.PI * Math.min(cutoff, sampleRate * 0.45)) / sampleRate)
+            if ((i - start) % 64 === 0) keep = keepAt(cutoff)
             let value = random() * 2 - 1
             for (let pole = 0; pole < ROOM_SLOPE; pole++) {
                 value = keep * lows[pole]! + (1 - keep) * value
                 lows[pole] = value
             }
-            const up = i - start < rise ? (i - start) / rise : 1
-            data[i] = value * level * up * (i > length - fade ? (length - i) / fade : 1)
+            data[i] = value * level * shapeAt(i)
             level *= fall
             cutoff *= darker
         }
         return data
     }
-    const unit = (data: Float32Array): Float32Array => {
-        let energy = 0
-        for (let i = 0; i < length; i++) energy += data[i]! * data[i]!
-        const scale = energy > 0 ? 1 / Math.sqrt(energy) : 0
-        for (let i = 0; i < length; i++) data[i] = data[i]! * scale
-        return data
+    // How loud the tail is where a guitar sounds, from how it is made (no measure of the noise
+    // itself, which would differ a little with each seed): the power of the noise (a third)
+    // through the low-passes of each moment, at a few pitches of the band.
+    let power = 0
+    const pitches = 8
+    for (let p = 0; p < pitches; p++) {
+        const hz = ROOM_BAND[0] * Math.pow(ROOM_BAND[1] / ROOM_BAND[0], (p + 0.5) / pitches)
+        const cos = Math.cos((2 * Math.PI * hz) / sampleRate)
+        let level = Math.pow(fall, start)
+        let cutoff = bright * Math.pow(darker, start)
+        const step = Math.pow(fall, 64)
+        const darkerStep = Math.pow(darker, 64)
+        for (let i = start; i < length; i += 64) {
+            const keep = keepAt(cutoff)
+            const pole = ((1 - keep) * (1 - keep)) / (1 - 2 * keep * cos + keep * keep)
+            const size = Math.min(64, length - i)
+            const here = level * shapeAt(i + (size >> 1))
+            power += (size * here * here * Math.pow(pole, ROOM_SLOPE)) / 3
+            level *= step
+            cutoff *= darkerStep
+        }
     }
+    const scale = power > 0 ? 1 / Math.sqrt(power / pitches) : 0
     // What the two sides share, and what sets them apart: left is the sum, right the difference.
-    const middle = unit(make(0x2545f491))
-    const apart = unit(make(0x51ed270b))
+    const middle = make(0x2545f491)
+    const apart = make(0x51ed270b)
+    // The lows of what sets them apart are left out (a high-pass, twice): the same in both ears.
+    const pass = Math.exp((-2 * Math.PI * ROOM_WIDE_FROM) / sampleRate)
+    for (let turn = 0; turn < 2; turn++) {
+        let low = 0
+        for (let i = 0; i < length; i++) {
+            low = pass * low + (1 - pass) * apart[i]!
+            apart[i] = apart[i]! - low
+        }
+    }
     const angle = (Math.min(1, Math.max(0, width)) * Math.PI) / 4
     const left = new Float32Array(length)
     const right = new Float32Array(length)
     for (let i = 0; i < length; i++) {
-        const m = middle[i]! * Math.cos(angle)
-        const a = apart[i]! * Math.sin(angle)
+        const m = middle[i]! * Math.cos(angle) * scale
+        const a = apart[i]! * Math.sin(angle) * scale
         left[i] = m + a
         right[i] = m - a
     }
-    return [unit(left), unit(right)]
-}
-
-/**
- * The limiter: nothing below the threshold, a hard ratio above it. The threshold is above an
- * ordinary strum (a six-string chord of the recorded guitars peaks near -1.6 dB): the limiter
- * works on an accented strum and on plays that add up, and leaves the rest as it was. At -3 dB
- * it turned every strum down a little, and the room with it. It is slow on purpose (10 ms to
- * act, half a second to let go): a fast one follows the wave itself and adds a grit that grows
- * with the room's level (on a recorded strum with a loud room, 5 to 6 dB more than this one).
- * The ceiling after it takes the peaks it lets through.
- */
-export const LIMITER = { threshold: -1.5, knee: 0, ratio: 20, attack: 0.01, release: 0.5 } as const
-
-/**
- * A browser's compressor starts turned down and comes back at its release time: with half a
- * second, the first notes of a page were 2.7 dB down. So it lets go fast (`release`, seconds)
- * for its first moments (`seconds`), then takes the limiter's release.
- */
-export const LIMITER_WAKE = { release: 0.02, seconds: 0.3 } as const
-
-/**
- * The gain that takes back the limiter's make-up gain. A Web Audio compressor raises its output
- * by a gain that depends only on its threshold, knee and ratio (the level a full-scale input
- * comes out at, to the power 0.6): without this, every sound got louder.
- */
-export function limiterTrim(
-    threshold: number = LIMITER.threshold,
-    ratio: number = LIMITER.ratio
-): number {
-    const fullScaleDb = threshold * (1 - 1 / ratio)
-    return Math.pow(10, (fullScaleDb * 0.6) / 20)
+    return [left, right]
 }
 
 /** Where the ceiling starts to bend, and the highest level its curve is drawn for. */
 export const CEILING = { knee: 0.9, range: 2 } as const
 
 /**
- * The ceiling after the limiter: a level under the knee comes out as it is, a higher one bends
- * toward 1 and never passes it. The limiter needs a few milliseconds to act: this takes the
- * first peak of a hard strum, which went out above full scale and was cut flat by the speakers.
+ * The ceiling, the last thing before the speakers: a level under the knee comes out as it is, a
+ * higher one bends toward 1 and never passes it. An accented six-string strum of the recorded
+ * guitars peaks at 1.115 and was cut flat by the speakers; plays that add up go higher. It is
+ * not late and has no memory: nothing to pump. (A browser's compressor was here first, as a
+ * limiter. It is 6 ms late, starts turned down, cannot give up its make-up gain, and its gain
+ * moved by 1 to 5 dB for a quarter to half of the time when a loud room pushed it: it is gone.)
  * The curve is for an input divided by `CEILING.range` (a wave shaper reads -1 to 1).
  */
 export function ceilingCurve(points = 4097): Float32Array {
@@ -276,9 +289,7 @@ const chains = new WeakMap<BaseAudioContext, Chain>()
 
 /** Whether a context can build the chain (a test double or an old browser may not). */
 const canBuild = (ctx: BaseAudioContext): boolean =>
-    typeof ctx.createConvolver === 'function' &&
-    typeof ctx.createDynamicsCompressor === 'function' &&
-    typeof ctx.createBuffer === 'function'
+    typeof ctx.createConvolver === 'function' && typeof ctx.createBuffer === 'function'
 
 /** The last rooms made, by sample rate and length: a page's players share them. */
 const rooms = new Map<string, [Float32Array, Float32Array]>()
@@ -307,18 +318,9 @@ function build(ctx: BaseAudioContext, speakers: AudioNode, seconds: number): Cha
     // Our impulse has its own level: the browser's normalization would change it.
     room.normalize = false
     room.buffer = roomBuffer(ctx, seconds)
-    const limiter = ctx.createDynamicsCompressor()
-    limiter.threshold.value = LIMITER.threshold
-    limiter.knee.value = LIMITER.knee
-    limiter.ratio.value = LIMITER.ratio
-    limiter.attack.value = LIMITER.attack
-    if (typeof limiter.release.setValueAtTime === 'function') {
-        limiter.release.value = LIMITER_WAKE.release
-        limiter.release.setValueAtTime(LIMITER.release, ctx.currentTime + LIMITER_WAKE.seconds)
-    } else limiter.release.value = LIMITER.release
-    const trim = ctx.createGain()
-    trim.gain.value = limiterTrim()
-    input.connect(limiter)
+    // Where the notes and the room meet.
+    const sum = ctx.createGain()
+    input.connect(sum)
     input.connect(room)
     if (typeof ctx.createBiquadFilter === 'function') {
         const lowCut = ctx.createBiquadFilter()
@@ -328,22 +330,21 @@ function build(ctx: BaseAudioContext, speakers: AudioNode, seconds: number): Cha
         room.connect(lowCut)
         lowCut.connect(wet)
     } else room.connect(wet)
-    wet.connect(limiter)
-    limiter.connect(trim)
+    wet.connect(sum)
     if (typeof ctx.createWaveShaper === 'function') {
         const ceiling = ctx.createWaveShaper()
         ceiling.curve = ceilingCurve() as Float32Array<ArrayBuffer>
         // The curve's input is the level divided by its range.
-        trim.gain.value = limiterTrim() / CEILING.range
-        trim.connect(ceiling)
+        sum.gain.value = 1 / CEILING.range
+        sum.connect(ceiling)
         ceiling.connect(speakers)
-    } else trim.connect(speakers)
+    } else sum.connect(speakers)
     return { input, wet, room, seconds }
 }
 
 /**
  * Where a player sends its notes: the context's chain (the room at the level asked, then the
- * limiter), or the output itself for `dry` and for a context that can't build the chain. The
+ * ceiling), or the output itself for `dry` and for a context that can't build the chain. The
  * room's level and length are the context's: the last play that names them sets them for what
  * sounds. `speakers` is the context's output, for a caller that keeps it under another name
  * (alphaTab's context, see `src/tab/room.ts`).

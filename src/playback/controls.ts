@@ -73,7 +73,7 @@ export interface PlayOptions {
      */
     room?: number | (() => number | null | undefined)
     /**
-     * No room and no limiter (#103): the notes go straight to the output, as they did before the
+     * No room and no ceiling (#103): the notes go straight to the output, as they did before the
      * room, for a host that adds its own effects. A function is read at each play.
      */
     dry?: boolean | (() => boolean | null | undefined)

@@ -50,7 +50,7 @@ export interface NotePlayer {
              */
             guitar?: GuitarTone
             /**
-             * The room, the limiter and the amplifier after the notes (#103): the light room by
+             * The room, the ceiling and the amplifier after the notes (#103): the light room by
              * default. A player that doesn't know them plays as it always did.
              */
             effects?: PlayEffects
@@ -437,7 +437,7 @@ const pianoDecay = (midi: number) => Math.min(2.5, Math.max(0.35, Math.pow(2, (6
 
 /**
  * Sends a play's notes on (#103): through an electric guitar's amplifier when one is asked for
- * (`clean` and `overdrive` only), then to the context's room and limiter, or straight to the
+ * (`clean` and `overdrive` only), then to the context's room and ceiling, or straight to the
  * output for `dry`.
  */
 export function sendOut(

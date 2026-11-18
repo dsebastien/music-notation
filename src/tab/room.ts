@@ -1,5 +1,5 @@
 /**
- * alphaTab's sound through the library's room and limiter (#103). alphaTab has no reverb of its
+ * alphaTab's sound through the library's room and ceiling (#103). alphaTab has no reverb of its
  * own and gives no place to plug one in: each time it starts to play, it makes an output node and
  * connects it to its context's `destination`.
  *
@@ -7,7 +7,7 @@
  * at each start alphaTab reads it and connects its node to what it gets, the chain's entry for
  * this play, or the speakers for `dry`. The node never sounds outside the chain. A first version
  * moved the node after alphaTab had connected it: the first 20 ms of each play went out
- * directly, then jumped into the limiter (which is 6 ms late).
+ * directly, then jumped into the chain (whose limiter, gone since, was 6 ms late).
  *
  * When the property can't be set, or the context was made too late for the first play, the node
  * is moved as before. It is in a field alphaTab keeps to itself, and its name differs between
@@ -77,7 +77,7 @@ interface Taken {
 const taken = new WeakMap<BaseAudioContext, Taken>()
 
 /**
- * Sends what alphaTab plays through the room and the limiter, from now on: at each start, its
+ * Sends what alphaTab plays through the room and the ceiling, from now on: at each start, its
  * new output node goes to the chain (through an electric guitar's amplifier when one is asked for
  * and one guitar plays). `dry` gives it the speakers. `look` checks it now, for a play alphaTab
  * starts without saying so (the one-time plays of the diagrams' player); `stop` ends it.

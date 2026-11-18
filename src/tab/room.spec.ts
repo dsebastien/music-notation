@@ -199,7 +199,7 @@ describe("alphaTab's context: its destination is the chain (#103)", () => {
         throughRoom(api, () => true, { effects: () => null }, win)
         // What alphaTab does at each start: `worklet.connect(ctx.destination)`.
         expect(name(ctx.destination)).toBe('gain1')
-        expect(ctx.links[ctx.links.length - 1]).toBe('shaper7>destination')
+        expect(ctx.links[ctx.links.length - 1]).toBe('shaper6>destination')
         say('playing')
         run()
         expect(worklet.calls).toEqual([])
@@ -228,9 +228,9 @@ describe("alphaTab's context: its destination is the chain (#103)", () => {
             { effects: () => ({ amp: { cabinet: true } }), guitar: () => guitar },
             win
         )
-        // The chain is made first (7 nodes), then the amplifier: its entry, 4 filters, a level.
-        expect(name(ctx.destination)).toBe('gain8')
-        expect(ctx.links[ctx.links.length - 1]).toBe('gain13>gain1')
+        // The chain is made first (6 nodes), then the amplifier: its entry, 4 filters, a level.
+        expect(name(ctx.destination)).toBe('gain7')
+        expect(ctx.links[ctx.links.length - 1]).toBe('gain12>gain1')
         guitar = 'steel'
         expect(name(ctx.destination)).toBe('gain1')
     })
