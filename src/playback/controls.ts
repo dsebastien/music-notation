@@ -63,7 +63,7 @@ export interface PlayOptions {
     guitar?: GuitarTone | (() => GuitarTone | null | undefined)
     /**
      * The room's level (#103), 0 (none) to 1: every block plays in a small room, light by default
-     * (0.25). A function is read at each play, so a setting changed in the app is heard at the
+     * (0.12). A function is read at each play, so a setting changed in the app is heard at the
      * next Play. The level is the page's: the last play sets it for everything that sounds.
      */
     reverb?: number | (() => number | null | undefined)
