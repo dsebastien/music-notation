@@ -30,6 +30,9 @@ function context(frozen = false) {
             connect(to: { name?: string }) {
                 links.push(`${name}>${to.name ?? '?'}`)
             },
+            disconnect() {
+                links.push(`${name} x`)
+            },
             gain: { value: 1, setTargetAtTime() {} },
             threshold: { value: 0 },
             knee: { value: 0 },
@@ -233,6 +236,43 @@ describe("alphaTab's context: its destination is the chain (#103)", () => {
         expect(ctx.links[ctx.links.length - 1]).toBe('gain12>gain1')
         guitar = 'steel'
         expect(name(ctx.destination)).toBe('gain1')
+    })
+
+    it('keeps one amplifier from play to play, and lets it go when another is asked for', () => {
+        const ctx = context()
+        let amp: { cabinet?: boolean; drive?: number } = { cabinet: true }
+        let guitar: 'steel' | 'clean' = 'clean'
+        const { api, win, run } = setup({ context: ctx })
+        const room = throughRoom(
+            api,
+            () => true,
+            { effects: () => ({ amp }), guitar: () => guitar },
+            win
+        )
+        // Three starts: the same amplifier, nothing new made or connected.
+        expect(name(ctx.destination)).toBe('gain7')
+        const made = ctx.links.length
+        expect(name(ctx.destination)).toBe('gain7')
+        expect(name(ctx.destination)).toBe('gain7')
+        expect(ctx.links).toHaveLength(made)
+        // Another amplifier: a new one, and the old one leaves the chain a little later.
+        amp = { cabinet: true, drive: 0.5 }
+        expect(name(ctx.destination)).toBe('gain13')
+        expect(ctx.links).not.toContain('gain12 x')
+        run()
+        expect(ctx.links).toContain('gain12 x')
+        // No amplifier for an acoustic guitar: the last one leaves too.
+        guitar = 'steel'
+        expect(name(ctx.destination)).toBe('gain1')
+        run()
+        const last = ctx.links.filter((l) => l.endsWith(' x'))
+        expect(last).toHaveLength(2)
+        // Stopped with one in use: it leaves at once.
+        guitar = 'clean'
+        const entry = name(ctx.destination)
+        expect(entry).not.toBe('gain1')
+        room.stop()
+        expect(ctx.links.filter((l) => l.endsWith(' x'))).toHaveLength(3)
     })
 
     it('takes the context when the player is ready, and gives it back when stopped', () => {

@@ -438,25 +438,38 @@ const pianoDecay = (midi: number) => Math.min(2.5, Math.max(0.35, Math.pow(2, (6
 /**
  * Sends a play's notes on (#103): through an electric guitar's amplifier when one is asked for
  * (`clean` and `overdrive` only), then to the context's room and ceiling, or straight to the
- * output for `dry`.
+ * output for `dry`. Returns what lets the play go once its sound is over: its node leaves the
+ * chain, and its amplifier too (an amplifier left connected stayed in the chain for good, one
+ * more with each play).
  */
 export function sendOut(
     ctx: BaseAudioContext,
     from: AudioNode,
     guitar: GuitarTone | null,
     effects: PlayEffects | undefined
-): void {
+): () => void {
     const out = outputFor(ctx, effects)
     const amp =
         !effects?.dry && (guitar === 'clean' || guitar === 'overdrive')
             ? ampFor(ctx, effects?.amp)
             : null
+    const cut = (node: AudioNode) => {
+        try {
+            node.disconnect()
+        } catch {
+            // Gone already.
+        }
+    }
     if (!amp) {
         from.connect(out)
-        return
+        return () => cut(from)
     }
     from.connect(amp.input)
     amp.output.connect(out)
+    return () => {
+        cut(from)
+        cut(amp.output)
+    }
 }
 
 /**
@@ -520,7 +533,7 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 })
             const gain = ctx.createGain()
             gain.gain.value = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume)) : 0.8
-            sendOut(ctx, gain, sound === 'guitar' ? tone : null, effects)
+            const letGo = sendOut(ctx, gain, sound === 'guitar' ? tone : null, effects)
             const start = ctx.currentTime + 0.05
             const sources = events.map((e, i) => {
                 if (e.kind)
@@ -566,7 +579,7 @@ export function lightPlayer(win: Window, random: () => number = Math.random): No
                 source.stop(Math.max(at + 0.006, end) + release)
                 return source
             })
-            const finish = () => gain.disconnect()
+            const finish = () => letGo()
             let stopped = false
             let heard: ReturnType<typeof win.setTimeout> | undefined
             // The first note sounds at `start` on the audio clock, which only runs once the context

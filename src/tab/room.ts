@@ -93,6 +93,25 @@ export function throughRoom(
     let timers: number[] = []
     let alive = true
     let mine: Taken | null = null
+    /**
+     * The amplifier in use: one for as long as the same one is asked for. alphaTab asks for its
+     * destination at each start: a new amplifier each time stayed in the chain for good.
+     */
+    let amp: {
+        key: string
+        ctx: BaseAudioContext
+        out: AudioNode
+        input: AudioNode
+        output: AudioNode
+    } | null = null
+    let leaving: { id: number; node: AudioNode }[] = []
+    const cut = (node: AudioNode) => {
+        try {
+            node.disconnect()
+        } catch {
+            // Gone already.
+        }
+    }
     /** Where this play's sound goes: the chain's entry, an amplifier before it, or the speakers. */
     const entryFor = (ctx: BaseAudioContext, speakers: AudioNode): AudioNode => {
         let effects: PlayEffects | undefined
@@ -103,12 +122,29 @@ export function throughRoom(
         } catch {
             effects = undefined
         }
-        if (effects?.dry) return speakers
-        const out = outputFor(ctx, effects, speakers)
-        if (out === speakers) return speakers
-        const amp = guitar === 'clean' || guitar === 'overdrive' ? ampFor(ctx, effects?.amp) : null
-        if (!amp) return out
-        amp.output.connect(out)
+        const out = effects?.dry ? speakers : outputFor(ctx, effects, speakers)
+        const wish =
+            out !== speakers && (guitar === 'clean' || guitar === 'overdrive')
+                ? effects?.amp
+                : undefined
+        const key = wish ? `${wish.drive ?? 0}:${wish.cabinet === true}` : ''
+        if (amp && (amp.key !== key || amp.ctx !== ctx || amp.out !== out)) {
+            // Another amplifier, or none: the old one leaves once the play before has rung out.
+            const going = { id: 0, node: amp.output }
+            amp = null
+            going.id = win.setTimeout(() => {
+                cut(going.node)
+                leaving = leaving.filter((one) => one !== going)
+            }, 1000)
+            leaving.push(going)
+        }
+        if (!key) return out
+        if (!amp) {
+            const made = ampFor(ctx, wish)
+            if (!made) return out
+            made.output.connect(out)
+            amp = { key, ctx, out, ...made }
+        }
         return amp.input
     }
     /** Gives alphaTab's context a `destination` that is the chain; true when it has one. */
@@ -194,6 +230,13 @@ export function throughRoom(
             alive = false
             for (const id of timers) win.clearTimeout(id)
             timers = []
+            for (const { id, node } of leaving) {
+                win.clearTimeout(id)
+                cut(node)
+            }
+            leaving = []
+            if (amp) cut(amp.output)
+            amp = null
             // The context sounds as alphaTab made it again.
             if (mine && mine.owner === self) {
                 mine.owner = null

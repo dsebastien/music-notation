@@ -21,7 +21,7 @@ import {
     roomSeconds
 } from './effects.js'
 import { effectsOf, playerFor, toned } from './controls.js'
-import type { NoteEvent, NotePlayer } from './player.js'
+import { sendOut, type NoteEvent, type NotePlayer } from './player.js'
 import { renderBlock } from '../render/render-block.js'
 
 const energy = (data: Float32Array, from = 0, to = data.length) => {
@@ -49,6 +49,7 @@ const bandGain = (data: Float32Array, rate: number, from: number, to: number, co
 /** A context that records what is made and what is connected to what. */
 function fakeContext(without: string[] = []) {
     const links: [string, string][] = []
+    const cuts: string[] = []
     const made: { name: string; gain: { value: number } }[] = []
     const node = (kind: string, extra: object = {}) => {
         const name = `${kind}${made.length + 1}`
@@ -58,7 +59,9 @@ function fakeContext(without: string[] = []) {
                 links.push([name, to.name])
                 return to
             },
-            disconnect() {},
+            disconnect() {
+                cuts.push(name)
+            },
             gain: {
                 value: 1,
                 setTargetAtTime(v: number) {
@@ -93,7 +96,7 @@ function fakeContext(without: string[] = []) {
         })
     }
     for (const name of without) delete ctx[name]
-    return { ctx: ctx as unknown as BaseAudioContext, links, made }
+    return { ctx: ctx as unknown as BaseAudioContext, links, made, cuts }
 }
 
 describe('the room (#103)', () => {
@@ -360,6 +363,29 @@ describe("an electric guitar's amplifier (#103)", () => {
             Math.pow(10, CABINET_TRIM_DB / 20),
             6
         )
+    })
+
+    it("leaves the chain with its play: the play's node and the amplifier's last one", () => {
+        // An amplifier left connected stayed in the chain for good, one more with each play.
+        const electric = fakeContext()
+        const from = electric.ctx.createGain()
+        const letGo = sendOut(electric.ctx, from, 'overdrive', { amp: { cabinet: true } })
+        const last = electric.links[electric.links.length - 1]!
+        expect(last[1]).toBe('gain2')
+        expect(electric.cuts).toEqual([])
+        letGo()
+        expect(electric.cuts).toEqual(['gain1', last[0]])
+        // No amplifier (an acoustic guitar, or none asked for): the play's node alone.
+        const acoustic = fakeContext()
+        const steel = acoustic.ctx.createGain()
+        sendOut(acoustic.ctx, steel, 'steel', { amp: { cabinet: true } })()
+        expect(acoustic.cuts).toEqual(['gain1'])
+        // Dry: no amplifier either, and the node leaves the output.
+        const dry = fakeContext()
+        const node = dry.ctx.createGain()
+        sendOut(dry.ctx, node, 'overdrive', { dry: true, amp: { drive: 1 } })()
+        expect(dry.links).toEqual([['gain1', 'destination']])
+        expect(dry.cuts).toEqual(['gain1'])
     })
 
     it('keeps a strum as loud with more drive: the level after the curve is matched', () => {

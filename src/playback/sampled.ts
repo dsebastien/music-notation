@@ -284,7 +284,7 @@ export function sampledPlayer(
                 const byKind = new Map(kinds.map((kind, i) => [kind, loaded[i]!]))
                 const master = ctx.createGain()
                 master.gain.value = level
-                sendOut(ctx, master, instrument === 'guitar' ? tone : null, effects)
+                const letGo = sendOut(ctx, master, instrument === 'guitar' ? tone : null, effects)
                 const start = ctx.currentTime + 0.05
                 const sources: AudioBufferSourceNode[] = []
                 let tail = 0
@@ -313,7 +313,7 @@ export function sampledPlayer(
                         tail = Math.max(tail, made.over - start)
                     }
                 }
-                const finish = () => master.disconnect()
+                const finish = () => letGo()
                 let heard: ReturnType<typeof win.setTimeout> | undefined
                 const announce = () => {
                     if (stopped || !onStart) return
