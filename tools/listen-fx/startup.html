@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // The limiter's first moments (#103): Chrome's compressor starts turned down. How long, and does
+            // a sound too quiet to hear, sent before the notes, wake it up?
+            import { limiterTrim } from '/fx-effects.js'
+            const RATE = 48000
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), n }
+            }
+            const take = await load('pub-7-dry') // peak 0.42: far under the threshold
+            const first = (d) => {
+                for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 1e-4) return i
+                return 0
+            }
+            async function run(p, at, primer, wake) {
+                const ctx = new OfflineAudioContext(1, take.n + RATE * 2, RATE)
+                const buf = ctx.createBuffer(1, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(at)
+                const c = ctx.createDynamicsCompressor()
+                c.threshold.value = p[0]
+                c.knee.value = p[1]
+                c.ratio.value = p[2]
+                c.attack.value = p[3]
+                c.release.value = p[4]
+                if (wake) {
+                    c.release.value = wake
+                    c.release.setValueAtTime(p[4], 0.3)
+                }
+                const t = ctx.createGain()
+                t.gain.value = limiterTrim(p[0], p[2])
+                src.connect(c)
+                c.connect(t)
+                t.connect(ctx.destination)
+                if (primer) {
+                    const k = ctx.createConstantSource()
+                    k.offset.value = primer
+                    k.connect(c)
+                    k.start(0)
+                    k.stop(at + 0.1)
+                }
+                const out = (await ctx.startRendering()).getChannelData(0)
+                // The level of the first 10 ms frames against the take itself.
+                const a = first(take.l),
+                    o = Math.round(at * RATE) + 288,
+                    w = RATE * 0.01,
+                    rows = []
+                for (const f of [0, 1, 2, 5, 10, 20, 50, 100]) {
+                    let lr = 0,
+                        rr = 0
+                    for (let j = a + f * w; j < a + (f + 1) * w; j++) {
+                        lr += out[j + o] * take.l[j]
+                        rr += take.l[j] * take.l[j]
+                    }
+                    rows.push(
+                        `${f * 10}ms:${(20 * Math.log10(Math.max(lr / rr, 1e-6))).toFixed(1)}`
+                    )
+                }
+                return rows.join(' ')
+            }
+            const out = {}
+            for (const [name, p] of [['10 ms, 500 ms', [-1.5, 0, 20, 0.01, 0.5]]]) {
+                out[name] = {
+                    'notes after 50 ms': await run(p, 0.05, 0),
+                    'notes after 50 ms, release 50 ms for the first 0.3 s': await run(
+                        p,
+                        0.05,
+                        0,
+                        0.05
+                    ),
+                    'notes after 50 ms, release 20 ms for the first 0.3 s': await run(
+                        p,
+                        0.05,
+                        0,
+                        0.02
+                    ),
+                    'notes at once, release 20 ms for the first 0.3 s': await run(p, 0, 0, 0.02),
+                    'notes after 1 s, release 20 ms for the first 0.3 s': await run(p, 1, 0, 0.02)
+                }
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>

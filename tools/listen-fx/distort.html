@@ -1,0 +1,113 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // What does the chain add that is not the notes and not the room? (#103) The chain's output
+            // against an exact linear copy (the notes, plus the room made by hand), on recorded strums.
+            import { outputFor, roomImpulse, ROOM_LOW_CUT } from '/fx-effects.js'
+            const RATE = 48000
+            const db = (x) => +(10 * Math.log10(Math.max(x, 1e-15))).toFixed(1)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), r: b.subarray(n), n }
+            }
+            async function render(take, how, level, gain = 1) {
+                const ctx = new OfflineAudioContext(2, take.n + RATE, RATE)
+                const buf = ctx.createBuffer(1, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(0)
+                const bus = ctx.createGain()
+                bus.gain.value = gain
+                src.connect(bus)
+                if (how === 'chain') {
+                    bus.connect(outputFor(ctx, { reverb: level }))
+                } else {
+                    bus.connect(ctx.destination)
+                    if (level) {
+                        const c = ctx.createConvolver()
+                        c.normalize = false
+                        const [l, r] = roomImpulse(RATE)
+                        const ir = ctx.createBuffer(2, l.length, RATE)
+                        ir.getChannelData(0).set(l)
+                        ir.getChannelData(1).set(r)
+                        c.buffer = ir
+                        const f = ctx.createBiquadFilter()
+                        f.type = 'highpass'
+                        f.frequency.value = ROOM_LOW_CUT
+                        f.Q.value = 0.7
+                        const w = ctx.createGain()
+                        w.gain.value = level
+                        bus.connect(c)
+                        c.connect(f)
+                        f.connect(w)
+                        w.connect(ctx.destination)
+                    }
+                }
+                const out = await ctx.startRendering()
+                return out.getChannelData(0)
+            }
+            function residual(out, ref) {
+                // the best lag (the limiter is late), then what is left
+                let best = [0, Infinity]
+                for (let lag = 0; lag <= 400; lag++) {
+                    let s = 0
+                    for (let i = 20000; i < 60000; i += 3) {
+                        const d = out[i + lag] - ref[i]
+                        s += d * d
+                    }
+                    if (s < best[1]) best = [lag, s]
+                }
+                const lag = best[0]
+                let e = 0,
+                    r = 0,
+                    peak = 0,
+                    worst = 0
+                const w = RATE * 0.05
+                let frame = 0,
+                    frameRef = 0
+                for (let i = 0; i + lag < out.length; i++) {
+                    const d = out[i + lag] - ref[i]
+                    e += d * d
+                    r += ref[i] * ref[i]
+                    peak = Math.max(peak, Math.abs(d))
+                    frame += d * d
+                    frameRef += ref[i] * ref[i]
+                    if ((i + 1) % w === 0) {
+                        if (frameRef / w > 1e-5) worst = Math.max(worst, frame / frameRef)
+                        frame = 0
+                        frameRef = 0
+                    }
+                }
+                return `left over ${db(e / r)} dB under the sound (worst 50 ms: ${db(worst)} dB), its peak ${peak.toFixed(4)}, lag ${lag}`
+            }
+            const peakOf = (d) => {
+                let p = 0
+                for (let i = 0; i < d.length; i++) p = Math.max(p, Math.abs(d[i]))
+                return +p.toFixed(3)
+            }
+            const out = {}
+            for (const [name, gain] of [
+                ['pub-1-dry', 1],
+                ['pub-1-dry', 0.5],
+                ['pub-10-dry', 1],
+                ['pub-7-dry', 1]
+            ]) {
+                const take = await load(name)
+                const row = {}
+                for (const level of [0, 0.25, 0.5, 1]) {
+                    const ref = await render(take, 'linear', level, gain),
+                        got = await render(take, 'chain', level, gain)
+                    row['room ' + level] =
+                        `peak in ${peakOf(ref)} out ${peakOf(got)}: ${residual(got, ref)}`
+                }
+                out[`${name} x${gain}`] = row
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>

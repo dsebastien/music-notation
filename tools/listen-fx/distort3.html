@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // The limiter and the ceiling with a loud room (#103): what they add that is not a plain change
+            // of level, on recorded strums, for the library's values and candidates.
+            import {
+                roomImpulse,
+                ROOM_LOW_CUT,
+                limiterTrim,
+                LIMITER,
+                CEILING,
+                ceilingCurve
+            } from '/fx-effects.js'
+            const RATE = 48000
+            const db = (x) => +(10 * Math.log10(Math.max(x, 1e-15))).toFixed(1)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), n }
+            }
+            const [IL, IR] = roomImpulse(RATE)
+            async function render(take, level, lim) {
+                const ctx = new OfflineAudioContext(1, take.n + RATE * 3, RATE)
+                const buf = ctx.createBuffer(1, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(1.5)
+                const sum = ctx.createGain()
+                src.connect(sum)
+                if (level) {
+                    const c = ctx.createConvolver()
+                    c.normalize = false
+                    const ir = ctx.createBuffer(1, IL.length, RATE)
+                    ir.getChannelData(0).set(IL)
+                    c.buffer = ir
+                    const f = ctx.createBiquadFilter()
+                    f.type = 'highpass'
+                    f.frequency.value = ROOM_LOW_CUT
+                    f.Q.value = 0.7
+                    const w = ctx.createGain()
+                    w.gain.value = level
+                    src.connect(c)
+                    c.connect(f)
+                    f.connect(w)
+                    w.connect(sum)
+                }
+                let last = sum
+                if (lim) {
+                    if (lim.pre) {
+                        const g = ctx.createGain()
+                        g.gain.value = lim.pre
+                        last.connect(g)
+                        last = g
+                    }
+                    if (lim.comp) {
+                        const p = lim.comp,
+                            c = ctx.createDynamicsCompressor()
+                        c.threshold.value = p[0]
+                        c.knee.value = p[1]
+                        c.ratio.value = p[2]
+                        c.attack.value = p[3]
+                        c.release.value = p[4]
+                        const t = ctx.createGain()
+                        t.gain.value = limiterTrim(p[0], p[2])
+                        last.connect(c)
+                        c.connect(t)
+                        last = t
+                    }
+                    if (lim.ceiling) {
+                        const g = ctx.createGain()
+                        g.gain.value = 1 / CEILING.range
+                        const w = ctx.createWaveShaper()
+                        w.curve = ceilingCurve()
+                        last.connect(g)
+                        g.connect(w)
+                        last = w
+                    }
+                }
+                last.connect(ctx.destination)
+                return (await ctx.startRendering()).getChannelData(0)
+            }
+            const peakOf = (d) => {
+                let p = 0
+                for (let i = 0; i < d.length; i++) p = Math.max(p, Math.abs(d[i]))
+                return p
+            }
+            function compare(out, ref, lag) {
+                const w = Math.round(RATE * 0.01)
+                let eg = 0,
+                    r = 0,
+                    lo = 9,
+                    hi = -9,
+                    worst = 0
+                for (let i = Math.round(RATE * 1.5); i + w + lag < out.length; i += w) {
+                    let lr = 0,
+                        rr = 0
+                    for (let j = i; j < i + w; j++) {
+                        lr += out[j + lag] * ref[j]
+                        rr += ref[j] * ref[j]
+                    }
+                    if (rr / w < 1e-5) continue
+                    const g = lr / rr
+                    let dg2 = 0
+                    for (let j = i; j < i + w; j++) {
+                        const d = out[j + lag] - g * ref[j]
+                        dg2 += d * d
+                    }
+                    eg += dg2
+                    r += rr
+                    lo = Math.min(lo, g)
+                    hi = Math.max(hi, g)
+                    worst = Math.max(worst, dg2 / rr)
+                }
+                return `peak ${peakOf(ref).toFixed(2)} > ${peakOf(out).toFixed(2)}, distortion ${db(eg / r)} dB (worst 10 ms ${db(worst)}), level down to ${(20 * Math.log10(lo)).toFixed(1)} dB`
+            }
+            const L = [
+                LIMITER.threshold,
+                LIMITER.knee,
+                LIMITER.ratio,
+                LIMITER.attack,
+                LIMITER.release
+            ]
+            const cands = {
+                'now (2 ms, 150 ms) + ceiling': { comp: L, ceiling: 1 },
+                'ceiling alone': { ceiling: 1 },
+                '5 ms, 300 ms + ceiling': { comp: [L[0], 0, 20, 0.005, 0.3], ceiling: 1 },
+                '5 ms, 500 ms + ceiling': { comp: [L[0], 0, 20, 0.005, 0.5], ceiling: 1 },
+                '10 ms, 500 ms + ceiling': { comp: [L[0], 0, 20, 0.01, 0.5], ceiling: 1 },
+                '10 ms, 1 s + ceiling': { comp: [L[0], 0, 20, 0.01, 1], ceiling: 1 }
+            }
+            const out = {}
+            const takes = {
+                'steel strum': await load('pub-1-dry'),
+                'accented strum': await load('pub-10-dry')
+            }
+            for (const [name, lim] of Object.entries(cands)) {
+                const row = {}
+                for (const [label, take] of Object.entries(takes))
+                    for (const level of label === 'steel strum'
+                        ? [0.12, 0.3, 0.6]
+                        : [0, 0.12, 0.3]) {
+                        const ref = await render(take, level, null),
+                            got = await render(take, level, lim)
+                        row[`${label}, room ${level}`] = compare(got, ref, lim.comp ? 288 : 0)
+                    }
+                out[name] = row
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>

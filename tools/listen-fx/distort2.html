@@ -1,0 +1,123 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            import { outputFor, limiterTrim, LIMITER, CEILING, ceilingCurve } from '/fx-effects.js'
+            const RATE = 48000
+            const db = (x) => +(10 * Math.log10(Math.max(x, 1e-15))).toFixed(1)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), n }
+            }
+            async function render(take, make) {
+                const ctx = new OfflineAudioContext(1, take.n + RATE, RATE)
+                const buf = ctx.createBuffer(1, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(0)
+                make(ctx, src).connect(ctx.destination)
+                return (await ctx.startRendering()).getChannelData(0)
+            }
+            const comp = (ctx, src, p = LIMITER) => {
+                const c = ctx.createDynamicsCompressor()
+                c.threshold.value = p.threshold
+                c.knee.value = p.knee
+                c.ratio.value = p.ratio
+                c.attack.value = p.attack
+                c.release.value = p.release
+                const t = ctx.createGain()
+                t.gain.value = limiterTrim(p.threshold, p.ratio)
+                src.connect(c)
+                c.connect(t)
+                return t
+            }
+            const ceil = (ctx, src) => {
+                const g = ctx.createGain()
+                g.gain.value = 1 / CEILING.range
+                const w = ctx.createWaveShaper()
+                w.curve = ceilingCurve()
+                src.connect(g)
+                g.connect(w)
+                return w
+            }
+            function report(out, ref, lag) {
+                const w = RATE * 0.05,
+                    rows = []
+                let e = 0,
+                    r = 0
+                for (let i = 0; i + w + lag < out.length && i + w < ref.length; i += w) {
+                    let d2 = 0,
+                        r2 = 0,
+                        o2 = 0
+                    for (let j = i; j < i + w; j++) {
+                        const d = out[j + lag] - ref[j]
+                        d2 += d * d
+                        r2 += ref[j] * ref[j]
+                        o2 += out[j + lag] * out[j + lag]
+                    }
+                    e += d2
+                    r += r2
+                    if (r2 / w > 1e-6)
+                        rows.push(
+                            `${Math.round((i / RATE) * 1000)}ms:${db(d2 / r2)}/${db(o2 / r2).toFixed(2)}`
+                        )
+                }
+                return {
+                    total: db(e / r),
+                    frames: rows
+                        .filter((_, i) => i % 3 === 0)
+                        .slice(0, 26)
+                        .join(' ')
+                }
+            }
+            const out = {}
+            const take = await load('pub-7-dry')
+            const raw = await render(take, (c, s) => s)
+            out['compressor alone (lag 288)'] = report(
+                await render(take, (c, s) => comp(c, s)),
+                raw,
+                288
+            )
+            out['ceiling alone (lag 0)'] = report(await render(take, (c, s) => ceil(c, s)), raw, 0)
+            out['compressor, threshold 0 dB'] = report(
+                await render(take, (c, s) =>
+                    comp(c, s, { threshold: 0, knee: 0, ratio: 20, attack: 0.002, release: 0.15 })
+                ),
+                raw,
+                288
+            )
+            out['compressor, attack 3 ms release 250 ms'] = report(
+                await render(take, (c, s) =>
+                    comp(c, s, {
+                        threshold: -1.5,
+                        knee: 0,
+                        ratio: 20,
+                        attack: 0.003,
+                        release: 0.25
+                    })
+                ),
+                raw,
+                288
+            )
+            out['compressor, knee 3'] = report(
+                await render(take, (c, s) =>
+                    comp(c, s, {
+                        threshold: -1.5,
+                        knee: 3,
+                        ratio: 20,
+                        attack: 0.002,
+                        release: 0.15
+                    })
+                ),
+                raw,
+                288
+            )
+            out.note = 'frames: time:left over dB/level change dB'
+            window.__fx = out
+        </script>
+    </body>
+</html>

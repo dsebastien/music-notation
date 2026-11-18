@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // The live page's recordings against a model made offline from the dry recording (#103):
+            // what is in the live sound that is neither the notes, nor the room, nor a plain change of level?
+            import { roomImpulse, ROOM_LOW_CUT } from '/fx-effects.js'
+            const RATE = 48000
+            const db = (x) => +(10 * Math.log10(Math.max(x, 1e-15))).toFixed(1)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), r: b.subarray(n), n }
+            }
+            const first = (d) => {
+                for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > 1e-4) return i
+                return 0
+            }
+            async function model(dry, level) {
+                const ctx = new OfflineAudioContext(2, dry.n + RATE * 2, RATE)
+                const buf = ctx.createBuffer(1, dry.n, RATE)
+                buf.getChannelData(0).set(dry.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(0)
+                src.connect(ctx.destination)
+                if (level) {
+                    const c = ctx.createConvolver()
+                    c.normalize = false
+                    const [l, r] = roomImpulse(RATE)
+                    const ir = ctx.createBuffer(2, l.length, RATE)
+                    ir.getChannelData(0).set(l)
+                    ir.getChannelData(1).set(r)
+                    c.buffer = ir
+                    const f = ctx.createBiquadFilter()
+                    f.type = 'highpass'
+                    f.frequency.value = ROOM_LOW_CUT
+                    f.Q.value = 0.7
+                    const w = ctx.createGain()
+                    w.gain.value = level
+                    src.connect(c)
+                    c.connect(f)
+                    f.connect(w)
+                    w.connect(ctx.destination)
+                }
+                const out = await ctx.startRendering()
+                return [out.getChannelData(0), out.getChannelData(1)]
+            }
+            function compare(live, ref, a, b) {
+                // live and ref: one side each; a, b: where each starts to sound
+                let best = [0, Infinity]
+                for (let lag = -700; lag <= 700; lag++) {
+                    let s = 0
+                    for (let i = 4000; i < 40000; i += 5) {
+                        const d = live[b + i + lag] - ref[a + i]
+                        s += d * d
+                    }
+                    if (s < best[1]) best = [lag, s]
+                }
+                const off = b + best[0] - a,
+                    w = RATE * 0.01
+                let e = 0,
+                    r = 0,
+                    eg = 0,
+                    worst = 0,
+                    worstAt = 0,
+                    lo = 9,
+                    hi = -9
+                for (let i = a; i + w < ref.length && i + off + w < live.length; i += w) {
+                    let lr = 0,
+                        rr = 0,
+                        ll = 0
+                    for (let j = i; j < i + w; j++) {
+                        lr += live[j + off] * ref[j]
+                        rr += ref[j] * ref[j]
+                        ll += live[j + off] * live[j + off]
+                    }
+                    if (rr / w < 1e-5) continue
+                    const g = lr / rr
+                    let d2 = 0,
+                        dg2 = 0
+                    for (let j = i; j < i + w; j++) {
+                        const d = live[j + off] - ref[j],
+                            dg = live[j + off] - g * ref[j]
+                        d2 += d * d
+                        dg2 += dg * dg
+                    }
+                    e += d2
+                    eg += dg2
+                    r += rr
+                    lo = Math.min(lo, g)
+                    hi = Math.max(hi, g)
+                    if (dg2 / rr > worst) {
+                        worst = dg2 / rr
+                        worstAt = i
+                    }
+                }
+                return `left over ${db(e / r)} dB; with the level of each 10 ms taken out ${db(eg / r)} dB (worst 10 ms ${db(worst)} dB at ${Math.round(((worstAt - a) / RATE) * 1000)} ms); level between ${(20 * Math.log10(lo)).toFixed(2)} and ${(20 * Math.log10(hi)).toFixed(2)} dB; lag ${best[0]}`
+            }
+            const out = {}
+            const dry = await load('pub3-1-dry')
+            const a = first(dry.l)
+            for (const [name, level] of [
+                ['pub3-1-room_0', 0],
+                ['pub3-1-room_0_25', 0.25],
+                ['pub3-1-room_0_5', 0.5]
+            ]) {
+                const live = await load(name)
+                const [ml, mr] = await model(dry, level)
+                out[name] = {
+                    left: compare(live.l, ml, a, first(live.l)),
+                    right: compare(live.r, mr, a, first(live.r))
+                }
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>

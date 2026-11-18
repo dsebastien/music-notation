@@ -1,0 +1,199 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // How much hiss does a room add between the strums? (#103) The dry recorded strum against the
+            // room's own sound, in the highs (above 3 kHz) and in the mids, on the frames between attacks.
+            const RATE = 48000
+            const db = (x) => +(10 * Math.log10(Math.max(x, 1e-12))).toFixed(1)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), r: b.subarray(n), n }
+            }
+            function seeded(seed) {
+                let a = seed >>> 0
+                return () => {
+                    a = (a + 0x6d2b79f5) >>> 0
+                    let t = a
+                    t = Math.imul(t ^ (t >>> 15), t | 1)
+                    t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
+                    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+                }
+            }
+            // A room: poles (how steep the damping), bright from..to (Hz), rise (s of fade-in), seconds.
+            function impulse(p, side) {
+                const length = Math.round(RATE * p.seconds),
+                    data = new Float32Array(length),
+                    random = seeded(side ? 0x51ed270b : 0x2545f491)
+                const start = Math.round(RATE * 0.012),
+                    fade = Math.round(length * 0.1),
+                    rise = Math.round(RATE * (p.rise ?? 0))
+                const fall = Math.pow(10, -3 / (RATE * p.seconds)),
+                    darker = Math.pow(p.to / p.from, 1 / (RATE * p.seconds))
+                let level = Math.pow(fall, start),
+                    cutoff = p.from * Math.pow(darker, start),
+                    keep = 0
+                const z = new Float64Array(p.poles)
+                for (let i = start; i < length; i++) {
+                    if ((i - start) % 64 === 0)
+                        keep = Math.exp((-2 * Math.PI * Math.min(cutoff, RATE * 0.45)) / RATE)
+                    let v = random() * 2 - 1
+                    for (let k = 0; k < p.poles; k++) {
+                        z[k] = keep * z[k] + (1 - keep) * v
+                        v = z[k]
+                    }
+                    data[i] =
+                        v *
+                        level *
+                        (i > length - fade ? (length - i) / fade : 1) *
+                        (rise && i - start < rise ? (i - start) / rise : 1)
+                    level *= fall
+                    cutoff *= darker
+                }
+                let e = 0
+                for (let i = 0; i < length; i++) e += data[i] * data[i]
+                const s = 1 / Math.sqrt(e)
+                for (let i = 0; i < length; i++) data[i] *= s
+                return data
+            }
+            async function render(take, p, band) {
+                // p null: the dry sound. band: [type, hz] filters twice.
+                const ctx = new OfflineAudioContext(1, take.n + RATE * 1.5, RATE)
+                const buf = ctx.createBuffer(1, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(0)
+                let last = src
+                const f = (type, hz) => {
+                    const n = ctx.createBiquadFilter()
+                    n.type = type
+                    n.frequency.value = hz
+                    n.Q.value = 0.7
+                    last.connect(n)
+                    last = n
+                }
+                if (p) {
+                    const c = ctx.createConvolver()
+                    c.normalize = false
+                    const ir = ctx.createBuffer(1, Math.round(RATE * p.seconds), RATE)
+                    ir.getChannelData(0).set(impulse(p, 0))
+                    c.buffer = ir
+                    last.connect(c)
+                    last = c
+                    f('highpass', p.lowCut ?? 180)
+                    if (p.highCut) {
+                        f('lowpass', p.highCut)
+                    }
+                }
+                for (const [type, hz] of band) {
+                    f(type, hz)
+                    f(type, hz)
+                }
+                last.connect(ctx.destination)
+                return (await ctx.startRendering()).getChannelData(0)
+            }
+            const frames = (d, n) => {
+                const w = RATE * 0.02,
+                    out = []
+                for (let i = 0; i + w <= n; i += w) {
+                    let s = 0
+                    for (let j = i; j < i + w; j++) s += d[j] * d[j]
+                    out.push(s / w)
+                }
+                return out
+            }
+            const median = (a) => {
+                const s = [...a].sort((x, y) => x - y)
+                return s[Math.floor(s.length / 2)]
+            }
+            const out = {}
+            const HIGH = [['highpass', 3000]],
+                MID = [
+                    ['highpass', 250],
+                    ['lowpass', 2500]
+                ]
+            for (const name of (
+                new URLSearchParams(location.search).get('takes') ?? 'pub-1-dry,pub-5-dry'
+            ).split(',')) {
+                const take = await load(name)
+                const dryH = frames(await render(take, null, HIGH), take.n),
+                    dryM = frames(await render(take, null, MID), take.n)
+                // The frames between the attacks: the quieter half of the dry highs, while the guitar sounds.
+                const sounding = dryM
+                    .map((v, i) => [v, i])
+                    .filter(([v]) => v > 1e-5)
+                    .map(([, i]) => i)
+                const cut = median(sounding.map((i) => dryH[i]))
+                const gaps = sounding.filter((i) => dryH[i] <= cut)
+                const row = {
+                    'dry: highs under mids in the gaps (dB)': db(
+                        median(gaps.map((i) => dryH[i] / dryM[i]))
+                    )
+                }
+                const cands = {
+                    'now (1 pole, 9k to 2.4k, 1.2 s)': {
+                        poles: 1,
+                        from: 9000,
+                        to: 2400,
+                        seconds: 1.2
+                    },
+                    'first pass about (1 pole, 10k to 1.2k, 0.7 s)': {
+                        poles: 1,
+                        from: 10000,
+                        to: 1200,
+                        seconds: 0.7
+                    },
+                    'B 2 poles 6k to 1.5k': {
+                        poles: 2,
+                        from: 6000,
+                        to: 1500,
+                        seconds: 1.2,
+                        rise: 0.03
+                    },
+                    'C 3 poles 5k to 1k': {
+                        poles: 3,
+                        from: 5000,
+                        to: 1000,
+                        seconds: 1.2,
+                        rise: 0.03
+                    },
+                    'D 3 poles 4k to 800': {
+                        poles: 3,
+                        from: 4000,
+                        to: 800,
+                        seconds: 1.2,
+                        rise: 0.03
+                    },
+                    'E 4 poles 4k to 1k, cut 5k': {
+                        poles: 4,
+                        from: 4000,
+                        to: 1000,
+                        seconds: 1.2,
+                        rise: 0.03,
+                        highCut: 5000
+                    },
+                    'F 3 poles 3k to 700, low cut 120': {
+                        poles: 3,
+                        from: 3000,
+                        to: 700,
+                        seconds: 1.2,
+                        rise: 0.03,
+                        lowCut: 120
+                    }
+                }
+                for (const [label, p] of Object.entries(cands)) {
+                    const wetH = frames(await render(take, p, HIGH), take.n),
+                        wetM = frames(await render(take, p, MID), take.n)
+                    row[label] =
+                        `room at 1: highs in the gaps ${db(median(gaps.map((i) => wetH[i] / dryH[i])))} dB against the dry highs, mids ${db(median(gaps.map((i) => wetM[i] / dryM[i])))} dB against the dry mids; the room's highs under its mids ${db(median(gaps.map((i) => wetH[i] / wetM[i])))} dB`
+                }
+                out[name] = row
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>

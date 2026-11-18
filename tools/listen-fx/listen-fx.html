@@ -39,8 +39,13 @@
                 height: 0;
             }
             #fx-now {
-                margin-left: auto;
+                flex-basis: 100%;
                 font-weight: 600;
+            }
+            #fx-bar button {
+                font: inherit;
+                padding: 0.15rem 0.6rem;
+                cursor: pointer;
             }
             .row {
                 display: flex;
@@ -63,23 +68,27 @@
             tabs sounds.
         </p>
         <ol>
+            <li>Turn <b>Loop</b> on in the bar of a strumming pattern and press Play.</li>
             <li>
-                Turn <b>Loop</b> on in the bar of a strumming pattern and press Play. While it
-                plays, move <b>Room level</b>: it changes at once. At 0 there is no room; at 1 the
-                room is as loud as the guitar. Tell me the number you like.
+                First, put <b>Level</b> at 0 (Dry not ticked): the room is off and only the limiter
+                is left. Is there a noise? Tell me yes or no: it tells me which part makes it.
             </li>
             <li>
-                Move <b>Room length</b> (it applies at the next pass of the loop): 0.3 s is a small
-                room, 3 s a hall. Tell me the number.
+                Press <b>The room of this morning</b>, then <b>The new room</b>, while it plays: is
+                the noise gone, or less?
             </li>
             <li>
-                Tick <b>Dry</b> for the sound of today (no room, no limiter, no amplifier), at the
-                next pass.
+                Move <b>Level</b>, <b>Length</b>, <b>Tone</b> and <b>Width</b> while it plays, and
+                try <b>Soft start</b> off. If a noise is left, find what removes it. Tell me the
+                numbers you like (they are at the bottom of the bar).
+            </li>
+            <li>
+                <b>Dry</b> is the sound of today (no room, no limiter, no amplifier), at the next
+                pass of the loop.
             </li>
             <li>
                 On the clean and overdriven guitars, try <b>Cabinet</b> and <b>Drive</b> (next
-                pass). The level now stays about the same when you turn them on. Tell me what must
-                become the default for each guitar, if anything.
+                pass). Tell me what must become the default for each guitar, if anything.
             </li>
             <li>
                 The loud strum at the end of each part is the limiter's case: it must not crackle or

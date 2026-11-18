@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+    <body>
+        <script type="module">
+            // The library's room on the recorded strums: how dark against the dry sound, and how much of it
+            // comes right after an attack. (#103)
+            import { roomImpulse, ROOM_LOW_CUT, DEFAULT_REVERB } from '/fx-effects.js'
+            const RATE = 48000
+            const db = (x) => +(10 * Math.log10(Math.max(x, 1e-12))).toFixed(1)
+            async function load(name) {
+                const b = new Float32Array(
+                    await (await fetch('/takes/' + name + '.f32')).arrayBuffer()
+                )
+                const n = b.length / 2
+                return { l: b.subarray(0, n), n }
+            }
+            async function render(take, wet, band) {
+                const ctx = new OfflineAudioContext(1, take.n + RATE * 1.5, RATE)
+                const buf = ctx.createBuffer(1, take.n, RATE)
+                buf.getChannelData(0).set(take.l)
+                const src = ctx.createBufferSource()
+                src.buffer = buf
+                src.start(0)
+                let last = src
+                const f = (type, hz) => {
+                    const n = ctx.createBiquadFilter()
+                    n.type = type
+                    n.frequency.value = hz
+                    n.Q.value = 0.7
+                    last.connect(n)
+                    last = n
+                }
+                if (wet) {
+                    const c = ctx.createConvolver()
+                    c.normalize = false
+                    const [l] = roomImpulse(RATE)
+                    const ir = ctx.createBuffer(1, l.length, RATE)
+                    ir.getChannelData(0).set(l)
+                    c.buffer = ir
+                    last.connect(c)
+                    last = c
+                    f('highpass', ROOM_LOW_CUT)
+                }
+                for (const [type, hz] of band) {
+                    f(type, hz)
+                    f(type, hz)
+                }
+                last.connect(ctx.destination)
+                return (await ctx.startRendering()).getChannelData(0)
+            }
+            const frames = (d, n) => {
+                const w = RATE * 0.02,
+                    out = []
+                for (let i = 0; i + w <= n; i += w) {
+                    let s = 0
+                    for (let j = i; j < i + w; j++) s += d[j] * d[j]
+                    out.push(s / w)
+                }
+                return out
+            }
+            const median = (a) => {
+                const s = [...a].sort((x, y) => x - y)
+                return s[Math.floor(s.length / 2)]
+            }
+            const out = { level: DEFAULT_REVERB }
+            const HIGH = [['highpass', 3000]],
+                MID = [
+                    ['highpass', 250],
+                    ['lowpass', 2500]
+                ],
+                ALL = []
+            for (const name of ['pub-1-dry', 'pub-5-dry', 'pub-7-dry']) {
+                const take = await load(name)
+                const dH = frames(await render(take, 0, HIGH), take.n),
+                    dM = frames(await render(take, 0, MID), take.n),
+                    dA = frames(await render(take, 0, ALL), take.n)
+                const wH = frames(await render(take, 1, HIGH), take.n),
+                    wM = frames(await render(take, 1, MID), take.n),
+                    wA = frames(await render(take, 1, ALL), take.n)
+                const sounding = dM
+                    .map((v, i) => [v, i])
+                    .filter(([v]) => v > 1e-5)
+                    .map(([, i]) => i)
+                const cut = median(sounding.map((i) => dH[i]))
+                const gaps = sounding.filter((i) => dH[i] <= cut)
+                // The attacks: frames where the dry sound jumps up by 6 dB; the room in the 2 frames after.
+                const attacks = sounding.filter((i) => i > 0 && dA[i] > 4 * dA[i - 1])
+                const g = DEFAULT_REVERB * DEFAULT_REVERB
+                out[name] =
+                    `the room's highs under its mids ${db(median(gaps.map((i) => wH[i] / wM[i])))} dB (the dry sound's: ${db(median(gaps.map((i) => dH[i] / dM[i])))} dB); at the default level, between strums: the room's mids ${db(g * median(gaps.map((i) => wM[i] / dM[i])))} dB against the dry mids, its highs ${db(g * median(gaps.map((i) => wH[i] / dH[i])))} dB against the dry highs; in the 40 ms after an attack (${attacks.length} attacks): the room ${db(g * median(attacks.map((i) => (wA[i] + wA[i + 1]) / (dA[i] + dA[i + 1]))))} dB against the dry sound`
+            }
+            window.__fx = out
+        </script>
+    </body>
+</html>
