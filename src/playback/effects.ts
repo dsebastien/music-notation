@@ -29,7 +29,7 @@ export interface AmpOptions {
 }
 
 /** The room's level when nothing says another: a light room. */
-export const DEFAULT_REVERB = 0.25
+export const DEFAULT_REVERB = 0.12
 
 /**
  * How long the room rings (seconds to fall by 60 dB). A guitar's notes ring for seconds
@@ -109,24 +109,54 @@ function seeded(seed: number): () => number {
     }
 }
 
-/** The tail's brightness (Hz): where its highs end when it starts, and when it has rung out. */
-const ROOM_BRIGHT = [9000, 2400] as const
+/** What a room sounds like, besides its length. */
+export interface RoomShape {
+    /** Where the tail's highs end when it starts (Hz). */
+    bright: number
+    /** Where they end when it has rung out (Hz). */
+    dark: number
+    /** How long the tail takes to come up (seconds). */
+    rise: number
+    /** 0: the same on both sides (in the middle, with the notes); 1: nothing in common. */
+    width: number
+}
+
+/**
+ * The library's room.
+ *
+ * Brightness: a room is darker than what plays in it. As bright as the guitar (9 kHz, a gentle
+ * slope), the tail was heard as noise: every attack came back as a hiss until the next strum.
+ *
+ * Rise: a real room starts with a few echoes and gets dense later; a tail of noise at full level
+ * from its first instant put a burst of noise right after each attack.
+ *
+ * Width: with nothing in common between the two sides, the room was a cloud of noise around the
+ * head, apart from the guitar in the middle (and the hardest sound there is for the codec of
+ * wireless headphones). Half in common: the room is around the guitar.
+ */
+export const ROOM_SHAPE: Readonly<RoomShape> = { bright: 4000, dark: 800, rise: 0.05, width: 0.5 }
+
+/** How steep the tail's highs fall: low-passes in a row (6 dB an octave each). */
+const ROOM_SLOPE = 3
 
 /**
  * The impulse response of a room, left and right: after 12 ms (the notes themselves come first),
- * a diffuse tail that falls by 60 dB in `seconds` and gets darker as it falls (walls take the
- * highs first; the brightness is in Hz, so the room sounds the same at every sample rate). The
+ * a diffuse tail that comes up, falls by 60 dB in `seconds` and gets darker as it falls (walls
+ * take the highs first; the brightness is in Hz, so the room sounds the same at every sample
+ * rate). `shape` changes the library's room (`ROOM_SHAPE`), for a host that tunes its own. The
  * two sides differ, so the room has width. Each side has an energy of 1: a sound through it comes
  * out about as loud as it went in, and the wet level is the gain after it. (A first version had
  * five early reflections too: at the level of the tail's own points, they changed nothing.)
  */
 export function roomImpulse(
     sampleRate: number,
-    seconds = ROOM_SECONDS
+    seconds = ROOM_SECONDS,
+    shape: Partial<RoomShape> = {}
 ): [Float32Array, Float32Array] {
+    const { bright, dark, rise: riseSeconds, width } = { ...ROOM_SHAPE, ...shape }
     const length = Math.max(1, Math.round(sampleRate * seconds))
-    const make = (side: 0 | 1): Float32Array => {
-        const random = seeded(side ? 0x51ed270b : 0x2545f491)
+    const make = (seed: number): Float32Array => {
+        const random = seeded(seed)
         const data = new Float32Array(length)
         const start = Math.min(length, Math.round(sampleRate * 0.012))
         // The last tenth fades to nothing: an impulse cut at -60 dB ends on a small step.
@@ -134,42 +164,67 @@ export function roomImpulse(
         // The level and the brightness fall by the same share at each point: two products, no
         // power per point (a room of 1.2 s is 115,000 points, made while a play waits).
         const fall = Math.pow(10, -3 / (sampleRate * seconds))
-        const darker = Math.pow(ROOM_BRIGHT[1] / ROOM_BRIGHT[0], 1 / (sampleRate * seconds))
+        const darker = Math.pow(dark / bright, 1 / (sampleRate * seconds))
         let level = Math.pow(fall, start)
-        let cutoff = ROOM_BRIGHT[0] * Math.pow(darker, start)
+        let cutoff = bright * Math.pow(darker, start)
         let keep = 0
-        let low = 0
+        const lows = new Float64Array(ROOM_SLOPE)
+        const rise = Math.max(1, Math.round(sampleRate * Math.max(0, riseSeconds)))
         for (let i = start; i < length; i++) {
-            // A one-pole low-pass that closes with time: from bright to dull.
+            // Low-passes that close with time: from bright to dull.
             if ((i - start) % 64 === 0)
                 keep = Math.exp((-2 * Math.PI * Math.min(cutoff, sampleRate * 0.45)) / sampleRate)
-            low = keep * low + (1 - keep) * (random() * 2 - 1)
-            data[i] = low * level * (i > length - fade ? (length - i) / fade : 1)
+            let value = random() * 2 - 1
+            for (let pole = 0; pole < ROOM_SLOPE; pole++) {
+                value = keep * lows[pole]! + (1 - keep) * value
+                lows[pole] = value
+            }
+            const up = i - start < rise ? (i - start) / rise : 1
+            data[i] = value * level * up * (i > length - fade ? (length - i) / fade : 1)
             level *= fall
             cutoff *= darker
         }
+        return data
+    }
+    const unit = (data: Float32Array): Float32Array => {
         let energy = 0
         for (let i = 0; i < length; i++) energy += data[i]! * data[i]!
         const scale = energy > 0 ? 1 / Math.sqrt(energy) : 0
         for (let i = 0; i < length; i++) data[i] = data[i]! * scale
         return data
     }
-    return [make(0), make(1)]
+    // What the two sides share, and what sets them apart: left is the sum, right the difference.
+    const middle = unit(make(0x2545f491))
+    const apart = unit(make(0x51ed270b))
+    const angle = (Math.min(1, Math.max(0, width)) * Math.PI) / 4
+    const left = new Float32Array(length)
+    const right = new Float32Array(length)
+    for (let i = 0; i < length; i++) {
+        const m = middle[i]! * Math.cos(angle)
+        const a = apart[i]! * Math.sin(angle)
+        left[i] = m + a
+        right[i] = m - a
+    }
+    return [unit(left), unit(right)]
 }
 
 /**
  * The limiter: nothing below the threshold, a hard ratio above it. The threshold is above an
  * ordinary strum (a six-string chord of the recorded guitars peaks near -1.6 dB): the limiter
  * works on an accented strum and on plays that add up, and leaves the rest as it was. At -3 dB
- * it turned every strum down a little, and the room with it.
+ * it turned every strum down a little, and the room with it. It is slow on purpose (10 ms to
+ * act, half a second to let go): a fast one follows the wave itself and adds a grit that grows
+ * with the room's level (on a recorded strum with a loud room, 5 to 6 dB more than this one).
+ * The ceiling after it takes the peaks it lets through.
  */
-export const LIMITER = {
-    threshold: -1.5,
-    knee: 0,
-    ratio: 20,
-    attack: 0.002,
-    release: 0.15
-} as const
+export const LIMITER = { threshold: -1.5, knee: 0, ratio: 20, attack: 0.01, release: 0.5 } as const
+
+/**
+ * A browser's compressor starts turned down and comes back at its release time: with half a
+ * second, the first notes of a page were 2.7 dB down. So it lets go fast (`release`, seconds)
+ * for its first moments (`seconds`), then takes the limiter's release.
+ */
+export const LIMITER_WAKE = { release: 0.02, seconds: 0.3 } as const
 
 /**
  * The gain that takes back the limiter's make-up gain. A Web Audio compressor raises its output
@@ -257,7 +312,10 @@ function build(ctx: BaseAudioContext, speakers: AudioNode, seconds: number): Cha
     limiter.knee.value = LIMITER.knee
     limiter.ratio.value = LIMITER.ratio
     limiter.attack.value = LIMITER.attack
-    limiter.release.value = LIMITER.release
+    if (typeof limiter.release.setValueAtTime === 'function') {
+        limiter.release.value = LIMITER_WAKE.release
+        limiter.release.setValueAtTime(LIMITER.release, ctx.currentTime + LIMITER_WAKE.seconds)
+    } else limiter.release.value = LIMITER.release
     const trim = ctx.createGain()
     trim.gain.value = limiterTrim()
     input.connect(limiter)

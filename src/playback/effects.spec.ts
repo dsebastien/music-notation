@@ -6,7 +6,9 @@ import {
     DEFAULT_REVERB,
     DRIVE_REFERENCE,
     LIMITER,
+    LIMITER_WAKE,
     ROOM_SECONDS,
+    ROOM_SHAPE,
     ampFor,
     ceilingCurve,
     driveAmount,
@@ -127,6 +129,41 @@ describe('the room (#103)', () => {
         expect(Math.abs(left[left.length - 1]!)).toBeLessThan(1e-6)
     })
 
+    it('is darker than a guitar, comes up softly, and has half of its sound in the middle', () => {
+        const rate = 48000
+        const highs = (data: Float32Array) => {
+            let jumps = 0
+            for (let i = 1; i < data.length; i++) jumps += (data[i]! - data[i - 1]!) ** 2
+            return jumps / energy(data)
+        }
+        const alike = (a: Float32Array, b: Float32Array) => {
+            let sum = 0
+            for (let i = 0; i < a.length; i++) sum += a[i]! * b[i]!
+            return sum / Math.sqrt(energy(a) * energy(b))
+        }
+        // Heard as noise by Sébastien: as bright as the guitar, at full level from its first
+        // instant, nothing in common between the two sides.
+        expect(ROOM_SHAPE.bright).toBeLessThanOrEqual(5000)
+        expect(ROOM_SHAPE.rise).toBeGreaterThanOrEqual(0.03)
+        expect(ROOM_SHAPE.width).toBeLessThanOrEqual(0.6)
+        const [left, right] = roomImpulse(rate)
+        const [bright] = roomImpulse(rate, ROOM_SECONDS, { bright: 9000, dark: 1800 })
+        expect(highs(bright)).toBeGreaterThan(3 * highs(left))
+        // The first 20 ms of the tail hold little: it comes up.
+        const early = (data: Float32Array) =>
+            energy(data, Math.round(rate * 0.012), Math.round(rate * 0.032))
+        const [sudden] = roomImpulse(rate, ROOM_SECONDS, { rise: 0 })
+        expect(early(sudden)).toBeGreaterThan(5 * early(left))
+        // Width: 0.5 is half in common, 0 the same on both sides, 1 nothing in common.
+        expect(alike(left, right)).toBeCloseTo(Math.cos(Math.PI / 4), 1)
+        const [same, too] = roomImpulse(rate, ROOM_SECONDS, { width: 0 })
+        expect(alike(same, too)).toBeCloseTo(1, 5)
+        const [one, other] = roomImpulse(rate, ROOM_SECONDS, { width: 1 })
+        expect(Math.abs(alike(one, other))).toBeLessThan(0.05)
+        for (const side of [left, right, bright, sudden, same, one, other])
+            expect(energy(side)).toBeCloseTo(1, 5)
+    })
+
     it('gets darker as it falls, the same at every sample rate', () => {
         // The share of the energy in the jumps from one point to the next: the highs.
         const highs = (data: Float32Array, from: number, to: number) => {
@@ -162,6 +199,38 @@ describe('the limiter (#103)', () => {
         // A six-string strum of the recorded steel guitar peaks at 0.83 (-1.6 dB).
         expect(Math.pow(10, LIMITER.threshold / 20)).toBeGreaterThan(0.83)
         expect(LIMITER.threshold).toBeLessThan(0)
+    })
+
+    it('is slow, and lets go fast in its first moments so the first notes are not turned down', () => {
+        expect(LIMITER.attack).toBeGreaterThanOrEqual(0.005)
+        expect(LIMITER.release).toBeGreaterThanOrEqual(0.3)
+        // A context without schedules: the limiter's own release at once.
+        const plain = fakeContext()
+        outputFor(plain.ctx)
+        const release = (made: { name: string }[]) =>
+            (made.find((n) => n.name.startsWith('limiter')) as unknown as { release: Schedule })
+                .release
+        interface Schedule {
+            value: number
+            setValueAtTime?: (value: number, at: number) => void
+        }
+        expect(release(plain.made).value).toBe(LIMITER.release)
+        // With schedules: fast first, the limiter's release after its first moments.
+        const asked: [number, number][] = []
+        const timed = fakeContext()
+        const make = (timed.ctx as unknown as { createDynamicsCompressor: () => object })
+            .createDynamicsCompressor
+        ;(
+            timed.ctx as unknown as { createDynamicsCompressor: () => object }
+        ).createDynamicsCompressor = () => {
+            const node = make() as { release: Schedule }
+            node.release.setValueAtTime = (value, at) => asked.push([value, at])
+            return node
+        }
+        outputFor(timed.ctx)
+        expect(release(timed.made).value).toBe(LIMITER_WAKE.release)
+        expect(asked).toEqual([[LIMITER.release, LIMITER_WAKE.seconds]])
+        expect(LIMITER_WAKE.release).toBeLessThan(0.1)
     })
 
     it('has a ceiling after it: as it is under the knee, never above 1', () => {

@@ -107,7 +107,7 @@ function pagePlay(options: unknown): false | PlayOptions {
                 ...(piano !== undefined ? { piano } : {})
             }
         }
-        // The room and the amplifier (#103): `play: { reverb: 0.25, room: 1.2 }`, `play: { dry: true }`,
+        // The room and the amplifier (#103): `play: { reverb: 0.2, room: 1.5 }`, `play: { dry: true }`,
         // `play: { amp: { cabinet: true, drive: 0.3 } }`. Read at each play, so a page's script
         // may change them.
         const now = () => api.pageEffects(options)
