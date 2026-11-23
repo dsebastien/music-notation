@@ -112,7 +112,7 @@
         "prepublishOnly": "bun run validate && bun run build"
     },
     "dependencies": {
-        "tonal": "6.5.1"
+        "tonal": "6.8.0"
     },
     "devDependencies": {
         "@coderline/alphatab": "1.9.0",
