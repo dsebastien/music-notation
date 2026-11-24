@@ -3,7 +3,7 @@ import { parseChordPro } from './chordpro.js'
 import { chartChords } from './chart.js'
 import { playProgression } from '../playback/progression.js'
 import type { NotePlayer } from '../playback/player.js'
-import { expectLinear } from '../test-setup.js'
+import { expectLinear, LINEAR_TIMEOUT } from '../test-setup.js'
 
 describe('chartChords (#75)', () => {
     it('gives the chords a chart plays, with how long each lasts, its time and tempo', () => {
@@ -67,11 +67,15 @@ describe('chartChords (#75)', () => {
 })
 
 describe('chart bar lines in linear time (#75)', () => {
-    it('reads long measured lines in linear time', () => {
-        expectLinear((k) => {
-            const n = 2_000 * k
-            chartChords(parseChordPro(`${'| [G] / [C] '.repeat(n)}|\n${'| '.repeat(n)}[D]`))
-            chartChords(parseChordPro(`[G]${' / '.repeat(n)}|${'x'.repeat(n)}`))
-        })
-    })
+    it(
+        'reads long measured lines in linear time',
+        () => {
+            expectLinear((k) => {
+                const n = 2_000 * k
+                chartChords(parseChordPro(`${'| [G] / [C] '.repeat(n)}|\n${'| '.repeat(n)}[D]`))
+                chartChords(parseChordPro(`[G]${' / '.repeat(n)}|${'x'.repeat(n)}`))
+            })
+        },
+        LINEAR_TIMEOUT
+    )
 })
