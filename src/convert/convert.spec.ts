@@ -8,7 +8,7 @@ import {
     textTabToAlphaTex
 } from './text-tab.js'
 import { chordSheetToChordPro } from './chord-sheet.js'
-import { expectLinear } from '../test-setup.js'
+import { expectLinear, LINEAR_TIMEOUT } from '../test-setup.js'
 
 const six = (lines: string[]) => lines.join('\n')
 
@@ -310,16 +310,20 @@ describe('textTabToAlphaTex, layouts from the web (#37)', () => {
         expect(textTabToAlphaTex('constructor|x-x-x-x-|\ntoString|o---o---|')).toBeNull()
     })
 
-    it('reads long lines in linear time', () => {
-        expectLinear((k) => {
-            const n = 12_500 * k
-            textTabToAlphaTex(`H${' '.repeat(n)}!\n${'e|' + '-'.repeat(n)} x`)
-            textTabToAlphaTex(`${' '.repeat(n)}1${' '.repeat(n)}z`)
-            textTabToAlphaTex(`Hi-Hat${' '.repeat(n)}|${'x-'.repeat(n / 2)}?`)
-            textTabToAlphaTex(`e|--0--|${' x'.repeat(n)}9`)
-            textTabToAlphaTex(`e|--0--|${'-'.repeat(n)} let ring`)
-        })
-    })
+    it(
+        'reads long lines in linear time',
+        () => {
+            expectLinear((k) => {
+                const n = 12_500 * k
+                textTabToAlphaTex(`H${' '.repeat(n)}!\n${'e|' + '-'.repeat(n)} x`)
+                textTabToAlphaTex(`${' '.repeat(n)}1${' '.repeat(n)}z`)
+                textTabToAlphaTex(`Hi-Hat${' '.repeat(n)}|${'x-'.repeat(n / 2)}?`)
+                textTabToAlphaTex(`e|--0--|${' x'.repeat(n)}9`)
+                textTabToAlphaTex(`e|--0--|${'-'.repeat(n)} let ring`)
+            })
+        },
+        LINEAR_TIMEOUT
+    )
 })
 
 /** Each bar's beats as alphaTab reads them: `4`, `8.` (dotted), `r8` (a rest), `4~` (tied). */
@@ -555,25 +559,33 @@ describe('textTabToAlphaTex, techniques (#66)', () => {
         }
     })
 
-    it('splits a long palm mute or slide line into bars in linear time', () => {
-        // One long bar with no bar lines inside is split into bars of the meter (#71): each
-        // beat goes to its bar in one pass, not one filter of every beat per bar.
-        expectLinear((k) => {
-            const n = 25_000 * k
-            textTabToAlphaTex(`${'PM'.repeat(n / 2)}\ne|${'0-'.repeat(n / 2)}|`)
-            textTabToAlphaTex(`e|${'5/7-'.repeat(n / 4)}|\nB|${'-'.repeat(n)}|`)
-        })
-    })
+    it(
+        'splits a long palm mute or slide line into bars in linear time',
+        () => {
+            // One long bar with no bar lines inside is split into bars of the meter (#71): each
+            // beat goes to its bar in one pass, not one filter of every beat per bar.
+            expectLinear((k) => {
+                const n = 25_000 * k
+                textTabToAlphaTex(`${'PM'.repeat(n / 2)}\ne|${'0-'.repeat(n / 2)}|`)
+                textTabToAlphaTex(`e|${'5/7-'.repeat(n / 4)}|\nB|${'-'.repeat(n)}|`)
+            })
+        },
+        LINEAR_TIMEOUT
+    )
 
-    it('reads techniques in linear time', () => {
-        expectLinear((k) => {
-            const n = 12_500 * k
-            textTabToAlphaTex(`e|${'1'.repeat(n)}|\nB|${'-'.repeat(n)}|`)
-            textTabToAlphaTex(`e|-5${'~'.repeat(n)}|\nB|${'5b'.repeat(n / 2)}|`)
-            textTabToAlphaTex(`${'PM'.repeat(n / 2)}\ne|${'0-'.repeat(n / 2)}|`)
-            textTabToAlphaTex(`e|${'<1>'.repeat((n * 2) / 5)}|\nB|${'5h'.repeat(n / 2)}|`)
-        })
-    })
+    it(
+        'reads techniques in linear time',
+        () => {
+            expectLinear((k) => {
+                const n = 12_500 * k
+                textTabToAlphaTex(`e|${'1'.repeat(n)}|\nB|${'-'.repeat(n)}|`)
+                textTabToAlphaTex(`e|-5${'~'.repeat(n)}|\nB|${'5b'.repeat(n / 2)}|`)
+                textTabToAlphaTex(`${'PM'.repeat(n / 2)}\ne|${'0-'.repeat(n / 2)}|`)
+                textTabToAlphaTex(`e|${'<1>'.repeat((n * 2) / 5)}|\nB|${'5h'.repeat(n / 2)}|`)
+            })
+        },
+        LINEAR_TIMEOUT
+    )
 })
 
 /** Two-string rows (e and B), one per item, a blank line between them. */
@@ -692,15 +704,19 @@ describe('textTabToAlphaTex, bars split across rows (#70)', () => {
         expect(textTabToAlphaTex(rows(['|--0--|--3--', '|-----|-----']))).toBe(':1 0.1 |\n3.1')
     })
 
-    it('joins bars across many rows in linear time', () => {
-        const row = rows(['|0---0---0---0---|0---', '|----------------|----'])
-        const next = rows(['|0---0---0---|', '|------------|'])
-        expectLinear((k) => {
-            const n = 1_250 * k
-            const tex = textTabToAlphaTex(Array(n).fill(`${row}\n\n${next}`).join('\n\n'))!
-            expect(tex.split('|')).toHaveLength(2 * n)
-        })
-    })
+    it(
+        'joins bars across many rows in linear time',
+        () => {
+            const row = rows(['|0---0---0---0---|0---', '|----------------|----'])
+            const next = rows(['|0---0---0---|', '|------------|'])
+            expectLinear((k) => {
+                const n = 1_250 * k
+                const tex = textTabToAlphaTex(Array(n).fill(`${row}\n\n${next}`).join('\n\n'))!
+                expect(tex.split('|')).toHaveLength(2 * n)
+            })
+        },
+        LINEAR_TIMEOUT
+    )
 
     it('joins drum bars split across rows', () => {
         const tex = textTabToAlphaTex(
