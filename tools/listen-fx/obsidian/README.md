@@ -13,3 +13,17 @@ The sound plays on the real output: tell the owner before. Never change a system
 7. At the end: `close.js` (takes the log out, closes the tab), put the released files back and compare the hashes, `reload.js`, wait 2.5 seconds, delete the note, and check that it stays deleted.
 
 What to read in the output: with a build that has the room, a play connects to a `GainNode` (the chain), and a `ConvolverNode` and a `WaveShaperNode` appear at the first play of a context; alphaTab's contexts say `ownDestination: true`. Without the room, a play connects to the speakers.
+
+## The Playback settings of the plugin (room and amplifier)
+
+Scripts of the second check of 2026-11-24, with a build that has the four Playback settings (Room level, Room length, Amplifier cabinet, Amplifier drive). Back up the plugin's `data.json` too before this check, and put it back with the plugin disabled.
+
+- `note2.md`: the throwaway note for this check (a steel chord, a clean electric chord, a tab).
+- `pane.js`: opens the plugin's settings pane and reads the rows around Volume (names, values, descriptions, order).
+- `setrow.js`: clicks or types in a row of the pane (replace `NAME` and `VALUE`). The toggle's click is stored; typing did not reach Obsidian's number control from a script. The write path of the numbers was checked with the tab's own `setControlValue(key, value)`: valid values are stored, a value out of range is refused with its message.
+- `set.sh <level> <length> <cabinet true|false> <drive>`: writes the four settings through the plugin.
+- `play.sh <name> <button> <seconds>`: clicks a Play button of the note (it stops a play that is still on first), waits, prints the connections. No recording.
+
+What to read: at the defaults a play goes into the chain; with the level at 0 and no amplifier it connects to the speakers; with the level at 0, the cabinet on and a drive, a clean guitar's play makes the amplifier's nodes (a wave shaper and its filters) and a steel guitar's play has none.
+
+`app.plugins.loadManifests()` took minutes on a busy machine, and no plugin's manifest was listed meanwhile: call it only after `manifest.json` changed, then poll with a light call. To load a build with the same manifest, the disable and the enable are enough.
