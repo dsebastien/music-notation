@@ -46,6 +46,33 @@
         }
     ]
 
+    /**
+     * Before and after (#103): what the switch of "The room and the amplifier" plays, once per
+     * guitar. The switch is read at each play and at each pass of a loop.
+     */
+    var ROOM_EXAMPLES = [
+        {
+            title: 'A chord progression, strummed',
+            language: 'progression',
+            source: 'I V vi IV\nkey: G\ntempo: 90\nstrum: D - D U - U D U'
+        },
+        {
+            title: 'An arpeggio',
+            language: 'picking',
+            source: 'p i m a m i\ntime: 3/4\nchords: Am Dm E7 Am\ntempo: 80'
+        }
+    ]
+
+    /** The switch's choices: no effects, the default room, the room and an amplifier. */
+    var ROOM_CHOICES = [
+        { value: 'dry', label: 'Before: dry' },
+        { value: 'room', label: 'After: the room' },
+        { value: 'amp', label: 'The room and an amplifier' }
+    ]
+
+    /** The amplifier of the switch's third choice: the library has none by default. */
+    var AMP = { drive: 0.4, cabinet: true }
+
     /** A riff with held notes at the end: tabs play through alphaTab only. */
     var RIFF =
         '\\tempo 90\n.\n:8 0.6 3.6 5.6 0.6 3.6 6.6 5.6 0.6 | 0.6 3.6 5.6 3.6 :2 0.6 | :1 (0.6 2.5 2.4 1.3 0.2 0.1)'
@@ -107,6 +134,80 @@
                     )
                 })
             })
+        })
+    }
+
+    /**
+     * Before and after (#103): one switch, then every example once per guitar with GeneralUser GS
+     * (the sample player), and the riff through alphaTab. Each block asks the switch what to play:
+     * `dry`, nothing (the default room), or the room and an amplifier (the two electric guitars
+     * only: the library gives no amplifier to the others, nor to a tab).
+     */
+    function beforeAfter(api, tab, alphaTab, player, assets) {
+        var root = document.getElementById('mn-sounds-room')
+        if (!root) return
+        var chosen = 'room'
+        var field = document.createElement('fieldset')
+        field.className = 'mn-sounds-switch'
+        var legend = document.createElement('legend')
+        legend.textContent = 'This section plays'
+        field.appendChild(legend)
+        ROOM_CHOICES.forEach(function (choice) {
+            var label = document.createElement('label')
+            var input = document.createElement('input')
+            input.type = 'radio'
+            input.name = 'mn-sounds-room'
+            input.value = choice.value
+            input.checked = choice.value === chosen
+            input.addEventListener('change', function () {
+                if (input.checked) chosen = choice.value
+            })
+            label.appendChild(input)
+            label.appendChild(document.createTextNode(' ' + choice.label))
+            field.appendChild(label)
+        })
+        root.appendChild(field)
+        ROOM_EXAMPLES.forEach(function (example) {
+            var h = document.createElement('h4')
+            h.textContent = example.title
+            root.appendChild(h)
+            var row = document.createElement('div')
+            row.className = 'mn-sounds-row'
+            root.appendChild(row)
+            GUITARS.forEach(function (guitar) {
+                var host = cell(row, guitar.name, guitar.note)
+                api.renderBlock(
+                    example.language,
+                    example.source + '\nguitar: ' + guitar.tone,
+                    host,
+                    {
+                        voicings: api.lookupGuitarVoicing,
+                        play: {
+                            player: player,
+                            dry: function () {
+                                return chosen === 'dry'
+                            },
+                            amp: function () {
+                                return chosen === 'amp' ? AMP : null
+                            }
+                        },
+                        copy: false
+                    }
+                )
+            })
+        })
+        var h = document.createElement('h4')
+        h.textContent = 'A riff through alphaTab'
+        root.appendChild(h)
+        var row = document.createElement('div')
+        row.className = 'mn-sounds-row mn-sounds-tabs'
+        root.appendChild(row)
+        tab.renderTab('tab', RIFF, cell(row, 'GeneralUser GS', 'through alphaTab'), {
+            alphaTab: alphaTab,
+            assets: assets,
+            effects: function () {
+                return chosen === 'dry' ? { dry: true } : null
+            }
         })
     }
 
@@ -183,6 +284,13 @@
                                 examples: GUITAR_EXAMPLES.slice(0, 1)
                             }
                         ])
+                        beforeAfter(
+                            api,
+                            tab,
+                            alphaTab,
+                            sampled,
+                            Object.assign({ instruments: GENERALUSER }, base)
+                        )
                         if (!tabs) return
                         var row = document.createElement('div')
                         row.className = 'mn-sounds-row mn-sounds-tabs'
