@@ -123,4 +123,16 @@ The ceiling lets everything under 0.9 of full scale through unchanged. Louder so
 
 It can't help with a volume above 100% after the page. If the browser's volume is boosted in the system mixer, or an app's volume is past 100%, loud sound is cut flat on its way to the speakers, with or without the room. That sounds like noise on the loud notes. Put the browser back at 100%, and turn the speakers up instead.
 
+### Before and after
+
+Move the switch and hear what the room does. It changes only the blocks of this section: every other example on this page plays in the default room. GeneralUser GS plays the progression and the arpeggio once per guitar, through the sample player, then the [riff from above](#a-riff-through-alphatab) through alphaTab.
+
+- **Before: dry** plays with `dry: true`. No room, no ceiling, no amplifier: the notes go straight to the speakers, the way the library sounded before it had a room. A hard six-string strum can go past full scale here, and the speakers cut it flat.
+- **After: the room** names nothing, so the defaults above play: the light room, then the ceiling. The switch starts here.
+- **The room and an amplifier** adds `amp: { drive: 0.4, cabinet: true }`, as in the example above. The library has no amplifier by default, and only the two electric guitars change. The steel-string and classical guitars, and the riff, sound as they do in the room.
+
+The room is light, so don't expect a big change. Listen at the end of a strum, or between two notes, where the dry sound just stops. A diagram takes the switch at its next Play, or at its next pass with loop on: leave one looping and move the switch. The riff takes it only when it starts, so press Pause or Stop, then Play.
+
+<div markdown="0" id="mn-sounds-room"></div>
+
 <script src="{{ '/assets/js/sounds.js' | relative_url }}"></script>
